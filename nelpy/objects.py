@@ -31,7 +31,7 @@ class EpochArray:
 
     """
 
-    def __init__(self, samples, fs=None, duration=None, meta=None):
+    def __init__(self, samples, *, fs=None, duration=None, meta=None):
 
         # if no samples were received, return an empty EpochArray:
         if len(samples) == 0:

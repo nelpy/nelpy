@@ -24,9 +24,7 @@ TODO.md
 1. change default parameters to =None
 1. reconsider SpikeTrain.shift() --- could just as well create new SpikeTrain with explicitly shifted samples?
 1. Should we follow NEO more closely to allow for Spike and Epoch objects? and what about Unit objects?
-
-
-
+1. Update Emily's wonderful tutorial to showcase EpochArray indexing, class __repr__ output, SpikeTrain support, and more...
 
 follow along here: https://jeffknupp.com/blog/2013/08/16/open-sourcing-a-python-project-the-right-way/
 
