@@ -1,8 +1,8 @@
 Neuroelectrophysiology object model and analysis in Python
 ==========================================================
 
-Nelpy: **N**euro**EL**ectro**P**hysiolog**Y** in **PY**thon.
-Nelpy: Rice University **N**eural **E**ngineering **L**ab **PY**thon 
+* Nelpy: **N**euro**EL**ectro**P**hysiolog**Y** in **PY**thon.
+* Nelpy: Rice University **N**eural **E**ngineering **L**ab **PY**thon 
     object model and data anlysis.
 
 First things first
