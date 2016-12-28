@@ -1,0 +1,8 @@
+In objects.Epoch
+# TODO: what if start == stop? what will this break? This situation can arise 
+        # automatically when slicing a spike train with one or no spikes, for example
+        # in which case the automatically inferred support is a delta dirac
+        if samples.ndim == 2 and np.any(samples[:, 1] - samples[:, 0] < 0):
+            raise ValueError("start must be less than or equal to stop")
+
+What if we have empty slices of spiketrains?

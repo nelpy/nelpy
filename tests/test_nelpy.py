@@ -1,0 +1,32 @@
+import pytest
+
+
+stdata = np.array([1,2,3,4,5,6,6.5,7,8,10])
+fs = 4
+st = SpikeTrain(stdata, fs=fs)
+st.cell_type = 'pyr'
+ep1 = EpochArray([])
+ep2 = EpochArray(np.array([[0,3],[7,10]]), fs=fs)
+ep3 = EpochArray(np.array([[0,3],[8,15]]), fs=fs)
+ep4 = EpochArray(np.array([[0,3],[17,20]]), fs=fs)
+ep5 = EpochArray(np.array([[17,20]]), fs=fs)
+ep6 = EpochArray(np.array([[-17,-10]]), fs=fs)
+print('SpikeTrain')
+print('==========')
+print(st, st.support)
+print('\nslicing with slice objects and integers')
+print('==========')
+print(st[:4], st[:4].support)
+print(st[4:], st[4:].support)
+print(st[4:50], st[4:50].support)
+print(st[40:], st[40:].support)
+print(st[-1], st[-1].support)
+print(st[80], st[80].support)
+print('\nslicing with EpochArrays')
+print('==========')
+print(st[ep1], st[ep1].support)
+print(st[ep2], st[ep2].support)
+print(st[ep3], st[ep3].support)
+print(st[ep4], st[ep4].support)
+print(st[ep5], st[ep5].support)
+print(st[ep6], st[ep6].support)

@@ -1,6 +1,7 @@
-MIT License
+Nelpy license
+=============
 
-Copyright (c) 2016 Etienne Ackermann
+Copyright (c) 2015-2016, contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -9,13 +10,35 @@ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, ARE EXPRESSLY
+DISCLAIMED. IN NO EVENT SHALL THE OWNERS, CONTRIBUTORS, DARTMOUTH
+COLLEGE, OR ITS EMPLOYEES BE LIABLE FOR DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING BUT NOT
+LIMITED TO THE COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY
+OR TORT ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED IN ADVANCE OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Licensed code
+=============
+
+Nelpy relies on several open source libraries:
+
+- [NumPy](http://www.numpy.org/) - Used under [BSD license](http://www.numpy.org/license.html)
+- [SciPy](https://www.scipy.org/) - Used under [BSD license](https://www.scipy.org/scipylib/license.html)
+- [Shapely](https://pypi.python.org/pypi/Shapely) - Used under [BSD license](https://github.com/Toblerity/Shapely/blob/master/LICENSE.txt)
+- [matplotlib](http://matplotlib.org/) - Used under [BSD license](http://matplotlib.org/users/license.html)
+- [Sphynx](http://www.sphinx-doc.org/en/stable/) - Used under [BSD license](https://bitbucket.org/birkenfeld/sphinx/src/be5bd373a1a47fb68d70523b6e980e654e070e9f/LICENSE?at=default)
+- [numpydoc](https://github.com/numpy/numpydoc) - Used under [BSD license](https://github.com/numpy/numpydoc/blob/master/LICENSE.txt)
+- [pytest](http://docs.pytest.org/en/latest/) - Used under [MIT license](http://docs.pytest.org/en/latest/license.html)
+
+Contributors
+============
+- Etienne Ackermann (nelpy)
+- Emily Irvine (python-vdmlab)
