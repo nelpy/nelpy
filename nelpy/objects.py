@@ -2,6 +2,24 @@ import warnings
 import numpy as np
 # from shapely.geometry import Point
 
+
+# TODO: how should AnalogSignal handle its support? As an EpochArray? then
+# what about binning issues? As explicit bin centers? As bin indices? 
+#
+# it seems best to have a BinnedEpoch class, so that bin centers can be 
+# computed lazily when needed, and that duration etc. will be trivial, but
+# we also really, REALLY need to be able to index AnalogSignal with a 
+# regular Epoch or EpochArray object, ...
+#
+# a nice finish to AnalogSignal would be to plot AnalogSignal on its support
+# along with a smoothed version of it
+
+### contested classes --- unclear whether these should exist or not:
+
+# class Event
+# class Epoch
+# class Spike(Event)
+
 class EpochArray:
     """An array of epochs, where each epoch has a start and stop time.
 
@@ -98,7 +116,7 @@ class EpochArray:
         sort_idx = np.argsort(samples[:, 0])
         samples = samples[sort_idx]
 
-        # TODO: already checked this; try tp refactor
+        # TODO: already checked this; try to refactor
         if fs is not None:
             self.samples = samples
             self.time = samples / fs
@@ -483,7 +501,7 @@ class EpochArray:
         # return EpochArray(join_starts, fs=self.fs, duration=join_stops - join_starts, meta=meta).merge().merge()
         return EpochArray(join_starts, fs=self.fs, duration=join_stops - join_starts, meta=meta)
 
-        def contains(self, value):
+    def contains(self, value):
         """Checks whether value is in any epoch.
 
         Parameters
@@ -502,6 +520,211 @@ class EpochArray:
             if start <= value <= stop:
                 return True
         return False
+
+
+class EventArray:
+    """Class description.
+
+    Parameters
+    ----------
+    samples : np.array
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each epoch.
+        If shape (n_epochs, 2), the start and stop times for each epoch.
+    fs : float, optional
+        Sampling rate in Hz. If fs is passed as a parameter, then time is assumed to 
+        be in sample numbers instead of actual time.
+
+    Attributes
+    ----------
+    time : np.array
+        The start and stop times for each epoch. With shape (n_epochs, 2).
+    """
+
+    def __init__(self, *, samples, fs=None, duration=None, meta=None):
+
+        # if no samples were received, return an empty EpochArray:
+        if len(samples) == 0:
+            self.samples = np.array([])
+            self.time = np.array([])
+            self._fs = None
+            self._meta = None
+            return
+
+        self._fs = fs
+        self._meta = meta
+
+    def __repr__(self):
+        if self.isempty:
+            return "<empty EventArray>"
+        # return "<EventArray: %s> %s" % (nstr, dstr)
+        return "<EventArray"
+
+    def __getitem__(self, idx):
+        raise NotImplementedError('EventArray.__getitem__ not implemented yet')
+
+    @property 
+    def isempty:
+        raise NotImplementedError('EventArray.isempty not implemented yet')
+
+
+class AnalogSignal:
+    """A continuous, analog signal, with a regular sampling rate.
+
+    Parameters
+    ----------
+    data : np.array
+    time : np.array
+
+    Attributes
+    ----------
+    data : np.array
+        With shape (n_samples, dimensionality).
+    time : np.array
+        With shape (n_samples,).
+
+    """
+    def __init__(self, *, time, data):
+        data = np.squeeze(data).astype(float)
+        time = np.squeeze(time).astype(float)
+
+        if time.ndim == 0:
+            time = time[..., np.newaxis]
+            data = data[np.newaxis, ...]
+
+        if time.ndim != 1:
+            raise ValueError("time must be a vector")
+
+        if data.ndim == 1:
+            data = data[..., np.newaxis]
+
+        if data.ndim > 2:
+            raise ValueError("data must be vector or 2D array")
+        if data.shape[0] != data.shape[1] and time.shape[0] == data.shape[1]:
+            warnings.warn("data should be shape (timesteps, dimensionality); "
+                          "got (dimensionality, timesteps). Correcting...")
+            data = data.T
+        if time.shape[0] != data.shape[0]:
+            raise ValueError("must have same number of time and data samples")
+
+        self.data = data
+        self.time = time
+
+    def __getitem__(self, idx):
+        return AnalogSignal(self.data[idx], self.time[idx])
+
+    @property
+    def dimensions(self):
+        """(int) Dimensionality of data attribute."""
+        return self.data.shape[1]
+
+    @property
+    def n_samples(self):
+        """(int) Number of samples."""
+        return self.time.size
+
+    @property
+    def isempty(self):
+        """(bool) Empty AnalogSignal."""
+        if len(self.time) == 0:
+            empty = True
+        else:
+            empty = False
+        return empty
+
+    def time_slice(self, t_start, t_stop):
+        """Creates a new object corresponding to the time slice of
+        the original between (and including) times t_start and t_stop. Setting
+        either parameter to None uses infinite endpoints for the time interval.
+
+        Parameters
+        ----------
+        analogsignal : vdmlab.AnalogSignal
+        t_start : float
+        t_stop : float
+
+        Returns
+        -------
+        sliced_analogsignal : vdmlab.AnalogSignal
+        """
+        if t_start is None:
+            t_start = -np.inf
+        if t_stop is None:
+            t_stop = np.inf
+
+        indices = (self.time >= t_start) & (self.time <= t_stop)
+
+        return self[indices]
+
+
+    def time_slices(self, t_starts, t_stops):
+        """Creates a new object corresponding to the time slice of
+        the original between (and including) times t_start and t_stop. Setting
+        either parameter to None uses infinite endpoints for the time interval.
+
+        Parameters
+        ----------
+        analogsignal : vdmlab.AnalogSignal
+        t_starts : list of floats
+        t_stops : list of floats
+
+        Returns
+        -------
+        sliced_analogsignal : vdmlab.AnalogSignal
+        """
+        if len(t_starts) != len(t_stops):
+            raise ValueError("must have same number of start and stop times")
+
+        indices = []
+        for t_start, t_stop in zip(t_starts, t_stops):
+            indices.append((self.time >= t_start) & (self.time <= t_stop))
+        indices = np.any(np.column_stack(indices), axis=1)
+
+        return self[indices]
+
+
+class AnalogSignalArray:
+    """Class description.
+
+    Parameters
+    ----------
+    samples : np.array
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each epoch.
+        If shape (n_epochs, 2), the start and stop times for each epoch.
+    fs : float, optional
+        Sampling rate in Hz. If fs is passed as a parameter, then time is assumed to 
+        be in sample numbers instead of actual time.
+
+    Attributes
+    ----------
+    time : np.array
+        The start and stop times for each epoch. With shape (n_epochs, 2).
+    """
+
+    def __init__(self, *, samples, fs=None, duration=None, meta=None):
+
+        # if no samples were received, return an empty EpochArray:
+        if len(samples) == 0:
+            self.samples = np.array([])
+            self.time = np.array([])
+            self._fs = None
+            self._meta = None
+            return
+
+        self._fs = fs
+        self._meta = meta
+
+    def __repr__(self):
+        if self.isempty:
+            return "<empty AnalogSignalArray"
+        # return "<AnalogSignalArray: %s> %s" % (nstr, dstr)
+        return "<AnalogSignalArray"
+
+    def __getitem__(self, idx):
+        raise NotImplementedError('AnalogSignalArray.__getitem__ not implemented yet')
+
+    @property 
+    def isempty:
+        raise NotImplementedError('AnalogSignalArray.isempty not implemented yet')
 
 
 class SpikeTrain:
@@ -774,6 +997,11 @@ class SpikeTrain:
 
         indices = (self.time >= t_start) & (self.time <= t_stop)
 
+        warnings.warn(
+            "Shouldn't use this function anymore! Now use slicing or epoch-based indexing instead.",
+            DeprecationWarning
+        )
+
         return self[indices]
 
     def time_slices(self, t_starts, t_stops):
@@ -801,6 +1029,11 @@ class SpikeTrain:
             indices.append((self.time >= t_start) & (self.time <= t_stop))
         indices = np.any(np.column_stack(indices), axis=1)
 
+        warnings.warn(
+            "Shouldn't use this function anymore! Now use slicing or epoch-based indexing instead.",
+            DeprecationWarning
+        )
+
         return self[indices]
 
     def shift(self, time_offset, fs=None):
@@ -820,3 +1053,139 @@ class SpikeTrain:
         spiketrain : nelpy.SpikeTrain
         """
         warnings.warn("SpikeTrain.shift() has not been implemented yet!")
+
+
+class SpikeTrainArray:
+    """Class description.
+
+    Parameters
+    ----------
+    samples : np.array
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each epoch.
+        If shape (n_epochs, 2), the start and stop times for each epoch.
+    fs : float, optional
+        Sampling rate in Hz. If fs is passed as a parameter, then time is assumed to 
+        be in sample numbers instead of actual time.
+
+    Attributes
+    ----------
+    time : np.array
+        The start and stop times for each epoch. With shape (n_epochs, 2).
+    """
+
+    def __init__(self, *, samples, fs=None, duration=None, meta=None):
+
+        # if no samples were received, return an empty EpochArray:
+        if len(samples) == 0:
+            self.samples = np.array([])
+            self.time = np.array([])
+            self._fs = None
+            self._meta = None
+            return
+
+        self._fs = fs
+        self._meta = meta
+
+    def __repr__(self):
+        if self.isempty:
+            return "<empty SpikeTrainArray>"
+        # return "<SpikeTrainArray: %s> %s" % (nstr, dstr)
+        return "<SpikeTrainArray"
+
+    def __getitem__(self, idx):
+        raise NotImplementedError('SpikeTrainArray.__getitem__ not implemented yet')
+
+    @property 
+    def isempty:
+        raise NotImplementedError('SpikeTrainArray.isempty not implemented yet')
+
+
+class BinnedSpikeTrain:
+    """Class description.
+
+    Parameters
+    ----------
+    samples : np.array
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each epoch.
+        If shape (n_epochs, 2), the start and stop times for each epoch.
+    fs : float, optional
+        Sampling rate in Hz. If fs is passed as a parameter, then time is assumed to 
+        be in sample numbers instead of actual time.
+
+    Attributes
+    ----------
+    time : np.array
+        The start and stop times for each epoch. With shape (n_epochs, 2).
+    """
+
+    def __init__(self, *, samples, fs=None, duration=None, meta=None):
+
+        # if no samples were received, return an empty EpochArray:
+        if len(samples) == 0:
+            self.samples = np.array([])
+            self.time = np.array([])
+            self._fs = None
+            self._meta = None
+            return
+
+        self._fs = fs
+        self._meta = meta
+
+    def __repr__(self):
+        if self.isempty:
+            return "<empty BinnedSpikeTrain>"
+        # return "<BinnedSpikeTrain: %s> %s" % (nstr, dstr)
+        return "<BinnedSpikeTrain>"
+
+    def __getitem__(self, idx):
+        raise NotImplementedError('BinnedSpikeTrain.__getitem__ not implemented yet')
+
+    @property 
+    def isempty:
+        raise NotImplementedError('BinnedSpikeTrain.isempty not implemented yet')
+
+
+class BinnedSpikeTrainArray:
+    """Class description.
+
+    Parameters
+    ----------
+    samples : np.array
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each epoch.
+        If shape (n_epochs, 2), the start and stop times for each epoch.
+    fs : float, optional
+        Sampling rate in Hz. If fs is passed as a parameter, then time is assumed to 
+        be in sample numbers instead of actual time.
+
+    Attributes
+    ----------
+    time : np.array
+        The start and stop times for each epoch. With shape (n_epochs, 2).
+    """
+
+    def __init__(self, *, samples, fs=None, duration=None, meta=None):
+
+        # if no samples were received, return an empty EpochArray:
+        if len(samples) == 0:
+            self.samples = np.array([])
+            self.time = np.array([])
+            self._fs = None
+            self._meta = None
+            return
+
+        self._fs = fs
+        self._meta = meta
+
+    def __repr__(self):
+        if self.isempty:
+            return "<empty BinnedSpikeTrainArray>"
+        # return "<BinnedSpikeTrainArray: %s> %s" % (nstr, dstr)
+        return "<BinnedSpikeTrainArray"
+
+    def __getitem__(self, idx):
+        raise NotImplementedError('BinnedSpikeTrainArray.__getitem__ not implemented yet')
+
+    @property 
+    def isempty:
+        raise NotImplementedError('BinnedSpikeTrainArray.isempty not implemented yet')
+
