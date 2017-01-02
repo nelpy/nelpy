@@ -29,10 +29,11 @@ class EpochArray:
         If shape (n_epochs, 1) or (n_epochs,), the start time for each epoch.
         If shape (n_epochs, 2), the start and stop times for each epoch.
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time is assumed to 
-        be in sample numbers instead of actual time.
+        Sampling rate in Hz. If fs is passed as a parameter, then time is
+        assumed to be in sample numbers instead of actual time.
     duration : np.array, float, or None, optional
-        The length of the epoch. If (float) then the same duration is assumed for every epoch.
+        The length of the epoch. If (float) then the same duration is assumed
+        for every epoch.
     meta : dict, optional
         Metadata associated with spiketrain.
 
@@ -61,7 +62,8 @@ class EpochArray:
 
         samples = np.squeeze(samples)
 
-        # TODO: what exactly does this do? In which case is this useful? I mean, the zero dim thing?
+        # TODO: what exactly does this do? In which case is this useful?
+        # I mean, the zero dim thing?
         if samples.ndim == 0:
             samples = samples[..., np.newaxis]
 
@@ -106,13 +108,15 @@ class EpochArray:
             raise ValueError(
                 "must have the same number of start and stop times")
 
-        # TODO: what if start == stop? what will this break? This situation can arise
-        # automatically when slicing a spike train with one or no spikes, for example
-        # in which case the automatically inferred support is a delta dirac
+        # TODO: what if start == stop? what will this break? This situation
+        # can arise automatically when slicing a spike train with one or no
+        # spikes, for example in which case the automatically inferred support
+        # is a delta dirac
         if samples.ndim == 2 and np.any(samples[:, 1] - samples[:, 0] < 0):
             raise ValueError("start must be less than or equal to stop")
 
-        # TODO: why not just sort in-place here? Why store sort_idx? Why do we explicitly sort epoch samples, but not spike times?
+        # TODO: why not just sort in-place here? Why store sort_idx? Why do 
+        # we explicitly sort epoch samples, but not spike times?
         sort_idx = np.argsort(samples[:, 0])
         samples = samples[sort_idx]
 
@@ -144,16 +148,25 @@ class EpochArray:
             if idx.isempty:
                 return EpochArray([])
             if idx.fs != self.fs:
-                epoch = self.intersect(epoch=EpochArray(idx.time * self.fs, fs=self.fs), boundaries=True)
+                epoch = self.intersect(
+                        epoch=EpochArray(idx.time*self.fs, fs=self.fs),
+                        boundaries=True
+                        )
             else:
-                epoch = self.intersect(epoch=idx, boundaries=True) # what if fs of slicing epoch is different?
+                epoch = self.intersect(
+                        epoch=idx,
+                        boundaries=True
+                        ) # what if fs of slicing epoch is different?
             if epoch.isempty:
                 return EpochArray([])
             return epoch
         elif isinstance(idx, int):
             try:
                 epoch = EpochArray(
-                    np.array([self.samples[idx,:]]), fs=self.fs, meta=self.meta)
+                    np.array([self.samples[idx,:]]),
+                    fs=self.fs,
+                    meta=self.meta
+                    )
                 return epoch
             except: # index is out of bounds, so return an empty spiketrain
                 raise IndexError # this signals iterators to stop...
@@ -169,8 +182,11 @@ class EpochArray:
                 stop = -1
             else:
                 stop = np.min(np.array([stop - 1, self.n_epochs - 1]))
-            return EpochArray(np.array(
-                [self.samples[start:stop+1,:]]), fs=self.fs, meta=self.meta)
+            return EpochArray(
+                np.array([self.samples[start:stop+1,:]]),
+                fs=self.fs,
+                meta=self.meta
+                )
         else:
             raise TypeError(
                 'unsupported subsctipting type {}'.format(type(idx)))
@@ -871,6 +887,7 @@ class SpikeTrain:
                               cell_type=self.cell_type,
                               meta=self.meta)
         elif isinstance(idx, slice):
+            # TODO: add step functionality
             start = idx.start
             if start is None:
                 start = 0
@@ -916,15 +933,15 @@ class SpikeTrain:
     def issorted(self):
         """(bool) Sorted SpikeTrain."""
 
-        from itertools import tee
+        # from itertools import tee
 
-        def pairwise(iterable):
-            a, b = tee(iterable)
-            next(b, None)
-            return zip(a, b)
+        # def pairwise(iterable):
+        #     a, b = tee(iterable)
+        #     next(b, None)
+        #     return zip(a, b)
 
-        def is_sorted(iterable, key=lambda a, b: a <= b):
-            return all(key(a, b) for a, b in pairwise(iterable))
+        # def is_sorted(iterable, key=lambda a, b: a <= b):
+        #     return all(key(a, b) for a, b in pairwise(iterable))
 
         return is_sorted(self.samples)
 
