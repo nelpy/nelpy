@@ -3,16 +3,17 @@ import numpy as np
 # from shapely.geometry import Point
 
 
-# TODO: how should AnalogSignal handle its support? As an EpochArray? then
-# what about binning issues? As explicit bin centers? As bin indices? 
+# TODO: how should AnalogSignal handle its support? As an EpochArray? 
+# then what about binning issues? As explicit bin centers? As bin 
+# indices? 
 #
 # it seems best to have a BinnedEpoch class, so that bin centers can be 
-# computed lazily when needed, and that duration etc. will be trivial, but
-# we also really, REALLY need to be able to index AnalogSignal with a 
-# regular Epoch or EpochArray object, ...
+# computed lazily when needed, and that duration etc. will be trivial, 
+# but we also really, REALLY need to be able to index AnalogSignal with
+# a regular Epoch or EpochArray object, ...
 #
-# a nice finish to AnalogSignal would be to plot AnalogSignal on its support
-# along with a smoothed version of it
+# a nice finish to AnalogSignal would be to plot AnalogSignal on its 
+# support along with a smoothed version of it
 
 ### contested classes --- unclear whether these should exist or not:
 
@@ -26,14 +27,15 @@ class EpochArray:
     Parameters
     ----------
     samples : np.array
-        If shape (n_epochs, 1) or (n_epochs,), the start time for each epoch.
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each
+        epoch.
         If shape (n_epochs, 2), the start and stop times for each epoch.
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time is
-        assumed to be in sample numbers instead of actual time.
+        Sampling rate in Hz. If fs is passed as a parameter, then time
+        is assumed to be in sample numbers instead of actual time.
     duration : np.array, float, or None, optional
-        The length of the epoch. If (float) then the same duration is assumed
-        for every epoch.
+        The length of the epoch. If (float) then the same duration is
+        assumed for every epoch.
     meta : dict, optional
         Metadata associated with spiketrain.
 
@@ -322,7 +324,12 @@ class EpochArray:
         """(EpochArray) Returns a copy of the current epoch array."""
         new_starts = np.array(self._sampleStarts)
         new_stops = np.array(self._sampleStops)
-        return EpochArray(new_starts, duration=new_stops - new_starts, fs=self.fs, meta=self.meta)
+        return EpochArray(
+            new_starts,
+            duration=new_stops - new_starts,
+            fs=self.fs,
+            meta=self.meta
+            )
 
     def intersect(self, epoch, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of epoch arrays. Sampling rates can be different.
@@ -378,14 +385,31 @@ class EpochArray:
         if self.fs != epoch.fs:
             warnings.warn(
                 'sampling rates are different; intersecting along time only and throwing away fs')
-            return EpochArray(np.hstack([np.array(new_starts)[..., np.newaxis],
-                                         np.array(new_stops)[..., np.newaxis]]), fs=None, meta=meta)
+            return EpochArray(
+                np.hstack(
+                    [np.array(new_starts)[..., np.newaxis],
+                     np.array(new_stops)[..., np.newaxis]]
+                    ),
+                fs=None,
+                meta=meta
+                )
         elif self.fs is None:
-            return EpochArray(np.hstack([np.array(new_starts)[..., np.newaxis],
-                                         np.array(new_stops)[..., np.newaxis]]), fs=None, meta=meta)
+            return EpochArray(
+                np.hstack(
+                    [np.array(new_starts)[..., np.newaxis],
+                     np.array(new_stops)[..., np.newaxis]]
+                    ),
+                fs=None,
+                meta=meta
+                )
         else:
-            return EpochArray(np.hstack([np.array(new_starts)[..., np.newaxis],
-                                         np.array(new_stops)[..., np.newaxis]]) * self.fs, fs=self.fs, meta=meta)
+            return EpochArray(
+                np.hstack(
+                    [np.array(new_starts)[..., np.newaxis],
+                     np.array(new_stops)[..., np.newaxis]])*self.fs,
+                fs=self.fs,
+                meta=meta
+                )
 
     def merge(self, gap=0.0):
         """Merges epochs that are close or overlapping.
@@ -429,7 +453,12 @@ class EpochArray:
         new_starts = np.array(new_starts)
         new_stops = np.array(new_stops)
 
-        return EpochArray(new_starts, duration=new_stops - new_starts, fs=self.fs, meta=self.meta)
+        return EpochArray(
+            new_starts,
+            duration=new_stops - new_starts,
+            fs=self.fs,
+            meta=self.meta
+            )
 
     def expand(self, amount, direction='both'):
         """Expands epoch by the given amount.
@@ -456,8 +485,12 @@ class EpochArray:
         else:
             raise ValueError("direction must be 'both', 'start', or 'stop'")
 
-        return EpochArray(np.hstack((resize_starts[..., np.newaxis],
-                                     resize_stops[..., np.newaxis])))
+        return EpochArray(
+            np.hstack((
+                resize_starts[..., np.newaxis],
+                resize_stops[..., np.newaxis]
+                ))
+            )
 
     def shrink(self, amount, direction='both'):
         """Shrinks epoch by the given amount.
@@ -483,12 +516,15 @@ class EpochArray:
         return self.expand(-amount, direction)
 
     def join(self, epoch, meta=None):
-        """Combines [and merges] two sets of epochs. Epochs can have different sampling rates.
+        """Combines [and merges] two sets of epochs. Epochs can have 
+        different sampling rates.
+
         Parameters
         ----------
         epoch : nelpy.EpochArray
         meta : dict, optional
             New meta data dictionary describing the joined epochs.
+
         Returns
         -------
         joined_epochs : nelpy.EpochArray
@@ -502,13 +538,20 @@ class EpochArray:
         if self.fs != epoch.fs:
             warnings.warn(
                 'sampling rates are different; joining along time only and throwing away fs')
-            join_starts = np.concatenate((self.time[:, 0], epoch.time[:, 0]))
-            join_stops = np.concatenate((self.time[:, 1], epoch.time[:, 1]))
+            join_starts = np.concatenate(
+                (self.time[:, 0], epoch.time[:, 0]))
+            join_stops = np.concatenate(
+                (self.time[:, 1], epoch.time[:, 1]))
             #TODO: calling merge() just once misses some instances. 
             # I haven't looked carefully enough to know which edge cases these are... 
             # merge() should therefore be checked!
             # return EpochArray(join_starts, fs=None, duration=join_stops - join_starts, meta=meta).merge().merge()
-            return EpochArray(join_starts, fs=None, duration=join_stops - join_starts, meta=meta)
+            return EpochArray(
+                join_starts,
+                fs=None,
+                duration=join_stops - join_starts,
+                meta=meta
+                )
         else:
             join_starts = np.concatenate(
                 (self.samples[:, 0], epoch.samples[:, 0]))
@@ -516,7 +559,12 @@ class EpochArray:
                 (self.samples[:, 1], epoch.samples[:, 1]))
 
         # return EpochArray(join_starts, fs=self.fs, duration=join_stops - join_starts, meta=meta).merge().merge()
-        return EpochArray(join_starts, fs=self.fs, duration=join_stops - join_starts, meta=meta)
+        return EpochArray(
+            join_starts,
+            fs=self.fs,
+            duration=join_stops - join_starts,
+            meta=meta
+            )
 
     def contains(self, value):
         """Checks whether value is in any epoch.
@@ -531,8 +579,10 @@ class EpochArray:
         boolean
 
         """
-        # TODO: consider vectorizing this loop, which should increase speed, but also greatly increase memory?
-        # alternatively, if we could assume something about epochs being sorted, this can also be made much faster than the current O(N)
+        # TODO: consider vectorizing this loop, which should increase 
+        # speed, but also greatly increase memory? Alternatively, if we 
+        # could assume something about epochs being sorted, this can 
+        # also be made much faster than the current O(N)
         for start, stop in zip(self.starts, self.stops):
             if start <= value <= stop:
                 return True
@@ -745,16 +795,17 @@ class AnalogSignalArray:
 
 
 class SpikeTrain:
-    """A set of action potential (spike) times of a putative unit (neuron).
+    """A set of action potential (spike) times of a putative unit/neuron.
 
     Parameters
     ----------
     samples : np.array(dtype=np.float64)
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time is assumed to 
-        be in sample numbers instead of actual time.
+        Sampling rate in Hz. If fs is passed as a parameter, then time 
+        is assumed to be in sample numbers instead of actual time.
     support : EpochArray, optional
-        EpochArray array on which spiketrain is defined. Default is [0, last spike] inclusive.
+        EpochArray array on which spiketrain is defined. 
+        Default is [0, last spike] inclusive.
     label : str or None, optional
         Information pertaining to the source of the spiketrain.
     cell_type : str or other, optional
@@ -767,7 +818,8 @@ class SpikeTrain:
     time : np.array(dtype=np.float64)
         With shape (n_samples,). Always in seconds.
     samples : np.array(dtype=np.float64)
-        With shape (n_samples,). Sample numbers corresponding to spike times, if available.
+        With shape (n_samples,). Sample numbers corresponding to spike
+        times, if available.
     support : EpochArray on which spiketrain is defined.
     n_spikes: integer
         Number of spikes in SpikeTrain.
@@ -781,7 +833,9 @@ class SpikeTrain:
         Metadata associated with spiketrain.
     """
 
-    def __init__(self, samples, fs=None, support=None, label=None, cell_type=None, meta=None):
+    def __init__(self, samples, fs=None, support=None, label=None,
+                 cell_type=None, meta=None):
+                 
         samples = np.squeeze(samples)
 
         if samples.shape == (): #TODO: doesn't this mean it's empty?
