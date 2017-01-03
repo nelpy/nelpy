@@ -900,6 +900,11 @@ class SpikeTrain:
         if samples.ndim != 1:
             raise ValueError("samples must be a vector")
 
+        # if no spike times are given, return an empty spiketrain:
+        if len(samples) == 0:
+            self._emptySpikeTrain()
+            return
+
         # set initial fs to None
         self._fs = None
         # then attempt to update the fs; this does input validation:
@@ -914,36 +919,40 @@ class SpikeTrain:
         if label is not None and not isinstance(label, str):
             raise ValueError("label must be a string")
 
-        if len(samples) > 0:
-            if support is None:
-                self.support = EpochArray(
-                                    np.array([0, samples[-1]]), 
-                                    fs=fs
-                                    )
-            else:
-                # restrict spikes to only those within the spiketrain's
-                # support:
-                self.support = support
-                indices = []
-                for eptime in self.support.time:
-                    t_start = eptime[0]
-                    t_stop = eptime[1]
-                    indices.append((time >= t_start) & (time <= t_stop))
-                indices = np.any(np.column_stack(indices), axis=1)
-                if np.count_nonzero(indices) < len(samples):
-                    warnings.warn(
-                        'ignoring spikes outside of spiketrain support')
-                samples = samples[indices]
-                time = time[indices]
-        else: #TODO: we could have handled this earlier, right?
-            self.support = EpochArray([])
-            self.time = np.array([])
+        if support is None:
+            self.support = EpochArray(np.array([0, samples[-1]]), fs=fs)
+        else:
+            # restrict spikes to only those within the spiketrain's
+            # support:
+            self.support = support
+            indices = []
+            for eptime in self.support.time:
+                t_start = eptime[0]
+                t_stop = eptime[1]
+                indices.append((time >= t_start) & (time <= t_stop))
+            indices = np.any(np.column_stack(indices), axis=1)
+            if np.count_nonzero(indices) < len(samples):
+                warnings.warn(
+                    'ignoring spikes outside of spiketrain support')
+            samples = samples[indices]
+            time = time[indices]
 
         self.samples = samples
         self.time = time
         self.label = label
         self._cell_type = cell_type
         self._meta = meta
+
+    def _emptySpikeTrain(self):
+        """empty all the instance attributes for an empty object."""
+        self.samples = np.array([])
+        self.time = np.array([])
+        self.support = EpochArray([])
+        self.label = None
+        self._fs = None
+        self._cell_type = None
+        self._meta = None
+        return
 
     def __repr__(self):
         if self.isempty:
@@ -1246,10 +1255,7 @@ class SpikeTrainArray:
 
         # if no samples were received, return an empty SpikeTrainArray:
         if len(samples) == 0:
-            self.samples = np.array([])
-            self.time = np.array([])
-            self._fs = None
-            self._meta = None
+            self._emptySpikeTrainArray()
             return
 
         # standardize input so that a list of lists is converted to an
@@ -1259,10 +1265,7 @@ class SpikeTrainArray:
         # if only empty samples were received, return an empty
         # SpikeTrainArray:
         if np.sum([len(st) for st in sampleArray]) == 0:
-            self.samples = np.array([])
-            self.time = np.array([])
-            self._fs = None
-            self._meta = None
+            self._emptySpikeTrainArray()
             return
 
         # set initial fs to None
@@ -1276,17 +1279,68 @@ class SpikeTrainArray:
         else:
             time = sampleArray
 
-        #########################################################
+        # determine spiketrain array support:
+        if support is None:
+            # first_st = np.array([unit[0] for unit in sampleArray]).min()
+            last_st = np.array([unit[-1] for unit in sampleArray]).max()
+            self.support = EpochArray(np.array([0, last_st]), fs=fs)
+        else:
+            # restrict spikes to only those within the spiketrain 
+            # array's support:
+            self.support = support
+            for unit in time: # each unit is a spike train in seconds
+
+########################################################################
+########################################################################
+########################################################################
+            # indices = []
+            # for eptime in self.support.time:
+            #     t_start = eptime[0]
+            #     t_stop = eptime[1]
+            #     indices.append((time >= t_start) & (time <= t_stop))
+            # indices = np.any(np.column_stack(indices), axis=1)
+            # if np.count_nonzero(indices) < len(samples):
+            #     warnings.warn(
+            #         'ignoring spikes outside of spiketrain support')
+            # samples = samples[indices]
+            # time = time[indices]
+########################################################################
+########################################################################
+########################################################################
 
         self.time = time
         self.samples = sampleArray
+        self.label = label
+        self._cell_types = cell_types
         self._meta = meta
+
+    def _emptySpikeTrainArray(self):
+        """empty all the instance attributes for an empty object."""
+        self.samples = np.array([])
+        self.time = np.array([])
+        self.support = EpochArray([])
+        self.label = None
+        self._fs = None
+        self._cell_types = None
+        self._meta = None
+        return
 
     def __repr__(self):
         if self.isempty:
             return "<empty SpikeTrainArray>"
+        if self.fs is not None:
+            fsstr = " at %s Hz" % self.fs
+        else:
+            fsstr = ""
+        if self.label is not None:
+            labelstr = " from %s" % self.label
+        else:
+            labelstr = ""
+        numstr = " %s units" % self.n_units
+        return "<SpikeTrainArray:%s>%s%s" % (numstr, fsstr, labelstr)
+
         # return "<SpikeTrainArray: %s> %s" % (nstr, dstr)
-        return "<SpikeTrainArray"
+        return "<SpikeTrainArray with units at Hz>"
 
     def __getitem__(self, idx):
         # TODO: allow indexing of form sta[1:5,4] so that the STs of 
@@ -1330,13 +1384,13 @@ class SpikeTrainArray:
             'SpikeTrainArray.cell_type not implemented yet')
         if self._cell_types is None:
             warnings.warn("Cell types have not yet been specified!")
-        return self._cell_type
+        return self._cell_types
 
     @cell_types.setter
     def cell_type(self, val):
         raise NotImplementedError(
             'SpikeTrainArray.cell_type(setter) not implemented yet')
-        self._cell_type = val
+        self._cell_types = val
 
     @property
     def meta(self):
