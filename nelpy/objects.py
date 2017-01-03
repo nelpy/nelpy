@@ -900,7 +900,7 @@ class SpikeTrain:
         if samples.ndim != 1:
             raise ValueError("samples must be a vector")
 
-       # set initial fs to None
+        # set initial fs to None
         self._fs = None
         # then attempt to update the fs; this does input validation:
         self.fs = fs
