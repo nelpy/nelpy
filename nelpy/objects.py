@@ -1,3 +1,18 @@
+#encoding : utf-8
+"""This file contains the core nelpy object definitions:
+ * EventArray
+ * EpochArray
+ * SpikeTrain and SpikeTrainArray
+ * AnalogSignal and AnalogSignalArray
+ * BinnedSpikeTrain and BinnedSpikeTrainArray
+"""
+
+# TODO: how should we organize our modules so that nelpy.objects.np does
+# not shpw up, for example? If I type nelpy.object.<tab> I only want the
+# actual objects to appear in the list.
+
+from .utils import is_sorted
+
 import warnings
 import numpy as np
 # from shapely.geometry import Point
@@ -5,16 +20,6 @@ import numpy as np
 ########################################################################
 # Helper functions
 ########################################################################
-from itertools import tee
-
-def pairwise(iterable):
-    a, b = tee(iterable)
-    next(b, None)
-    return zip(a, b)
-
-def is_sorted(iterable, key=lambda a, b: a <= b):
-    """Check to see if iterable is monotonic increasing (sorted)."""
-    return all(key(a, b) for a, b in pairwise(iterable))
 
 #----------------------------------------------------------------------#
 #======================================================================#
@@ -339,11 +344,7 @@ class EpochArray:
     @property
     def isempty(self):
         """(bool) Empty SpikeTrain."""
-        if len(self.time) == 0:
-            empty = True
-        else:
-            empty = False
-        return empty
+        return len(self.time) == 0
 
     def copy(self):
         """(EpochArray) Returns a copy of the current epoch array."""
@@ -673,6 +674,7 @@ class EventArray:
 
     @property 
     def isempty(self):
+        """(bool) Empty EventArray."""
         raise NotImplementedError(
             'EventArray.isempty not implemented yet')
 #----------------------------------------------------------------------#
@@ -726,7 +728,7 @@ class AnalogSignal:
         self.time = time
 
     def __getitem__(self, idx):
-        return AnalogSignal(self.data[idx], self.time[idx])
+        return AnalogSignal(data=self.data[idx], time=self.time[idx])
 
     @property
     def dimensions(self):
@@ -741,11 +743,7 @@ class AnalogSignal:
     @property
     def isempty(self):
         """(bool) Empty AnalogSignal."""
-        if len(self.time) == 0:
-            empty = True
-        else:
-            empty = False
-        return empty
+        return len(self.time) == 0
 
     def time_slice(self, t_start, t_stop):
         """Creates a new object corresponding to the time slice of
@@ -848,8 +846,9 @@ class AnalogSignalArray:
         raise NotImplementedError(
             'AnalogSignalArray.__getitem__ not implemented yet')
 
-    @property 
+    @property
     def isempty(self):
+        """(bool) Empty AnalogSignalArray."""
         raise NotImplementedError(
             'AnalogSignalArray.isempty not implemented yet')
 #----------------------------------------------------------------------#
@@ -866,10 +865,10 @@ class SpikeTrain:
     ----------
     samples : np.array(dtype=np.float64)
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time 
+        Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
     support : EpochArray, optional
-        EpochArray array on which spiketrain is defined. 
+        EpochArray array on which spiketrain is defined.
         Default is [0, last spike] inclusive.
     label : str or None, optional
         Information pertaining to the source of the spiketrain.
@@ -918,13 +917,13 @@ class SpikeTrain:
         self._fs = None
         # then attempt to update the fs; this does input validation:
         self.fs = fs
-        
+
         # if a sampling rate was given, relate time to samples using fs:
         if fs is not None:
             time = samples / fs
         else:
             time = samples
-        
+
         if label is not None and not isinstance(label, str):
             raise ValueError("label must be a string")
 
@@ -979,8 +978,8 @@ class SpikeTrain:
         else:
             typestr = ""
 
-        return "<SpikeTrain%s: %s spikes%s>%s" % (typestr,
-                                        self.n_spikes, fsstr, labelstr)
+        return "<SpikeTrain%s: %s spikes%s>%s" % (
+            typestr, self.n_spikes, fsstr, labelstr)
 
     def __getitem__(self, idx):
         if isinstance(idx, EpochArray):
@@ -1065,11 +1064,7 @@ class SpikeTrain:
     @property
     def isempty(self):
         """(bool) Empty SpikeTrain."""
-        if len(self.time) == 0:
-            empty = True
-        else:
-            empty = False
-        return empty
+        return len(self.time) == 0
 
     @property
     def issorted(self):
@@ -1156,7 +1151,7 @@ class SpikeTrain:
         indices = (self.time >= t_start) & (self.time <= t_stop)
 
         warnings.warn(
-            "Shouldn't use this function anymore! Now use slicing or " 
+            "Shouldn't use this function anymore! Now use slicing or "
             "epoch-based indexing instead.",
             DeprecationWarning
             )
@@ -1232,10 +1227,10 @@ class SpikeTrainArray:
     samples : array (of length n_units) of np.array(dtype=np.float64)
         containing spike times in in seconds (unless fs=None).
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time 
+        Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
     support : EpochArray, optional
-        EpochArray on which spiketrains are defined. 
+        EpochArray on which spiketrains are defined.
         Default is [0, last spike] inclusive.
     label : str or None, optional
         Information pertaining to the source of the spiketrain array.
@@ -1292,40 +1287,56 @@ class SpikeTrainArray:
         else:
             time = sampleArray
 
+        # set self.samples and self.time before restricting to support:
+        self.time = time
+        self.samples = sampleArray
+
         # determine spiketrain array support:
         if support is None:
             # first_st = np.array([unit[0] for unit in sampleArray]).min()
             last_st = np.array([unit[-1] for unit in sampleArray]).max()
             self.support = EpochArray(np.array([0, last_st]), fs=fs)
+            # in the above, there's no reason to restrict to support
         else:
-            # restrict spikes to only those within the spiketrain 
+            # restrict spikes to only those within the spiketrain
             # array's support:
             self.support = support
-            for unit in time: # each unit is a spike train in seconds
-                pass
-########################################################################
-########################################################################
-########################################################################
-            # indices = []
-            # for eptime in self.support.time:
-            #     t_start = eptime[0]
-            #     t_stop = eptime[1]
-            #     indices.append((time >= t_start) & (time <= t_stop))
-            # indices = np.any(np.column_stack(indices), axis=1)
-            # if np.count_nonzero(indices) < len(samples):
-            #     warnings.warn(
-            #         'ignoring spikes outside of spiketrain support')
-            # samples = samples[indices]
-            # time = time[indices]
-########################################################################
-########################################################################
-########################################################################
+            self._restrict_to_epoch_array()
 
-        self.time = time
-        self.samples = sampleArray
         self.label = label
         self._cell_types = cell_types
         self._meta = meta
+
+    def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
+        """Restrict self.time and self.samples to an EpochArray. If no
+        EpochArray is specified, self.support is used.
+
+        Parameters
+        ----------
+        epocharray : EpochArray, optional
+            EpochArray on which to restrict SpikeTrainArray. Default is
+            self.support
+        update: bool, optional
+            Overwrite self.support with epocharray if True (default).
+        """
+        if epocharray is None:
+            epocharray = self.support
+            update = False  # support did not change; no need to update
+
+        for unit, st_time in enumerate(self.time):
+            indices = []
+            for eptime in epocharray.time:
+                t_start = eptime[0]
+                t_stop = eptime[1]
+                indices.append((st_time >= t_start) & (st_time <= t_stop))
+            indices = np.any(np.column_stack(indices), axis=1)
+            if np.count_nonzero(indices) < len(st_time):
+                warnings.warn(
+                    'ignoring spikes outside of spiketrain support')
+            self.samples[unit] = self.samples[unit][indices]
+            self.time[unit] = self.time[unit][indices]
+        if update:
+            self.support = epocharray
 
     def _emptySpikeTrainArray(self):
         """empty all the instance attributes for an empty object."""
@@ -1356,7 +1367,7 @@ class SpikeTrainArray:
         return "<SpikeTrainArray with units at Hz>"
 
     def __getitem__(self, idx):
-        # TODO: allow indexing of form sta[1:5,4] so that the STs of 
+        # TODO: allow indexing of form sta[1:5,4] so that the STs of
         # epochs 1 to 5 (exlcusive) are returned, for neuron id 4.
         raise NotImplementedError(
             'SpikeTrainArray.__getitem__ not implemented yet')
@@ -1365,7 +1376,6 @@ class SpikeTrainArray:
     def n_units(self):
         """(int) The number of units."""
         return len(self.time)
-        
 
     @property
     def n_spikes(self):
@@ -1377,11 +1387,7 @@ class SpikeTrainArray:
     @property
     def isempty(self):
         """(bool) Empty SpikeTrainArray."""
-        if np.sum([len(st) for st in self.time]) == 0:
-            empty = True
-        else:
-            empty = False
-        return empty
+        return np.sum([len(st) for st in self.time]) == 0
 
     @property
     def issorted(self):
@@ -1394,15 +1400,15 @@ class SpikeTrainArray:
     def cell_types(self):
         """The neuron cell type."""
         raise NotImplementedError(
-            'SpikeTrainArray.cell_type not implemented yet')
+            'SpikeTrainArray.cell_types not implemented yet')
         if self._cell_types is None:
             warnings.warn("Cell types have not yet been specified!")
         return self._cell_types
 
     @cell_types.setter
-    def cell_type(self, val):
+    def cell_types(self, val):
         raise NotImplementedError(
-            'SpikeTrainArray.cell_type(setter) not implemented yet')
+            'SpikeTrainArray.cell_types(setter) not implemented yet')
         self._cell_types = val
 
     @property
@@ -1434,16 +1440,16 @@ class SpikeTrainArray:
             raise TypeError("sampling rate must be a scalar")
         if val <= 0:
             raise ValueError("sampling rate must be positive")
-        
+
         # if it is the first time that a sampling rate is set, do not
         # modify anything except for self._fs:
         if self._fs is None:
             pass
         else:
             warnings.warn(
-                "Sampling frequency has been updated! This will " 
+                "Sampling frequency has been updated! This will "
                 "modify the spike times."
-                 )
+                )
             self.time = self.samples / val
         self._fs = val
 #----------------------------------------------------------------------#
@@ -1473,60 +1479,60 @@ class BinnedSpikeTrain:
         The centers of the bins. With shape (n_bins, 1).
     data : np.array
     bins : np.array
-        The edges of the bins. With shape (??? depends on n_epochs). 
-        # TODO: check what is the format that numpy takes. 
-        Also, consider making this an EventArray, so that the bins can 
+        The edges of the bins. With shape (??? depends on n_epochs).
+        # TODO: check what is the format that numpy takes.
+        Also, consider making this an EventArray, so that the bins can
         easily be overlayed on plots.
     support : nelpy.EpochArray on which binned spiketrain is defined.
-    _binnedSupport : np.array of shape (n_epochs, 2) with the start and 
+    _binnedSupport : np.array of shape (n_epochs, 2) with the start and
         stop bin index associated w each epoch.
     """
 
     # TODO: considerations.
     #
     # We need an efficient data representation: consider a case where we
-    # have a support of [0,1] U [9999,10000]. In this case, we do not 
-    # want to (needlessly) allocate space for all the bins in [1,9999]. 
+    # have a support of [0,1] U [9999,10000]. In this case, we do not
+    # want to (needlessly) allocate space for all the bins in [1,9999].
     # So a better approach might be to intelligently pre-compute the bin
-    # edges before binning. Bins should also be such that they 
+    # edges before binning. Bins should also be such that they
     # completely enclose all epochs in the spiketrain's support.
     #
-    # For example, with 0.5 second bins, and a spiketrain 
+    # For example, with 0.5 second bins, and a spiketrain
     # [0.8, 0.9 1.2 1.8 2.4 2.51] with support [0.8, 2.51] we would need
-    # bins 0.5--3.0 (left- to right-edge), that is, 
+    # bins 0.5--3.0 (left- to right-edge), that is,
     # [0.5,1.0) U [1.0,1.5) U [1.5,2.0) U [2.5,3.0).
     #
-    # In the first example, with a 5 second bin, we'd need 
+    # In the first example, with a 5 second bin, we'd need
     # [0,5) U [9995,10000) U [10000,10005), and NOT simply
     # [0,5) U [9999,10004) because such an approach can cause lots of
     # headaches down the road.
     #
-    # Now implementation-wise: should we store the numpy arrays 
+    # Now implementation-wise: should we store the numpy arrays
     # separately for each epoch? Should we have only one array, but keep
-    # track of the bin centers (most useful for plotting and other 
-    # analysis) and the True support epochs? How about slicing and 
+    # track of the bin centers (most useful for plotting and other
+    # analysis) and the True support epochs? How about slicing and
     # indexing? If we index a BinnedSpikeTrain with an EpochArray, then
-    # we should get only those bins back that fall in the intersection 
-    # of the BinnedSpikeTrain's support and the indexing EpochArray. If 
-    # we slice, should we slice by bins, or by epochs? I am still 
-    # leaning towards slicing by epoch, so that BinnedSpikeTrain[2:5] 
+    # we should get only those bins back that fall in the intersection
+    # of the BinnedSpikeTrain's support and the indexing EpochArray. If
+    # we slice, should we slice by bins, or by epochs? I am still
+    # leaning towards slicing by epoch, so that BinnedSpikeTrain[2:5]
     # will return binned data corresponding to epochs 2,3 and 4.
     #
-    # It is also possible that the best hing to do is to have a dynamic 
-    # representation, where one option is to store an array of bin 
-    # centers, and another is to store compact representations 
-    # (start, stop)-tuples for each bin epoch. This might save a lot of 
+    # It is also possible that the best hing to do is to have a dynamic
+    # representation, where one option is to store an array of bin
+    # centers, and another is to store compact representations
+    # (start, stop)-tuples for each bin epoch. This might save a lot of
     # memory for large, contiguous segments, but it may be painfully
-    # slow for cases with lots of short epochs. For now, I think I will 
+    # slow for cases with lots of short epochs. For now, I think I will
     # simply do the expanded (non-compact) representation.
     #
     # Also, should a BinnedSpikeTrain keep an unbinned copy of the
     # associated SpikeTrain? That way we can re-bin and maybe do some
-    # interesting things, but it may also be pretty wasteful space 
+    # interesting things, but it may also be pretty wasteful space
     # (memory) wise...?
 
     def __init__(self, spiketrain, *, ds=None):
-        # by default, the support of the binned spiketrain will be 
+        # by default, the support of the binned spiketrain will be
         # inherited from spiketrain
 
         if not isinstance(spiketrain, SpikeTrain):
@@ -1616,11 +1622,7 @@ class BinnedSpikeTrain:
     @property
     def isempty(self):
         """(bool) Empty BinnedSpikeTrain."""
-        if len(self.centers) == 0:
-            empty = True
-        else:
-            empty = False
-        return empty
+        return len(self.centers) == 0
 
     @property
     def ds(self):
@@ -1680,7 +1682,7 @@ class BinnedSpikeTrain:
         self._binnedSupport = np.vstack(
             (np.array(left_edges),
              np.array(right_edges))
-             )     
+            )
 #----------------------------------------------------------------------#
 #======================================================================#
 
@@ -1694,11 +1696,11 @@ class BinnedSpikeTrainArray:
     Parameters
     ----------
     samples : np.array
-        If shape (n_epochs, 1) or (n_epochs,), the start time for each 
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each
         epoch.
         If shape (n_epochs, 2), the start and stop times for each epoch.
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time 
+        Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
 
     Attributes
@@ -1730,8 +1732,9 @@ class BinnedSpikeTrainArray:
         raise NotImplementedError(
             'BinnedSpikeTrainArray.__getitem__ not implemented yet')
 
-    @property 
+    @property
     def isempty(self):
+        """(bool) Empty BinnedApikeTrainArray."""
         raise NotImplementedError(
             'BinnedSpikeTrainArray.isempty not implemented yet')
 #----------------------------------------------------------------------#
