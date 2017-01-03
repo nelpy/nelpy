@@ -8,8 +8,6 @@ and inspired by the neuralensemble.org NEO project
 (see http://neo.readthedocs.io/en/0.4.0/core.html).
 """
 
-__version__ = '0.0.5'
-
 from .objects import (EventArray,
                       EpochArray,
                       AnalogSignal,
@@ -23,7 +21,8 @@ from .objects import (EventArray,
 from .utils import (find_nearest_idx,
                     find_nearest_indices)
 
-# from .hmmutils import XXX
+from .hmmutils import PoissonHMM
 
 # from .plotting import ()
 
+__version__ = '0.0.5'

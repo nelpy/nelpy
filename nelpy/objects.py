@@ -1224,6 +1224,8 @@ class SpikeTrain:
 class SpikeTrainArray:
     """A multiunit spiketrain array with shared support.
 
+    Parameters
+    ----------
     samples : array (of length n_units) of np.array(dtype=np.float64)
         containing spike times in in seconds (unless fs=None).
     fs : float, optional
