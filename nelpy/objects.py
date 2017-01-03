@@ -13,21 +13,22 @@ def pairwise(iterable):
     return zip(a, b)
 
 def is_sorted(iterable, key=lambda a, b: a <= b):
+    """Check to see if iterable is monotonic increasing (sorted)."""
     return all(key(a, b) for a, b in pairwise(iterable))
 
 #----------------------------------------------------------------------#
 #======================================================================#
 
-# TODO: how should AnalogSignal handle its support? As an EpochArray? 
-# then what about binning issues? As explicit bin centers? As bin 
-# indices? 
+# TODO: how should AnalogSignal handle its support? As an EpochArray?
+# then what about binning issues? As explicit bin centers? As bin
+# indices?
 #
-# it seems best to have a BinnedEpoch class, so that bin centers can be 
-# computed lazily when needed, and that duration etc. will be trivial, 
+# it seems best to have a BinnedEpoch class, so that bin centers can be
+# computed lazily when needed, and that duration etc. will be trivial,
 # but we also really, REALLY need to be able to index AnalogSignal with
 # a regular Epoch or EpochArray object, ...
 #
-# a nice finish to AnalogSignal would be to plot AnalogSignal on its 
+# a nice finish to AnalogSignal would be to plot AnalogSignal on its
 # support along with a smoothed version of it
 
 ### contested classes --- unclear whether these should exist or not:
@@ -90,6 +91,7 @@ class EpochArray:
         if samples.ndim > 2:
             raise ValueError("samples must be a 1D or a 2D vector")
 
+        # TODO: streamline empty Epoch checks similar to SpikeTrain init
         if fs is not None:
             try:
                 if fs <= 0:
@@ -105,16 +107,15 @@ class EpochArray:
 
             if samples.ndim == 2 and duration.ndim == 1:
                 raise ValueError(
-                    "duration not allowed when using start and stop " \
-                    "times"
-                     )
+                    "duration not allowed when using start and stop "
+                    "times")
 
             if len(duration) > 1:
                 if samples.ndim == 1 and samples.shape[0] != duration.shape[0]:
                     raise ValueError(
-                        "must have same number of time and duration " \
+                        "must have same number of time and duration "
                         "samples"
-                         )
+                        )
 
             if samples.ndim == 1 and duration.ndim == 1:
                 stop_epoch = samples + duration
@@ -139,7 +140,7 @@ class EpochArray:
         if samples.ndim == 2 and np.any(samples[:, 1] - samples[:, 0] < 0):
             raise ValueError("start must be less than or equal to stop")
 
-        # TODO: why not just sort in-place here? Why store sort_idx? Why do 
+        # TODO: why not just sort in-place here? Why store sort_idx? Why do
         # we explicitly sort epoch samples, but not spike times?
         sort_idx = np.argsort(samples[:, 0])
         samples = samples[sort_idx]
@@ -173,21 +174,21 @@ class EpochArray:
                 return EpochArray([])
             if idx.fs != self.fs:
                 epoch = self.intersect(
-                        epoch=EpochArray(idx.time*self.fs, fs=self.fs),
-                        boundaries=True
-                        )
+                    epoch=EpochArray(idx.time*self.fs, fs=self.fs),
+                    boundaries=True
+                    )
             else:
                 epoch = self.intersect(
-                        epoch=idx,
-                        boundaries=True
-                        ) # what if fs of slicing epoch is different?
+                    epoch=idx,
+                    boundaries=True
+                    ) # what if fs of slicing epoch is different?
             if epoch.isempty:
                 return EpochArray([])
             return epoch
         elif isinstance(idx, int):
             try:
                 epoch = EpochArray(
-                    np.array([self.samples[idx,:]]),
+                    np.array([self.samples[idx, :]]),
                     fs=self.fs,
                     meta=self.meta
                     )
@@ -207,7 +208,7 @@ class EpochArray:
             else:
                 stop = np.min(np.array([stop - 1, self.n_epochs - 1]))
             return EpochArray(
-                np.array([self.samples[start:stop+1,:]]),
+                np.array([self.samples[start:stop+1, :]]),
                 fs=self.fs,
                 meta=self.meta
                 )
@@ -247,9 +248,9 @@ class EpochArray:
 
         if self._fs != val:
             warnings.warn(
-                "Sampling frequency has been updated! This will " \
+                "Sampling frequency has been updated! This will "
                 "modify the spike times."
-                 )
+                )
         self._fs = val
         self.time = self.samples / val
 
@@ -409,9 +410,9 @@ class EpochArray:
 
         if self.fs != epoch.fs:
             warnings.warn(
-                "sampling rates are different; intersecting along " \
+                "sampling rates are different; intersecting along "
                 "time only and throwing away fs"
-                 )
+                )
             return EpochArray(
                 np.hstack(
                     [np.array(new_starts)[..., np.newaxis],
@@ -544,7 +545,7 @@ class EpochArray:
         return self.expand(-amount, direction)
 
     def join(self, epoch, meta=None):
-        """Combines [and merges] two sets of epochs. Epochs can have 
+        """Combines [and merges] two sets of epochs. Epochs can have
         different sampling rates.
 
         Parameters
@@ -565,17 +566,20 @@ class EpochArray:
 
         if self.fs != epoch.fs:
             warnings.warn(
-                "sampling rates are different; joining along time " \
+                "sampling rates are different; joining along time "
                 "only and throwing away fs"
-                 )
+                )
             join_starts = np.concatenate(
                 (self.time[:, 0], epoch.time[:, 0]))
             join_stops = np.concatenate(
                 (self.time[:, 1], epoch.time[:, 1]))
-            #TODO: calling merge() just once misses some instances. 
-            # I haven't looked carefully enough to know which edge cases these are... 
+            #TODO: calling merge() just once misses some instances.
+            # I haven't looked carefully enough to know which edge cases
+            # these are...
             # merge() should therefore be checked!
-            # return EpochArray(join_starts, fs=None, duration=join_stops - join_starts, meta=meta).merge().merge()
+            # return EpochArray(join_starts, fs=None, 
+            # duration=join_stops - join_starts, meta=meta).merge()
+            # .merge()
             return EpochArray(
                 join_starts,
                 fs=None,
@@ -588,7 +592,8 @@ class EpochArray:
             join_stops = np.concatenate(
                 (self.samples[:, 1], epoch.samples[:, 1]))
 
-        # return EpochArray(join_starts, fs=self.fs, duration=join_stops - join_starts, meta=meta).merge().merge()
+        # return EpochArray(join_starts, fs=self.fs, duration=
+        # join_stops - join_starts, meta=meta).merge().merge()
         return EpochArray(
             join_starts,
             fs=self.fs,
@@ -609,9 +614,9 @@ class EpochArray:
         boolean
 
         """
-        # TODO: consider vectorizing this loop, which should increase 
-        # speed, but also greatly increase memory? Alternatively, if we 
-        # could assume something about epochs being sorted, this can 
+        # TODO: consider vectorizing this loop, which should increase
+        # speed, but also greatly increase memory? Alternatively, if we
+        # could assume something about epochs being sorted, this can
         # also be made much faster than the current O(N)
         for start, stop in zip(self.starts, self.stops):
             if start <= value <= stop:
@@ -714,7 +719,8 @@ class AnalogSignal:
                           "got (dimensionality, timesteps). Correcting...")
             data = data.T
         if time.shape[0] != data.shape[0]:
-            raise ValueError("must have same number of time and data samples")
+            raise ValueError(
+                "must have same number of time and data samples")
 
         self.data = data
         self.time = time
@@ -743,8 +749,9 @@ class AnalogSignal:
 
     def time_slice(self, t_start, t_stop):
         """Creates a new object corresponding to the time slice of
-        the original between (and including) times t_start and t_stop. Setting
-        either parameter to None uses infinite endpoints for the time interval.
+        the original between (and including) times t_start and t_stop.
+        Setting either parameter to None uses infinite endpoints for the
+        time interval.
 
         Parameters
         ----------
@@ -768,8 +775,9 @@ class AnalogSignal:
 
     def time_slices(self, t_starts, t_stops):
         """Creates a new object corresponding to the time slice of
-        the original between (and including) times t_start and t_stop. Setting
-        either parameter to None uses infinite endpoints for the time interval.
+        the original between (and including) times t_start and t_stop.
+        Setting either parameter to None uses infinite endpoints for the
+        time interval.
 
         Parameters
         ----------
@@ -782,7 +790,8 @@ class AnalogSignal:
         sliced_analogsignal : nelpy.AnalogSignal
         """
         if len(t_starts) != len(t_stops):
-            raise ValueError("must have same number of start and stop times")
+            raise ValueError(
+                "must have same number of start and stop times")
 
         indices = []
         for t_start, t_stop in zip(t_starts, t_stops):
@@ -984,7 +993,9 @@ class SpikeTrain:
             for eptime in epoch.time:
                 t_start = eptime[0]
                 t_stop = eptime[1]
-                indices.append((self.time >= t_start) & (self.time <= t_stop))
+                indices.append(
+                    (self.time >= t_start) & (self.time <= t_stop)
+                    )
             indices = np.any(np.column_stack(indices), axis=1)
             return SpikeTrain(self.samples[indices],
                               fs=self.fs,
@@ -999,7 +1010,7 @@ class SpikeTrain:
                     fs=self.fs,
                     meta=self.meta
                     )
-            except: # index is out of bounds, so return an empty spiketrain
+            except: # index out of bounds, so return an empty spiketrain
                 epoch = EpochArray([])
                 return SpikeTrain([], support=epoch)
             return SpikeTrain(
@@ -1112,7 +1123,7 @@ class SpikeTrain:
             pass
         else:
             warnings.warn(
-                "Sampling frequency has been updated! This will " \
+                "Sampling frequency has been updated! This will " 
                 "modify the spike times."
                  )
             self.time = self.samples / val
@@ -1145,7 +1156,7 @@ class SpikeTrain:
         indices = (self.time >= t_start) & (self.time <= t_stop)
 
         warnings.warn(
-            "Shouldn't use this function anymore! Now use slicing or " \
+            "Shouldn't use this function anymore! Now use slicing or " 
             "epoch-based indexing instead.",
             DeprecationWarning
             )
@@ -1169,18 +1180,20 @@ class SpikeTrain:
         sliced_spiketrain : nelpy.SpikeTrain
         """
 
-        # todo: check if any stops are before starts, like in EpochArray class
+        # TODO: check if any stops are before starts, like in EpochArray class
         if len(t_starts) != len(t_stops):
             raise ValueError(
                 "must have same number of start and stop times")
 
         indices = []
         for t_start, t_stop in zip(t_starts, t_stops):
-            indices.append((self.time >= t_start) & (self.time <= t_stop))
+            indices.append(
+                (self.time >= t_start) & (self.time <= t_stop)
+                )
         indices = np.any(np.column_stack(indices), axis=1)
 
         warnings.warn(
-            "Shouldn't use this function anymore! Now use slicing or " \
+            "Shouldn't use this function anymore! Now use slicing or " 
             "epoch-based indexing instead.",
              DeprecationWarning
             )
@@ -1289,7 +1302,7 @@ class SpikeTrainArray:
             # array's support:
             self.support = support
             for unit in time: # each unit is a spike train in seconds
-
+                pass
 ########################################################################
 ########################################################################
 ########################################################################
@@ -1428,7 +1441,7 @@ class SpikeTrainArray:
             pass
         else:
             warnings.warn(
-                "Sampling frequency has been updated! This will " \
+                "Sampling frequency has been updated! This will " 
                 "modify the spike times."
                  )
             self.time = self.samples / val
