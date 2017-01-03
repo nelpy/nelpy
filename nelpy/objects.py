@@ -2,6 +2,21 @@ import warnings
 import numpy as np
 # from shapely.geometry import Point
 
+########################################################################
+# Helper functions
+########################################################################
+from itertools import tee
+
+def pairwise(iterable):
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+def is_sorted(iterable, key=lambda a, b: a <= b):
+    return all(key(a, b) for a, b in pairwise(iterable))
+
+#----------------------------------------------------------------------#
+#======================================================================#
 
 # TODO: how should AnalogSignal handle its support? As an EpochArray? 
 # then what about binning issues? As explicit bin centers? As bin 
@@ -21,6 +36,9 @@ import numpy as np
 # class Epoch
 # class Spike(Event)
 
+########################################################################
+# class EpochArray
+########################################################################
 class EpochArray:
     """An array of epochs, where each epoch has a start and stop time.
 
@@ -87,15 +105,15 @@ class EpochArray:
 
             if samples.ndim == 2 and duration.ndim == 1:
                 raise ValueError(
-                    "duration not allowed when using start and stop\
-                     times"
+                    "duration not allowed when using start and stop " \
+                    "times"
                      )
 
             if len(duration) > 1:
                 if samples.ndim == 1 and samples.shape[0] != duration.shape[0]:
                     raise ValueError(
-                        "must have same number of time and duration\
-                         samples"
+                        "must have same number of time and duration " \
+                        "samples"
                          )
 
             if samples.ndim == 1 and duration.ndim == 1:
@@ -229,8 +247,8 @@ class EpochArray:
 
         if self._fs != val:
             warnings.warn(
-                "Sampling frequency has been updated! This will modify\
-                 the spike times."
+                "Sampling frequency has been updated! This will " \
+                "modify the spike times."
                  )
         self._fs = val
         self.time = self.samples / val
@@ -391,8 +409,8 @@ class EpochArray:
 
         if self.fs != epoch.fs:
             warnings.warn(
-                'sampling rates are different; intersecting along\
-                 time only and throwing away fs'
+                "sampling rates are different; intersecting along " \
+                "time only and throwing away fs"
                  )
             return EpochArray(
                 np.hstack(
@@ -547,8 +565,8 @@ class EpochArray:
 
         if self.fs != epoch.fs:
             warnings.warn(
-                'sampling rates are different; joining along time\
-                 only and throwing away fs'
+                "sampling rates are different; joining along time " \
+                "only and throwing away fs"
                  )
             join_starts = np.concatenate(
                 (self.time[:, 0], epoch.time[:, 0]))
@@ -599,8 +617,13 @@ class EpochArray:
             if start <= value <= stop:
                 return True
         return False
+#----------------------------------------------------------------------#
+#======================================================================#
 
 
+########################################################################
+# class EventArray
+########################################################################
 class EventArray:
     """Class description.
 
@@ -647,8 +670,13 @@ class EventArray:
     def isempty(self):
         raise NotImplementedError(
             'EventArray.isempty not implemented yet')
+#----------------------------------------------------------------------#
+#======================================================================#
 
 
+########################################################################
+# class AnalogSignal
+########################################################################
 class AnalogSignal:
     """A continuous, analog signal, with a regular sampling rate.
 
@@ -762,8 +790,13 @@ class AnalogSignal:
         indices = np.any(np.column_stack(indices), axis=1)
 
         return self[indices]
+#----------------------------------------------------------------------#
+#======================================================================#
 
 
+########################################################################
+# class AnalogSignalArray
+########################################################################
 class AnalogSignalArray:
     """Class description.
 
@@ -810,8 +843,13 @@ class AnalogSignalArray:
     def isempty(self):
         raise NotImplementedError(
             'AnalogSignalArray.isempty not implemented yet')
+#----------------------------------------------------------------------#
+#======================================================================#
 
 
+########################################################################
+# class SpikeTrain
+########################################################################
 class SpikeTrain:
     """A set of action potential (spike) times of a putative unit/neuron.
 
@@ -851,7 +889,7 @@ class SpikeTrain:
         Metadata associated with spiketrain.
     """
 
-    def __init__(self, samples, fs=None, support=None, label=None,
+    def __init__(self, samples, *, fs=None, support=None, label=None,
                  cell_type=None, meta=None):
 
         samples = np.squeeze(samples)
@@ -862,14 +900,9 @@ class SpikeTrain:
         if samples.ndim != 1:
             raise ValueError("samples must be a vector")
 
-        if fs is not None:
-            try:
-                if fs <= 0:
-                    raise ValueError("sampling rate must be positive")
-            except:
-                # why is this raised when above ValueError is raised as well?
-                raise TypeError("sampling rate must be a scalar")
-
+        self._fs = None
+        self.fs = fs
+        
         if label is not None and not isinstance(label, str):
             raise ValueError("label must be a string")
 
@@ -906,7 +939,6 @@ class SpikeTrain:
         self.samples = samples
         self.time = time
 
-        self._fs = fs
         self.label = label
         self._cell_type = cell_type
         self._meta = meta
@@ -1020,17 +1052,6 @@ class SpikeTrain:
     @property
     def issorted(self):
         """(bool) Sorted SpikeTrain."""
-
-        # from itertools import tee
-
-        # def pairwise(iterable):
-        #     a, b = tee(iterable)
-        #     next(b, None)
-        #     return zip(a, b)
-
-        # def is_sorted(iterable, key=lambda a, b: a <= b):
-        #     return all(key(a, b) for a, b in pairwise(iterable))
-
         return is_sorted(self.samples)
 
     @property
@@ -1064,6 +1085,8 @@ class SpikeTrain:
 
     @fs.setter
     def fs(self, val):
+        if self._fs == val:
+            return
         try:
             if val <= 0:
                 pass
@@ -1071,14 +1094,18 @@ class SpikeTrain:
             raise TypeError("sampling rate must be a scalar")
         if val <= 0:
             raise ValueError("sampling rate must be positive")
-
-        if self._fs != val:
+        
+        # if it is the first time that a sampling rate is set, do not
+        # modify anything except for self._fs:
+        if self._fs is None:
+            pass
+        else:
             warnings.warn(
-                "Sampling frequency has been updated! This will modify\
-                 the spike times."
+                "Sampling frequency has been updated! This will " \
+                "modify the spike times."
                  )
+            self.time = self.samples / val
         self._fs = val
-        self.time = self.samples / val
 
     def time_slice(self, t_start, t_stop):
         """Creates a new nelpy.SpikeTrain corresponding to the time 
@@ -1107,8 +1134,8 @@ class SpikeTrain:
         indices = (self.time >= t_start) & (self.time <= t_stop)
 
         warnings.warn(
-            "Shouldn't use this function anymore! Now use slicing or \
-            epoch-based indexing instead.",
+            "Shouldn't use this function anymore! Now use slicing or " \
+            "epoch-based indexing instead.",
             DeprecationWarning
             )
 
@@ -1142,8 +1169,8 @@ class SpikeTrain:
         indices = np.any(np.column_stack(indices), axis=1)
 
         warnings.warn(
-            "Shouldn't use this function anymore! Now use slicing or\
-             epoch-based indexing instead.",
+            "Shouldn't use this function anymore! Now use slicing or " \
+            "epoch-based indexing instead.",
              DeprecationWarning
             )
 
@@ -1168,31 +1195,54 @@ class SpikeTrain:
         """
         raise NotImplementedError(
             "SpikeTrain.shift() has not been implemented yet!")
-        
+########################################################################
+########################################################################
 
 
+########################################################################
+# class SpikeTrainArray
+########################################################################
 class SpikeTrainArray:
-    """Class description.
+    """A multiunit spiketrain array with shared support.
 
-    Parameters
-    ----------
-    samples : np.array
-        If shape (n_epochs, 1) or (n_epochs,), the start time for each 
-        epoch.
-        If shape (n_epochs, 2), the start and stop times for each epoch.
+    samples : array (of length n_units) of np.array(dtype=np.float64)
+        containing spike times in in seconds (unless fs=None).
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time
+        Sampling rate in Hz. If fs is passed as a parameter, then time 
         is assumed to be in sample numbers instead of actual time.
+    support : EpochArray, optional
+        EpochArray on which spiketrains are defined. 
+        Default is [0, last spike] inclusive.
+    label : str or None, optional
+        Information pertaining to the source of the spiketrain array.
+    cell_type : list (of length n_units) of str or other, optional
+        Identified cell type indicator, e.g., 'pyr', 'int'.
+    meta : dict
+        Metadata associated with spiketrain array.
 
     Attributes
     ----------
-    time : np.array
-        The start and stop times for each epoch. With shape (n_epochs, 2).
+    time : array of np.array(dtype=np.float64) spike times in seconds.
+        Array of length n_units, each entry with shape (n_samples,)
+    samples : list of np.array(dtype=np.float64) spike times in samples.
+        Array of length n_units, each entry with shape (n_samples,)
+    support : EpochArray on which spiketrain array is defined.
+    n_spikes: np.array(dtype=np.int) of shape (n_units,)
+        Number of spikes in each unit.
+    fs: float
+        Sampling frequency (Hz).
+    cell_types : np.array of str or other
+        Identified cell type for each unit.
+    label : str or None
+        Information pertaining to the source of the spiketrain.
+    meta : dict
+        Metadata associated with spiketrain.
     """
 
-    def __init__(self, *, samples, fs=None, duration=None, meta=None):
+    def __init__(self, samples, *, fs=None, support=None, label=None,
+                 cell_types=None, meta=None):
 
-        # if no samples were received, return an empty EpochArray:
+        # if no samples were received, return an empty SpikeTrainArray:
         if len(samples) == 0:
             self.samples = np.array([])
             self.time = np.array([])
@@ -1200,7 +1250,36 @@ class SpikeTrainArray:
             self._meta = None
             return
 
-        self._fs = fs
+        # standardize input so that a list of lists is converted to an
+        # array of arrays:
+        sampleArray = np.array([np.array(st) for st in samples])
+
+        # if only empty samples were received, return an empty
+        # SpikeTrainArray:
+        if np.sum([len(st) for st in sampleArray]) == 0:
+            self.samples = np.array([])
+            self.time = np.array([])
+            self._fs = None
+            self._meta = None
+            return
+
+        self._fs = None
+        self.fs = fs
+        # if fs is not None:
+        #     try:
+        #         if fs <= 0:
+        #             raise ValueError("sampling rate must be positive")
+        #     except:
+        #         # why is this raised when above ValueError is raised as well?
+        #         raise TypeError("sampling rate must be a scalar")
+
+        if fs is not None:
+            time = sampleArray / fs
+        else:
+            time = sampleArray
+
+        self.time = time
+        self.samples = sampleArray
         self._meta = meta
 
     def __repr__(self):
@@ -1210,15 +1289,103 @@ class SpikeTrainArray:
         return "<SpikeTrainArray"
 
     def __getitem__(self, idx):
+        # TODO: allow indexing of form sta[1:5,4] so that the STs of 
+        # epochs 1 to 5 (exlcusive) are returned, for neuron id 4.
         raise NotImplementedError(
             'SpikeTrainArray.__getitem__ not implemented yet')
 
-    @property 
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        return len(self.time)
+        
+
+    @property
+    def n_spikes(self):
+        """(np.array) The number of spikes in each unit."""
+        if self.isempty:
+            return 0
+        return np.array([len(unit) for unit in self.time])
+
+    @property
     def isempty(self):
+        """(bool) Empty SpikeTrainArray."""
+        if np.sum([len(st) for st in self.time]) == 0:
+            empty = True
+        else:
+            empty = False
+        return empty
+
+    @property
+    def issorted(self):
+        """(bool) Sorted SpikeTrainArray."""
         raise NotImplementedError(
-            'SpikeTrainArray.isempty not implemented yet')
+            'SpikeTrainArray.issorted not implemented yet')
+        return is_sorted(self.samples)
+
+    @property
+    def cell_types(self):
+        """The neuron cell type."""
+        raise NotImplementedError(
+            'SpikeTrainArray.cell_type not implemented yet')
+        if self._cell_types is None:
+            warnings.warn("Cell types have not yet been specified!")
+        return self._cell_type
+
+    @cell_types.setter
+    def cell_type(self, val):
+        raise NotImplementedError(
+            'SpikeTrainArray.cell_type(setter) not implemented yet')
+        self._cell_type = val
+
+    @property
+    def meta(self):
+        """Meta information associated with SpikeTrainArray."""
+        if self._meta is None:
+            warnings.warn("meta data is not available")
+        return self._meta
+
+    @meta.setter
+    def meta(self, val):
+        self._meta = val
+
+    @property
+    def fs(self):
+        """(float) Sampling frequency."""
+        if self._fs is None:
+            warnings.warn("No sampling frequency has been specified!")
+        return self._fs
+
+    @fs.setter
+    def fs(self, val):
+        if self._fs == val:
+            return
+        try:
+            if val <= 0:
+                pass
+        except:
+            raise TypeError("sampling rate must be a scalar")
+        if val <= 0:
+            raise ValueError("sampling rate must be positive")
+        
+        # if it is the first time that a sampling rate is set, do not
+        # modify anything except for self._fs:
+        if self._fs is None:
+            pass
+        else:
+            warnings.warn(
+                "Sampling frequency has been updated! This will " \
+                "modify the spike times."
+                 )
+            self.time = self.samples / val
+        self._fs = val
+#----------------------------------------------------------------------#
+#======================================================================#
 
 
+########################################################################
+# class BinnedSpikeTrain
+########################################################################
 class BinnedSpikeTrain:
     """A set of binned action potential (spike) times of a putative unit
     (neuron).
@@ -1447,11 +1614,13 @@ class BinnedSpikeTrain:
             (np.array(left_edges),
              np.array(right_edges))
              )     
+#----------------------------------------------------------------------#
+#======================================================================#
 
 
-# count number of spikes in an interval:
-        # spks_bin, bins = np.histogram(st_array/fs, bins=num_bins, density=False, range=(0,maxtime))
-
+########################################################################
+# class BinnedSpikeTrainArray
+########################################################################
 class BinnedSpikeTrainArray:
     """Class description.
 
@@ -1498,4 +1667,8 @@ class BinnedSpikeTrainArray:
     def isempty(self):
         raise NotImplementedError(
             'BinnedSpikeTrainArray.isempty not implemented yet')
+#----------------------------------------------------------------------#
+#======================================================================#
 
+# count number of spikes in an interval:
+        # spks_bin, bins = np.histogram(st_array/fs, bins=num_bins, density=False, range=(0,maxtime))
