@@ -900,16 +900,19 @@ class SpikeTrain:
         if samples.ndim != 1:
             raise ValueError("samples must be a vector")
 
+       # set initial fs to None
         self._fs = None
+        # then attempt to update the fs; this does input validation:
         self.fs = fs
         
-        if label is not None and not isinstance(label, str):
-            raise ValueError("label must be a string")
-
+        # if a sampling rate was given, relate time to samples using fs:
         if fs is not None:
             time = samples / fs
         else:
             time = samples
+        
+        if label is not None and not isinstance(label, str):
+            raise ValueError("label must be a string")
 
         if len(samples) > 0:
             if support is None:
@@ -938,7 +941,6 @@ class SpikeTrain:
 
         self.samples = samples
         self.time = time
-
         self.label = label
         self._cell_type = cell_type
         self._meta = meta
@@ -1263,20 +1265,18 @@ class SpikeTrainArray:
             self._meta = None
             return
 
+        # set initial fs to None
         self._fs = None
+        # then attempt to update the fs; this does input validation:
         self.fs = fs
-        # if fs is not None:
-        #     try:
-        #         if fs <= 0:
-        #             raise ValueError("sampling rate must be positive")
-        #     except:
-        #         # why is this raised when above ValueError is raised as well?
-        #         raise TypeError("sampling rate must be a scalar")
 
+        # if a sampling rate was given, relate time to samples using fs:
         if fs is not None:
             time = sampleArray / fs
         else:
             time = sampleArray
+
+        #########################################################
 
         self.time = time
         self.samples = sampleArray
