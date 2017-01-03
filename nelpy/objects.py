@@ -1137,23 +1137,23 @@ class SpikeTrain:
             raise TypeError("sampling rate must be a scalar")
         if val <= 0:
             raise ValueError("sampling rate must be positive")
-        
+
         # if it is the first time that a sampling rate is set, do not
         # modify anything except for self._fs:
         if self._fs is None:
             pass
         else:
             warnings.warn(
-                "Sampling frequency has been updated! This will " 
+                "Sampling frequency has been updated! This will "
                 "modify the spike times."
-                 )
+                )
             self.time = self.samples / val
         self._fs = val
 
     def time_slice(self, t_start, t_stop):
-        """Creates a new nelpy.SpikeTrain corresponding to the time 
-        slice of the original between (and including) times t_start and 
-        t_stop. Setting either parameter to None uses infinite endpoints 
+        """Creates a new nelpy.SpikeTrain corresponding to the time
+        slice of the original between (and including) times t_start and
+        t_stop. Setting either parameter to None uses infinite endpoints
         for the time interval.
 
         Parameters
@@ -1214,7 +1214,7 @@ class SpikeTrain:
         indices = np.any(np.column_stack(indices), axis=1)
 
         warnings.warn(
-            "Shouldn't use this function anymore! Now use slicing or " 
+            "Shouldn't use this function anymore! Now use slicing or "
             "epoch-based indexing instead.",
              DeprecationWarning
             )
