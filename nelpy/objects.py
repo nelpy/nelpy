@@ -927,29 +927,55 @@ class SpikeTrain:
         if label is not None and not isinstance(label, str):
             raise ValueError("label must be a string")
 
+
+
+        # set self.samples and self.time before restricting to support:
+        self.time = time
+        self.samples = samples
+
+        # determine spiketrain array support:
         if support is None:
             self.support = EpochArray(np.array([0, samples[-1]]), fs=fs)
+            # in the above, there's no reason to restrict to support
         else:
-            # restrict spikes to only those within the spiketrain's
-            # support:
+            # restrict spikes to only those within the spiketrain
+            # array's support:
             self.support = support
-            indices = []
-            for eptime in self.support.time:
-                t_start = eptime[0]
-                t_stop = eptime[1]
-                indices.append((time >= t_start) & (time <= t_stop))
-            indices = np.any(np.column_stack(indices), axis=1)
-            if np.count_nonzero(indices) < len(samples):
-                warnings.warn(
-                    'ignoring spikes outside of spiketrain support')
-            samples = samples[indices]
-            time = time[indices]
+            self._restrict_to_epoch_array()
 
-        self.samples = samples
-        self.time = time
         self.label = label
         self._cell_type = cell_type
         self._meta = meta
+
+    def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
+        """Restrict self.time and self.samples to an EpochArray. If no
+        EpochArray is specified, self.support is used.
+
+        Parameters
+        ----------
+        epocharray : EpochArray, optional
+            EpochArray on which to restrict SpikeTrain. Default is
+            self.support
+        update: bool, optional
+            Overwrite self.support with epocharray if True (default).
+        """
+        if epocharray is None:
+            epocharray = self.support
+            update = False  # support did not change; no need to update
+
+        indices = []
+        for eptime in epocharray.time:
+            t_start = eptime[0]
+            t_stop = eptime[1]
+            indices.append((self.time >= t_start) & (self.time <= t_stop))
+        indices = np.any(np.column_stack(indices), axis=1)
+        if np.count_nonzero(indices) < len(self.time):
+            warnings.warn(
+                'ignoring spikes outside of spiketrain support')
+        self.samples = self.samples[indices]
+        self.time = self.time[indices]
+        if update:
+            self.support = epocharray
 
     def _emptySpikeTrain(self):
         """empty all the instance attributes for an empty object."""
