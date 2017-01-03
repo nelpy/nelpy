@@ -50,32 +50,33 @@ class PoissonHMM:
 
     @property
     def hmm(self):
-        """Property descripti9on goes here."""
+        """Property description goes here."""
         return self._hmm
 
     @property
     def means_(self):
-        """Property descripti9on goes here."""
+        """Property description goes here."""
         raise NotImplementedError("property not implemented yet")
 
     @property
     def transmat_(self):
-        """Property descripti9on goes here."""
+        """Property description goes here."""
         raise NotImplementedError("property not implemented yet")
 
     @property
     def n_units(self):
-        """Property descripti9on goes here."""
+        """Property description goes here."""
         raise NotImplementedError("property not implemented yet")
+        # return self.means_.shape
 
     @property
     def n_components(self):
-        """Property descripti9on goes here."""
+        """Number of components (states)."""
         return self.hmm.n_components
 
     @property
     def startprob_prior(self):
-        """Property descripti9on goes here."""
+        """Property description goes here."""
         return self.hmm.startprob_prior
 
     @startprob_prior.setter
@@ -84,12 +85,12 @@ class PoissonHMM:
 
     @property
     def n_iter(self):
-        """Property descripti9on goes here."""
+        """Property description goes here."""
         return self.hmm.n_iter
 
     @n_iter.setter
     def n_iter(self, val):
-        """Property descripti9on goes here."""
+        """Property description goes here."""
         self.hmm.n_iter = val
 
     # def score():
