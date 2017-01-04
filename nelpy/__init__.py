@@ -23,6 +23,6 @@ from .utils import (find_nearest_idx,
 
 from .hmmutils import PoissonHMM
 
-# from .plotting import ()
+# from .plotting import plot
 
 __version__ = '0.0.5'

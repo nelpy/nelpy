@@ -76,9 +76,9 @@ class PoissonHMM(PHMM):
         # bst.lengths and bst.data.T should get us very close
         pass
 
-    # def __repr__(self):
-    #     # rep = super().__repr__()
-    #     raise NotImplementedError(
-    #         "I don't know how to access the parent __repr__ method "
-    #         "yet :/")
-    #     # return "nelpy."
+    def __repr__(self):
+        rep = super().__repr__()
+        # raise NotImplementedError(
+        #     "I don't know how to access the parent __repr__ method "
+        #     "yet :/")
+        return "nelpy." + rep
