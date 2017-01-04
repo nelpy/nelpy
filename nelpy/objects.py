@@ -1620,8 +1620,8 @@ class BinnedSpikeTrain:
         """(nelpy.EpochArray) The support of the binned spiketrain (in
         seconds).
          """
-        raise NotImplementedError(
-            'BinnedSpikeTrain.support not implemented yet')
+        # raise NotImplementedError(
+        #     'BinnedSpikeTrain.support not implemented yet')
         return self._support
 
     @property
@@ -1629,9 +1629,14 @@ class BinnedSpikeTrain:
         """(np.array) The binned support of the binned spiketrain (in
         seconds).
         """
-        raise NotImplementedError(
-            'BinnedSpikeTrain.binnedSupport not implemented yet')
+        # raise NotImplementedError(
+        #     'BinnedSpikeTrain.binnedSupport not implemented yet')
         return self._binnedSupport
+
+    @property
+    def lengths(self):
+        """Lenghts of contiguous segments, in number of bins."""
+        return self.binnedSupport[1,:] - self.binnedSupport[0,:] + 1
 
     @property
     def spiketrain(self):

@@ -3,12 +3,6 @@
 with hmmlearn.
 """
 
-from hmmlearn import hmm # see https://github.com/ckemere/hmmlearn
-
-# TODO: consider whether to simply write a wrapper for hmmlearn, or
-# to inherit from it. As of now, I think writing a simple wrapper is
-# more in line with what I need.
-
 # TODO: add helper code to 
 # * choose number of parameters
 # * fit model
@@ -17,8 +11,11 @@ from hmmlearn import hmm # see https://github.com/ckemere/hmmlearn
 # * decode (with orderings)
 # * learn mapping to abstract behavior (default: position)
 
-class PoissonHMM:
-    """Class description.
+# see https://github.com/ckemere/hmmlearn
+from hmmlearn.hmm import PoissonHMM as PHMM
+
+class PoissonHMM(PHMM):
+    """Nelpy PoissonHMM.
 
     Parameters
     ----------
@@ -26,7 +23,6 @@ class PoissonHMM:
     Attributes
     ----------
     """
-
     def __init__(self, *, n_components, n_iter=None, init_params=None,
                  params=None, verbose=False):
 
@@ -38,64 +34,51 @@ class PoissonHMM:
         if params is None:
             params = 'stm'
 
-        # initialize a PoissonHMM object
-        self._hmm = hmm.PoissonHMM(n_components=n_components,
-                                   n_iter=n_iter,
-                                   init_params=init_params,
-                                   params=params,
-                                   verbose=verbose)
+        # TODO: I don't understand why super().__init__ does not work?
+        PHMM.__init__(self,
+                      n_components=n_components,
+                      n_iter=n_iter,
+                      init_params=init_params,
+                      params=params,
+                      verbose=verbose)
+        
+        # create shortcuts to super() methods that are overridden in 
+        # this class
 
-    def __repr__(self):
-        return "nelpy." + self.hmm.__repr__()
+        # TODO: does this syntax actually work?
+        self.fit_ = PHMM.fit
+        self.decode_ = PHMM.fit
+        self.score_ = PHMM.score
+        self.score_samples_ = PHMM.score_samples
 
-    @property
-    def hmm(self):
-        """Property description goes here."""
-        return self._hmm
+    def fit(self, X, lengths=None):
+        """Estimate model parameters using nelpy objects.
 
-    @property
-    def means_(self):
-        """Property description goes here."""
-        raise NotImplementedError("property not implemented yet")
+        An initialization step is performed before entering the
+        EM-algorithm. If you want to avoid this step for a subset of
+        the parameters, pass proper ``init_params`` keyword argument
+        to estimator's constructor.
 
-    @property
-    def transmat_(self):
-        """Property description goes here."""
-        raise NotImplementedError("property not implemented yet")
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_units)
+            Feature matrix of individual samples.
+        lengths : array-like of integers, shape (n_sequences, )
+            Lengths of the individual sequences in ``X``. The sum of
+            these should be ``n_samples``.
 
-    @property
-    def n_units(self):
-        """Property description goes here."""
-        raise NotImplementedError("property not implemented yet")
-        # return self.means_.shape
+        Returns
+        -------
+        self : object
+            Returns self.
+        """
 
-    @property
-    def n_components(self):
-        """Number of components (states)."""
-        return self.hmm.n_components
+        # bst.lengths and bst.data.T should get us very close
+        pass
 
-    @property
-    def startprob_prior(self):
-        """Property description goes here."""
-        return self.hmm.startprob_prior
-
-    @startprob_prior.setter
-    def startprob_prior(self, val):
-        self.hmm.startprob_prior = val
-
-    @property
-    def n_iter(self):
-        """Property description goes here."""
-        return self.hmm.n_iter
-
-    @n_iter.setter
-    def n_iter(self, val):
-        """Property description goes here."""
-        self.hmm.n_iter = val
-
-    # def score():
-
-    # def fit():
-
-    # def scoreSAMPLES():
-
+    # def __repr__(self):
+    #     # rep = super().__repr__()
+    #     raise NotImplementedError(
+    #         "I don't know how to access the parent __repr__ method "
+    #         "yet :/")
+    #     # return "nelpy."
