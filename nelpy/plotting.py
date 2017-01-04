@@ -12,7 +12,7 @@ from .objects import *
 from matplotlib import cm
 from matplotlib import colors as mplcolors
 
-def plot(data, *, cmap=plt.cm.Accent, color=None, legend=True, ax=None, **kwargs):
+def plot(data, *, cmap=plt.cm.Accent, color=None, legend=True, ax=None, plot_support=True, **kwargs):
     """Plot one or more timeseries with flexible representation of uncertainty.
 
     This function is intended to be used with data where observations are
@@ -178,13 +178,20 @@ def plot(data, *, cmap=plt.cm.Accent, color=None, legend=True, ax=None, **kwargs
         
         for unit, spiketrain in enumerate(data.time):
             ax.vlines(spiketrain, unit + .55, unit + 1.45, colors=colors[unit], **kwargs)
-        
+
+        # change y-axis labels to integers
+        yint = range(1, data.n_units+1)
+        ax.set_yticks(yint)
+
         ax.set_ylim(yrange)
 
+        # # plot the support epochs:
+        # if plot_support:
+        #     plot_epochs_hatch(ax=ax, epochs=data.support, height=data.n_units+1, fc='0.5', ec=None, alpha=0.2)
+
     elif isinstance(data, EpochArray):
-        print("plotting EpochArray")
-        raise NotImplementedError(
-            "plotting {} not yet supported".format(str(type(data))))
+        # TODO: how can I figure out an appropriate height when plotting a spiketrain support?
+        plot_epochs_hatch(ax=ax, epochs=data, height=1e3, fc='0.2', ec=None, alpha=0.2, hatch=None)
     else:
         raise NotImplementedError(
             "plotting {} not yet supported".format(str(type(data))))
@@ -206,6 +213,26 @@ def plot(data, *, cmap=plt.cm.Accent, color=None, legend=True, ax=None, **kwargs
     #     ax.legend(loc=0, title=legend_name)
 
     return ax
+
+def plot_epochs_hatch(ax, epochs, height=None, fc='0.5', ec=None,
+                      alpha=0.5, hatch='////'):
+    """Docstring goes here.
+    """
+
+    import matplotlib.patches as patches
+    for start, stop in zip(epochs.starts, epochs.stops):
+        ax.add_patch(
+            patches.Rectangle(
+                (start, 0),   # (x,y)
+                stop - start ,          # width
+                height,          # height
+                hatch=hatch,
+                facecolor=fc,
+                edgecolor=ec,
+                alpha=alpha
+            )
+        )
+    # ax.set_xlim([epochs.start, epochs.stop])
 
 # def tsplot(data, time=None, unit=None, condition=None, value=None,
 #            err_style="ci_band", ci=68, interpolate=True, color=None,
