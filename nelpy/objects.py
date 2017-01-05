@@ -1322,7 +1322,11 @@ class SpikeTrainArray:
         # determine spiketrain array support:
         if support is None:
             # first_st = np.array([unit[0] for unit in sampleArray]).min()
-            last_st = np.array([unit[-1] for unit in sampleArray]).max()
+            # BUG: if spiketrain is empty np.array([]) then unit[-1]
+            # raises an error in the following:
+            # FIX: list[-1] raises an IndexError for an empty list,
+            # whereas list[-1:] returns an empty list.
+            last_st = np.array([unit[-1:] for unit in sampleArray]).max()
             self.support = EpochArray(np.array([0, last_st]), fs=fs)
             # in the above, there's no reason to restrict to support
         else:
