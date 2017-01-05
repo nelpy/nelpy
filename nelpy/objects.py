@@ -1081,6 +1081,11 @@ class SpikeTrain:
                 'unsupported subsctipting type {}'.format(type(idx)))
 
     @property
+    def n_active(self):
+        """Number of active units per epoch with shape (n_epochs,)."""
+        return np.array([self[ep].n_spikes for ep in self.support])
+
+    @property
     def n_spikes(self):
         """(int) The number of spikes."""
         return len(self.time)
@@ -1410,6 +1415,12 @@ class SpikeTrainArray:
         if self.isempty:
             return 0
         return np.array([len(unit) for unit in self.time])
+
+    @property
+    def n_active(self):
+        """Number of active units per epoch with shape (n_epochs,)."""
+        raise NotImplementedError(
+            'SpikeTrainArray.n_active not implemented yet')
 
     @property
     def isempty(self):
