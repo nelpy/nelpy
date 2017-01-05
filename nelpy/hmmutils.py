@@ -77,8 +77,30 @@ class PoissonHMM(PHMM):
         pass
 
     def __repr__(self):
-        rep = super().__repr__()
+        try:
+            rep = super().__repr__()
+        except:
+            warning.warn(
+                "couldn't access super().__repr__;"
+                " upgrade dependencies to resolve this issue."
+                )
+            rep = "PoissonHMM"
         # raise NotImplementedError(
         #     "I don't know how to access the parent __repr__ method "
         #     "yet :/")
         return "nelpy." + rep
+
+    def fit_ext(self):
+        """Learn a mapping from the internal state space, to an external
+        augmented space (e.g. position).
+        """
+        raise NotImplementedError(
+            "nelpy.PoissonHMM.decde_ext() not yet implemented")
+
+    def decode_ext(self):
+        """Decode observations to the state space, and then map those
+        states to an associated external representation (e.g. position).
+        """
+        raise NotImplementedError(
+            "nelpy.PoissonHMM.decde_ext() not yet implemented")
+            
