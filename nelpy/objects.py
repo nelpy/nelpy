@@ -927,8 +927,6 @@ class SpikeTrain:
         if label is not None and not isinstance(label, str):
             raise ValueError("label must be a string")
 
-
-
         # set self.samples and self.time before restricting to support:
         self.time = time
         self.samples = samples
@@ -1395,9 +1393,6 @@ class SpikeTrainArray:
         numstr = " %s units" % self.n_units
         return "<SpikeTrainArray:%s>%s%s" % (numstr, fsstr, labelstr)
 
-        # return "<SpikeTrainArray: %s> %s" % (nstr, dstr)
-        return "<SpikeTrainArray with units at Hz>"
-
     def __getitem__(self, idx):
         # TODO: allow indexing of form sta[1:5,4] so that the STs of
         # epochs 1 to 5 (exlcusive) are returned, for neuron id 4.
@@ -1424,9 +1419,9 @@ class SpikeTrainArray:
     @property
     def issorted(self):
         """(bool) Sorted SpikeTrainArray."""
-        raise NotImplementedError(
-            'SpikeTrainArray.issorted not implemented yet')
-        return is_sorted(self.samples)
+        return np.array(
+            [is_sorted(spiketrain) for spiketrain in self.samples]
+            ).all()
 
     @property
     def cell_types(self):
@@ -1570,33 +1565,40 @@ class BinnedSpikeTrain:
         if not isinstance(spiketrain, SpikeTrain):
             raise TypeError(
                 'spiketrain must be a nelpy.SpikeTrain object.')
-        
+
         self._ds = None
         self._centers = np.array([])
 
         if ds is None:
             warnings.warn('no bin size was given, assuming 62.5 ms')
-            ds = 0.625     
+            ds = 0.0625
 
+        # TODO: this is not a good empty object to return; fix it!
         # if no samples were received, return an empty BinnedSpikeTrain:
         if spiketrain.isempty:
             self.ds = ds
             return
 
         self._spiketrain = spiketrain # TODO: remove this if we don't need it, or decide that it's too wasteful
+        self._support = spiketrain.support
         self.ds = ds
 
         self._bin_spikes(
             spiketrain=spiketrain,
-            epochArray=spiketrain.support,
+            epochArray=self.support,
             ds=ds
             )
 
     def __repr__(self):
         if self.isempty:
             return "<empty BinnedSpikeTrain>"
-        # return "<BinnedSpikeTrain: %s> %s" % (nstr, dstr)
-        return "<BinnedSpikeTrain>"
+        if self.n_bins == 1:
+            bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
+            dstr = ""
+        else:
+            bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
+            dstr = " for a total of {} seconds.".format(self.n_bins*self.ds)
+        return "<BinnedSpikeTrain:%s>%s" % (bstr, dstr)
 
     def __getitem__(self, idx):
         raise NotImplementedError(
@@ -1621,17 +1623,15 @@ class BinnedSpikeTrain:
 
     @property
     def support(self):
-        """(nelpy.EpochArray) The support of the binned spiketrain (in
-        seconds).
+        """(nelpy.EpochArray) The support of the underlying spiketrain
+        (in seconds).
          """
-        # raise NotImplementedError(
-        #     'BinnedSpikeTrain.support not implemented yet')
         return self._support
 
     @property
     def binnedSupport(self):
         """(np.array) The binned support of the binned spiketrain (in
-        seconds).
+        bin IDs) of shape (2, n_epochs).
         """
         # raise NotImplementedError(
         #     'BinnedSpikeTrain.binnedSupport not implemented yet')
@@ -1647,8 +1647,6 @@ class BinnedSpikeTrain:
         """(nelpy.SpikeTrain) The original spiketrain associated with
         the binned data.
         """
-        raise NotImplementedError(
-            'BinnedSpikeTrain.spiketrain not implemented yet')
         return self._spiketrain
 
     @property
@@ -1683,7 +1681,8 @@ class BinnedSpikeTrain:
     def _get_bins_to_cover_epoch(self, epoch, ds):
         """(np.array) Return bin edges to cover an epoch."""
         # start = ep.start - (ep.start % ds)
-        # start = ep.start - (ep.start / ds - floor(ep.start / ds)) # because e.g., 1 % 0.1 is messed up (precision error)
+        # start = ep.start - (ep.start / ds - floor(ep.start / ds))
+        # because e.g., 1 % 0.1 is messed up (precision error)
         start = ds * np.floor(epoch.start / ds)
         num = np.ceil((epoch.stop - start) / ds)
         stop = start + ds * num
