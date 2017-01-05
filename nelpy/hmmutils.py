@@ -85,9 +85,6 @@ class PoissonHMM(PHMM):
                 " upgrade dependencies to resolve this issue."
                 )
             rep = "PoissonHMM"
-        # raise NotImplementedError(
-        #     "I don't know how to access the parent __repr__ method "
-        #     "yet :/")
         return "nelpy." + rep
 
     def fit_ext(self):
@@ -103,4 +100,3 @@ class PoissonHMM(PHMM):
         """
         raise NotImplementedError(
             "nelpy.PoissonHMM.decde_ext() not yet implemented")
-            

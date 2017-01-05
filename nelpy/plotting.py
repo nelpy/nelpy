@@ -20,6 +20,7 @@ def matshow(data, *, ax=None, **kwargs):
 
     # Handle different types of input data
     if isinstance(data, BinnedSpikeTrainArray):
+        # TODO: split by epoch, and plot matshows in same row, but with a small gap to indicate discontinuities. How about slicing then? Or slicing within an epoch?
         ax.matshow(data.data, **kwargs)
         ax.set_xlabel('time')
         ax.set_ylabel('unit')
