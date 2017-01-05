@@ -12,6 +12,22 @@ from .objects import *
 from matplotlib import cm
 from matplotlib import colors as mplcolors
 
+def matshow(data, *, ax=None, **kwargs):
+
+    # Sort out default values for the parameters
+    if ax is None:
+        ax = plt.gca()
+
+    # Handle different types of input data
+    if isinstance(data, BinnedSpikeTrainArray):
+        ax.matshow(data.data, **kwargs)
+        warnings.warn("Automatic x-axis formatting not yet implemented")
+    else:
+        raise NotImplementedError(
+            "matshow({}) not yet supported".format(str(type(data))))
+
+    return ax
+
 def plot(data, *, cmap=plt.cm.Accent, color=None, legend=True, ax=None, plot_support=True, **kwargs):
     """Plot one or more timeseries with flexible representation of uncertainty.
 
