@@ -21,6 +21,8 @@ def matshow(data, *, ax=None, **kwargs):
     # Handle different types of input data
     if isinstance(data, BinnedSpikeTrainArray):
         ax.matshow(data.data, **kwargs)
+        ax.set_xlabel('time')
+        ax.set_ylabel('unit')
         warnings.warn("Automatic x-axis formatting not yet implemented")
     else:
         raise NotImplementedError(
