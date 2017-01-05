@@ -1633,8 +1633,6 @@ class BinnedSpikeTrain:
         """(np.array) The binned support of the binned spiketrain (in
         bin IDs) of shape (2, n_epochs).
         """
-        # raise NotImplementedError(
-        #     'BinnedSpikeTrain.binnedSupport not implemented yet')
         return self._binnedSupport
 
     @property
@@ -1658,6 +1656,11 @@ class BinnedSpikeTrain:
     def isempty(self):
         """(bool) Empty BinnedSpikeTrain."""
         return len(self.centers) == 0
+
+    @property
+    def n_active(self):
+        """Number of active units per time bin with shape (n_bins,)."""
+        return self.data.clip(max=1)
 
     @property
     def ds(self):
@@ -1727,14 +1730,10 @@ class BinnedSpikeTrain:
 # class BinnedSpikeTrainArray
 ########################################################################
 class BinnedSpikeTrainArray:
-    """Class description.
+    """Binned spiketrain array.
 
     Parameters
     ----------
-    samples : np.array
-        If shape (n_epochs, 1) or (n_epochs,), the start time for each
-        epoch.
-        If shape (n_epochs, 2), the start and stop times for each epoch.
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
@@ -1773,6 +1772,16 @@ class BinnedSpikeTrainArray:
         """(bool) Empty BinnedApikeTrainArray."""
         raise NotImplementedError(
             'BinnedSpikeTrainArray.isempty not implemented yet')
+
+    @property
+    def n_active(self):
+        """Number of active units per time bin with shape (n_bins,)."""
+        raise NotImplementedError(
+            'BinnedSpikeTrainArray.n_active not implemented yet')
+        # TODO: profile several alternatves. Could use data > 0, or
+        # other numpy methods to get a more efficient implementation:
+        return self.data.clip(max=1).sum(axis=0)
+
 #----------------------------------------------------------------------#
 #======================================================================#
 
