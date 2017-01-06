@@ -200,15 +200,15 @@ def add_scalebar(ax, matchx=False, matchy=False, sizex=None, sizey=None, labelx=
     def f(axis):
         l = axis.get_majorticklocs()
         return len(l)>1 and (l[1] - l[0])
-    
+        
     if sizex is None and not matchx:
         print('warning! either sizex or matchx must be set; assuming matchx = True')
         matchx = True
-        
+
     if sizey is None and not matchy:
         print('warning! either sizey or matchy must be set; assuming matchy = True')
         matchy = True
-    
+
     if matchx:
         kwargs['sizex'] = f(ax.xaxis)
         kwargs['labelx'] = str(kwargs['sizex'])
