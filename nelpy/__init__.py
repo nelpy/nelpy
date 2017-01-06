@@ -25,4 +25,4 @@ from .hmmutils import PoissonHMM
 
 # from .plotting import plot
 
-__version__ = '0.0.5'
+__version__ = '0.0.6'

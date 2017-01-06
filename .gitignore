@@ -30,6 +30,8 @@
 *.asv
 code-matlab/shared/datatypes/tsd/UnionTSD.m
 
+.vscode
+
 # code-python
 *.pyc
 Thumbs.db

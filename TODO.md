@@ -24,44 +24,10 @@ TODO.md
 1. change default parameters to =None
 1. reconsider SpikeTrain.shift() --- could just as well create new SpikeTrain with explicitly shifted samples?
 1. Should we follow NEO more closely to allow for Spike and Epoch objects? and what about Unit objects?
-1. Update Emily's wonderful tutorial to showcase EpochArray indexing, class repr output, SpikeTrain support, and more...
-1. implement gettatr steps for slices (see below); also, what is the tuple usage?
-1. see https://github.com/kghose/neurapy/blob/master/neurapy/signal/continuous.py for long filtfilt
+1. Update Emily's wonderful tutorial to showcase EpochArray indexing, class __repr__ output, SpikeTrain support, and more...
 
 follow along here: https://jeffknupp.com/blog/2013/08/16/open-sourcing-a-python-project-the-right-way/
 
 and here: http://nvie.com/posts/a-successful-git-branching-model/
 
 http://neo.readthedocs.io/en/0.4.0/core.html
-
-def __getitem__(self, i):
-        '''
-        Get the item or slice :attr:`i`.
-        '''
-        obj = super(AnalogSignal, self).__getitem__(i)
-        if isinstance(i, int):  # a single point in time across all channels
-            obj = pq.Quantity(obj.magnitude, units=obj.units)
-        elif isinstance(i, tuple):
-            j, k = i
-            if isinstance(j, int):  # extract a quantity array
-                obj = pq.Quantity(obj.magnitude, units=obj.units)
-            else:
-                if isinstance(j, slice):
-                    if j.start:
-                        obj.t_start = (self.t_start +
-                                       j.start * self.sampling_period)
-                    if j.step:
-                        obj.sampling_period *= j.step
-                elif isinstance(j, np.ndarray):
-                    raise NotImplementedError("Arrays not yet supported")
-                    # in the general case, would need to return IrregularlySampledSignal(Array)
-                else:
-                    raise TypeError("%s not supported" % type(j))
-                if isinstance(k, int):
-                    obj = obj.reshape(-1, 1)
-        elif isinstance(i, slice):
-            if i.start:
-                obj.t_start = self.t_start + i.start * self.sampling_period
-        else:
-            raise IndexError("index should be an integer, tuple or slice")
-        return obj
