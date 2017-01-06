@@ -1,6 +1,17 @@
-import numpy as np
+from itertools import tee
 from scipy import signal
 from matplotlib.offsetbox import AnchoredOffsetbox
+
+import numpy as np
+
+def pairwise(iterable):
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+def is_sorted(iterable, key=lambda a, b: a <= b):
+    """Check to see if iterable is monotonic increasing (sorted)."""
+    return all(key(a, b) for a, b in pairwise(iterable))
 
 def find_nearest_idx(array, val):
     """Finds nearest index in array to value.
