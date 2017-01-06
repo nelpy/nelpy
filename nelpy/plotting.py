@@ -31,6 +31,32 @@ def matshow(data, *, ax=None, **kwargs):
 
     return ax
 
+def comboplot(*, ax=None, raster=None, analog=None, events=None):
+    """Combo plot (consider better name) showing spike / state raster with
+    additional analog signals, such as LFP or velocity, and also possibly with 
+    events. Here, the benefit is to have the figure and axes created automatically,
+    in addition to prettification, as well as axis-linking. I don't know if we will 
+    really call this plot often though, so may be more of a gimmick?
+    """
+
+    # Sort out default values for the parameters
+    if ax is None:
+        ax = plt.gca()
+
+    raise NotImplementedError("comboplot() not implemented yet")
+
+    return ax
+
+def occupancy():
+    pass
+
+def overviewstrip():
+    """Plot an epoch array similar to vs scrollbar, to show gaps in e.g.
+    matshow plots.
+    """
+    pass
+
+
 def plot(data, *, cmap=plt.cm.Accent, color=None, legend=True, ax=None, plot_support=True, **kwargs):
     """Plot one or more timeseries with flexible representation of uncertainty.
 
