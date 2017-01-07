@@ -475,8 +475,8 @@ class AnchoredScaleBar(AnchoredOffsetbox):
         adapted from https://gist.github.com/dmeliza/3251476
         """
         from matplotlib.patches import Rectangle
-        from matplotlib.offsetbox import AuxTransformBox, VPacker,
-                                         HPacker, TextArea, DrawingArea
+        from matplotlib.offsetbox import AuxTransformBox, VPacker
+        from matplotlib.offsetbox import HPacker, TextArea, DrawingArea
         import matplotlib.patches as mpatches
 
         if fontsize is None:
@@ -495,7 +495,7 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                 endpt,
                 color=ec,
                 linewidth=lw,
-                capstyle ='capstyle',
+                capstyle =capstyle,
                 arrowstyle = mpatches.ArrowStyle.BarAB(
                     widthA=0,
                     widthB=lw*2))
@@ -507,7 +507,7 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                 endpt,
                 color=ec,
                 linewidth=lw,
-                capstyle='capstyle',
+                capstyle=capstyle,
                 arrowstyle = mpatches.ArrowStyle.BarAB(
                     widthA=0,
                     widthB=lw*2))
@@ -553,10 +553,10 @@ class AnchoredScaleBar(AnchoredOffsetbox):
             if sizey and labely:
                 bars = HPacker(
                     children=[
-                        bars,
                         TextArea(
                             labely,
-                            textprops=dict(color=fc, size=fontsize))],
+                            textprops=dict(color=fc, size=fontsize)),
+                        bars],
                     align="center",
                     pad=pad,
                     sep=sep)
@@ -564,10 +564,10 @@ class AnchoredScaleBar(AnchoredOffsetbox):
             if sizey and labely:
                 bars = HPacker(
                     children=[
-                        bars,
                         TextArea(
                             labely,
-                            textprops=dict(color=fc, size=fontsize))],
+                            textprops=dict(color=fc, size=fontsize)),
+                        bars],
                     align="center",
                     pad=pad,
                     sep=sep)
