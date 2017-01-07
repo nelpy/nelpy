@@ -462,7 +462,17 @@ class AnchoredScaleBar(AnchoredOffsetbox):
         - transform : the coordinate frame (typically axes.transData)
         - sizex,sizey : width of x,y bar, in data units. 0 to omit
         - labelx,labely : labels for x,y bars; None to omit
-        - loc : position in containing axes
+        - loc : (int) position in containing axes
+            'upper right'  : 1,
+            'upper left'   : 2,
+            'lower left'   : 3,
+            'lower right'  : 4, default
+            'right'        : 5,
+            'center left'  : 6,
+            'center right' : 7,
+            'lower center' : 8,
+            'upper center' : 9,
+            'center'       : 10,
         - pad, borderpad : padding, in fraction of the legend font size
         - sep : separation between labels and bars in points.
         - ec : edgecolor of scalebar
