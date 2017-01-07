@@ -1,6 +1,6 @@
 #encoding : utf-8
 """This file contains the nelpy plotting functions and utilities.
- * 
+ *
 """
 
 # TODO: see https://gist.github.com/arnaldorusso/6611ff6c05e1efc2fb72
@@ -36,9 +36,9 @@ def matshow(data, *, ax=None, **kwargs):
     return ax
 
 def comboplot(*, ax=None, raster=None, analog=None, events=None):
-    """Combo plot (consider better name) showing spike / state raster 
-    with additional analog signals, such as LFP or velocity, and also 
-    possibly with events. Here, the benefit is to have the figure and 
+    """Combo plot (consider better name) showing spike / state raster
+    with additional analog signals, such as LFP or velocity, and also
+    possibly with events. Here, the benefit is to have the figure and
     axes created automatically, in addition to prettification, as well
     as axis-linking. I don't know if we will really call this plot often
     though, so may be more of a gimmick?
@@ -225,7 +225,7 @@ def plot(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True
             "plotting {} not yet supported".format(str(type(data))))
     elif isinstance(data, SpikeTrainArray):
         yrange = [.5, data.n_units + .5]
-        
+
         if cmap is not None:
             colors = cmap(np.linspace(0.25, 0.75, data.n_units)) # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
             for unit, spiketrain in enumerate(data.time):
@@ -338,7 +338,7 @@ def savefig(name, fig=None, formats=None, dpi=300, verbose=True, overwrite=False
     Parameters
     ----------
     name : string
-        Filename without an extension. If an extension is present, 
+        Filename without an extension. If an extension is present,
         AND if formats is empty, then the filename extension will be used.
     fig : matplotlib figure, optional
         Figure to save, default uses current figure.
@@ -354,7 +354,7 @@ def savefig(name, fig=None, formats=None, dpi=300, verbose=True, overwrite=False
     Returns
     -------
     none
-    
+
     """
     # Check inputs
     # if not 0 <= prop <= 1:
@@ -386,19 +386,19 @@ def savefig(name, fig=None, formats=None, dpi=300, verbose=True, overwrite=False
             print("WARNING! Format '{}' not supported. Aborting...".format(extension))
         else:
             my_file = 'figures/{}.{}'.format(name, extension)
-            
+
             if os.path.isfile(my_file):
                 # file exists
                 print('{} already exists!'.format(my_file))
-                
+
                 if overwrite:
                     fig.savefig(my_file, dpi=dpi, bbox_inches='tight')
-                    
+
                     if verbose:
                         print('{} saved successfully... [using overwrite]'.format(extension))
             else:
                 fig.savefig(my_file, dpi=dpi, bbox_inches='tight')
-                
+
                 if verbose:
                     print('{} saved successfully...'.format(extension))
 
@@ -420,7 +420,7 @@ class FixedOrderFormatter(ScalarFormatter):
     --------
     # Force the y-axis ticks to use 1e+2 as a base exponent :
     >>> ax.yaxis.set_major_formatter(npl.FixedOrderFormatter(+2))
-     
+
     # Make the x-axis ticks formatted to 0 decimal places:
     >>> from matplotlib.ticker FormatStrFormatter
     >>> ax.xaxis.set_major_formatter(FormatStrFormatter('%0.0f'))
@@ -467,18 +467,18 @@ class AnchoredScaleBar(AnchoredOffsetbox):
         - fc : font color / face color of labels
         - capstyle : capstyle of bars ['round', 'butt', 'projecting'] # TODO: NO LONGER USED
         - **kwargs : additional arguments passed to base class constructor
-        
+
         adapted from https://gist.github.com/dmeliza/3251476
         """
         from matplotlib.patches import Rectangle
         from matplotlib.offsetbox import AuxTransformBox, VPacker, HPacker, TextArea, DrawingArea
         import matplotlib.patches as mpatches
-        
+
         if fontsize is None:
             fontsize = mpl.rcParams['font.size']
 
         bars = AuxTransformBox(transform)
-        
+
         if sizex and sizey:  # both horizontal and vertical scalebar
             endpt = (sizex, 0)
             art = mpatches.FancyArrowPatch((0, 0), endpt, color=ec, linewidth=lw,
@@ -496,7 +496,7 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                 art = mpatches.FancyArrowPatch((0, 0), endpt, color=ec, linewidth=lw,
                                             arrowstyle = mpatches.ArrowStyle.BarAB(widthA=lw*2, widthB=lw*2))
                 bars.add_artist(art)
-                
+
             if sizey:
                 endpt = (0, sizey)
                 art = mpatches.FancyArrowPatch((0, 0), endpt, color=ec, linewidth=lw,
@@ -517,7 +517,7 @@ class AnchoredScaleBar(AnchoredOffsetbox):
             if sizex and labelx:
                 bars = VPacker(children=[bars, TextArea(labelx, minimumdescent=False, textprops=dict(color=fc, size=fontsize))],
                                align="center", pad=pad, sep=sep)
-            
+
         AnchoredOffsetbox.__init__(self, loc, pad=pad, borderpad=borderpad,
                                    child=bars, prop=prop, frameon=False, **kwargs)
 
@@ -562,7 +562,7 @@ def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None, sizey=None, labe
             kwargs['labely'] = str(labely)
         else:
             kwargs['labely'] = str(kwargs['sizey'])
-            
+
     # if x and y, create phantom objects to get centering done
     if sizex > 0 and sizey > 0:
         labely = kwargs['labely']

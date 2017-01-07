@@ -578,7 +578,7 @@ class EpochArray:
             # I haven't looked carefully enough to know which edge cases
             # these are...
             # merge() should therefore be checked!
-            # return EpochArray(join_starts, fs=None, 
+            # return EpochArray(join_starts, fs=None,
             # duration=join_stops - join_starts, meta=meta).merge()
             # .merge()
             return EpochArray(
@@ -636,11 +636,11 @@ class EventArray:
     Parameters
     ----------
     samples : np.array
-        If shape (n_epochs, 1) or (n_epochs,), the start time for each 
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each
         epoch.
         If shape (n_epochs, 2), the start and stop times for each epoch.
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time 
+        Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
 
     Attributes
@@ -672,7 +672,7 @@ class EventArray:
         raise NotImplementedError(
             'EventArray.__getitem__ not implemented yet')
 
-    @property 
+    @property
     def isempty(self):
         """(bool) Empty EventArray."""
         raise NotImplementedError(
@@ -810,11 +810,11 @@ class AnalogSignalArray:
     Parameters
     ----------
     samples : np.array
-        If shape (n_epochs, 1) or (n_epochs,), the start time for each 
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each
         epoch.
         If shape (n_epochs, 2), the start and stop times for each epoch.
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time 
+        Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
 
     Attributes
@@ -1229,14 +1229,14 @@ class SpikeTrain:
         return self[indices]
 
     def shift(self, time_offset, fs=None):
-        """Creates a new object corresponding to the original spike 
+        """Creates a new object corresponding to the original spike
         train, but shifted by time_offset (can be positive or negative).
 
         Parameters
         ----------
         spiketrain : nelpy.SpikeTrain
         time_offset : float
-            Time offset, either in actual time (default) or in sample 
+            Time offset, either in actual time (default) or in sample
             numbers if fs is specified.
         fs : float, optional
             Sampling frequency.
