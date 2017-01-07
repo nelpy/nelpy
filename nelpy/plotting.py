@@ -283,13 +283,8 @@ def plot_epochs_hatch(ax, epochs, height=None, fc='0.5', ec=None,
 
 __all__ = ["annotate", "figure_grid", "savefig"]
 
-# add ax2.yaxis.set_major_formatter(FixedOrderFormatter(-3))
-# add scalebar
-# add scale_grid
-# add spike raster plot
-# add 
-
 def annotate(ax, text, xy=(0.5, 0.5), rotation=0, va=None, **kwargs):
+    """Docstring goes here."""
     if rotation == 'vert' or rotation == 'v':
         rotation = 90
     if rotation == 'horz' or rotation == 'h':
@@ -318,7 +313,7 @@ def figure_grid(b=True, fig=None ):
         pass
 
 def get_extension_from_filename(name):
-    """Extracts an extension from a filename string"""
+    """Extracts an extension from a filename string."""
     name = name.strip()
     ext = ((name.split('\\')[-1]).split('/')[-1]).split('.')
     if len(ext) > 1 and ext[-1] is not '':
@@ -413,9 +408,17 @@ class FixedOrderFormatter(ScalarFormatter):
     useMathText : bool, optional
         If True use 1x10^exp; otherwise use 1e-exp. Default is True.
 
-    Example
-    -------
-    ax.yaxis.set_major_formatter(npl.FixedOrderFormatter(+2))
+    Examples
+    --------
+    # Force the y-axis ticks to use 1e+2 as a base exponent :
+    >>> ax.yaxis.set_major_formatter(npl.FixedOrderFormatter(+2))
+     
+    # Make the x-axis ticks formatted to 0 decimal places:
+    >>> from matplotlib.ticker FormatStrFormatter
+    >>> ax.xaxis.set_major_formatter(FormatStrFormatter('%0.0f'))
+
+    # Turn off offset on x-axis:
+    >>> ax.xaxis.get_major_formatter().set_useOffset(False)
 
     See http://stackoverflow.com/questions/3677368/\
 matplotlib-format-axis-offset-values-to-whole-numbers-\
