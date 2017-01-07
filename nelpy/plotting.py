@@ -608,6 +608,7 @@ def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None,
                  sizey=None, labelx=None, labely=None, hidex=True,
                  hidey=True, ec='k', **kwargs):
     """ Add scalebars to axes
+    TODO: improve documentation and standardize docstring.
     Adds a set of scale bars to *ax*, matching the size to the ticks of
     the plot and optionally hiding the x and y axes
     - ax : the axis to attach ticks to
