@@ -4,6 +4,7 @@
 """
 
 # TODO: see https://gist.github.com/arnaldorusso/6611ff6c05e1efc2fb72
+# TODO: see https://github.com/nengo/nengo/blob/master/nengo/utils/matplotlib.py
 
 import numpy as np
 import matplotlib as mpl
