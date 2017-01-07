@@ -7,14 +7,14 @@
 
 import numpy as np
 import matplotlib as mpl
+from matplotlib import cm
+from matplotlib import colors as mplcolors
 import matplotlib.pyplot as plt
 
 from .objects import *
 
-from matplotlib import cm
-from matplotlib import colors as mplcolors
-
 def matshow(data, *, ax=None, **kwargs):
+    """Docstring goes here."""
 
     # Sort out default values for the parameters
     if ax is None:
@@ -22,7 +22,9 @@ def matshow(data, *, ax=None, **kwargs):
 
     # Handle different types of input data
     if isinstance(data, BinnedSpikeTrainArray):
-        # TODO: split by epoch, and plot matshows in same row, but with a small gap to indicate discontinuities. How about slicing then? Or slicing within an epoch?
+        # TODO: split by epoch, and plot matshows in same row, but with
+        # a small gap to indicate discontinuities. How about slicing
+        # then? Or slicing within an epoch?
         ax.matshow(data.data, **kwargs)
         ax.set_xlabel('time')
         ax.set_ylabel('unit')
@@ -34,11 +36,12 @@ def matshow(data, *, ax=None, **kwargs):
     return ax
 
 def comboplot(*, ax=None, raster=None, analog=None, events=None):
-    """Combo plot (consider better name) showing spike / state raster with
-    additional analog signals, such as LFP or velocity, and also possibly with 
-    events. Here, the benefit is to have the figure and axes created automatically,
-    in addition to prettification, as well as axis-linking. I don't know if we will 
-    really call this plot often though, so may be more of a gimmick?
+    """Combo plot (consider better name) showing spike / state raster 
+    with additional analog signals, such as LFP or velocity, and also 
+    possibly with events. Here, the benefit is to have the figure and 
+    axes created automatically, in addition to prettification, as well
+    as axis-linking. I don't know if we will really call this plot often
+    though, so may be more of a gimmick?
     """
 
     # Sort out default values for the parameters
@@ -59,7 +62,7 @@ def overviewstrip():
     pass
 
 
-def plot(data, *, cmap=plt.cm.Accent, color=None, legend=True, ax=None, plot_support=True, **kwargs):
+def plot(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, **kwargs):
     """Plot one or more timeseries with flexible representation of uncertainty.
 
     This function is intended to be used with data where observations are
@@ -212,6 +215,8 @@ def plot(data, *, cmap=plt.cm.Accent, color=None, legend=True, ax=None, plot_sup
     # Sort out default values for the parameters
     if ax is None:
         ax = plt.gca()
+    if cmap is None and color is None:
+        color = 'k'
 
     # Handle different types of input data
     if isinstance(data, SpikeTrain):
@@ -219,12 +224,15 @@ def plot(data, *, cmap=plt.cm.Accent, color=None, legend=True, ax=None, plot_sup
         raise NotImplementedError(
             "plotting {} not yet supported".format(str(type(data))))
     elif isinstance(data, SpikeTrainArray):
-        colors = cmap(np.linspace(0.25, 0.75, data.n_units)) # TODO: if we go from 0 then most colormaps are invisible at one enf of the spectrum
-        
         yrange = [.5, data.n_units + .5]
         
-        for unit, spiketrain in enumerate(data.time):
-            ax.vlines(spiketrain, unit + .55, unit + 1.45, colors=colors[unit], **kwargs)
+        if cmap is not None:
+            colors = cmap(np.linspace(0.25, 0.75, data.n_units)) # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
+            for unit, spiketrain in enumerate(data.time):
+                ax.vlines(spiketrain, unit + .55, unit + 1.45, colors=colors[unit], **kwargs)
+        else:  # use a constant color:
+            for unit, spiketrain in enumerate(data.time):
+                ax.vlines(spiketrain, unit + .55, unit + 1.45, colors=color, **kwargs)
 
         # change y-axis labels to integers
         yint = range(1, data.n_units+1)
