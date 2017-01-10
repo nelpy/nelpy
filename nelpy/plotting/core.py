@@ -1,5 +1,12 @@
 from ..objects import *
 
+def imshow(data, *, ax=None, interpolation=None, **kwargs):
+    """Docstring goes here."""
+
+    # set default interpolation mode to 'none'
+    if interpolation is None:
+        interpolation = 'none'
+
 def matshow(data, *, ax=None, **kwargs):
     """Docstring goes here."""
 

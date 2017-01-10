@@ -194,6 +194,10 @@ def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None,
     # NOTE: to force label empty, use labelx = ' '
     #
 
+    # TODO: add logic for inverted axes:
+    # yinverted = ax.yaxis_inverted()
+    # xinverted = ax.xaxis_inverted()
+
     def f(axis):
         l = axis.get_majorticklocs()
         return len(l) > 1 and (l[1] - l[0])
