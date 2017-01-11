@@ -689,8 +689,15 @@ class AnalogSignal:
 
     Parameters
     ----------
-    data : np.array
-    time : np.array
+    samples : np.array(dtype=np.float64)
+    fs : float, optional
+        Sampling rate in Hz. If fs is passed as a parameter, then time
+        is assumed to be in sample numbers instead of actual time.
+    support : EpochArray, optional
+        EpochArray array on which spiketrain is defined.
+        Default is [0, last spike] inclusive.
+    label : str or None, optional
+        Information pertaining to the source of the spiketrain.
 
     Attributes
     ----------
@@ -700,32 +707,53 @@ class AnalogSignal:
         With shape (n_samples,).
 
     """
-    def __init__(self, *, time, data):
-        data = np.squeeze(data).astype(float)
-        time = np.squeeze(time).astype(float)
+    def __init__(self, values, *, xdata=None, fs=None):
+        
+        if samples.shape()
+        #if no samples are given return empty spike train
+        if len(samples) == 0:
+            self._emptyAnalogSignal()
+            return
 
-        if time.ndim == 0:
-            time = time[..., np.newaxis]
-            data = data[np.newaxis, ...]
+        # set initial fs to None
+        self._fs = None
+        # then attempt to update the fs; this does input validation:
+        self.fs = fs
 
-        if time.ndim != 1:
-            raise ValueError("time must be a vector")
+        # if a sampling rate was given, relate time to samples using fs:
+        if fs is not None:
+            xtime = xdata / fs
+        else:
+            xtime = xdata
 
-        if data.ndim == 1:
-            data = data[..., np.newaxis]
+        # if support is None:
+        #     self.
 
-        if data.ndim > 2:
-            raise ValueError("data must be vector or 2D array")
-        if data.shape[0] != data.shape[1] and time.shape[0] == data.shape[1]:
-            warnings.warn("data should be shape (timesteps, dimensionality); "
-                          "got (dimensionality, timesteps). Correcting...")
-            data = data.T
-        if time.shape[0] != data.shape[0]:
-            raise ValueError(
-                "must have same number of time and data samples")
+        # data = np.squeeze(data).astype(float)
+        # time = np.squeeze(time).astype(float)
 
-        self.data = data
-        self.time = time
+        # if time.ndim == 0:
+        #     time = time[..., np.newaxis]
+        #     data = data[np.newaxis, ...]
+
+        # if time.ndim != 1:
+        #     raise ValueError("time must be a vector")
+
+        # if data.ndim == 1:
+        #     data = data[..., np.newaxis]
+
+        # if data.ndim > 2:
+        #     raise ValueError("data must be vector or 2D array")
+        # if data.shape[0] != data.shape[1] and time.shape[0] == data.shape[1]:
+        #     warnings.warn("data should be shape (timesteps, dimensionality); "
+        #                   "got (dimensionality, timesteps). Correcting...")
+        #     data = data.T
+        # if time.shape[0] != data.shape[0]:
+        #     raise ValueError(
+        #         "must have same number of time and data samples")
+
+        self.samples = samples
+        self.xdata = xdata
 
     def __getitem__(self, idx):
         return AnalogSignal(data=self.data[idx], time=self.time[idx])
