@@ -21,7 +21,7 @@ from .objects import (EventArray,
 from .utils import (find_nearest_idx,
                     find_nearest_indices)
 
-from .hmmutils import PoissonHMM
+# from .hmmutils import PoissonHMM
 
 # from .plotting import plot
 
