@@ -4,6 +4,7 @@ nelpy.plotting
 
 This is the nelpy plotting module.
 """
+
 # from ..objects import (EventArray,
 #                        EpochArray,
 #                        AnalogSignal,

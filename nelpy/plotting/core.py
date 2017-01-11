@@ -1,4 +1,91 @@
-from ..objects import *
+from ..objects import (EventArray,
+                       EpochArray,
+                       AnalogSignal,
+                       AnalogSignalArray,
+                       SpikeTrain,
+                       SpikeTrainArray,
+                       BinnedSpikeTrain,
+                       BinnedSpikeTrainArray)
+
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import warnings
+
+def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
+         mec=None, **kwargs):
+    """Plot an array-like object on an EpochArray.
+
+    Parameters
+    ----------
+    epocharray : nelpy.EpochArray
+        EpochArray on which the data is defined.
+    data : array-like
+        Data to plot on y axis; must be of size (epocharray.n_epochs,).
+    ax : axis object, optional
+        Plot in given axis; if None creates a new figure
+    lw : float, optional
+        Linewidth, default value of lw=1.5.
+    mew : float, optional
+        Marker edge width, default is equal to lw.
+    color : matplotlib color, optional
+        Plot color; default is '0.5' (gray).
+    mec : matplotlib color, optional
+        Marker edge color, default is equal to color.
+    kwargs :
+        Other keyword arguments are passed to main plot() call
+
+    Returns
+    -------
+    ax : matplotlib axis
+        Axis object with plot data.
+
+    Examples
+    --------
+    Plot a simple 5-element list on an EpochArray:
+
+        >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
+        >>> data = [3, 4, 2, 5, 2]
+        >>> npl.plot(ep, data)
+    
+    Hide the markers and change the linewidth:
+
+        >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
+        >>> data = [3, 4, 2, 5, 2]
+        >>> npl.plot(ep, data, ms=0, lw=3)
+    """
+
+    if ax is None:
+        ax = plt.gca()
+    if lw is None:
+        lw = 1.5
+    if mew is None:
+        mew = lw
+    if color is None:
+        color = '0.3'
+    if mec is None:
+        mec = color
+
+    if epocharray.n_epochs != len(data):
+        raise ValueError("epocharray and data musthave the same length")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  
+        for epoch, val in zip(epocharray, data):
+            ax.plot(
+                [epoch.start, epoch.stop],
+                [val, val],
+                '-o',
+                color=color,
+                mec=mec,
+                markerfacecolor='w',
+                lw=lw, 
+                mew=mew,
+                **kwargs)
+
+    ax.set_ylim([np.array(data).min()-0.5, np.array(data).max()+0.5])
+
+    return ax
 
 def imshow(data, *, ax=None, interpolation=None, **kwargs):
     """Docstring goes here."""
@@ -47,16 +134,16 @@ def comboplot(*, ax=None, raster=None, analog=None, events=None):
     return ax
 
 def occupancy():
-    pass
+    """Docstring goes here. TODO: complete me."""
+    raise NotImplementedError("occupancy() not implemented yet")
 
 def overviewstrip():
     """Plot an epoch array similar to vs scrollbar, to show gaps in e.g.
-    matshow plots.
+    matshow plots. TODO: complete me.
     """
-    pass
+    raise NotImplementedError("overviewstripplot() not implemented yet")
 
-
-def plot(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, **kwargs):
+def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, **kwargs):
     """Plot one or more timeseries with flexible representation of uncertainty.
 
     This function is intended to be used with data where observations are
