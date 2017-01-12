@@ -16,6 +16,7 @@ This is the nelpy plotting module.
 
 from .core import (plot,
                    comboplot,
+                   raster,
                    matshow,
                    overviewstrip,
                    epoch_plot)

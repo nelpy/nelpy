@@ -73,14 +73,13 @@ class EpochArray:
         Sampling frequency (Hz).
     meta : dict
         Metadata associated with spiketrain.
-
     """
 
     def __init__(self, samples, *, fs=None, duration=None, meta=None):
 
         samples = np.squeeze(samples)  # coerce samples into np.array
 
-        # Note: if we have an empty array of samples with no dimension, 
+        # Note: if we have an empty array of samples with no dimension,
         # then calling len(samples) will return a TypeError.
         try:
             # if no samples were received, return an empty EpochArray:
@@ -90,7 +89,7 @@ class EpochArray:
         except TypeError:
             warnings.warn("unsupported type; creating empty EpochArray")
             self._emptyEpochArray()
-            return 
+            return
 
         if samples.ndim > 2:
             raise ValueError("samples must be a 1D or a 2D vector")
@@ -122,7 +121,7 @@ class EpochArray:
                 samples = np.hstack(
                     (samples[..., np.newaxis], stop_epoch[..., np.newaxis]))
 
-        # Only one epoch is given eg EpochArray([3,5,6,10]) with no 
+        # Only one epoch is given eg EpochArray([3,5,6,10]) with no
         # duration and more than two values:
         if samples.ndim == 1 and len(samples) > 2:  # we already know duration is None
             raise TypeError(
@@ -148,8 +147,8 @@ class EpochArray:
         # spikes, for example in which case the automatically inferred support
         # is a delta dirac
 
-        # if samples.ndim == 2 and np.any(samples[:, 1] - samples[:, 0] < 0):
-        #     raise ValueError("start must be less than or equal to stop")
+        if samples.ndim == 2 and np.any(samples[:, 1] - samples[:, 0] < 0):
+            raise ValueError("start must be less than or equal to stop")
 
         # TODO: why not just sort in-place here? Why store sort_idx? Why do
         # we explicitly sort epoch samples, but not spike times?
@@ -197,7 +196,7 @@ class EpochArray:
         if index > self.n_epochs - 1:
             raise StopIteration
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore") 
+            warnings.simplefilter("ignore")
             epoch = EpochArray(
                         np.array([self.samples[index, :]]),
                         fs=self.fs,
@@ -207,9 +206,7 @@ class EpochArray:
         return epoch
 
     def __getitem__(self, idx):
-        # Note: most slicing seems to work by way of our iterator 
-        # implementation, but this is not true for epocharray[::-1]
-
+        """EpochArray index access."""
         if isinstance(idx, EpochArray):
             if idx.isempty:
                 return EpochArray([])
@@ -234,7 +231,7 @@ class EpochArray:
                     meta=self.meta
                     )
                 return epoch
-            except IndexError: 
+            except IndexError:
                 # index is out of bounds, so return an empty EpochArray
                 return EpochArray([])
         else:
@@ -247,7 +244,7 @@ class EpochArray:
                 return epocharray
             except Exception:
                 raise TypeError(
-                    'unsupported subsctipting type {}'.format(type(idx)))        
+                    'unsupported subsctipting type {}'.format(type(idx)))
 
     @property
     def meta(self):
@@ -372,6 +369,11 @@ class EpochArray:
         if self.isempty:
             return 0
         return len(self.time[:, 0])
+
+    @property
+    def issorted(self):
+        """(bool) Left edges of epochs are sorted in ascending order."""
+        return is_sorted(self.starts)
 
     @property
     def isempty(self):
@@ -731,7 +733,7 @@ class AnalogSignal:
     time : np.array
         With shape (n_samples,).
 
-    """  
+    """
     def __init__(self, samples, *, fs, time, data):
         data = np.squeeze(data).astype(float)
         time = np.squeeze(time).astype(float)
@@ -1072,7 +1074,7 @@ class SpikeTrain:
                 # raise IndexError # this signals iterators to stop...
                 epoch = EpochArray([])
                 return SpikeTrain([], support=epoch)
-                
+
             return SpikeTrain(
                 self.samples[idx],
                 fs=self.fs,
