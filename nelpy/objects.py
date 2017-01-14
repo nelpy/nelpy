@@ -701,33 +701,61 @@ class AnalogSignal:
 
     Attributes
     ----------
-    data : np.array
-        With shape (n_samples, dimensionality).
+    values : np.array
+        With shape (n_samples, dimensionality=1).
     time : np.array
         With shape (n_samples,).
 
     """
-    def __init__(self, values, *, xdata=None, fs=None):
-        
-        if samples.shape()
-        #if no samples are given return empty spike train
-        if len(samples) == 0:
-            self._emptyAnalogSignal()
-            return
+    def __init__(self, values, *, xdata=None, fs=None, support=None):
+        values = np.squeeze(values).astype(float)
+
+        # Note; if we have an empty array of values with no dimension,
+        # then calling len(values) will return a TypeError
+        try:
+	        # if no values are given return empty AnalogSignal
+	        if len(values) == 0:
+	            self._emptyAnalogSignal()
+	            return
+        except TypeError:
+        	warnings.warn("unsupported type; creating empty AnalogSignal")
+        	self._emptyAnalogSignal()
+        	return
+
+    	# Note: if both xdata and values are given and dimensionality does not match,
+    	# then TypeError!
+    	if(xdata is not None):
+	    	if(xdata.shape[0] != values.shape[0]):
+	    		raise TypeError("xdata and values size mismatch!")
+
+
 
         # set initial fs to None
         self._fs = None
         # then attempt to update the fs; this does input validation:
         self.fs = fs
 
-        # if a sampling rate was given, relate time to samples using fs:
-        if fs is not None:
-            xtime = xdata / fs
-        else:
-            xtime = xdata
+        #Note: time will be None if this is not a time series and fs isn't specified
+        # set xtime to None. 
+        self._time = None
+        time = None
+        # if a sampling rate and xdata was given, relate sample numbers (xdata) to time:
+        if xdata is not None and fs is not None:
+            time = xdata / fs
+        elif fs is not None:
+        	xdata = np.arange(0,len(samples))
+            time = xdata / fs
+        elif xdata is not None:
+        	self.time = time
+        self.time = time
 
-        # if support is None:
-        #     self.
+    	# determine AnalogSignal support:
+        if support is None:
+            self.support = EpochArray(np.array([0, xdata[-1]]), fs=fs)
+        else:
+        	#restrict signal to only those within the support
+        	self.support = support
+        	self._restrict_to_epoch_array()
 
         # data = np.squeeze(data).astype(float)
         # time = np.squeeze(time).astype(float)
@@ -753,7 +781,30 @@ class AnalogSignal:
         #         "must have same number of time and data samples")
 
         self.samples = samples
-        self.xdata = xdata
+
+    def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
+    	"""Restrict self._time and self.values to an EpochArray. If no
+    	EpochArray is specified, self. support is used.
+
+		Parameters
+        ----------
+        epocharray: EpochArray, optional
+        	EpochArray on which to restrict AnalogSignal. Default is 
+        	self.support
+    	update: bool, optional
+    		Overwrite self.support with epocharray if True (default).
+    	"""
+    	if epocharray is None:
+    		epocharray = self.support
+    		update = False # support did not change; no need to update
+
+		indices = []
+		for eptime in epocharray.time:
+			t_start = eptime[0]
+			t_stop = eptime[1]
+			indices.append((self.time >= t_start) & (self.time <= t_stop))
+		indices.
+    	return None
 
     def __getitem__(self, idx):
         return AnalogSignal(data=self.data[idx], time=self.time[idx])
