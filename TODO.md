@@ -9,12 +9,12 @@ TODO.md
 1. implement Position (location? occupancy? 3D? velocity? subsample? linear interp? smooth?)
 1. implement BinnedData class?
 1. add tests using pytest
-1. figure out how to profile speed and memory, and test 
+1. figure out how to profile speed and memory, and test
     1. lazy time calculation
     1. speed for realistic and edge cases of spike trains
 1. re-factor EpochArray and SpikeTrain to handle empty objects more efficiently
 1. track down merging bug
-1. reconsider and / or deprecate SpikeTrain.time_slice and SpikeTrain.time_slices 
+1. reconsider and / or deprecate SpikeTrain.time_slice and SpikeTrain.time_slices
 1. look at svg_utils for grid util
 1. plan how to use hierarchical indexing, and eval and query from Pandas for increased speed
 1. consider forcing named arguments using ,* ,

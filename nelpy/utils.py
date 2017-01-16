@@ -137,7 +137,8 @@ def add_scalebar(ax, matchx=True, matchy=True, hidex=True, hidey=True, fontsize=
     ax :
         The axis to attach ticks to
     matchx, matchy : boolean
-        If True (default), set size of scale bars to spacing between ticks
+        If True (default), set size of scale bars to spacing between
+        ticks
         If False, size should be set using sizex and sizey params
     hidex, hidey : boolean
         If True, hide x-axis and y-axis of parent

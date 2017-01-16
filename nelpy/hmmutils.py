@@ -3,7 +3,7 @@
 with hmmlearn.
 """
 
-# TODO: add helper code to 
+# TODO: add helper code to
 # * choose number of parameters
 # * fit model
 # * score sequence paths
@@ -41,8 +41,8 @@ class PoissonHMM(PHMM):
                       init_params=init_params,
                       params=params,
                       verbose=verbose)
-        
-        # create shortcuts to super() methods that are overridden in 
+
+        # create shortcuts to super() methods that are overridden in
         # this class
 
         # TODO: does this syntax actually work?

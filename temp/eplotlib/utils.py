@@ -152,7 +152,7 @@ def set_major_formatter(ax, order_of_mag=0, useOffset=True, useMathText=True):
 
 from matplotlib.offsetbox import AnchoredOffsetbox
 class AnchoredScaleBar(AnchoredOffsetbox):
-    def __init__(self, transform, sizex=0, sizey=0, labelx=None, labely=None, loc=4,
+    def __init__(self, transform, *, sizex=0, sizey=0, labelx=None, labely=None, loc=4,
                  pad=0.1, borderpad=0.1, sep=2, prop=None, ec='k', lw=2, capstyle='round', **kwargs):
         """
         Draw a horizontal and/or vertical  bar with the size in data coordinate
@@ -186,7 +186,7 @@ class AnchoredScaleBar(AnchoredOffsetbox):
         AnchoredOffsetbox.__init__(self, loc, pad=pad, borderpad=borderpad,
                                    child=bars, prop=prop, frameon=False, **kwargs)
 
-def add_scalebar(ax, matchx=False, matchy=False, sizex=None, sizey=None, labelx=None, labely=None, hidex=True, hidey=True, verbose=False, **kwargs):
+def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None, sizey=None, labelx=None, labely=None, hidex=True, hidey=True, verbose=False, **kwargs):
     """ Add scalebars to axes
     Adds a set of scale bars to *ax*, matching the size to the ticks of the plot
     and optionally hiding the x and y axes
