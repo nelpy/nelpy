@@ -60,5 +60,7 @@ Users
 
 Developers
 ----------
+See [here](developnotes.md)
 
 Testing
+-------
