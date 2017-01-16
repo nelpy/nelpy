@@ -52,7 +52,7 @@ class EpochArray:
     ----------
     samples : np.array
         If shape (n_epochs, 1) or (n_epochs,), the start time for each
-        epoch.
+        epoch (which then requires a duration to be specified).
         If shape (n_epochs, 2), the start and stop times for each epoch.
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
@@ -73,37 +73,31 @@ class EpochArray:
         Sampling frequency (Hz).
     meta : dict
         Metadata associated with spiketrain.
-
     """
 
-    def __init__(self, samples, fs=None, duration=None, meta=None):
+    def __init__(self, samples, *, fs=None, duration=None, meta=None):
 
-        # if no samples were received, return an empty EpochArray:
-        if len(samples) == 0:
-            self.samples = np.array([])
-            self.time = np.array([])
-            self._fs = None
-            self._meta = None
+        samples = np.squeeze(samples)  # coerce samples into np.array
+
+        # Note: if we have an empty array of samples with no dimension,
+        # then calling len(samples) will return a TypeError.
+        try:
+            # if no samples were received, return an empty EpochArray:
+            if len(samples) == 0:
+                self._emptyEpochArray()
+                return
+        except TypeError:
+            warnings.warn("unsupported type; creating empty EpochArray")
+            self._emptyEpochArray()
             return
-
-        samples = np.squeeze(samples)
-
-        # TODO: what exactly does this do? In which case is this useful?
-        # I mean, the zero dim thing?
-        if samples.ndim == 0:
-            samples = samples[..., np.newaxis]
 
         if samples.ndim > 2:
             raise ValueError("samples must be a 1D or a 2D vector")
 
-        # TODO: streamline empty Epoch checks similar to SpikeTrain init
-        if fs is not None:
-            try:
-                if fs <= 0:
-                    raise ValueError("sampling rate must be positive")
-            except:
-                # why is this raised when above ValueError is raised as well?
-                raise TypeError("sampling rate must be a scalar")
+        # set initial fs to None
+        self._fs = None
+        # then attempt to update the fs; this does input validation:
+        self.fs = fs
 
         if duration is not None:
             duration = np.squeeze(duration).astype(float)
@@ -127,39 +121,58 @@ class EpochArray:
                 samples = np.hstack(
                     (samples[..., np.newaxis], stop_epoch[..., np.newaxis]))
 
+        # Only one epoch is given eg EpochArray([3,5,6,10]) with no
+        # duration and more than two values:
+        if samples.ndim == 1 and len(samples) > 2:  # we already know duration is None
+            raise TypeError(
+                "samples of size (n_epochs, ) has to be accompanied by "
+                "a duration")
+
         if samples.ndim == 1 and duration is None:
-            samples = samples[..., np.newaxis]
+            samples = np.array([samples])
 
-        if samples.ndim == 2 and samples.shape[1] != 2:
-            samples = np.hstack(
-                (samples[0][..., np.newaxis], samples[1][..., np.newaxis]))
+        # if samples.ndim == 2 and samples.shape[1] != 2:
+        #     samples = np.hstack(
+        #         (samples[0][..., np.newaxis], samples[1][..., np.newaxis]))
 
-        if samples[:, 0].shape[0] != samples[:, 1].shape[0]:
-            raise ValueError(
-                "must have the same number of start and stop times")
+        try:
+            if samples[:, 0].shape[0] != samples[:, 1].shape[0]:
+                raise ValueError(
+                    "must have the same number of start and stop times")
+        except Exception:
+            raise Exception("Unhandled EpochArray.__init__ case.")
 
         # TODO: what if start == stop? what will this break? This situation
         # can arise automatically when slicing a spike train with one or no
         # spikes, for example in which case the automatically inferred support
         # is a delta dirac
+
         if samples.ndim == 2 and np.any(samples[:, 1] - samples[:, 0] < 0):
             raise ValueError("start must be less than or equal to stop")
 
         # TODO: why not just sort in-place here? Why store sort_idx? Why do
         # we explicitly sort epoch samples, but not spike times?
-        sort_idx = np.argsort(samples[:, 0])
-        samples = samples[sort_idx]
+        # sort_idx = np.argsort(samples[:, 0])
+        # samples = samples[sort_idx]
 
-        # TODO: already checked this; try to refactor
+        # if a sampling rate was given, relate time to samples using fs:
         if fs is not None:
-            self.samples = samples
-            self.time = samples / fs
+            time = samples / fs
         else:
-            self.samples = samples
-            self.time = self.samples
+            time = samples
 
+        self.time = time
+        self.samples = samples
         self._fs = fs
         self._meta = meta
+
+    def _emptyEpochArray(self):
+        """Clears all instance variables."""
+        self.samples = np.array([])
+        self.time = np.array([])
+        self._fs = None
+        self._meta = None
+        return
 
     def __repr__(self):
         if self.isempty:
@@ -171,9 +184,29 @@ class EpochArray:
         dstr = "totaling %s seconds" % self.duration
         return "<EpochArray: %s> %s" % (nstr, dstr)
 
-    def __getitem__(self, idx):
-        # TODO: add support for slices, ints, and EpochArrays
+    def __iter__(self):
+        """EpochArray iterator initialization."""
+        # initialize the internal index to zero when used as iterator
+        self._index = 0
+        return self
 
+    def __next__(self):
+        """EpochArray iterator advancer."""
+        index = self._index
+        if index > self.n_epochs - 1:
+            raise StopIteration
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            epoch = EpochArray(
+                        np.array([self.samples[index, :]]),
+                        fs=self.fs,
+                        meta=self.meta
+                        )
+        self._index += 1
+        return epoch
+
+    def __getitem__(self, idx):
+        """EpochArray index access."""
         if isinstance(idx, EpochArray):
             if idx.isempty:
                 return EpochArray([])
@@ -198,30 +231,20 @@ class EpochArray:
                     meta=self.meta
                     )
                 return epoch
-            except: # index is out of bounds, so return an empty spiketrain
-                raise IndexError # this signals iterators to stop...
+            except IndexError:
+                # index is out of bounds, so return an empty EpochArray
                 return EpochArray([])
-        elif isinstance(idx, slice):
-            start = idx.start
-            if start is None:
-                start = 0
-            if start >= self.n_epochs:
-                return EpochArray([])
-            stop = idx.stop
-            if stop is None:
-                stop = -1
-            else:
-                stop = np.min(np.array([stop - 1, self.n_epochs - 1]))
-            return EpochArray(
-                np.array([self.samples[start:stop+1, :]]),
-                fs=self.fs,
-                meta=self.meta
-                )
         else:
-            raise TypeError(
-                'unsupported subsctipting type {}'.format(type(idx)))
-
-        return EpochArray([self.starts[idx], self.stops[idx]])
+            try:
+                epocharray = EpochArray(
+                    np.array([self.starts[idx], self.stops[idx]]).T,
+                    fs=self.fs,
+                    meta=self.meta
+                    )
+                return epocharray
+            except Exception:
+                raise TypeError(
+                    'unsupported subsctipting type {}'.format(type(idx)))
 
     @property
     def meta(self):
@@ -243,21 +266,27 @@ class EpochArray:
 
     @fs.setter
     def fs(self, val):
+        if self._fs == val:
+            return
         try:
             if val <= 0:
                 pass
-        except:
+        except Exception:
             raise TypeError("sampling rate must be a scalar")
         if val <= 0:
             raise ValueError("sampling rate must be positive")
 
-        if self._fs != val:
+        # if it is the first time that a sampling rate is set, do not
+        # modify anything except for self._fs:
+        if self._fs is None:
+            pass
+        else:
             warnings.warn(
                 "Sampling frequency has been updated! This will "
                 "modify the spike times."
                 )
+            self.time = self.samples / val
         self._fs = val
-        self.time = self.samples / val
 
     @property
     def centers(self):
@@ -340,6 +369,11 @@ class EpochArray:
         if self.isempty:
             return 0
         return len(self.time[:, 0])
+
+    @property
+    def issorted(self):
+        """(bool) Left edges of epochs are sorted in ascending order."""
+        return is_sorted(self.starts)
 
     @property
     def isempty(self):
@@ -578,7 +612,7 @@ class EpochArray:
             # I haven't looked carefully enough to know which edge cases
             # these are...
             # merge() should therefore be checked!
-            # return EpochArray(join_starts, fs=None, 
+            # return EpochArray(join_starts, fs=None,
             # duration=join_stops - join_starts, meta=meta).merge()
             # .merge()
             return EpochArray(
@@ -636,11 +670,11 @@ class EventArray:
     Parameters
     ----------
     samples : np.array
-        If shape (n_epochs, 1) or (n_epochs,), the start time for each 
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each
         epoch.
         If shape (n_epochs, 2), the start and stop times for each epoch.
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time 
+        Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
 
     Attributes
@@ -672,7 +706,7 @@ class EventArray:
         raise NotImplementedError(
             'EventArray.__getitem__ not implemented yet')
 
-    @property 
+    @property
     def isempty(self):
         """(bool) Empty EventArray."""
         raise NotImplementedError(
@@ -700,7 +734,7 @@ class AnalogSignal:
         With shape (n_samples,).
 
     """
-    def __init__(self, *, time, data):
+    def __init__(self, samples, *, fs, time, data):
         data = np.squeeze(data).astype(float)
         time = np.squeeze(time).astype(float)
 
@@ -810,11 +844,11 @@ class AnalogSignalArray:
     Parameters
     ----------
     samples : np.array
-        If shape (n_epochs, 1) or (n_epochs,), the start time for each 
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each
         epoch.
         If shape (n_epochs, 2), the start and stop times for each epoch.
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time 
+        Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
 
     Attributes
@@ -1033,9 +1067,14 @@ class SpikeTrain:
                     fs=self.fs,
                     meta=self.meta
                     )
-            except: # index out of bounds, so return an empty spiketrain
+            except (StopIteration, IndexError): # index out of bounds, so return an empty spiketrain
+                # TODO: if I raise an index error for the iterator, how
+                # can I make sure to return an empty object for a simple
+                # out of bounds access?
+                # raise IndexError # this signals iterators to stop...
                 epoch = EpochArray([])
                 return SpikeTrain([], support=epoch)
+
             return SpikeTrain(
                 self.samples[idx],
                 fs=self.fs,
@@ -1140,7 +1179,7 @@ class SpikeTrain:
         try:
             if val <= 0:
                 pass
-        except:
+        except Exception:
             raise TypeError("sampling rate must be a scalar")
         if val <= 0:
             raise ValueError("sampling rate must be positive")
@@ -1229,14 +1268,14 @@ class SpikeTrain:
         return self[indices]
 
     def shift(self, time_offset, fs=None):
-        """Creates a new object corresponding to the original spike 
+        """Creates a new object corresponding to the original spike
         train, but shifted by time_offset (can be positive or negative).
 
         Parameters
         ----------
         spiketrain : nelpy.SpikeTrain
         time_offset : float
-            Time offset, either in actual time (default) or in sample 
+            Time offset, either in actual time (default) or in sample
             numbers if fs is specified.
         fs : float, optional
             Sampling frequency.

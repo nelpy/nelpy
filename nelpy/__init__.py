@@ -18,11 +18,11 @@ from .objects import (EventArray,
                       BinnedSpikeTrainArray)
 
 # TODO: decide on which utils to expose:
-from .utils import (find_nearest_idx,
-                    find_nearest_indices)
+# from .utils import (find_nearest_idx,
+#                     find_nearest_indices)
 
-from .hmmutils import PoissonHMM
+# from .hmmutils import PoissonHMM
 
 # from .plotting import plot
 
-__version__ = '0.0.6'
+__version__ = '0.0.8'
