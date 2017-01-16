@@ -30,9 +30,13 @@ powerful object model for neuroelectrophysiology.
 Getting started
 ===============
 
-* The easiest way is to use `pip install nelpy`, but alternatively you can also
-do `git clone https://github.com/eackermann/nelpy.git` followed by 
-`python setup.py install`.
+* The easiest way is to use `pip install nelpy`, but alternatively you can also do
+
+    git clone https://github.com/eackermann/nelpy.git
+
+followed by
+
+    python setup.py install
 
 Documentation
 =============
