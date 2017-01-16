@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## Avoid using positional arguments
 Force users to explicitly use keyword arguments in favor of positional
 arguments by using the * argument to delineate positional (one or two)
@@ -41,4 +42,49 @@ instead of on spikes) we have a <spiketrain with 1 spike> object, with
 zero support (infinitessimally small). However, we can still bin such a
 spiketrain with BinnedSpikeTrain(st[5]) which then returns a
 BinnedSpikeTrain object with a single bin, with support duration equal to
+=======
+## Avoid using positional arguments
+Force users to explicitly use keyword arguments in favor of positional
+arguments by using the * argument to delineate positional (one or two)
+arguments from the keyword-only arguments.
+
+Whenever confusion may arise, use keyword-only arguments. However,
+occasionally positional arguments are okay, such as plot(x,y), but then
+an optional axis argument should be a keyword-only argument, like so:
+
+def plot(x, y, *, ax=None, color=None):
+    pass
+
+## Use None for default parameter values, unless None is a desired value
+Instead of assigning defaults in the function definition like so
+
+def do_something(foo, bar=5):
+    pass
+
+rather use None and then describe the defaults in the docstring:
+
+def do_something(foo, bar=None):
+    """Function description.
+
+    Parameters
+    ----------
+    foo: type
+        Description of foo.
+    bar: type, optional
+        Description of bar. Default is 5.
+    """
+    # assign default values:
+    if bar is None:
+        bar = 5
+
+## Try to limit lines to 72 chars, and no more than 80 chars.
+
+## Take note: support of a single spike (binned vs unbinned).
+If we have a spiketrain, and we slice a single spike from it like so:
+st[5] then (at least for now, before making slicng consistent on epochs
+instead of on spikes) we have a <spiketrain with 1 spike> object, with
+zero support (infinitessimally small). However, we can still bin such a
+spiketrain with BinnedSpikeTrain(st[5]) which then returns a
+BinnedSpikeTrain object with a single bin, with support duration equal to
+>>>>>>> feature/plotting
 the bin width.
