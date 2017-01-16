@@ -38,7 +38,19 @@ git clone https://github.com/eackermann/nelpy.git
 
 followed by
 
-    python setup.py install
+```
+cd nelpy
+python setup.py install
+```
+
+and then, following successful installation, simply import nelpy:
+
+```
+>>> import nelpy as nel  # main nelpy imports
+>>> import nelpy.plotting as npl  # optional plotting imports
+```
+
+That's it!
 
 Documentation
 =============
