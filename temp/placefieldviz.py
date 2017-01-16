@@ -1,5 +1,5 @@
 # placefieldviz.py
-# temp script to vizualise 
+# temp script to vizualise
 
 # import os.path
 # import sys
@@ -15,31 +15,31 @@ from mymap import Map
 
 def extract_subsequences_from_binned_spikes(binned_spikes, bins):
     boundaries = klab.get_continuous_segments(bins)
-    
+
     binned = Map()
     binned['bin_width'] = binned_spikes.bin_width
     binned['data'] = binned_spikes.data[bins,:]
     binned['boundaries'] = boundaries
-    binned['boundaries_fs'] = 1/binned_spikes.bin_width   
+    binned['boundaries_fs'] = 1/binned_spikes.bin_width
     binned['sequence_lengths'] = (boundaries[:,1] - boundaries[:,0] + 1).flatten()
-    
+
     return binned
 
 def get_sorted_order_from_transmat(A, start_state = 0):
-    
+
     num_states = A.shape[0]
     cs = np.min([start_state, num_states-1])
     new_order = [cs]
     rem_states = np.arange(0,cs).tolist()
     rem_states.extend(np.arange(cs+1,num_states).tolist())
-    
+
     for ii in np.arange(0,num_states-1):
         nstilde = np.argmax(A[cs,rem_states])
         ns = rem_states[nstilde]
         rem_states.remove(ns)
         cs = ns
         new_order.append(cs)
-        
+
     return new_order, A[:, new_order][new_order]
 
 def hmmplacefieldposviz(spikes, speed, posdf, num_states=35, ds=0.0625, vth=8, normalize=False, verbose=False, experiment='both'):
@@ -87,7 +87,7 @@ def hmmplacefieldposviz(spikes, speed, posdf, num_states=35, ds=0.0625, vth=8, n
         digitized = np.digitize(xx, xx_left) - 1 # spatial bin numbers
         for ii, ppii in enumerate(pp):
             state_pos[:,digitized[ii]] += np.transpose(ppii)
-            
+
     ## now order states by peak location on track
     peaklocations = state_pos.argmax(axis=1)
     peakorder = peaklocations.argsort()
