@@ -689,193 +689,245 @@ class AnalogSignal:
 
     Parameters
     ----------
-    samples : np.array(dtype=np.float64)
+    ydata : np.array(dtype=np.float)
+    xdata : np.array(dtype=np.float), optional
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
     support : EpochArray, optional
         EpochArray array on which spiketrain is defined.
         Default is [0, last spike] inclusive.
-    label : str or None, optional
-        Information pertaining to the source of the spiketrain.
 
     Attributes
     ----------
     values : np.array
-        With shape (n_samples, dimensionality=1).
+        With shape (n_samples,).
+    xdata : np.array
+        With shape (n_samples,).
     time : np.array
         With shape (n_samples,).
+    fs : float, scalar, optional
+        See Parameters
+    support : EpochArray, optional
+        See Parameters
 
     """
-    def __init__(self, values, *, xdata=None, fs=None, support=None):
-        values = np.squeeze(values).astype(float)
+    def __init__(self, ydata, *, xdata=None, fs=None, support=None):
+        ydata = np.squeeze(ydata).astype(float)
+        xdata = np.squeeze(xdata).astype(float)
 
-        # Note; if we have an empty array of values with no dimension,
-        # then calling len(values) will return a TypeError
+        # Note; if we have an empty array of ydata with no dimension,
+        # then calling len(ydata) will return a TypeError
         try:
-	        # if no values are given return empty AnalogSignal
-	        if len(values) == 0:
-	            self._emptyAnalogSignal()
-	            return
+            # if no ydata are given return empty AnalogSignal
+            if len(ydata) == 0:
+                self._emptyAnalogSignal()
+                return
         except TypeError:
-        	warnings.warn("unsupported type; creating empty AnalogSignal")
-        	self._emptyAnalogSignal()
-        	return
+            warnings.warn("unsupported type; creating empty AnalogSignal")
+            self._emptyAnalogSignal()
+            return
 
-    	# Note: if both xdata and values are given and dimensionality does not match,
-    	# then TypeError!
-    	if(xdata is not None):
-	    	if(xdata.shape[0] != values.shape[0]):
-	    		raise TypeError("xdata and values size mismatch!")
+        # Note: if both xdata and ydata are given and dimensionality does not match,
+        # then TypeError!
+        if(xdata is not None):
+            if(xdata.shape[0] != ydata.shape[0]):
+                self._emptyAnalogSignal()
+                raise TypeError("xdata and ydata size mismatch!")
 
-
+        self.ydata = ydata
 
         # set initial fs to None
         self._fs = None
         # then attempt to update the fs; this does input validation:
         self.fs = fs
 
-        #Note: time will be None if this is not a time series and fs isn't specified
+        # Note: time will be None if this is not a time series and fs isn't specified
         # set xtime to None. 
         self._time = None
         time = None
-        # if a sampling rate and xdata was given, relate sample numbers (xdata) to time:
-        if xdata is not None and fs is not None:
-            time = xdata / fs
-        elif fs is not None:
-        	xdata = np.arange(0,len(samples))
-            time = xdata / fs
-        elif xdata is not None:
-        	self.time = time
-        self.time = time
 
-    	# determine AnalogSignal support:
-        if support is None:
-            self.support = EpochArray(np.array([0, xdata[-1]]), fs=fs)
+        # Alright, let's handle all the possible parameter cases!
+        if xdata is not None:
+            if fs is not None:
+                time = xdata / fs
+                if support is not None:
+                    # xdata, fs, support passed properly
+                    if(support.fs == fs): 
+                        self.support = support
+                        self._time = time
+                        self._restrict_to_epoch_array()
+                    else:
+                        self._emptyAnalogSignal()
+                        raise TypeError("sampling rate mismatch between support and passed fs")
+                # xdata, fs and no support
+                else: 
+                    warnings.warn("support created with given xdata and sampling rate, fs!")
+                    self._time = time
+                    self.support = EpochArray(np.array([0, time[-1]]), fs=fs)
+            else:
+                # xdata and support
+                if support is not None: 
+                    self._emptyAnalogSignal()
+                    raise TypeError("fs and xdata must be passed if support is specified")
+                # xdata
+                else: 
+                    warnings.warn("support created with just xdata! no sampling rate specified!")
+                    self._time = time
+                    self.support = EpochArray(np.array([0, time[-1]]))
         else:
-        	#restrict signal to only those within the support
-        	self.support = support
-        	self._restrict_to_epoch_array()
-
-        # data = np.squeeze(data).astype(float)
-        # time = np.squeeze(time).astype(float)
-
-        # if time.ndim == 0:
-        #     time = time[..., np.newaxis]
-        #     data = data[np.newaxis, ...]
-
-        # if time.ndim != 1:
-        #     raise ValueError("time must be a vector")
-
-        # if data.ndim == 1:
-        #     data = data[..., np.newaxis]
-
-        # if data.ndim > 2:
-        #     raise ValueError("data must be vector or 2D array")
-        # if data.shape[0] != data.shape[1] and time.shape[0] == data.shape[1]:
-        #     warnings.warn("data should be shape (timesteps, dimensionality); "
-        #                   "got (dimensionality, timesteps). Correcting...")
-        #     data = data.T
-        # if time.shape[0] != data.shape[0]:
-        #     raise ValueError(
-        #         "must have same number of time and data samples")
-
-        self.samples = samples
+            xdata = np.arange(0,len(ydata),1)
+            if fs is not None:
+                time = xdata / fs
+                # fs and support
+                if support is not None:
+                    self._emptyAnalogSignal()
+                    raise TypeError("fs and xdata must be passed if support is specified")
+                # just fs
+                else:
+                    self._time = time
+                    warnings.warn("support created with given sampling rate, fs!")
+                    self.support = EpochArray(np.array([0, time[-1]]))
+            else:
+                # just support
+                if support is not None:
+                    self._emptyAnalogSignal()
+                    raise TypeError("fs and xdata must be passed if support is specified")
+                # just ydata
+                else:
+                    self._time = xdata
+                    warnings.warn("support created with given ydata!")
+                    self.support = EpochArray(np.array([0, time[-1]]))
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
-    	"""Restrict self._time and self.values to an EpochArray. If no
-    	EpochArray is specified, self. support is used.
+        """Restrict self._time and self.ydata to an EpochArray. If no
+        EpochArray is specified, self. support is used.
 
-		Parameters
+        Parameters
         ----------
-        epocharray: EpochArray, optional
+        epocharray : EpochArray, optional
         	EpochArray on which to restrict AnalogSignal. Default is 
         	self.support
-    	update: bool, optional
-    		Overwrite self.support with epocharray if True (default).
-    	"""
-    	if epocharray is None:
-    		epocharray = self.support
-    		update = False # support did not change; no need to update
+        update : bool, optional
+        	Overwrite self.support with epocharray if True (default).
+        """
+        if epocharray is None:
+            epocharray = self.support
+            update = False # support did not change; no need to update
 
-		indices = []
-		for eptime in epocharray.time:
-			t_start = eptime[0]
-			t_stop = eptime[1]
-			indices.append((self.time >= t_start) & (self.time <= t_stop))
-		indices.
-    	return None
+        indices = []
+        for eptime in epocharray.time:
+            t_start = eptime[0]
+            t_stop = eptime[1]
+            indices.append((self.time >= t_start) & (self.time <= t_stop))
+        indices = np.any(np.column_stack(indices), axis=1)
+        if np.count_nonzero(indices) < len(self._time):
+            warnings.warn(
+                'ignoring signal outside of support')
+        self.ydata = self.ydata[indices]
+        self._time = self._time[indices]
+        if update:
+            self.support = epocharray
+
+    def _emptyAnalogSignal(self):
+        """Empty all the instance attributes for an empty object."""
+        self.ydata = np.array([])
+        self.xdata = np.array([])
+        self.support = EpochArray([])
+        self._fs = None
+        self._time = None
+        return
+
+    @property
+    def ydata(self):
+        return self.ydata
+
+    @property
+    def xdata(self):
+        if self.xdata is None:
+            warnings.warn("No xdata specified")
+        return self.xdata
+
+    @property
+    def time(self):
+        if self._time is None:
+            warnings.warn("No time calculated. This should be due to no xdata specified")
+        return self._time
+
+    @property
+    def support(self):
+        if self.support is None:
+            warnings.warn("No support specified")
+        return self.support
+
+    @property
+    def fs(self):
+        """(float) Sampling frequency"""
+        if self._fs is None:
+            warnings.warn("No sampling frequency has been specified")
+        return self._fs
+
+    @fs.setter
+    def fs(self, val):
+        if self._fs == val:
+            return
+        try:
+            if val <= 0:
+                pass
+        except Exception:
+            raise TypeError("sampling rate must be a scalar")
+        if val <= 0:
+            raise ValueError("sampling rate must be positive")
+
+        # if it is the first time that a sampling rate is set,
+        # do not modify anything except for self._fs
+        if self._fs is None:
+            pass
+        else:
+            warning.warn(
+                "Sampling frequency has been updated! This will "
+                "modify internal times!"
+                )
+            self._time = self.xdata / val
+        self._fs = val
 
     def __getitem__(self, idx):
         return AnalogSignal(data=self.data[idx], time=self.time[idx])
 
-    @property
-    def dimensions(self):
-        """(int) Dimensionality of data attribute."""
-        return self.data.shape[1]
+    def mean(self):
+        """Calculates the mean of all of ydata"""
+        return np.mean(self.ydata)
 
-    @property
-    def n_samples(self):
-        """(int) Number of samples."""
-        return self.time.size
+    def std(self):
+        """Calculates the standard deviation of all of ydata"""
+        return np.std(self.ydata)
 
-    @property
-    def isempty(self):
-        """(bool) Empty AnalogSignal."""
-        return len(self.time) == 0
+    def max(self):
+        """Returns the maximum of all of ydata"""
+        return np.max(self.ydata)
 
-    def time_slice(self, t_start, t_stop):
-        """Creates a new object corresponding to the time slice of
-        the original between (and including) times t_start and t_stop.
-        Setting either parameter to None uses infinite endpoints for the
-        time interval.
+    def min(self):
+        """Returns the minimum of all of ydata"""
+        return np.min(self.ydata)
+
+    def clip(self, min, max):
+        """Clip (limit) the values in ydata to min and max as specified. 
 
         Parameters
         ----------
-        analogsignal : nelpy.AnalogSignal
-        t_start : float
-        t_stop : float
+        min : scalar
+            Minimum value
+        max : scalar
+            Maximum value
 
         Returns
-        -------
-        sliced_analogsignal : nelpy.AnalogSignal
-        """
-        if t_start is None:
-            t_start = -np.inf
-        if t_stop is None:
-            t_stop = np.inf
-
-        indices = (self.time >= t_start) & (self.time <= t_stop)
-
-        return self[indices]
-
-
-    def time_slices(self, t_starts, t_stops):
-        """Creates a new object corresponding to the time slice of
-        the original between (and including) times t_start and t_stop.
-        Setting either parameter to None uses infinite endpoints for the
-        time interval.
-
-        Parameters
         ----------
-        analogsignal : nelpy.AnalogSignal
-        t_starts : list of floats
-        t_stops : list of floats
-
-        Returns
-        -------
-        sliced_analogsignal : nelpy.AnalogSignal
+        clipped_array : ndarray
+            An array with the elements of ydata, but where the values < 
+            min are replaced with min and the values > max are replaced 
+            with max. 
         """
-        if len(t_starts) != len(t_stops):
-            raise ValueError(
-                "must have same number of start and stop times")
-
-        indices = []
-        for t_start, t_stop in zip(t_starts, t_stops):
-            indices.append((self.time >= t_start) & (self.time <= t_stop))
-        indices = np.any(np.column_stack(indices), axis=1)
-
-        return self[indices]
+        return np.clip(self.ydata, min, max)
 #----------------------------------------------------------------------#
 #======================================================================#
 
