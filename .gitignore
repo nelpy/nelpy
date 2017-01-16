@@ -45,3 +45,4 @@ dist
 .ipynb_checkpoints/
 .cache/
 .playground/
+setup-old.py

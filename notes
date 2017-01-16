@@ -1,10 +1,10 @@
 ## Avoid using positional arguments
-Force users to explicitly use keyword arguments in favor of positional 
-arguments by using the * argument to delineate positional (one or two) 
+Force users to explicitly use keyword arguments in favor of positional
+arguments by using the * argument to delineate positional (one or two)
 arguments from the keyword-only arguments.
 
-Whenever confusion may arise, use keyword-only arguments. However, 
-occasionally positional arguments are okay, such as plot(x,y), but then 
+Whenever confusion may arise, use keyword-only arguments. However,
+occasionally positional arguments are okay, such as plot(x,y), but then
 an optional axis argument should be a keyword-only argument, like so:
 
 def plot(x, y, *, ax=None, color=None):
@@ -37,8 +37,8 @@ def do_something(foo, bar=None):
 ## Take note: support of a single spike (binned vs unbinned).
 If we have a spiketrain, and we slice a single spike from it like so:
 st[5] then (at least for now, before making slicng consistent on epochs
-instead of on spikes) we have a <spiketrain with 1 spike> object, with 
-zero support (infinitessimally small). However, we can still bin such a 
-spiketrain with BinnedSpikeTrain(st[5]) which then returns a 
+instead of on spikes) we have a <spiketrain with 1 spike> object, with
+zero support (infinitessimally small). However, we can still bin such a
+spiketrain with BinnedSpikeTrain(st[5]) which then returns a
 BinnedSpikeTrain object with a single bin, with support duration equal to
 the bin width.
