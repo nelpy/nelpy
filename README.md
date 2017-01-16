@@ -1,9 +1,7 @@
 Neuroelectrophysiology object model and analysis in Python
 ==========================================================
 
-* Nelpy: **N**euro**EL**ectro**P**hysiolog**Y** in **PY**thon.
-* Nelpy: Rice University **N**eural **E**ngineering **L**ab **PY**thon
-    object model and data anlysis.
+* Nelpy: Neuroelectrophysiology in Python.
 
 First things first
 ==================
@@ -32,7 +30,9 @@ powerful object model for neuroelectrophysiology.
 Getting started
 ===============
 
-* Instructions will go here...
+* The easiest way is to use `pip install nelpy`, but alternatively you can also
+do `git clone https://github.com/eackermann/nelpy.git` followed by 
+`python setup.py install`.
 
 Documentation
 =============
