@@ -10,8 +10,10 @@ sudo ln -s /path/to/code/directory/ /path/to/python/site-packages/nelpydev
 Note that the `/path/to/code/directory/` should point to the actual package directory, and not the top level dir containing `README.md`, `setup.py`, and so on.
 
 Then, from within Python, we can always do
->>> import nelpydev as neld
->>> import nelpydev.plotting as npld
+
+    >>> import nelpydev as neld
+    >>> import nelpydev.plotting as npld
+
 to access our bleeding-edge development code system-wide.
 
 This also facilitates having a more stable (release) version of nelpy installed alongside the development version.
@@ -19,10 +21,10 @@ This also facilitates having a more stable (release) version of nelpy installed 
 For example, nelpy (the latest release version) can be installed either by calling `pip install nelpy`, or by cloning the git repository and running `python setup.py install` from within the nelpy directory.
 
 Then we can import nelpy and nelpydev alongside each other, using (by convention) the following imports:
->>> import nelpy as nel
->>> import nelpy.plotting as npl
->>> import nelpydev as neld
->>> impoer nelpydev.plotting as npld
+    >>> import nelpy as nel
+    >>> import nelpy.plotting as npl
+    >>> import nelpydev as neld
+    >>> impoer nelpydev.plotting as npld
 
 Submitting a release to PyPi
 ============================
@@ -81,9 +83,9 @@ Nelpy package organization (preliminary)
         imaging/                Subpackage for imaging and miniscope
             __init__.py
             ...
-        hmm                     Subpackage for hidden Markov models
+        hmm/                    Subpackage for hidden Markov models
             __init__.py
             ...
-        neuropipes              Subpackage for pipelines
+        neuropipes/             Subpackage for pipelines
             __init__.py
             ...
