@@ -12,6 +12,10 @@
 # https://www.airpair.com/python/posts/top-mistakes-python-big-data-analytics (see cythonmagic!)
 #
 # https://github.com/kghose/neurapy/blob/master/neurapy/signal/continuous.py (FFB!)
+#
+# https://pypi.python.org/pypi/out-of-core-fft/1.0
+#
+# http://matthewrocklin.com/blog/work/2015/02/17/Towards-OOC-Bag
 
 __all__ = ['butter_bandpass_filter',
            'butter_lowpass_filtfilt',]
