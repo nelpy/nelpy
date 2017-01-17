@@ -10,6 +10,9 @@ and inspired by the neuralensemble.org NEO project
 
 from .objects import *  # NOTE: control exported symbols in objects.py
 
+from . import filtering
+from . import plotting
+
 # TODO: decide on which utils to expose directly:
 # from .utils import (find_nearest_idx,
 #                     find_nearest_indices)

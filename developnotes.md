@@ -62,6 +62,8 @@ pip install nelpy
 
 and testing nelpy in the REPL again.
 
+Also, be sure to thoroughly check out https://python-packaging.readthedocs.io/en/latest/
+
 Nelpy package organization (preliminary)
 ========================================
 
