@@ -7,9 +7,19 @@
  * BinnedSpikeTrain and BinnedSpikeTrainArray
 """
 
+__all__ = ['EpochArray',
+           'EventArray',
+           'EpochArray',
+           'AnalogSignal',
+           'AnalogSignalArray',
+           'SpikeTrain',
+           'SpikeTrainArray',
+           'BinnedSpikeTrain',
+           'BinnedSpikeTrainArray']
+
 # TODO: how should we organize our modules so that nelpy.objects.np does
 # not shpw up, for example? If I type nelpy.object.<tab> I only want the
-# actual objects to appear in the list.
+# actual objects to appear in the list. I think I do this with __all__
 
 from .utils import is_sorted
 
@@ -1384,6 +1394,11 @@ class SpikeTrainArray:
         self.label = label
         self._cell_types = cell_types
         self._meta = meta
+
+    def CalcFiringRate():
+        """Calculate firing rate over unit."""
+
+        raise NotImplementedError("CalcFiringRate not implemented yet.")
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
         """Restrict self.time and self.samples to an EpochArray. If no

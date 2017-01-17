@@ -27,7 +27,7 @@ Then we can import nelpy and nelpydev alongside each other, using (by convention
 Submitting a release to PyPi
 ============================
 
-* There are some excellent guides out there; check out 
+* There are some excellent guides out there; check out
 
 http://sherifsoliman.com/2016/09/30/Python-package-with-GitHub-PyPI/#convert-readmemd-to-readmerst
 
@@ -43,7 +43,7 @@ and so I'll keep this part short and uninformative, except to remind myself to
 
 ```git push --tags```
 
-and then 
+and then
 
 ```
 python setup.py sdist upload -r pypitest
@@ -58,3 +58,32 @@ pip install nelpy
 ```
 
 and testing nelpy in the REPL again.
+
+Nelpy package organization (preliminary)
+========================================
+
+    nelpy/                      Top-level package
+        __init__.py             Initialize the nelpy package
+        objects.py
+        io.py
+        utils.py
+
+        plotting/               Subpackage for data visualization
+            __init__.py
+            core.py
+            scalebar.py
+            aiffread.py
+            utils.py
+            ...
+        dbs/                    Subpackage for deep brain stimulation
+            __init__.py
+            ...
+        imaging/                Subpackage for imaging and miniscope
+            __init__.py
+            ...
+        hmm                     Subpackage for hidden Markov models
+            __init__.py
+            ...
+        neuropipes              Subpackage for pipelines
+            __init__.py
+            ...
