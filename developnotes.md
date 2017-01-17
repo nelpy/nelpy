@@ -21,6 +21,7 @@ This also facilitates having a more stable (release) version of nelpy installed 
 For example, nelpy (the latest release version) can be installed either by calling `pip install nelpy`, or by cloning the git repository and running `python setup.py install` from within the nelpy directory.
 
 Then we can import nelpy and nelpydev alongside each other, using (by convention) the following imports:
+
     >>> import nelpy as nel
     >>> import nelpy.plotting as npl
     >>> import nelpydev as neld
