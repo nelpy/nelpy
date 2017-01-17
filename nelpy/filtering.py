@@ -1,5 +1,5 @@
 #encoding : utf-8
-"""This file implements filtering functionailty for core nelpy objects
+"""This module implements filtering functionailty for core nelpy objects
 """
 
 # NOTE: I found a really good website + implementation of doing out-of-core
