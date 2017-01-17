@@ -31,6 +31,7 @@
 code-matlab/shared/datatypes/tsd/UnionTSD.m
 
 .vscode
+nelpy/.vscode
 
 # code-python
 *.pyc
@@ -44,3 +45,7 @@ dist
 *.egg-info/
 .ipynb_checkpoints/
 .cache/
+.playground/
+setup-old.py
+
+temp
