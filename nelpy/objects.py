@@ -12,6 +12,7 @@
 # actual objects to appear in the list.
 
 from .utils import is_sorted
+from .utils import get_contiguous_segments
 
 import warnings
 import numpy as np
@@ -123,7 +124,7 @@ class EpochArray:
 
         # Only one epoch is given eg EpochArray([3,5,6,10]) with no
         # duration and more than two values:
-        if samples.ndim == 1 and len(samples) > 2:  # we already know duration is None
+        if samples.ndim == 1 and len(samples) > 2:  # we already know duration None
             raise TypeError(
                 "samples of size (n_epochs, ) has to be accompanied by "
                 "a duration")
@@ -725,6 +726,9 @@ class AnalogSignal:
     ----------
     ydata : np.array(dtype=np.float)
     xdata : np.array(dtype=np.float), optional
+        if fs is provided xdata is assumed to be sample numbers
+        else it is assumed to be time but xdata can be a non time 
+        variable
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
@@ -734,7 +738,7 @@ class AnalogSignal:
 
     Attributes
     ----------
-    values : np.array
+    ydata : np.array
         With shape (n_samples,).
     xdata : np.array
         With shape (n_samples,).
@@ -748,7 +752,7 @@ class AnalogSignal:
     """
     def __init__(self, ydata, *, xdata=None, fs=None, support=None):
         ydata = np.squeeze(ydata).astype(float)
-        xdata = np.squeeze(xdata).astype(float)
+        
 
         # Note; if we have an empty array of ydata with no dimension,
         # then calling len(ydata) will return a TypeError
@@ -762,9 +766,10 @@ class AnalogSignal:
             self._emptyAnalogSignal()
             return
 
-        # Note: if both xdata and ydata are given and dimensionality does not match,
-        # then TypeError!
+        # Note: if both xdata and ydata are given and dimensionality does not 
+        # match, then TypeError!
         if(xdata is not None):
+            xdata = np.squeeze(xdata).astype(float)
             if(xdata.shape[0] != ydata.shape[0]):
                 self._emptyAnalogSignal()
                 raise TypeError("xdata and ydata size mismatch!")
@@ -776,8 +781,8 @@ class AnalogSignal:
         # then attempt to update the fs; this does input validation:
         self.fs = fs
 
-        # Note: time will be None if this is not a time series and fs isn't specified
-        # set xtime to None. 
+        # Note: time will be None if this is not a time series and fs isn't 
+        # specified set xtime to None. 
         self._time = None
         time = None
 
@@ -785,6 +790,7 @@ class AnalogSignal:
         if xdata is not None:
             if fs is not None:
                 time = xdata / fs
+                self.xdata = xdata
                 if support is not None:
                     # xdata, fs, support passed properly
                     if(support.fs == fs): 
@@ -793,45 +799,58 @@ class AnalogSignal:
                         self._restrict_to_epoch_array()
                     else:
                         self._emptyAnalogSignal()
-                        raise TypeError("sampling rate mismatch between support and passed fs")
+                        raise TypeError("sampling rate mismatch between support" 
+                            " and passed fs")
                 # xdata, fs and no support
                 else: 
-                    warnings.warn("support created with given xdata and sampling rate, fs!")
+                    warnings.warn("support created with given xdata and samplin"
+                        "g rate, fs!")
                     self._time = time
-                    self.support = EpochArray(np.array([0, time[-1]]), fs=fs)
+                    self.support = EpochArray(get_contiguous_segments(xdata,
+                        step=1/fs), fs=fs)
             else:
+                time = xdata
+                self.xdata = xdata
                 # xdata and support
                 if support is not None: 
                     self._emptyAnalogSignal()
-                    raise TypeError("fs and xdata must be passed if support is specified")
+                    raise TypeError("fs and xdata must be passed if support is "
+                        "specified")
                 # xdata
                 else: 
-                    warnings.warn("support created with just xdata! no sampling rate specified!")
+                    warnings.warn("support created with just xdata! no sampling"
+                    " rate specified so "
+                        "support is entire range of signal")
                     self._time = time
                     self.support = EpochArray(np.array([0, time[-1]]))
         else:
-            xdata = np.arange(0,len(ydata),1)
+            xdata = np.arange(0, len(ydata), 1)
             if fs is not None:
                 time = xdata / fs
                 # fs and support
                 if support is not None:
                     self._emptyAnalogSignal()
-                    raise TypeError("fs and xdata must be passed if support is specified")
+                    raise TypeError("fs and xdata must be passed if support is "
+                        "specified")
                 # just fs
                 else:
                     self._time = time
-                    warnings.warn("support created with given sampling rate, fs!")
+                    warnings.warn("support created with given sampling rate, fs"
+                        "!")
                     self.support = EpochArray(np.array([0, time[-1]]))
             else:
                 # just support
                 if support is not None:
                     self._emptyAnalogSignal()
-                    raise TypeError("fs and xdata must be passed if support is specified")
+                    raise TypeError("fs and xdata must be passed if support is "
+                        "specified")
                 # just ydata
                 else:
                     self._time = xdata
-                    warnings.warn("support created with given ydata!")
-                    self.support = EpochArray(np.array([0, time[-1]]))
+                    warnings.warn("support created with given ydata! support is"
+                    " entire signal")
+                    self.support = EpochArray(np.array([0, xdata[-1]]))
+            self.xdata = xdata
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
         """Restrict self._time and self.ydata to an EpochArray. If no
@@ -860,6 +879,7 @@ class AnalogSignal:
                 'ignoring signal outside of support')
         self.ydata = self.ydata[indices]
         self._time = self._time[indices]
+        self.xdata = self.xdata[indices]
         if update:
             self.support = epocharray
 
@@ -872,27 +892,43 @@ class AnalogSignal:
         self._time = None
         return
 
-    @property
-    def ydata(self):
-        return self.ydata
+    def __repr__(self):
+        if self.isempty:
+            return "<empty AnalogSignal>"
+        if self.n_epochs > 1:
+            nstr = "%s epochs in analog signal" % (self.n_epochs)
+        else:
+            nstr = "1 epoch"
+        dstr = "totalling %s seconds" % self.support.duration
+        return "<AnalogSignal: %s> %s" % (nstr,dstr)
 
-    @property
-    def xdata(self):
-        if self.xdata is None:
-            warnings.warn("No xdata specified")
-        return self.xdata
+    # @property
+    # def ydata(self):
+    #     return self.ydata
+
+    # @ydata.setter
+    # def ydata(self, val):
+    #     """set ydata...user should NOT be able to call"""
+    #     self.ydata = val
+
+    # @property
+    # def xdata(self):
+    #     if self.xdata is None:
+    #         warnings.warn("No xdata specified")
+    #     return self.xdata
 
     @property
     def time(self):
         if self._time is None:
-            warnings.warn("No time calculated. This should be due to no xdata specified")
+            warnings.warn("No time calculated. This should be due to no xdata s"
+                "pecified")
         return self._time
 
-    @property
-    def support(self):
-        if self.support is None:
-            warnings.warn("No support specified")
-        return self.support
+    # @property
+    # def support(self):
+    #     if self.support is None:
+    #         warnings.warn("No support specified")
+    #     return self.support
 
     @property
     def fs(self):
@@ -925,9 +961,58 @@ class AnalogSignal:
             self._time = self.xdata / val
         self._fs = val
 
-    def __getitem__(self, idx):
-        return AnalogSignal(data=self.data[idx], time=self.time[idx])
+    @property
+    def isempty(self):
+        """(bool) checks length of ydata input"""
+        return len(self.ydata) == 0
 
+    @property
+    def n_epochs(self):
+        """(int) number of epochs in AnalogSignal"""
+        return self.support.n_epochs
+
+
+    def __iter__(self):
+        """AnalogSignal iterator initialization"""
+        # initialize the internal index to zero when used as iterator
+        self._index = 0
+        return self
+
+    def __next__(self):
+        """AnalogSignal iterator advancer."""
+        index = self._index
+        if index > self.n_epochs - 1:
+            raise StopIteration
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            epoch = EpochArray(
+                    np.array([self.support.samples[index,:]]),
+                    fs = self._fs
+                )
+        self._index += 1
+        return AnalogSignal(self.ydata[indices],
+                            fs=self.fs,
+                            xdata=self.xdata,
+                            support=epoch
+        )     
+
+
+    def __getitem__(self, idx):
+        """AnalogSignal index access.
+        Parameters
+        Parameters
+        ----------
+        idx : EpochArray, int, slice
+            intersect passed epocharray with support,
+            index particular a singular epoch or multiple epochs with slice
+        """
+        epoch = self.support[idx]
+        return AnalogSignal(self.ydata[indices],
+                            fs=self.fs,
+                            xdata=self.xdata,
+                            support=epoch
+        )
+    
     def mean(self):
         """Calculates the mean of all of ydata"""
         return np.mean(self.ydata)

@@ -240,3 +240,35 @@ def epoch_position(position, epoch):
 
     """
     return position.time_slices(epoch.starts, epoch.stops)
+
+def get_contiguous_segments(data,step=None, sort=False):
+    """Compute contiguous segments (seperated by step) in a list.
+    WARNING! This function assumes that a sorted list is passed.
+    If this is not the case (or if it is uncertain), use sort=True
+    to force the list to be sorted first.
+
+    Returns an array of size (n_segments, 2), with each row
+    being of the form ([start, stop]) inclusive.
+    """
+    import warnings
+    from itertools import groupby
+    from operator import itemgetter
+    
+    if step is None:
+        step = 1
+    if sort:
+        data = np.sort(data)  # below groupby algorithm assumes sorted list
+    if np.any(np.diff(data) < step):
+        warnings.warn("some steps in the data are smaller than the requested step size.")
+        
+    bdries = []
+
+    for k, g in groupby(enumerate(data), lambda ix: step*ix[0] - ix[1]):
+        f = itemgetter(1)
+        gen = (f(x) for x in g)
+        start = next(gen)
+        stop = start
+        for stop in gen:
+            pass
+        bdries.append([start, stop])
+    return np.asarray(bdries)
