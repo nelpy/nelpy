@@ -143,7 +143,7 @@ def overviewstrip():
     """
     raise NotImplementedError("overviewstripplot() not implemented yet")
 
-def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, **kwargs):
+def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, lh=None, reindex = None,**kwargs):
     """Plot one or more timeseries with flexible representation of uncertainty.
 
     This function is intended to be used with data where observations are
@@ -298,7 +298,13 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
         ax = plt.gca()
     if cmap is None and color is None:
         color = 'k'
-
+    if lh is None:
+        lh = 0.9
+    if reindex is None:
+        reindex = False
+    
+    hh = lh/2.0  # half the line height
+    
     # Handle different types of input data
     if isinstance(data, SpikeTrain):
         print("plotting SpikeTrain")
@@ -310,14 +316,17 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
         if cmap is not None:
             colors = cmap(np.linspace(0.25, 0.75, data.n_units)) # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
             for unit, spiketrain in enumerate(data.time):
-                ax.vlines(spiketrain, unit + .55, unit + 1.45, colors=colors[unit], **kwargs)
+                ax.vlines(spiketrain, unit + 1 - hh, unit + 1 + hh, colors=colors[unit], **kwargs)
         else:  # use a constant color:
             for unit, spiketrain in enumerate(data.time):
-                ax.vlines(spiketrain, unit + .55, unit + 1.45, colors=color, **kwargs)
+                ax.vlines(spiketrain, unit + 1 - hh, unit + 1 + hh, colors=color, **kwargs)
 
         # change y-axis labels to integers
         yint = range(1, data.n_units+1)
         ax.set_yticks(yint)
+        
+        if reindex == True:
+            ax.set_yticklabels(data.unit_ids)
 
         ax.set_ylim(yrange)
 
