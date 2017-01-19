@@ -24,7 +24,7 @@ __all__ = ['EpochArray',
 # useful for when we want to do from xxx import * in the package
 # __init__ method
 
-from .utils import is_sorted
+from .utils import is_sorted, linear_merge
 
 import warnings
 import numpy as np
@@ -1549,12 +1549,29 @@ class SpikeTrainArray:
         raise NotImplementedError("CalcFiringRate not implemented yet.")
 
     def flatten(self, *, multiunit_id=None):
-        """Collapse spike trains across units."""
+        """Collapse spike trains across units.
+        
+        Parameters
+        ----------
+        multiunit_id: (int)
+            (unit) ID to assign to flattened spike train, default is 0.
+        """
         if multiunit_id is None:
             multiunit_id = 0
-        
-        raise NotImplementedError("flatten not implemented yet.")
+        allspikes = self.samples[0]
+        for unit in range(1,self.n_units):
+            allspikes = linear_merge(allspikes, self.samples[unit])
 
+        flatspiketrain = SpikeTrainArray(
+            samples = list(allspikes),
+            fs = self.fs,
+            support = self.support,
+            label = self.label,
+            cell_types = None,
+            unit_ids=[multiunit_id]
+            )
+        return flatspiketrain
+        
     def _restrict_to_epoch_array(self, *, epocharray, time, samples,
                                  copy=True):
         """Returns time and samples restricted to an EpochArray.
