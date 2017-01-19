@@ -1,0 +1,253 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+AnalogSignal	nelpy/objects.py	/^class AnalogSignal:$/;"	kind:class	line:743
+AnalogSignalArray	nelpy/objects.py	/^class AnalogSignalArray:$/;"	kind:class	line:863
+AnchoredScaleBar	nelpy/plotting/scalebar.py	/^class AnchoredScaleBar(AnchoredOffsetbox):$/;"	kind:class	line:6
+BinnedSpikeTrain	nelpy/objects.py	/^class BinnedSpikeTrain:$/;"	kind:class	line:1649
+BinnedSpikeTrainArray	nelpy/objects.py	/^class BinnedSpikeTrainArray:$/;"	kind:class	line:1892
+CalcFiringRate	nelpy/nepstuff.py	/^def CalcFiringRate(method='concatenate-events'),'spikes')/;"	kind:function	line:3
+CalcFiringRate	nelpy/objects.py	/^    def CalcFiringRate():$/;"	kind:member	line:1468
+EpochArray	nelpy/objects.py	/^class EpochArray:$/;"	kind:class	line:91
+EventArray	nelpy/objects.py	/^class EventArray:$/;"	kind:class	line:689
+FixedOrderFormatter	nelpy/plotting/utils.py	/^class FixedOrderFormatter(ScalarFormatter):$/;"	kind:class	line:129
+PoissonHMM	nelpy/hmmutils.py	/^class PoissonHMM(PHMM):$/;"	kind:class	line:17
+PyTest	setup-old.py	/^class PyTest(TestCommand):$/;"	kind:class	line:21
+PyTest	setup.py	/^class PyTest(TestCommand):$/;"	kind:class	line:22
+SpikeTrain	nelpy/objects.py	/^class SpikeTrain:$/;"	kind:class	line:917
+SpikeTrainArray	nelpy/objects.py	/^class SpikeTrainArray:$/;"	kind:class	line:1297
+__all__	nelpy/filtering.py	/^__all__ = ['butter_bandpass_filter',$/;"	kind:variable	line:20
+__all__	nelpy/objects.py	/^__all__ = ['EpochArray',$/;"	kind:variable	line:10
+__all__	nelpy/plotting/utils.py	/^__all__ = ["annotate", "figure_grid", "savefig"]$/;"	kind:variable	line:15
+__all__	nelpy/utils.py	/^__all__ = ['pairwise', 'is_sorted']$/;"	kind:variable	line:2
+__getitem__	nelpy/objects.py	/^    def __getitem__(self, idx):$/;"	kind:member	line:1064
+__getitem__	nelpy/objects.py	/^    def __getitem__(self, idx):$/;"	kind:member	line:1462
+__getitem__	nelpy/objects.py	/^    def __getitem__(self, idx):$/;"	kind:member	line:1763
+__getitem__	nelpy/objects.py	/^    def __getitem__(self, idx):$/;"	kind:member	line:1946
+__getitem__	nelpy/objects.py	/^    def __getitem__(self, idx):$/;"	kind:member	line:251
+__getitem__	nelpy/objects.py	/^    def __getitem__(self, idx):$/;"	kind:member	line:727
+__getitem__	nelpy/objects.py	/^    def __getitem__(self, idx):$/;"	kind:member	line:786
+__getitem__	nelpy/objects.py	/^    def __getitem__(self, idx):$/;"	kind:member	line:901
+__init__	nelpy/hmmutils.py	/^    def __init__(self, *, n_components, n_iter=None, init_params=None,$/;"	kind:member	line:26
+__init__	nelpy/objects.py	/^    def __init__(self, *, samples, fs=None, duration=None, meta=None):$/;"	kind:member	line:708
+__init__	nelpy/objects.py	/^    def __init__(self, *, samples, fs=None, duration=None, meta=None):$/;"	kind:member	line:882
+__init__	nelpy/objects.py	/^    def __init__(self, samples, *, fs, time, data):$/;"	kind:member	line:759
+__init__	nelpy/objects.py	/^    def __init__(self, samples, *, fs=None, duration=None, meta=None):$/;"	kind:member	line:121
+__init__	nelpy/objects.py	/^    def __init__(self, samples, *, fs=None, support=None, label=None,$/;"	kind:member	line:1346
+__init__	nelpy/objects.py	/^    def __init__(self, samples, *, fs=None, support=None, label=None,$/;"	kind:member	line:956
+__init__	nelpy/objects.py	/^    def __init__(self, spiketrain, *, ds=None):$/;"	kind:member	line:1721
+__init__	nelpy/objects.py	/^    def __init__(self, spiketrainarray, *, ds=None):$/;"	kind:member	line:1906
+__init__	nelpy/plotting/scalebar.py	/^    def __init__(self, transform, *, sizex=0, sizey=0, labelx=None,$/;"	kind:member	line:7
+__init__	nelpy/plotting/utils.py	/^    def __init__(self, order_of_mag=0, *, useOffset=None,$/;"	kind:member	line:158
+__init__.py	nelpy/__init__.py	1;"	kind:file	line:1
+__init__.py	nelpy/plotting/__init__.py	1;"	kind:file	line:1
+__iter__	nelpy/objects.py	/^    def __iter__(self):$/;"	kind:member	line:1430
+__iter__	nelpy/objects.py	/^    def __iter__(self):$/;"	kind:member	line:230
+__next__	nelpy/objects.py	/^    def __next__(self):$/;"	kind:member	line:1436
+__next__	nelpy/objects.py	/^    def __next__(self):$/;"	kind:member	line:236
+__repr__	nelpy/hmmutils.py	/^    def __repr__(self):$/;"	kind:member	line:79
+__repr__	nelpy/objects.py	/^    def __repr__(self):$/;"	kind:member	line:1045
+__repr__	nelpy/objects.py	/^    def __repr__(self):$/;"	kind:member	line:1553
+__repr__	nelpy/objects.py	/^    def __repr__(self):$/;"	kind:member	line:1752
+__repr__	nelpy/objects.py	/^    def __repr__(self):$/;"	kind:member	line:1934
+__repr__	nelpy/objects.py	/^    def __repr__(self):$/;"	kind:member	line:220
+__repr__	nelpy/objects.py	/^    def __repr__(self):$/;"	kind:member	line:721
+__repr__	nelpy/objects.py	/^    def __repr__(self):$/;"	kind:member	line:895
+__version__	nelpy/__init__.py	/^__version__ = '0.0.8'$/;"	kind:variable	line:24
+__version__	nelpy/plotting/__init__.py	/^__version__ = '0.0.2'  # should I maintain a separate version for this?/;"	kind:variable	line:26
+_bin_spikes	nelpy/objects.py	/^    def _bin_spikes(self, spiketrain, epochArray, ds):$/;"	kind:member	line:1856
+_bin_spikes	nelpy/objects.py	/^    def _bin_spikes(self, spiketrainarray, epochArray, ds):$/;"	kind:member	line:2039
+_emptyEpochArray	nelpy/objects.py	/^    def _emptyEpochArray(self):$/;"	kind:member	line:212
+_emptySpikeTrain	nelpy/objects.py	/^    def _emptySpikeTrain(self):$/;"	kind:member	line:1034
+_emptySpikeTrainArray	nelpy/objects.py	/^    def _emptySpikeTrainArray(self):$/;"	kind:member	line:1542
+_get_bins_to_cover_epoch	nelpy/objects.py	/^    def _get_bins_to_cover_epoch(self, epoch, ds):$/;"	kind:member	line:1844
+_get_bins_to_cover_epoch	nelpy/objects.py	/^    def _get_bins_to_cover_epoch(self, epoch, ds):$/;"	kind:member	line:2027
+_restrict_to_epoch_array	nelpy/objects.py	/^    def _restrict_to_epoch_array(self, *, epocharray, time, samples,$/;"	kind:member	line:1477
+_restrict_to_epoch_array	nelpy/objects.py	/^    def _restrict_to_epoch_array(self, *, epocharray=None, update=True):$/;"	kind:member	line:1004
+_sampleStart	nelpy/objects.py	/^    def _sampleStart(self):$/;"	kind:member	line:356
+_sampleStarts	nelpy/objects.py	/^    def _sampleStarts(self):$/;"	kind:member	line:342
+_sampleStop	nelpy/objects.py	/^    def _sampleStop(self):$/;"	kind:member	line:384
+_sampleStops	nelpy/objects.py	/^    def _sampleStops(self):$/;"	kind:member	line:370
+_set_orderOfMagnitude	nelpy/plotting/utils.py	/^    def _set_orderOfMagnitude(self, range):$/;"	kind:member	line:170
+add_scalebar	nelpy/plotting/scalebar.py	/^def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None,$/;"	kind:function	line:160
+annotate	nelpy/plotting/utils.py	/^def annotate(ax, text, xy=(0.5, 0.5), rotation=0, va=None, **kwargs):$/;"	kind:function	line:17
+author	setup-old.py	/^    author='Etienne Ackermann',$/;"	kind:variable	line:38
+author	setup.py	/^    author='Etienne Ackermann',$/;"	kind:variable	line:39
+author_email	setup-old.py	/^    author_email='era3@rice.edu',$/;"	kind:variable	line:45
+author_email	setup.py	/^    author_email='era3@rice.edu',$/;"	kind:variable	line:46
+bin	nelpy/objects.py	/^    def bin(self, *, ds=None):$/;"	kind:member	line:1144
+bin	nelpy/objects.py	/^    def bin(self, *, ds=None):$/;"	kind:member	line:1567
+binnedSupport	nelpy/objects.py	/^    def binnedSupport(self):$/;"	kind:member	line:1792
+binnedSupport	nelpy/objects.py	/^    def binnedSupport(self):$/;"	kind:member	line:1980
+bins	nelpy/objects.py	/^    def bins(self):$/;"	kind:member	line:1780
+bins	nelpy/objects.py	/^    def bins(self):$/;"	kind:member	line:1963
+butter_bandpass	nelpy/filtering.py	/^def butter_bandpass(lowcut, highcut, fs, order=5):$/;"	kind:function	line:25
+butter_bandpass_filter	nelpy/filtering.py	/^def butter_bandpass_filter(data, *, lowcut, highcut, fs, order=5):$/;"	kind:function	line:33
+butter_lowpass	nelpy/filtering.py	/^def butter_lowpass(cutoff, fs, order=5):$/;"	kind:function	line:39
+butter_lowpass_filtfilt	nelpy/filtering.py	/^def butter_lowpass_filtfilt(data, *, cutoff, fs, order=5):$/;"	kind:function	line:46
+butterfilt	nelpy/filtering.py	/^def butterfilt(finname, foutname, fmt, fs, fl=5.0, fh=100.0, gpass=1.0, gstop=30.0, ftype='butter', buffer_len=100000, overlap_len=100, max_len=-1):$/;"	kind:function	line:98
+cartesian	nelpy/utils.py	/^def cartesian(xcenters, ycenters):$/;"	kind:function	line:86
+cell_type	nelpy/objects.py	/^    def cell_type(self):$/;"	kind:member	line:1169
+cell_type	nelpy/objects.py	/^    def cell_type(self, val):$/;"	kind:member	line:1176
+cell_types	nelpy/objects.py	/^    def cell_types(self):$/;"	kind:member	line:1607
+cell_types	nelpy/objects.py	/^    def cell_types(self, val):$/;"	kind:member	line:1616
+centers	nelpy/objects.py	/^    def centers(self):$/;"	kind:member	line:1768
+centers	nelpy/objects.py	/^    def centers(self):$/;"	kind:member	line:1951
+centers	nelpy/objects.py	/^    def centers(self):$/;"	kind:member	line:314
+clear_output	nelpy/ipynb.py	/^def clear_output(delay=0.0):$/;"	kind:function	line:34
+cmdclass	setup-old.py	/^    cmdclass={'test': PyTest},$/;"	kind:variable	line:44
+cmdclass	setup.py	/^    cmdclass={'test': PyTest},$/;"	kind:variable	line:45
+comboplot	nelpy/plotting/core.py	/^def comboplot(*, ax=None, raster=None, analog=None, events=None):$/;"	kind:function	line:119
+contains	nelpy/objects.py	/^    def contains(self, value):$/;"	kind:member	line:661
+copy	nelpy/objects.py	/^    def copy(self):$/;"	kind:member	line:405
+core.py	nelpy/plotting/core.py	1;"	kind:file	line:1
+data	nelpy/objects.py	/^    def data(self):$/;"	kind:member	line:1773
+data	nelpy/objects.py	/^    def data(self):$/;"	kind:member	line:1956
+decode_ext	nelpy/hmmutils.py	/^    def decode_ext(self):$/;"	kind:member	line:97
+description	setup-old.py	/^    description='Neuroelectrophysiology object model and data analysis in Python.',$/;"	kind:variable	line:46
+description	setup.py	/^    description='Neuroelectrophysiology object model and data analysis in Python.',$/;"	kind:variable	line:47
+dimensions	nelpy/objects.py	/^    def dimensions(self):$/;"	kind:member	line:790
+download_url	setup-old.py	/^    download_url = 'https:\/\/github.com\/eackermann\/nelpy\/tarball\/' + nelpy.__version__,$/;"	kind:variable	line:36
+download_url	setup.py	/^    download_url = 'https:\/\/github.com\/eackermann\/nelpy\/tarball\/' + nelpy.__version__,$/;"	kind:variable	line:37
+ds	nelpy/objects.py	/^    def ds(self):$/;"	kind:member	line:1826
+ds	nelpy/objects.py	/^    def ds(self):$/;"	kind:member	line:2009
+ds	nelpy/objects.py	/^    def ds(self, val):$/;"	kind:member	line:1831
+ds	nelpy/objects.py	/^    def ds(self, val):$/;"	kind:member	line:2014
+duration	nelpy/objects.py	/^    def duration(self):$/;"	kind:member	line:328
+durations	nelpy/objects.py	/^    def durations(self):$/;"	kind:member	line:321
+ep1	tests/test_nelpy.py	/^ep1 = EpochArray([])$/;"	kind:variable	line:8
+ep2	tests/test_nelpy.py	/^ep2 = EpochArray(np.array([[0,3],[7,10]]), fs=fs)$/;"	kind:variable	line:9
+ep3	tests/test_nelpy.py	/^ep3 = EpochArray(np.array([[0,3],[8,15]]), fs=fs)$/;"	kind:variable	line:10
+ep4	tests/test_nelpy.py	/^ep4 = EpochArray(np.array([[0,3],[17,20]]), fs=fs)$/;"	kind:variable	line:11
+ep5	tests/test_nelpy.py	/^ep5 = EpochArray(np.array([[17,20]]), fs=fs)$/;"	kind:variable	line:12
+ep6	tests/test_nelpy.py	/^ep6 = EpochArray(np.array([[-17,-10]]), fs=fs)$/;"	kind:variable	line:13
+epoch_plot	nelpy/plotting/core.py	/^def epoch_plot(ax, epochs, height=None, fc='0.5', ec=None,$/;"	kind:function	line:218
+expand	nelpy/objects.py	/^    def expand(self, amount, direction='both'):$/;"	kind:member	line:548
+extras_require	setup-old.py	/^    extras_require={$/;"	kind:variable	line:53
+extras_require	setup.py	/^    extras_require={$/;"	kind:variable	line:54
+f	nelpy/plotting/scalebar.py	/^    def f(axis):$/;"	kind:function	line:201
+figure_grid	nelpy/plotting/utils.py	/^def figure_grid(b=True, fig=None ):$/;"	kind:function	line:31
+filtering.py	nelpy/filtering.py	1;"	kind:file	line:1
+filtfiltlong	nelpy/filtering.py	/^def filtfiltlong(finname, foutname, fmt, b, a, buffer_len=100000, overlap_len=100, max_len=-1):$/;"	kind:function	line:108
+finalize_options	setup-old.py	/^    def finalize_options(self):$/;"	kind:member	line:22
+finalize_options	setup.py	/^    def finalize_options(self):$/;"	kind:member	line:23
+find_nearest_idx	nelpy/utils.py	/^def find_nearest_idx(array, val):$/;"	kind:function	line:22
+find_nearest_indices	nelpy/utils.py	/^def find_nearest_indices(array, vals):$/;"	kind:function	line:38
+fit	nelpy/hmmutils.py	/^    def fit(self, X, lengths=None):$/;"	kind:member	line:54
+fit_ext	nelpy/hmmutils.py	/^    def fit_ext(self):$/;"	kind:member	line:90
+flatten	nelpy/objects.py	/^    def flatten(self):$/;"	kind:member	line:1473
+fs	nelpy/objects.py	/^    def fs(self):$/;"	kind:member	line:1191
+fs	nelpy/objects.py	/^    def fs(self):$/;"	kind:member	line:1633
+fs	nelpy/objects.py	/^    def fs(self):$/;"	kind:member	line:304
+fs	nelpy/objects.py	/^    def fs(self, val):$/;"	kind:member	line:1196
+fs	nelpy/objects.py	/^    def fs(self, val):$/;"	kind:member	line:1638
+fs	nelpy/objects.py	/^    def fs(self, val):$/;"	kind:member	line:309
+fs	tests/test_nelpy.py	/^fs = 4$/;"	kind:variable	line:5
+fsgetter	nelpy/objects.py	/^def fsgetter(self):$/;"	kind:function	line:58
+fssetter	nelpy/objects.py	/^def fssetter(self, val):$/;"	kind:function	line:64
+get_extension_from_filename	nelpy/plotting/utils.py	/^def get_extension_from_filename(name):$/;"	kind:function	line:46
+get_sort_idx	nelpy/utils.py	/^def get_sort_idx(tuning_curves):$/;"	kind:function	line:60
+hmmutils.py	nelpy/hmmutils.py	1;"	kind:file	line:1
+imshow	nelpy/plotting/core.py	/^def imshow(data, *, ax=None, interpolation=None, **kwargs):$/;"	kind:function	line:90
+include_package_data	setup-old.py	/^    include_package_data=True,$/;"	kind:variable	line:50
+include_package_data	setup.py	/^    include_package_data=True,$/;"	kind:variable	line:51
+intersect	nelpy/objects.py	/^    def intersect(self, epoch, boundaries=True, meta=None):$/;"	kind:member	line:416
+io.py	nelpy/io.py	1;"	kind:file	line:1
+ipynb.py	nelpy/ipynb.py	1;"	kind:file	line:1
+is_sorted	nelpy/utils.py	/^def is_sorted(iterable, key=lambda a, b: a <= b):$/;"	kind:function	line:12
+isempty	nelpy/objects.py	/^    def isempty(self):$/;"	kind:member	line:1159
+isempty	nelpy/objects.py	/^    def isempty(self):$/;"	kind:member	line:1595
+isempty	nelpy/objects.py	/^    def isempty(self):$/;"	kind:member	line:1816
+isempty	nelpy/objects.py	/^    def isempty(self):$/;"	kind:member	line:2004
+isempty	nelpy/objects.py	/^    def isempty(self):$/;"	kind:member	line:401
+isempty	nelpy/objects.py	/^    def isempty(self):$/;"	kind:member	line:732
+isempty	nelpy/objects.py	/^    def isempty(self):$/;"	kind:member	line:800
+isempty	nelpy/objects.py	/^    def isempty(self):$/;"	kind:member	line:906
+issorted	nelpy/objects.py	/^    def issorted(self):$/;"	kind:member	line:1164
+issorted	nelpy/objects.py	/^    def issorted(self):$/;"	kind:member	line:1600
+issorted	nelpy/objects.py	/^    def issorted(self):$/;"	kind:member	line:396
+join	nelpy/objects.py	/^    def join(self, epoch, meta=None):$/;"	kind:member	line:604
+keywords	setup-old.py	/^    keywords = ['electrophysiology', 'neural data analysis', 'cow', 'moo'],$/;"	kind:variable	line:49
+keywords	setup.py	/^    keywords = ['electrophysiology', 'cow', 'moo', 'neural data analysis'],$/;"	kind:variable	line:50
+lengths	nelpy/objects.py	/^    def lengths(self):$/;"	kind:member	line:1799
+lengths	nelpy/objects.py	/^    def lengths(self):$/;"	kind:member	line:1987
+license	setup-old.py	/^    license='MIT License',$/;"	kind:variable	line:37
+license	setup.py	/^    license='MIT License',$/;"	kind:variable	line:38
+long_description	setup-old.py	/^    long_description=long_description,$/;"	kind:variable	line:47
+long_description	setup-old.py	/^long_description = read('README.md')$/;"	kind:variable	line:19
+long_description	setup.py	/^    long_description=long_description,$/;"	kind:variable	line:48
+long_description	setup.py	/^long_description = 'Neuroelectrophysiology object model and data analysis in Python.'$/;"	kind:variable	line:20
+lynxlfp	nelpy/filtering.py	/^lynxlfp = {$/;"	kind:variable	line:70
+lynxspike	nelpy/filtering.py	/^lynxspike = {$/;"	kind:variable	line:82
+matshow	nelpy/plotting/core.py	/^def matshow(data, *, ax=None, **kwargs):$/;"	kind:function	line:97
+merge	nelpy/objects.py	/^    def merge(self, gap=0.0):$/;"	kind:member	line:499
+meta	nelpy/objects.py	/^    def meta(self):$/;"	kind:member	line:1180
+meta	nelpy/objects.py	/^    def meta(self):$/;"	kind:member	line:1622
+meta	nelpy/objects.py	/^    def meta(self):$/;"	kind:member	line:293
+meta	nelpy/objects.py	/^    def meta(self, val):$/;"	kind:member	line:1187
+meta	nelpy/objects.py	/^    def meta(self, val):$/;"	kind:member	line:1629
+meta	nelpy/objects.py	/^    def meta(self, val):$/;"	kind:member	line:300
+n_active	nelpy/objects.py	/^    def n_active(self):$/;"	kind:member	line:1149
+n_active	nelpy/objects.py	/^    def n_active(self):$/;"	kind:member	line:1589
+n_active	nelpy/objects.py	/^    def n_active(self):$/;"	kind:member	line:1821
+n_active	nelpy/objects.py	/^    def n_active(self):$/;"	kind:member	line:2073
+n_bins	nelpy/objects.py	/^    def n_bins(self):$/;"	kind:member	line:1811
+n_bins	nelpy/objects.py	/^    def n_bins(self):$/;"	kind:member	line:1999
+n_epochs	nelpy/objects.py	/^    def n_epochs(self):$/;"	kind:member	line:389
+n_samples	nelpy/objects.py	/^    def n_samples(self):$/;"	kind:member	line:795
+n_spikes	nelpy/objects.py	/^    def n_spikes(self):$/;"	kind:member	line:1154
+n_spikes	nelpy/objects.py	/^    def n_spikes(self):$/;"	kind:member	line:1582
+n_units	nelpy/objects.py	/^    def n_units(self):$/;"	kind:member	line:1572
+n_units	nelpy/objects.py	/^    def n_units(self):$/;"	kind:member	line:1968
+name	setup-old.py	/^    name='nelpy',$/;"	kind:variable	line:33
+name	setup.py	/^    name='nelpy',$/;"	kind:variable	line:34
+nepstuff.py	nelpy/nepstuff.py	1;"	kind:file	line:1
+objects.py	nelpy/objects.py	1;"	kind:file	line:1
+occupancy	nelpy/plotting/core.py	/^def occupancy():$/;"	kind:function	line:136
+overviewstrip	nelpy/plotting/core.py	/^def overviewstrip():$/;"	kind:function	line:140
+packages	setup-old.py	/^    packages=['nelpy'],$/;"	kind:variable	line:48
+packages	setup.py	/^    packages=['nelpy'],$/;"	kind:variable	line:49
+pairwise	nelpy/utils.py	/^def pairwise(iterable):$/;"	kind:function	line:7
+platforms	setup-old.py	/^    platforms='any',$/;"	kind:variable	line:51
+platforms	setup.py	/^    platforms='any',$/;"	kind:variable	line:52
+plot	nelpy/plotting/core.py	/^def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,$/;"	kind:function	line:15
+raster	nelpy/plotting/core.py	/^def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, lw=None, lh=None, reindex = None,**kwargs):$/;"	kind:function	line:146
+read	setup-old.py	/^def read(*filenames, **kwargs):$/;"	kind:function	line:9
+read	setup.py	/^def read(*filenames, **kwargs):$/;"	kind:function	line:9
+run_tests	setup-old.py	/^    def run_tests(self):$/;"	kind:member	line:27
+run_tests	setup.py	/^    def run_tests(self):$/;"	kind:member	line:28
+savefig	nelpy/plotting/utils.py	/^def savefig(name, fig=None, formats=None, dpi=300, verbose=True, overwrite=False):$/;"	kind:function	line:58
+scalebar.py	nelpy/plotting/scalebar.py	1;"	kind:file	line:1
+setup-old.py	setup-old.py	1;"	kind:file	line:1
+setup.py	setup.py	1;"	kind:file	line:1
+shift	nelpy/objects.py	/^    def shift(self, time_offset, fs=None):$/;"	kind:member	line:1271
+shrink	nelpy/objects.py	/^    def shrink(self, amount, direction='both'):$/;"	kind:member	line:581
+spiketrain	nelpy/objects.py	/^    def spiketrain(self):$/;"	kind:member	line:1804
+spiketrainarray	nelpy/objects.py	/^    def spiketrainarray(self):$/;"	kind:member	line:1992
+st	tests/test_nelpy.py	/^st = SpikeTrain(stdata, fs=fs)$/;"	kind:variable	line:6
+start	nelpy/objects.py	/^    def start(self):$/;"	kind:member	line:349
+starts	nelpy/objects.py	/^    def starts(self):$/;"	kind:member	line:335
+stdata	tests/test_nelpy.py	/^stdata = np.array([1,2,3,4,5,6,6.5,7,8,10])$/;"	kind:variable	line:4
+stop	nelpy/objects.py	/^    def stop(self):$/;"	kind:member	line:377
+stops	nelpy/objects.py	/^    def stops(self):$/;"	kind:member	line:363
+support	nelpy/objects.py	/^    def support(self):$/;"	kind:member	line:1785
+support	nelpy/objects.py	/^    def support(self):$/;"	kind:member	line:1973
+test_nelpy.py	tests/test_nelpy.py	1;"	kind:file	line:1
+test_suite	setup-old.py	/^    test_suite='nelpy.tests.test_nelpy',$/;"	kind:variable	line:52
+test_suite	setup.py	/^    test_suite='nelpy.tests.test_nelpy',$/;"	kind:variable	line:53
+tests_require	setup-old.py	/^    tests_require=['pytest'],$/;"	kind:variable	line:39
+tests_require	setup.py	/^    tests_require=['pytest'],$/;"	kind:variable	line:40
+time_slice	nelpy/objects.py	/^    def time_slice(self, t_start, t_stop):$/;"	kind:member	line:1200
+time_slice	nelpy/objects.py	/^    def time_slice(self, t_start, t_stop):$/;"	kind:member	line:804
+time_slices	nelpy/objects.py	/^    def time_slices(self, t_starts, t_stops):$/;"	kind:member	line:1234
+time_slices	nelpy/objects.py	/^    def time_slices(self, t_starts, t_stops):$/;"	kind:member	line:830
+unit_ids	nelpy/objects.py	/^    def unit_ids(self):$/;"	kind:member	line:1577
+url	setup-old.py	/^    url='https:\/\/github.com\/eackermann\/nelpy\/',$/;"	kind:variable	line:35
+url	setup.py	/^    url='https:\/\/github.com\/eackermann\/nelpy\/',$/;"	kind:variable	line:36
+utils.py	nelpy/plotting/utils.py	1;"	kind:file	line:1
+utils.py	nelpy/utils.py	1;"	kind:file	line:1
+version	setup-old.py	/^    version=nelpy.__version__,$/;"	kind:variable	line:34
+version	setup.py	/^    version=nelpy.__version__,$/;"	kind:variable	line:35

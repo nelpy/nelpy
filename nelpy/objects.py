@@ -1460,18 +1460,99 @@ class SpikeTrainArray:
         return sta
 
     def __getitem__(self, idx):
+        """SpikeTrainArray index access."""
         # TODO: allow indexing of form sta[4,1:5] so that the STs of
         # epochs 1 to 5 (exlcusive) are returned, for neuron id 4.
-        raise NotImplementedError(
-            'SpikeTrainArray.__getitem__ not implemented yet')
+        if isinstance(idx, EpochArray):
+            if idx.isempty:
+                return SpikeTrainArray([])
+            if idx.fs != self.support.fs:
+                support = self.support.intersect(
+                    epoch=EpochArray(
+                        idx.time*self.support.fs,
+                        fs=self.support.fs),
+                    boundaries=True
+                    )
+            else:
+                support = self.support.intersect(
+                    epoch=idx,
+                    boundaries=True
+                    ) # what if fs of slicing epoch is different?
+            if support.isempty:
+                return SpikeTrainArray([])
+            time, samples = self._restrict_to_epoch_array(
+                epocharray=support,
+                time=self.time,
+                samples=self.samples,
+                copy=True
+                )
+            sta = SpikeTrainArray(
+                samples = samples,
+                support = support,
+                fs = self.fs,
+                label = self.label,
+                cell_types = self._cell_types,
+                meta = self._meta,
+                unit_ids = self.unit_ids
+                )
+            return sta
+        elif isinstance(idx, int):
+            if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
+                return SpikeTrainArray([])
+            try:
+                support = self.support[idx]
+                time, samples = self._restrict_to_epoch_array(
+                    epocharray=support,
+                    time=self.time,
+                    samples=self.samples,
+                    copy=True
+                    )
+                sta = SpikeTrainArray(
+                    samples = samples,
+                    support = support,
+                    fs = self.fs,
+                    label = self.label,
+                    cell_types = self._cell_types,
+                    meta = self._meta,
+                    unit_ids = self.unit_ids
+                    )
+                return sta
+            except IndexError:
+                # index out of bounds: return an empty SpikeTrainArray
+                return SpikeTrainArray([])
+        else:
+            try:
+                support = self.support[idx]
+                time, samples = self._restrict_to_epoch_array(
+                    epocharray=support,
+                    time=self.time,
+                    samples=self.samples,
+                    copy=True
+                    )
+                sta = SpikeTrainArray(
+                    samples = samples,
+                    support = support,
+                    fs = self.fs,
+                    label = self.label,
+                    cell_types = self._cell_types,
+                    meta = self._meta,
+                    unit_ids = self.unit_ids
+                    )
+                return sta
+            except Exception:
+                raise TypeError(
+                    'unsupported subsctipting type {}'.format(type(idx)))
 
     def CalcFiringRate():
         """Calculate firing rate over unit."""
 
         raise NotImplementedError("CalcFiringRate not implemented yet.")
 
-    def flatten(self):
+    def flatten(self, *, multiunit_id=None):
         """Collapse spike trains across units."""
+        if multiunit_id is None:
+            multiunit_id = 0
+        
         raise NotImplementedError("flatten not implemented yet.")
 
     def _restrict_to_epoch_array(self, *, epocharray, time, samples,
