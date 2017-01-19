@@ -1402,6 +1402,12 @@ class SpikeTrainArray:
 
             time, sampleArray = self._restrict_to_epoch_array(epocharray=support, time=time, samples=sampleArray)
 
+        # if no samples remain after restricting to the support, return
+        # an empty SpikeTrainArray:
+        if np.sum([st.size for st in sampleArray]) == 0:
+            self._emptySpikeTrainArray()
+            return
+
         # set self.samples and self.time:
         self.time = time
         self.samples = sampleArray
