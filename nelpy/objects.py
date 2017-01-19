@@ -55,7 +55,7 @@ import numpy as np
 # class Epoch
 # class Spike(Event)
 
-def fs(self):
+def fsgetter(self):
     """(float) [generic getter] Sampling frequency."""
     if self._fs is None:
         warnings.warn("No sampling frequency has been specified!")
@@ -303,7 +303,7 @@ class EpochArray:
     @property
     def fs(self):
         """(float) Sampling frequency."""
-        fsgetter(self, val)
+        return fsgetter(self)
 
     @fs.setter
     def fs(self, val):
@@ -1190,7 +1190,7 @@ class SpikeTrain:
     @property
     def fs(self):
         """(float) Sampling frequency."""
-        fsgetter(self, val)
+        return fsgetter(self)
 
     @fs.setter
     def fs(self, val):
@@ -1433,20 +1433,31 @@ class SpikeTrainArray:
         self._index = 0
         return self
 
-    # def __next__(self):
-    #     """SpikeTrainArray iterator advancer."""
-    #     index = self._index
-    #     if index > self.support.n_epochs - 1:
-    #         raise StopIteration
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore")
-    #         epoch = self.support[index]
-    #         sta = SpikeTrainArray(
-    #             xxxxx,
-    #             unit_ids = self.unit_ids
-    #             )  # return sta one epoch at a time
-    #     self._index += 1
-    #     return sta
+    def __next__(self):
+        """SpikeTrainArray iterator advancer."""
+        index = self._index
+        if index > self.support.n_epochs - 1:
+            raise StopIteration
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            support = self.support[index]
+            time, samples = self._restrict_to_epoch_array(
+                epocharray=support,
+                time=self.time,
+                samples=self.samples,
+                copy=True
+                )
+            sta = SpikeTrainArray(
+                samples = samples,
+                support = support,
+                fs = self.fs,
+                label = self.label,
+                cell_types = self._cell_types,
+                meta = self._meta,
+                unit_ids = self.unit_ids
+                )  # return sta one epoch at a time
+        self._index += 1
+        return sta
 
     def __getitem__(self, idx):
         # TODO: allow indexing of form sta[4,1:5] so that the STs of
@@ -1621,7 +1632,7 @@ class SpikeTrainArray:
     @property
     def fs(self):
         """(float) Sampling frequency."""
-        fsgetter(self, val)
+        return fsgetter(self)
 
     @fs.setter
     def fs(self, val):
