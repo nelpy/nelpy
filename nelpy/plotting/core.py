@@ -196,7 +196,7 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
         if cmap is not None:
             colors = cmap(np.linspace(0.25, 0.75, data.n_units)) # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
             for unit, spiketrain in zip(unitlist, data.time):
-                ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[unit], lw=lw, **kwargs)
+                ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[unit-1], lw=lw, **kwargs)
         else:  # use a constant color:
             for unit, spiketrain in zip(unitlist, data.time):
                 ax.vlines(spiketrain, unit - hh, unit + hh, colors=color, lw=lw, **kwargs)
