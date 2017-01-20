@@ -1007,7 +1007,7 @@ class AnalogSignal:
             index particular a singular epoch or multiple epochs with slice
         """
         epoch = self.support[idx]
-        return AnalogSignal(self.ydata[indices],
+        return AnalogSignal(self.ydata,
                             fs=self.fs,
                             xdata=self.xdata,
                             support=epoch
