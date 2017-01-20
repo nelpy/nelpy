@@ -34,7 +34,7 @@ setup(
     name='nelpy',
     version=__version__,
     url='https://github.com/eackermann/nelpy/',
-    download_url = 'https://github.com/eackermann/nelpy/tarball/' + nelpy.__version__,
+    download_url = 'https://github.com/eackermann/nelpy/tarball/' + __version__,
     license='MIT License',
     author='Etienne Ackermann',
     tests_require=['pytest'],
