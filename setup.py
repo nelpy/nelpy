@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
 import io
 
-import nelpy
+from nelpy.version import __version__
 
 # here = os.path.abspath(os.path.dirname(__file__))
 
@@ -32,7 +32,7 @@ class PyTest(TestCommand):
 
 setup(
     name='nelpy',
-    version=nelpy.__version__,
+    version=__version__,
     url='https://github.com/eackermann/nelpy/',
     download_url = 'https://github.com/eackermann/nelpy/tarball/' + nelpy.__version__,
     license='MIT License',

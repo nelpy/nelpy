@@ -13,6 +13,8 @@ from .objects import *  # NOTE: control exported symbols in objects.py
 from . import filtering
 from . import plotting
 
+from . version import __version__
+
 # TODO: decide on which utils to expose directly:
 # from .utils import (find_nearest_idx,
 #                     find_nearest_indices)
@@ -21,4 +23,3 @@ from . import plotting
 
 # from .plotting import plot
 
-__version__ = '0.0.9'
