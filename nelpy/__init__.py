@@ -21,4 +21,4 @@ from . import plotting
 
 # from .plotting import plot
 
-__version__ = '0.0.8'
+__version__ = '0.0.9'
