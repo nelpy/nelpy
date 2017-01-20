@@ -8,16 +8,12 @@ and inspired by the neuralensemble.org NEO project
 (see http://neo.readthedocs.io/en/0.4.0/core.html).
 """
 
-from .objects import (EventArray,
-                      EpochArray,
-                      AnalogSignal,
-                      AnalogSignalArray,
-                      SpikeTrain,
-                      SpikeTrainArray,
-                      BinnedSpikeTrain,
-                      BinnedSpikeTrainArray)
+from .objects import *  # NOTE: control exported symbols in objects.py
 
-# TODO: decide on which utils to expose:
+from . import filtering
+from . import plotting
+
+# TODO: decide on which utils to expose directly:
 # from .utils import (find_nearest_idx,
 #                     find_nearest_indices)
 
@@ -25,4 +21,4 @@ from .objects import (EventArray,
 
 # from .plotting import plot
 
-__version__ = '0.0.8'
+__version__ = '0.0.9'
