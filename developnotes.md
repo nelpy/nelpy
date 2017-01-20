@@ -92,3 +92,14 @@ Nelpy package organization (preliminary)
         neuropipes/             Subpackage for pipelines
             __init__.py
             ...
+
+Pruning release tags
+====================
+After pruning / cleaning remote releases, run 
+
+git tag -l | xargs git tag -d
+git fetch --tags
+
+to get local tags to match those of remote.
+
+See [here](http://stackoverflow.com/questions/1841341/remove-local-tags-that-are-no-longer-on-the-remote-repository).
