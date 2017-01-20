@@ -122,27 +122,23 @@ class EpochArray:
 
         samples = np.squeeze(samples)  # coerce samples into np.array
 
-        # Note: if we have an empty array of samples with no dimension,
-        # then calling len(samples) will return a TypeError.
-        try:
-            # if no samples were received, return an empty EpochArray:
-            if len(samples) == 0:
-                self._emptyEpochArray()
-                return
-        except TypeError:
-            warnings.warn("unsupported type; creating empty EpochArray")
-            self._emptyEpochArray()
-            return
+        # all possible inputs:
+        # 1. single epoch, no duration    --- OK
+        # 2. single epoch and duration    --- ERR
+        # 3. multiple epochs, no duration --- OK
+        # 4. multiple epochs and duration --- ERR
+        # 5. single scalar and duration   --- OK
+        # 6. scalar list and duratin list --- OK
+        #
+        # Q. won't np.squeeze make our life difficult?
+        #
+        # Strategy: determine if duration was passed. If so, try to see
+        # if samples can be coerced into right shape. If not, raise 
+        # error. 
+        # If duration was NOT passed, then do usual checks for epochs.
 
-        if samples.ndim > 2:
-            raise ValueError("samples must be a 1D or a 2D vector")
-
-        # set initial fs to None
-        self._fs = None
-        # then attempt to update the fs; this does input validation:
-        self.fs = fs
-
-        if duration is not None:
+        if duration is not None:  # assume we received scalar starts
+            samples = np.array(samples, ndmin=1)
             duration = np.squeeze(duration).astype(float)
             if duration.ndim == 0:
                 duration = duration[..., np.newaxis]
@@ -158,25 +154,45 @@ class EpochArray:
                         "must have same number of time and duration "
                         "samples"
                         )
-
             if samples.ndim == 1 and duration.ndim == 1:
                 stop_epoch = samples + duration
                 samples = np.hstack(
                     (samples[..., np.newaxis], stop_epoch[..., np.newaxis]))
 
-        # Only one epoch is given eg EpochArray([3,5,6,10]) with no
-        # duration and more than two values:
-        if samples.ndim == 1 and len(samples) > 2:  # we already know duration is None
-            raise TypeError(
-                "samples of size (n_epochs, ) has to be accompanied by "
-                "a duration")
+        else:  # duration was not specified, so assume we recived epochs
 
-        if samples.ndim == 1 and duration is None:
-            samples = np.array([samples])
+            # Note: if we have an empty array of samples with no 
+            # dimension, then calling len(samples) will return a
+            # TypeError.
+            try:
+                # if no samples were received, return an empty EpochArray:
+                if len(samples) == 0:
+                    self._emptyEpochArray()
+                    return
+            except TypeError:
+                warnings.warn("unsupported type (" 
+                    + str(type(samples))
+                    + "); creating empty EpochArray")
+                self._emptyEpochArray()
+                return
+            
+            # Only one epoch is given eg EpochArray([3,5,6,10]) with no
+            # duration and more than two values:
+            if samples.ndim == 1 and len(samples) > 2:  # we already know duration is None
+                raise TypeError(
+                    "samples of size (n_epochs, ) has to be accompanied by "
+                    "a duration")
 
-        # if samples.ndim == 2 and samples.shape[1] != 2:
-        #     samples = np.hstack(
-        #         (samples[0][..., np.newaxis], samples[1][..., np.newaxis]))
+            if samples.ndim == 1:  # and duration is None:
+                samples = np.array([samples])
+
+        if samples.ndim > 2:
+            raise ValueError("samples must be a 1D or a 2D vector")
+
+        # set initial fs to None
+        self._fs = None
+        # then attempt to update the fs; this does input validation:
+        self.fs = fs
 
         try:
             if samples[:, 0].shape[0] != samples[:, 1].shape[0]:
@@ -257,7 +273,7 @@ class EpochArray:
                 epoch = self.intersect(
                     epoch=EpochArray(idx.time*self.fs, fs=self.fs),
                     boundaries=True
-                    )
+                    ) # BUG: this require self.fs to be set!!!
             else:
                 epoch = self.intersect(
                     epoch=idx,
@@ -1558,6 +1574,12 @@ class SpikeTrainArray:
         """
         if self.n_units == 1:
             return self
+
+        # raise NotImplementedError until SpikeTrainArray supports one
+        # unit spike trains:
+        raise NotImplementedError(
+            "SpikeTrainArray.flatten() has not been implemented yet!")
+
         if multiunit_id is None:
             multiunit_id = 0
         allspikes = self.samples[0]
