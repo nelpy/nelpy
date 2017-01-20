@@ -25,7 +25,6 @@ __all__ = ['EpochArray',
 # __init__ method
 
 from .utils import is_sorted, get_contiguous_segments, linear_merge
-from .utils import get_contiguous_segments
 
 
 import warnings
@@ -1034,16 +1033,14 @@ class AnalogSignal:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             epoch = EpochArray(
-                    np.array([self.support.samples[index,:]]),
-                    fs = self._fs
+                    np.array([self.support.samples[index,:]])
                 )
         self._index += 1
-        return AnalogSignal(self.ydata[indices],
+        return AnalogSignal(self.ydata,
                             fs=self.fs,
                             xdata=self.xdata,
                             support=epoch
         )     
-
 
     def __getitem__(self, idx):
         """AnalogSignal index access.
