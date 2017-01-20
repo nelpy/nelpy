@@ -1556,6 +1556,8 @@ class SpikeTrainArray:
         multiunit_id: (int)
             (unit) ID to assign to flattened spike train, default is 0.
         """
+        if self.n_units == 1:
+            return self
         if multiunit_id is None:
             multiunit_id = 0
         allspikes = self.samples[0]
