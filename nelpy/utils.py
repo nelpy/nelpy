@@ -1,7 +1,7 @@
-from itertools import tee
-from scipy import signal
-from matplotlib.offsetbox import AnchoredOffsetbox
 
+__all__ = ['pairwise', 'is_sorted', 'linear_merge']
+
+from itertools import tee
 import numpy as np
 
 def pairwise(iterable):
@@ -12,6 +12,62 @@ def pairwise(iterable):
 def is_sorted(iterable, key=lambda a, b: a <= b):
     """Check to see if iterable is monotonic increasing (sorted)."""
     return all(key(a, b) for a, b in pairwise(iterable))
+
+def linear_merge(list1, list2):
+    """Merge two sorted lists in linear time.
+
+    Returns a generator of the merged result.
+
+    Examples
+    --------
+    >>> a = [1, 3, 5, 7]
+    >>> b = [2, 4, 6, 8]
+    >>> [i for i in linear_merge(a, b)]
+    [1, 2, 3, 4, 5, 6, 7, 8]
+
+    >>> [i for i in linear_merge(b, a)]
+    [1, 2, 3, 4, 5, 6, 7, 8]
+
+    >>> a = [1, 2, 2, 3]
+    >>> b = [2, 2, 4, 4]
+    >>> [i for i in linear_merge(a, b)]
+    [1, 2, 2, 2, 2, 3, 4, 4]
+    """
+    list1 = iter(list1)
+    list2 = iter(list2)
+
+    value1 = next(list1)
+    value2 = next(list2)
+
+    # We'll normally exit this loop from a next() call raising 
+    # StopIteration, which is how a generator function exits anyway.
+    while True:
+        if value1 <= value2:
+            # Yield the lower value.
+            yield value1
+            try:
+                # Grab the next value from list1.
+                value1 = next(list1)
+            except StopIteration:
+                # list1 is empty.  Yield the last value we received from list2, then
+                # yield the rest of list2.
+                yield value2
+                while True:
+                    yield next(list2)
+        else:
+            yield value2
+            try:
+                value2 = next(list2)
+
+            except StopIteration:
+                # list2 is empty.
+                yield value1
+                while True:
+                    yield next(list1)
+
+########################################################################
+# uncurated below this line!
+########################################################################
 
 def find_nearest_idx(array, val):
     """Finds nearest index in array to value.
@@ -76,138 +132,6 @@ def get_sort_idx(tuning_curves):
         sorted_idx.append(idx[0])
 
     return sorted_idx
-
-
-class AnchoredScaleBar(AnchoredOffsetbox):
-    def __init__(self, transform, sizex=0, sizey=0, labelx=None, labely=None,
-                 loc=4, pad=0.1, borderpad=0.1, sep=2, prop=None, fontsize='medium', **kwargs):
-        """
-        Modified, draw a horizontal and/or vertical  bar with the size in data coordinate
-        of the give axes. A label will be drawn underneath (center-aligned).
-
-        Parameters
-        ----------
-        transform : the coordinate frame (typically axes.transData)
-        sizex, sizey : width of x,y bar, in data units. 0 to omit
-        labelx, labely : labels for x,y bars; None to omit
-        loc : position in containing axes
-        pad, borderpad : padding, in fraction of the legend font size (or prop)
-        sep : separation between labels and bars in points.
-        **kwargs : additional arguments passed to base class constructor
-
-        Notes
-        -----
-        Adapted from mpl_toolkits.axes_grid2
-
-        """
-        from matplotlib.lines import Line2D
-        from matplotlib.text import Text
-        from matplotlib.offsetbox import AuxTransformBox
-        bars = AuxTransformBox(transform)
-        inv = transform.inverted()
-        pixelxy = inv.transform((1, 1)) - inv.transform((0, 0))
-
-        if sizex:
-            barx = Line2D([sizex, 0], [0, 0], transform=transform, color='k')
-            bars.add_artist(barx)
-
-        if sizey:
-            bary = Line2D([0, 0], [0, sizey], transform=transform, color='k')
-            bars.add_artist(bary)
-
-        if sizex and labelx:
-            textx = Text(text=labelx, x=sizex/2.0, y=-5*pixelxy[1], ha='center', va='top', size=fontsize)
-            bars.add_artist(textx)
-
-        if sizey and labely:
-            texty = Text(text=labely, rotation='vertical', y=sizey/2.0, x=-2*pixelxy[0],
-                         va='center', ha='right', size=fontsize)
-            bars.add_artist(texty)
-
-        AnchoredOffsetbox.__init__(self, loc=loc, pad=pad, borderpad=borderpad,
-                                       child=bars, prop=prop, frameon=False, **kwargs)
-
-def add_scalebar(ax, matchx=True, matchy=True, hidex=True, hidey=True, fontsize='medium', units='ms', **kwargs):
-    """Add scalebars to axes
-    Adds a set of scale bars to *ax*, matching the size to the ticks of the
-    plot and optionally hiding the x and y axes
-
-    Parameters
-    ----------
-    ax :
-        The axis to attach ticks to
-    matchx, matchy : boolean
-        If True (default), set size of scale bars to spacing between
-        ticks
-        If False, size should be set using sizex and sizey params
-    hidex, hidey : boolean
-        If True, hide x-axis and y-axis of parent
-    **kwargs : additional arguments passed to AnchoredScaleBars
-
-    Returns created scalebar object
-    """
-    from matplotlib.ticker import AutoLocator
-    locator = AutoLocator()
-
-    def find_loc(vmin, vmax):
-        loc = locator.tick_values(vmin, vmax)
-        return len(loc)>1 and (loc[1] - loc[0])
-
-    if matchx:
-        kwargs['sizex'] = find_loc(*ax.get_xlim())
-#         kwargs['labelx'] = str(kwargs['sizex'])
-        if units == 'ms':
-            kwargs['labelx'] = str(int(round(kwargs['sizex']*1000, 2))) + ' ms'
-        elif units == 's':
-            kwargs['labelx'] = str(int(round(kwargs['sizex'], 2))) + ' s'
-
-    if matchy:
-        kwargs['sizey'] = find_loc(*ax.get_ylim())
-        kwargs['labely'] = str(kwargs['sizey'])
-
-    scalebar = AnchoredScaleBar(ax.transData, fontsize=fontsize, **kwargs)
-    ax.add_artist(scalebar)
-
-    return scalebar
-
-
-def get_counts(spikes, edges, gaussian_std=None, n_gaussian_std=5):
-    """Finds the number of spikes in each bin.
-
-    Parameters
-    ----------
-    spikes : list
-        Contains vdmlan.SpikeTrain for each neuron
-    edges : np.array
-        Bin edges for computing spike counts.
-    gaussian_std : float
-        Standard deviation for gaussian filter. Default is None.
-
-    Returns
-    -------
-    counts : np.array
-        Where each inner array is the number of spikes (int) in each bin for an individual neuron.
-
-    """
-    dt = np.median(np.diff(edges))
-
-    if gaussian_std is not None:
-        n_points = n_gaussian_std * gaussian_std * 2 / dt
-        n_points = max(n_points, 1.0)
-        if n_points % 2 == 0:
-            n_points += 1
-        if n_points > len(edges):
-            raise ValueError("gaussian_std is too large for these times")
-        gaussian_filter = signal.gaussian(n_points, gaussian_std/dt)
-        gaussian_filter /= np.sum(gaussian_filter)
-
-    counts = np.zeros((len(spikes), len(edges)-1))
-    for idx, spiketrain in enumerate(spikes):
-        counts[idx] = np.histogram(spiketrain.time, bins=edges)[0]
-        if gaussian_std is not None and gaussian_std > dt:
-            counts[idx] = np.convolve(counts[idx], gaussian_filter, mode='same')
-    return counts
-
 
 def cartesian(xcenters, ycenters):
     """Finds every combination of elements in two arrays.

@@ -10,8 +10,10 @@ sudo ln -s /path/to/code/directory/ /path/to/python/site-packages/nelpydev
 Note that the `/path/to/code/directory/` should point to the actual package directory, and not the top level dir containing `README.md`, `setup.py`, and so on.
 
 Then, from within Python, we can always do
->>> import nelpydev as neld
->>> import nelpydev.plotting as npld
+
+    >>> import nelpydev as neld
+    >>> import nelpydev.plotting as npld
+
 to access our bleeding-edge development code system-wide.
 
 This also facilitates having a more stable (release) version of nelpy installed alongside the development version.
@@ -19,15 +21,16 @@ This also facilitates having a more stable (release) version of nelpy installed 
 For example, nelpy (the latest release version) can be installed either by calling `pip install nelpy`, or by cloning the git repository and running `python setup.py install` from within the nelpy directory.
 
 Then we can import nelpy and nelpydev alongside each other, using (by convention) the following imports:
->>> import nelpy as nel
->>> import nelpy.plotting as npl
->>> import nelpydev as neld
->>> impoer nelpydev.plotting as npld
+
+    >>> import nelpy as nel
+    >>> import nelpy.plotting as npl
+    >>> import nelpydev as neld
+    >>> impoer nelpydev.plotting as npld
 
 Submitting a release to PyPi
 ============================
 
-* There are some excellent guides out there; check out 
+* There are some excellent guides out there; check out
 
 http://sherifsoliman.com/2016/09/30/Python-package-with-GitHub-PyPI/#convert-readmemd-to-readmerst
 
@@ -43,7 +46,7 @@ and so I'll keep this part short and uninformative, except to remind myself to
 
 ```git push --tags```
 
-and then 
+and then
 
 ```
 python setup.py sdist upload -r pypitest
@@ -58,3 +61,34 @@ pip install nelpy
 ```
 
 and testing nelpy in the REPL again.
+
+Also, be sure to thoroughly check out https://python-packaging.readthedocs.io/en/latest/
+
+Nelpy package organization (preliminary)
+========================================
+
+    nelpy/                      Top-level package
+        __init__.py             Initialize the nelpy package
+        objects.py
+        io.py
+        utils.py
+
+        plotting/               Subpackage for data visualization
+            __init__.py
+            core.py
+            scalebar.py
+            aiffread.py
+            utils.py
+            ...
+        dbs/                    Subpackage for deep brain stimulation
+            __init__.py
+            ...
+        imaging/                Subpackage for imaging and miniscope
+            __init__.py
+            ...
+        hmm/                    Subpackage for hidden Markov models
+            __init__.py
+            ...
+        neuropipes/             Subpackage for pipelines
+            __init__.py
+            ...
