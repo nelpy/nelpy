@@ -30,8 +30,10 @@
 *.asv
 code-matlab/shared/datatypes/tsd/UnionTSD.m
 
+# vscode
 .vscode
 nelpy/.vscode
+tags
 
 # code-python
 *.pyc
