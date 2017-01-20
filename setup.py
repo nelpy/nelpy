@@ -3,7 +3,7 @@ from setuptools.command.test import test as TestCommand
 import io
 
 # from nelpy.version import __version__
-__version__ = '0.0.91'
+__version__ = '0.0.93'
 
 # here = os.path.abspath(os.path.dirname(__file__))
 
