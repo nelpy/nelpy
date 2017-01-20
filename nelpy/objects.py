@@ -265,16 +265,26 @@ class EpochArray:
         return epoch
 
     def __getitem__(self, idx):
-        """EpochArray index access."""
+        """EpochArray index access.
+        
+        Accepts integers, slices, and EpochArrays.
+        """
         if isinstance(idx, EpochArray):
-            if idx.isempty:
+            # case #: (self, idx):
+            # case 0: idx.isempty == True
+            # case 1: (fs, fs) = (None, const)
+            # case 2: (fs, fs) = (const, None)
+            # case 3: (fs, fs) = (None, None)
+            # case 4: (fs, fs) = (const, const)
+            # case 5: (fs, fs) = (constA, constB)
+            if idx.isempty:  # case 0:
                 return EpochArray([])
-            if idx.fs != self.fs:
+            if idx.fs != self.fs:  # cases (1, 2, 5):
                 epoch = self.intersect(
-                    epoch=EpochArray(idx.time*self.fs, fs=self.fs),
+                    epoch=EpochArray(idx.time, fs=None),
                     boundaries=True
-                    ) # BUG: this require self.fs to be set!!!
-            else:
+                    )
+            else:  # cases (3, 4)
                 epoch = self.intersect(
                     epoch=idx,
                     boundaries=True
@@ -480,8 +490,14 @@ class EpochArray:
         if not boundaries:
             new_starts = np.unique(new_starts)
             new_stops = np.unique(new_stops)
+        
+        # case 1: (fs, fs) = (None, const)
+        # case 2: (fs, fs) = (const, None)
+        # case 3: (fs, fs) = (None, None)
+        # case 4: (fs, fs) = (const, const)
+        # case 5: (fs, fs) = (constA, constB)
 
-        if self.fs != epoch.fs:
+        if self.fs != epoch.fs:  # cases (1, 2, 5)
             warnings.warn(
                 "sampling rates are different; intersecting along "
                 "time only and throwing away fs"
@@ -494,7 +510,7 @@ class EpochArray:
                 fs=None,
                 meta=meta
                 )
-        elif self.fs is None:
+        elif self.fs is None:  # cases (1, 3) [1 already handled]
             return EpochArray(
                 np.hstack(
                     [np.array(new_starts)[..., np.newaxis],
@@ -503,7 +519,7 @@ class EpochArray:
                 fs=None,
                 meta=meta
                 )
-        else:
+        else:  # case (4, )
             return EpochArray(
                 np.hstack(
                     [np.array(new_starts)[..., np.newaxis],

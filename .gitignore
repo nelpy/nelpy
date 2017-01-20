@@ -32,6 +32,7 @@ code-matlab/shared/datatypes/tsd/UnionTSD.m
 
 .vscode
 nelpy/.vscode
+tags
 
 # code-python
 *.pyc
