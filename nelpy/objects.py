@@ -275,11 +275,11 @@ class SpikeTrain(object):
 
             kwargs = {"tdata": list(allspikes),
                       "fs": self.fs,
-                      "support" = self.support,
-                      "unit_ids"=[unit_id],
-                      "unit_labels"=unit_label,
-                      "unit_tags"=None,
-                      "label" = self.label
+                      "support": self.support,
+                      "unit_ids": [unit_id],
+                      "unit_labels": unit_label,
+                      "unit_tags": None,
+                      "label": self.label
                       }
             flatspiketrain = SpikeTrainArray(**kwargs)
             return flatspiketrain
