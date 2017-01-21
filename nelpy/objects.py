@@ -134,8 +134,8 @@ class EpochArray:
         # Q. won't np.squeeze make our life difficult?
         #
         # Strategy: determine if duration was passed. If so, try to see
-        # if samples can be coerced into right shape. If not, raise 
-        # error. 
+        # if samples can be coerced into right shape. If not, raise
+        # error.
         # If duration was NOT passed, then do usual checks for epochs.
 
         if duration is not None:  # assume we received scalar starts
@@ -161,7 +161,7 @@ class EpochArray:
                     (samples[..., np.newaxis], stop_epoch[..., np.newaxis]))
         else:  # duration was not specified, so assume we recived epochs
 
-            # Note: if we have an empty array of samples with no 
+            # Note: if we have an empty array of samples with no
             # dimension, then calling len(samples) will return a
             # TypeError.
             try:
@@ -170,12 +170,12 @@ class EpochArray:
                     self._emptyEpochArray()
                     return
             except TypeError:
-                warnings.warn("unsupported type (" 
+                warnings.warn("unsupported type ("
                     + str(type(samples))
                     + "); creating empty EpochArray")
                 self._emptyEpochArray()
                 return
-            
+
             # Only one epoch is given eg EpochArray([3,5,6,10]) with no
             # duration and more than two values:
             if samples.ndim == 1 and len(samples) > 2:  # we already know duration is None
@@ -266,7 +266,7 @@ class EpochArray:
 
     def __getitem__(self, idx):
         """EpochArray index access.
-        
+
         Accepts integers, slices, and EpochArrays.
         """
         if isinstance(idx, EpochArray):
@@ -490,7 +490,7 @@ class EpochArray:
         if not boundaries:
             new_starts = np.unique(new_starts)
             new_stops = np.unique(new_stops)
-        
+
         # case 1: (fs, fs) = (None, const)
         # case 2: (fs, fs) = (const, None)
         # case 3: (fs, fs) = (None, None)
@@ -780,7 +780,7 @@ class AnalogSignal:
     ydata : np.array(dtype=np.float)
     xdata : np.array(dtype=np.float), optional
         if fs is provided xdata is assumed to be sample numbers
-        else it is assumed to be time but xdata can be a non time 
+        else it is assumed to be time but xdata can be a non time
         variable
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
@@ -805,7 +805,7 @@ class AnalogSignal:
     """
     def __init__(self, ydata, *, xdata=None, fs=None, support=None):
         ydata = np.squeeze(ydata).astype(float)
-        
+
 
         # Note; if we have an empty array of ydata with no dimension,
         # then calling len(ydata) will return a TypeError
@@ -819,7 +819,7 @@ class AnalogSignal:
             self._emptyAnalogSignal()
             return
 
-        # Note: if both xdata and ydata are given and dimensionality does not 
+        # Note: if both xdata and ydata are given and dimensionality does not
         # match, then TypeError!
         if(xdata is not None):
             xdata = np.squeeze(xdata).astype(float)
@@ -834,8 +834,8 @@ class AnalogSignal:
         # then attempt to update the fs; this does input validation:
         self.fs = fs
 
-        # Note: time will be None if this is not a time series and fs isn't 
-        # specified set xtime to None. 
+        # Note: time will be None if this is not a time series and fs isn't
+        # specified set xtime to None.
         self._time = None
         time = None
 
@@ -850,7 +850,7 @@ class AnalogSignal:
                     self._time = time
                     self._restrict_to_epoch_array(epocharray=support)
                 # xdata, fs and no support
-                else: 
+                else:
                     warnings.warn("support created with given xdata and sampling rate, fs!")
                     self._time = time
                     self.support = EpochArray(get_contiguous_segments(xdata,
@@ -859,13 +859,13 @@ class AnalogSignal:
                 time = xdata
                 self.xdata = xdata
                 # xdata and support
-                if support is not None: 
+                if support is not None:
                     # self.support = support
                     self._time = time
                     self._restrict_to_epoch_array(epocharray=support)
                     warnings.warn("support created with specified epoch array but no specified sampling rate")
                 # xdata
-                else: 
+                else:
                     warnings.warn("support created with just xdata! no sampling rate specified so support is entire range of signal")
                     self._time = time
                     self.support = EpochArray(np.array([0, time[-1]]))
@@ -897,12 +897,12 @@ class AnalogSignal:
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
         """Restrict self._time and self.ydata to an EpochArray. If no
-        EpochArray is specified, self. support is used.
+        EpochArray is specified, self.support is used.
 
         Parameters
         ----------
         epocharray : EpochArray, optional
-        	EpochArray on which to restrict AnalogSignal. Default is 
+        	EpochArray on which to restrict AnalogSignal. Default is
         	self.support
         update : bool, optional
         	Overwrite self.support with epocharray if True (default).
@@ -979,10 +979,8 @@ class AnalogSignal:
 
     @property
     def fs(self):
-        """(float) Sampling frequency"""
-        if self._fs is None:
-            warnings.warn("No sampling frequency has been specified")
-        return self._fs
+        """(float) Sampling frequency."""
+        return fsgetter(self)
 
     @fs.setter
     def fs(self, val):
@@ -1040,7 +1038,7 @@ class AnalogSignal:
                             fs=self.fs,
                             xdata=self.xdata,
                             support=epoch
-        )     
+        )
 
     def __getitem__(self, idx):
         """AnalogSignal index access.
@@ -1061,25 +1059,25 @@ class AnalogSignal:
                                 xdata=self.xdata,
                                 support=epoch
             )
-    
+
     def mean(self):
-        """Calculates the mean of all of ydata"""
+        """Returns the mean of the entire signal."""
         return np.mean(self.ydata)
 
     def std(self):
-        """Calculates the standard deviation of all of ydata"""
+        """Returns the standard deviation of the entire signal."""
         return np.std(self.ydata)
 
     def max(self):
-        """Returns the maximum of all of ydata"""
+        """Returns the maximum of the entire signal."""
         return np.max(self.ydata)
 
     def min(self):
-        """Returns the minimum of all of ydata"""
+        """Returns the minimum of the entire signal."""
         return np.min(self.ydata)
 
     def clip(self, min, max):
-        """Clip (limit) the values in ydata to min and max as specified. 
+        """Clip (limit) the values in ydata to min and max as specified.
 
         Parameters
         ----------
@@ -1091,11 +1089,85 @@ class AnalogSignal:
         Returns
         ----------
         clipped_array : ndarray
-            An array with the elements of ydata, but where the values < 
-            min are replaced with min and the values > max are replaced 
-            with max. 
+            An array with the elements of ydata, but where the values <
+            min are replaced with min and the values > max are replaced
+            with max.
         """
         return np.clip(self.ydata, min, max)
+
+    def trim(self, start, stop=None, *, fs=None):
+        """Trim the AnalogSignal to a single time/sample interval.
+
+        Parameters
+        ----------
+        start : float or two element array-like
+            (float) Left boundary of interval in time (seconds) if
+            fs=None, otherwise left boundary is start / fs.
+            (2 elements) Left and right boundaries in time (seconds) if
+            fs=None, otherwise boundaries are left / fs. Stop must be
+            None if 2 element start is used.
+        stop : float, optional
+            Right boundary of interval in time (seconds) if fs=None,
+            otherwise right boundary is stop / fs.
+        fs : float, optional
+            Sampling rate in Hz.
+
+        Returns
+        -------
+        trim : AnalogSignal
+            The AnalogSignal on the interval [start, stop].
+
+        Examples
+        --------
+        >>> as.trim([0, 3], fs=1)  # recommended for readability
+        >>> as.trim(start=0, stop=3, fs=1)
+        >>> as.trim(start=[0, 3])
+        >>> as.trim(0, 3)
+        >>> as.trim((0, 3))
+        >>> as.trim([0, 3])
+        >>> as.trim(np.array([0, 3]))
+        """
+
+        # TODO: do comprehensive input validation
+        if stop is not None:
+            try:
+                start = np.array(start, ndmin=1)
+                if len(start) != 1:
+                    raise TypeError("start must be a scalar float")
+            except TypeError:
+                raise TypeError("start must be a scalar float")
+            try:
+                stop = np.array(stop, ndmin=1)
+                if len(stop) != 1:
+                    raise TypeError("stop must be a scalar float")
+            except TypeError:
+                raise TypeError("stop must be a scalar float")
+        else:  # start must have two elements
+            try:
+                if len(np.array(start, ndmin=1)) > 2:
+                    raise TypeError(
+                        "unsupported input to AnalogSignalArray.trim()")
+                stop = np.array(start[1], ndmin=1)
+                start = np.array(start[0], ndmin=1)
+                if len(start) != 1 or len(stop) != 1:
+                    raise TypeError(
+                        "start and stop must be scalar floats")
+            except TypeError:
+                raise TypeError(
+                    "start and stop must be scalar floats")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            epoch = self.support.intersect(
+                EpochArray(
+                    [start, stop],
+                    fs=fs))
+            if not epoch.isempty:
+                analogsignal = self[epoch]
+            else:
+                analogsignal = AnalogSignal([])
+        return analogsignal
+
 #----------------------------------------------------------------------#
 #======================================================================#
 
@@ -1793,7 +1865,7 @@ class SpikeTrainArray:
 
     def flatten(self, *, multiunit_id=None):
         """Collapse spike trains across units.
-        
+
         Parameters
         ----------
         multiunit_id: (int)
@@ -1822,7 +1894,7 @@ class SpikeTrainArray:
             unit_ids=[multiunit_id]
             )
         return flatspiketrain
-        
+
     def _restrict_to_epoch_array(self, *, epocharray, time, samples,
                                  copy=True):
         """Returns time and samples restricted to an EpochArray.
