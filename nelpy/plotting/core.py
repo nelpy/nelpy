@@ -47,7 +47,7 @@ def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
         >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
         >>> data = [3, 4, 2, 5, 2]
         >>> npl.plot(ep, data)
-    
+
     Hide the markers and change the linewidth:
 
         >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
@@ -70,7 +70,7 @@ def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
         raise ValueError("epocharray and data musthave the same length")
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")  
+        warnings.simplefilter("ignore")
         for epoch, val in zip(epocharray, data):
             ax.plot(
                 [epoch.start, epoch.stop],
@@ -79,7 +79,7 @@ def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
                 color=color,
                 mec=mec,
                 markerfacecolor='w',
-                lw=lw, 
+                lw=lw,
                 mew=mew,
                 **kwargs)
 
@@ -145,21 +145,21 @@ def overviewstrip():
 
 def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, lw=None, lh=None, reindex = None,**kwargs):
     """Docstring goes here."""
-    
+
     # Sort out default values for the parameters
     if ax is None:
         ax = plt.gca()
     if cmap is None and color is None:
         color = '0.25'
     if lw is None:
-        lh = 1.5
+        lw = 1.5
     if lh is None:
         lh = 0.95
     if reindex is None:
         reindex = False
-    
+
     hh = lh/2.0  # half the line height
-    
+
     # Handle different types of input data
     if isinstance(data, SpikeTrain):
         print("plotting SpikeTrain")
@@ -173,12 +173,12 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
 #         ylabels[1] = 'Testing'
 #         ax.set_yticklabels(ylabels)
         #######################################################################
-        
+
         prev_yrange = ax.get_ylim()
         # hacky fix for default empty axes:
         if prev_yrange[0] == 0:
             prev_yrange = [np.infty, 1]
-        
+
         if reindex:
             minunit = 1
             maxunit = data.n_units
@@ -187,12 +187,12 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
             minunit = np.array(data.unit_ids).min()
             maxunit = np.array(data.unit_ids).max()
             unitlist = data.unit_ids
-        
+
         minunit = int(np.min([np.ceil(prev_yrange[0]), minunit]))
         maxunit = int(np.max([np.floor(prev_yrange[1]), maxunit]))
 
         yrange = [minunit - 0.5, maxunit + 0.5]
-       
+
         if cmap is not None:
             colors = cmap(np.linspace(0.25, 0.75, data.n_units)) # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
             for unit, spiketrain in zip(unitlist, data.time):
@@ -204,7 +204,7 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
         # change y-axis labels to integers
         yint = range(minunit, maxunit + 1)
         ax.set_yticks(yint)
-        
+
         ax.set_ylim(yrange)
 
     elif isinstance(data, EpochArray):
