@@ -50,4 +50,6 @@ dist
 .playground/
 setup-old.py
 
+# Etienne custom
 temp
+examples/playground.ipynb
