@@ -252,36 +252,42 @@ class SpikeTrain(object):
             label = val
         self._label = label
 
-    def flatten(self, *, multiunit_id=None):
+    def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
+
+        WARNING! unit_tags are thrown away when flattening.
 
         Parameters
         ----------
-        multiunit_id: (int)
+        unit_id: (int)
             (unit) ID to assign to flattened spike train, default is 0.
+        unit_label (str)
+            (unit) Label for spike train, default is 'flattened'.
         """
 
         if self.n_units == 1:  # already flattened
             return self
 
         # default args:
-        if multiunit_id is None:
-            multiunit_id = 0
+        if unit_id is None:
+            unit_id = 0
+        if unit_label is None:
+            unit_label = "flattened"
 
         if isinstance(self, SpikeTrainArray):
             allspikes = self.tdata[0]
             for unit in range(1,self.n_units):
                 allspikes = linear_merge(allspikes, self.tdata[unit])
 
-            flatspiketrain = SpikeTrainArray(
-                tdata = list(allspikes),
-                fs = self.fs,
-                support = self.support,
-                unit_ids=[multiunit_id],
-                unit_labels=self.unit_labels,
-                unit_tags=self.unit_tags,
-                label = self.label
-                )
+            kwargs = {"tdata": list(allspikes),
+                      "fs": self.fs,
+                      "support" = self.support,
+                      "unit_ids"=[unit_id],
+                      "unit_labels"=unit_label,
+                      "unit_tags"=None,
+                      "label" = self.label
+                      }
+            flatspiketrain = SpikeTrainArray(**kwargs)
             return flatspiketrain
 
         elif isinstance(self, BinnedSpikeTrainArray):
