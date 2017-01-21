@@ -1,18 +1,10 @@
 #encoding : utf-8
-"""This module contains the core nelpy object definitions:
- * EventArray
- * EpochArray
- * SpikeTrain and SpikeTrainArray
- * AnalogSignal and AnalogSignalArray
- * BinnedSpikeTrain and BinnedSpikeTrainArray
-"""
+"""This module contains the core nelpy object definitions."""
 
-__all__ = ['EpochArray',
-           'EventArray',
+__all__ = ['EventArray',
            'EpochArray',
            'AnalogSignal',
            'AnalogSignalArray',
-           'SpikeTrain',
            'SpikeTrainArray',
            'BinnedSpikeTrain',
            'BinnedSpikeTrainArray']
@@ -25,7 +17,6 @@ __all__ = ['EpochArray',
 # __init__ method
 
 from .utils import is_sorted, get_contiguous_segments, linear_merge
-
 
 import warnings
 import numpy as np
@@ -86,6 +77,9 @@ def fssetter(self, val):
         self._time = self.tdata / val
     self._fs = val
 
+########################################################################
+# class SpikeTrain
+########################################################################
 class SpikeTrain(object):
     """Base class for SpikeTrainArray and BinnedSpikeTrainArray.
 
