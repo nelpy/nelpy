@@ -161,11 +161,7 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
     hh = lh/2.0  # half the line height
 
     # Handle different types of input data
-    if isinstance(data, SpikeTrain):
-        print("plotting SpikeTrain")
-        raise NotImplementedError(
-            "plotting {} not yet supported".format(str(type(data))))
-    elif isinstance(data, SpikeTrainArray):
+    if isinstance(data, SpikeTrainArray):
         # the following example code can be used (modified) to correctly label
         # only those units which have spike trains on the axis (cumulative)
         #######################################################################
@@ -173,6 +169,7 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
 #         ylabels[1] = 'Testing'
 #         ax.set_yticklabels(ylabels)
         #######################################################################
+        print("unit labels from object: ", data.unit_labels)
 
         prev_yrange = ax.get_ylim()
         # hacky fix for default empty axes:

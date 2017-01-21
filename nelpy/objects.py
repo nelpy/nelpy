@@ -83,8 +83,214 @@ def fssetter(self, val):
             "Sampling frequency has been updated! This will "
             "modify the spike times."
             )
-        self.time = self.samples / val
+        self._time = self.tdata / val
     self._fs = val
+
+class SpikeTrain(object):
+    """Base class for SpikeTrainArray and BinnedSpikeTrainArray.
+
+    Parameters
+    ----------
+    fs: float, optional
+        Sampling rate / frequency (Hz).
+    unit_ids : list of int, optional
+        Unit IDs preferabbly in integers
+    unit_labels : list of str, optional
+        Labels corresponding to units. Default casts unit_ids to str.
+    label : str or None, optional
+        Information pertaining to the source of the spike train.
+
+
+    Attributes
+    ----------
+    n_units : int
+        Number of units in spike train.
+    unit_ids : list of int
+        Unit integer IDs.
+    unit_labels : list of str
+        Labels corresponding to units. Default casts unit_ids to str.
+    unit_tags : dict of tags and corresponding unit_ids
+        Tags corresponding to units.
+    issempty
+    **********
+    support
+    **********
+    fs: float
+        Sampling frequency (Hz).
+    label : str or None
+        Information pertaining to the source of the spike train.
+    """
+
+    def __init__(self, *, fs=None, unit_ids=None, unit_labels=None,
+                 unit_tags=None, label=None):
+
+        # set initial fs to None
+        self._fs = None
+        # then attempt to update the fs; this does input validation:
+        self.fs = fs
+
+        # WARNING! we need to ensure that self.n_units can work BEFORE
+        # we can set self.unit_ids or self.unit_labels, since those
+        # setters check that the lengths of the inputs are consistent
+        # with self.n_units.
+
+        # inherit unit IDs if available, otherwise initialize to default
+        if unit_ids is None:
+            unit_ids = list(range(1,self.n_units + 1))
+
+        # if unit_labels is empty, default to unit_ids
+        if unit_labels is None:
+            unit_labels = unit_ids
+
+        self.unit_ids = unit_ids
+        self.unit_labels = unit_labels
+        self._unit_tags = unit_tags  # no input validation yet
+        self.label = label
+
+    def __repr__(self):
+        return "<base SpikeTrain>"
+
+    @property
+    def isempty(self):
+        """(bool) Empty SpikeTrain."""
+        if isinstance(self, SpikeTrainArray):
+            return np.sum([len(st) for st in self.time]) == 0
+        elif isinstance(self, BinnedSpikeTrainArray):
+            return len(self.centers) == 0
+        else:
+            raise NotImplementedError(
+            "isempty should be defined in derived class")
+
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        if isinstance(self, SpikeTrainArray):
+            return len(self.time)
+        elif isinstance(self, BinnedSpikeTrainArray):
+            return self.data.shape[0]
+        else:
+            raise NotImplementedError(
+            "n_units should be defined in derived class")
+
+    @property
+    def unit_ids(self):
+        """Unit IDs contained in the SpikeTrain."""
+        return self._unit_ids
+
+    @unit_ids.setter
+    def unit_ids(self, val):
+        if len(val) != self.n_units:
+            raise TypeError("unit_ids must be of length n_units")
+        elif len(set(val)) < len(val):
+            raise TypeError("duplicate unit_ids are not allowed")
+        else:
+            try:
+                # cast to int:
+                unit_ids = [int(id) for id in val]
+            except TypeError:
+                raise TypeError("unit_ids must be int-like")
+        self._unit_ids = unit_ids
+
+    @property
+    def unit_labels(self):
+        """Labels corresponding to units contained in the SpikeTrain."""
+        if self._unit_labels is None:
+            warnings.warn("unit labels have not yet been specified")
+        return self._unit_labels
+
+    @unit_labels.setter
+    def unit_labels(self, val):
+        if len(val) != self.n_units:
+            raise TypeError("labels must be of length n_units")
+        else:
+            try:
+                # cast to str:
+                labels = [str(label) for label in val]
+            except TypeError:
+                raise TypeError("labels must be string-like")
+        self._unit_labels = labels
+
+    @property
+    def unit_tags(self):
+        """Tags corresponding to units contained in the SpikeTrain"""
+        if self._unit_tags is None:
+            warnings.warn("unit tags have not yet been specified")
+        return self._unit_tags
+
+    @property
+    def support(self):
+        """(nelpy.EpochArray) The support of the underlying spiketrain
+        (in seconds).
+         """
+        return self._support
+
+    @property
+    def fs(self):
+        """(float) Sampling rate / frequency (Hz)."""
+        return fsgetter(self)
+
+    @fs.setter
+    def fs(self, val):
+        """(float) Sampling rate / frequency (Hz)."""
+        fssetter(self, val)
+
+    @property
+    def label(self):
+        """Label pertaining to the source of the spike train."""
+        if self._label is None:
+            warnings.warn("label has not yet been specified")
+        return self._label
+
+    @label.setter
+    def label(self, val):
+        if val is not None:
+            try:  # cast to str:
+                label = str(val)
+            except TypeError:
+                raise TypeError("cannot convert label to string")
+        else:
+            label = val
+        self._label = label
+
+    def flatten(self, *, multiunit_id=None):
+        """Collapse spike trains across units.
+
+        Parameters
+        ----------
+        multiunit_id: (int)
+            (unit) ID to assign to flattened spike train, default is 0.
+        """
+
+        if self.n_units == 1:  # already flattened
+            return self
+
+        # default args:
+        if multiunit_id is None:
+            multiunit_id = 0
+
+        if isinstance(self, SpikeTrainArray):
+            allspikes = self.tdata[0]
+            for unit in range(1,self.n_units):
+                allspikes = linear_merge(allspikes, self.tdata[unit])
+
+            flatspiketrain = SpikeTrainArray(
+                tdata = list(allspikes),
+                fs = self.fs,
+                support = self.support,
+                unit_ids=[multiunit_id],
+                unit_labels=self.unit_labels,
+                unit_tags=self.unit_tags,
+                label = self.label
+                )
+            return flatspiketrain
+
+        elif isinstance(self, BinnedSpikeTrainArray):
+            raise NotImplementedError(
+            "BinnedSpikeTrainArray.flatten() not implemented yet!")
+        else:
+            raise NotImplementedError(
+            "SpikeTrain.flatten() not supported for this type yet!")
+
 
 ########################################################################
 # class EpochArray
@@ -94,7 +300,7 @@ class EpochArray:
 
     Parameters
     ----------
-    samples : np.array
+    tdata : np.array
         If shape (n_epochs, 1) or (n_epochs,), the start time for each
         epoch (which then requires a duration to be specified).
         If shape (n_epochs, 2), the start and stop times for each epoch.
@@ -111,17 +317,17 @@ class EpochArray:
     ----------
     time : np.array
         The start and stop times for each epoch. With shape (n_epochs, 2).
-    samples : np.array
-        The start and stop samples for each epoch. With shape (n_epochs, 2).
+    tdata : np.array
+        The start and stop tdata for each epoch. With shape (n_epochs, 2).
     fs: float
         Sampling frequency (Hz).
     meta : dict
         Metadata associated with spiketrain.
     """
 
-    def __init__(self, samples, *, fs=None, duration=None, meta=None):
+    def __init__(self, tdata, *, fs=None, duration=None, meta=None):
 
-        samples = np.squeeze(samples)  # coerce samples into np.array
+        tdata = np.squeeze(tdata)  # coerce tdata into np.array
 
         # all possible inputs:
         # 1. single epoch, no duration    --- OK
@@ -134,60 +340,60 @@ class EpochArray:
         # Q. won't np.squeeze make our life difficult?
         #
         # Strategy: determine if duration was passed. If so, try to see
-        # if samples can be coerced into right shape. If not, raise
+        # if tdata can be coerced into right shape. If not, raise
         # error.
         # If duration was NOT passed, then do usual checks for epochs.
 
         if duration is not None:  # assume we received scalar starts
-            samples = np.array(samples, ndmin=1)
+            tdata = np.array(tdata, ndmin=1)
             duration = np.squeeze(duration).astype(float)
             if duration.ndim == 0:
                 duration = duration[..., np.newaxis]
 
-            if samples.ndim == 2 and duration.ndim == 1:
+            if tdata.ndim == 2 and duration.ndim == 1:
                 raise ValueError(
                     "duration not allowed when using start and stop "
                     "times")
 
             if len(duration) > 1:
-                if samples.ndim == 1 and samples.shape[0] != duration.shape[0]:
+                if tdata.ndim == 1 and tdata.shape[0] != duration.shape[0]:
                     raise ValueError(
                         "must have same number of time and duration "
-                        "samples"
+                        "tdata"
                         )
-            if samples.ndim == 1 and duration.ndim == 1:
-                stop_epoch = samples + duration
-                samples = np.hstack(
-                    (samples[..., np.newaxis], stop_epoch[..., np.newaxis]))
+            if tdata.ndim == 1 and duration.ndim == 1:
+                stop_epoch = tdata + duration
+                tdata = np.hstack(
+                    (tdata[..., np.newaxis], stop_epoch[..., np.newaxis]))
         else:  # duration was not specified, so assume we recived epochs
 
-            # Note: if we have an empty array of samples with no
-            # dimension, then calling len(samples) will return a
+            # Note: if we have an empty array of tdata with no
+            # dimension, then calling len(tdata) will return a
             # TypeError.
             try:
-                # if no samples were received, return an empty EpochArray:
-                if len(samples) == 0:
+                # if no tdata were received, return an empty EpochArray:
+                if len(tdata) == 0:
                     self._emptyEpochArray()
                     return
             except TypeError:
                 warnings.warn("unsupported type ("
-                    + str(type(samples))
+                    + str(type(tdata))
                     + "); creating empty EpochArray")
                 self._emptyEpochArray()
                 return
 
             # Only one epoch is given eg EpochArray([3,5,6,10]) with no
             # duration and more than two values:
-            if samples.ndim == 1 and len(samples) > 2:  # we already know duration is None
+            if tdata.ndim == 1 and len(tdata) > 2:  # we already know duration is None
                 raise TypeError(
-                    "samples of size (n_epochs, ) has to be accompanied by "
+                    "tdata of size (n_epochs, ) has to be accompanied by "
                     "a duration")
 
-            if samples.ndim == 1:  # and duration is None:
-                samples = np.array([samples])
+            if tdata.ndim == 1:  # and duration is None:
+                tdata = np.array([tdata])
 
-        if samples.ndim > 2:
-            raise ValueError("samples must be a 1D or a 2D vector")
+        if tdata.ndim > 2:
+            raise ValueError("tdata must be a 1D or a 2D vector")
 
         # set initial fs to None
         self._fs = None
@@ -195,7 +401,7 @@ class EpochArray:
         self.fs = fs
 
         try:
-            if samples[:, 0].shape[0] != samples[:, 1].shape[0]:
+            if tdata[:, 0].shape[0] != tdata[:, 1].shape[0]:
                 raise ValueError(
                     "must have the same number of start and stop times")
         except Exception:
@@ -206,29 +412,29 @@ class EpochArray:
         # spikes, for example in which case the automatically inferred support
         # is a delta dirac
 
-        if samples.ndim == 2 and np.any(samples[:, 1] - samples[:, 0] < 0):
+        if tdata.ndim == 2 and np.any(tdata[:, 1] - tdata[:, 0] < 0):
             raise ValueError("start must be less than or equal to stop")
 
         # TODO: why not just sort in-place here? Why store sort_idx? Why do
-        # we explicitly sort epoch samples, but not spike times?
-        # sort_idx = np.argsort(samples[:, 0])
-        # samples = samples[sort_idx]
+        # we explicitly sort epoch tdata, but not spike times?
+        # sort_idx = np.argsort(tdata[:, 0])
+        # tdata = tdata[sort_idx]
 
-        # if a sampling rate was given, relate time to samples using fs:
+        # if a sampling rate was given, relate time to tdata using fs:
         if fs is not None:
-            time = samples / fs
+            time = tdata / fs
         else:
-            time = samples
+            time = tdata
 
-        self.time = time
-        self.samples = samples
+        self._time = time
+        self._tdata = tdata
         self._fs = fs
         self._meta = meta
 
     def _emptyEpochArray(self):
         """Clears all instance variables."""
-        self.samples = np.array([])
-        self.time = np.array([])
+        self._tdata = np.array([])
+        self._time = np.array([])
         self._fs = None
         self._meta = None
         return
@@ -257,7 +463,7 @@ class EpochArray:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             epoch = EpochArray(
-                        np.array([self.samples[index, :]]),
+                        np.array([self.tdata[index, :]]),
                         fs=self.fs,
                         meta=self.meta
                         )
@@ -295,7 +501,7 @@ class EpochArray:
         elif isinstance(idx, int):
             try:
                 epoch = EpochArray(
-                    np.array([self.samples[idx, :]]),
+                    np.array([self.tdata[idx, :]]),
                     fs=self.fs,
                     meta=self.meta
                     )
@@ -337,6 +543,16 @@ class EpochArray:
         fssetter(self, val)
 
     @property
+    def tdata(self):
+        """Epochs [start, stop] in sample numbers (default fs=1 Hz)."""
+        return self._tdata
+
+    @property
+    def time(self):
+        """Epoch times [start, stop] in seconds."""
+        return self._time
+
+    @property
     def centers(self):
         """(np.array) The center of each epoch."""
         if self.isempty:
@@ -365,11 +581,11 @@ class EpochArray:
         return self.time[:, 0]
 
     @property
-    def _sampleStarts(self):
-        """(np.array) The start of each epoch, in samples"""
+    def _tdatatarts(self):
+        """(np.array) The start of each epoch, in tdata"""
         if self.isempty:
             return []
-        return self.samples[:, 0]
+        return self.tdata[:, 0]
 
     @property
     def start(self):
@@ -379,11 +595,11 @@ class EpochArray:
         return self.time[:, 0][0]
 
     @property
-    def _sampleStart(self):
-        """(np.array) The start of the first epoch, in samples"""
+    def _tdatatart(self):
+        """(np.array) The start of the first epoch, in tdata"""
         if self.isempty:
             return []
-        return self.samples[:, 0][0]
+        return self.tdata[:, 0][0]
 
     @property
     def stops(self):
@@ -393,11 +609,11 @@ class EpochArray:
         return self.time[:, 1]
 
     @property
-    def _sampleStops(self):
-        """(np.array) The stop of each epoch, in samples"""
+    def _tdatatops(self):
+        """(np.array) The stop of each epoch, in tdata"""
         if self.isempty:
             return []
-        return self.samples[:, 1]
+        return self.tdata[:, 1]
 
     @property
     def stop(self):
@@ -407,9 +623,9 @@ class EpochArray:
         return self.time[:, 1][-1]
 
     @property
-    def _sampleStop(self):
-        """(np.array) The stop of the first epoch, in samples"""
-        return self.samples[:, 0][0]
+    def _tdatatop(self):
+        """(np.array) The stop of the first epoch, in tdata"""
+        return self.tdata[:, 0][0]
 
     @property
     def n_epochs(self):
@@ -430,8 +646,8 @@ class EpochArray:
 
     def copy(self):
         """(EpochArray) Returns a copy of the current epoch array."""
-        new_starts = np.array(self._sampleStarts)
-        new_stops = np.array(self._sampleStops)
+        new_starts = np.array(self._tdatatarts)
+        new_stops = np.array(self._tdatatops)
         return EpochArray(
             new_starts,
             duration=new_stops - new_starts,
@@ -550,22 +766,22 @@ class EpochArray:
         if self.fs is not None:
             gap = gap * self.fs
 
-        stops = epoch._sampleStops[:-1] + gap
-        starts = epoch._sampleStarts[1:]
+        stops = epoch._tdatatops[:-1] + gap
+        starts = epoch._tdatatarts[1:]
         to_merge = (stops - starts) >= 0
 
-        new_starts = [epoch._sampleStarts[0]]
+        new_starts = [epoch._tdatatarts[0]]
         new_stops = []
 
-        next_stop = epoch._sampleStops[0]
+        next_stop = epoch._tdatatops[0]
         for i in range(epoch.time.shape[0] - 1):
-            this_stop = epoch._sampleStops[i]
+            this_stop = epoch._tdatatops[i]
             next_stop = max(next_stop, this_stop)
             if not to_merge[i]:
                 new_stops.append(next_stop)
-                new_starts.append(epoch._sampleStarts[i + 1])
+                new_starts.append(epoch._tdatatarts[i + 1])
 
-        new_stops.append(epoch._sampleStops[-1])
+        new_stops.append(epoch._tdatatops[-1])
 
         new_starts = np.array(new_starts)
         new_stops = np.array(new_stops)
@@ -677,9 +893,9 @@ class EpochArray:
                 )
         else:
             join_starts = np.concatenate(
-                (self.samples[:, 0], epoch.samples[:, 0]))
+                (self.tdata[:, 0], epoch.tdata[:, 0]))
             join_stops = np.concatenate(
-                (self.samples[:, 1], epoch.samples[:, 1]))
+                (self.tdata[:, 1], epoch.tdata[:, 1]))
 
         # return EpochArray(join_starts, fs=self.fs, duration=
         # join_stops - join_starts, meta=meta).merge().merge()
@@ -723,7 +939,7 @@ class EventArray:
 
     Parameters
     ----------
-    samples : np.array
+    tdata : np.array
         If shape (n_epochs, 1) or (n_epochs,), the start time for each
         epoch.
         If shape (n_epochs, 2), the start and stop times for each epoch.
@@ -737,12 +953,12 @@ class EventArray:
         The start and stop times for each epoch. With shape (n_epochs, 2).
     """
 
-    def __init__(self, *, samples, fs=None, duration=None, meta=None):
+    def __init__(self, *, tdata, fs=None, duration=None, meta=None):
 
-        # if no samples were received, return an empty EpochArray:
-        if len(samples) == 0:
-            self.samples = np.array([])
-            self.time = np.array([])
+        # if no tdata were received, return an empty EpochArray:
+        if len(tdata) == 0:
+            self._tdata = np.array([])
+            self._time = np.array([])
             self._fs = None
             self._meta = None
             return
@@ -778,9 +994,9 @@ class AnalogSignal:
     Parameters
     ----------
     ydata : np.array(dtype=np.float)
-    xdata : np.array(dtype=np.float), optional
-        if fs is provided xdata is assumed to be sample numbers
-        else it is assumed to be time but xdata can be a non time
+    tdata : np.array(dtype=np.float), optional
+        if fs is provided tdata is assumed to be sample numbers
+        else it is assumed to be time but tdata can be a non time
         variable
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
@@ -792,18 +1008,18 @@ class AnalogSignal:
     Attributes
     ----------
     ydata : np.array
-        With shape (n_samples,).
-    xdata : np.array
-        With shape (n_samples,).
+        With shape (n_tdata,).
+    tdata : np.array
+        With shape (n_tdata,).
     time : np.array
-        With shape (n_samples,).
+        With shape (n_tdata,).
     fs : float, scalar, optional
         See Parameters
     support : EpochArray, optional
         See Parameters
 
     """
-    def __init__(self, ydata, *, xdata=None, fs=None, support=None):
+    def __init__(self, ydata, *, tdata=None, fs=None, support=None):
         ydata = np.squeeze(ydata).astype(float)
 
 
@@ -819,13 +1035,13 @@ class AnalogSignal:
             self._emptyAnalogSignal()
             return
 
-        # Note: if both xdata and ydata are given and dimensionality does not
+        # Note: if both tdata and ydata are given and dimensionality does not
         # match, then TypeError!
-        if(xdata is not None):
-            xdata = np.squeeze(xdata).astype(float)
-            if(xdata.shape[0] != ydata.shape[0]):
+        if(tdata is not None):
+            tdata = np.squeeze(tdata).astype(float)
+            if(tdata.shape[0] != ydata.shape[0]):
                 self._emptyAnalogSignal()
-                raise TypeError("xdata and ydata size mismatch!")
+                raise TypeError("tdata and ydata size mismatch!")
 
         self.ydata = ydata
 
@@ -840,43 +1056,43 @@ class AnalogSignal:
         time = None
 
         # Alright, let's handle all the possible parameter cases!
-        if xdata is not None:
+        if tdata is not None:
             if fs is not None:
-                time = xdata / fs
-                self.xdata = xdata
+                time = tdata / fs
+                self.tdata = tdata
                 if support is not None:
-                    # xdata, fs, support passed properly
+                    # tdata, fs, support passed properly
                     # self.support = support
                     self._time = time
                     self._restrict_to_epoch_array(epocharray=support)
-                # xdata, fs and no support
+                # tdata, fs and no support
                 else:
-                    warnings.warn("support created with given xdata and sampling rate, fs!")
+                    warnings.warn("support created with given tdata and sampling rate, fs!")
                     self._time = time
-                    self.support = EpochArray(get_contiguous_segments(xdata,
+                    self.support = EpochArray(get_contiguous_segments(tdata,
                         step=1/fs), fs=fs)
             else:
-                time = xdata
-                self.xdata = xdata
-                # xdata and support
+                time = tdata
+                self.tdata = tdata
+                # tdata and support
                 if support is not None:
                     # self.support = support
                     self._time = time
                     self._restrict_to_epoch_array(epocharray=support)
                     warnings.warn("support created with specified epoch array but no specified sampling rate")
-                # xdata
+                # tdata
                 else:
-                    warnings.warn("support created with just xdata! no sampling rate specified so support is entire range of signal")
+                    warnings.warn("support created with just tdata! no sampling rate specified so support is entire range of signal")
                     self._time = time
                     self.support = EpochArray(np.array([0, time[-1]]))
         else:
-            xdata = np.arange(0, len(ydata), 1)
+            tdata = np.arange(0, len(ydata), 1)
             if fs is not None:
-                time = xdata / fs
+                time = tdata / fs
                 # fs and support
                 if support is not None:
                     self._emptyAnalogSignal()
-                    raise TypeError("xdata must be passed if support is specified")
+                    raise TypeError("tdata must be passed if support is specified")
                 # just fs
                 else:
                     self._time = time
@@ -886,14 +1102,14 @@ class AnalogSignal:
                 # just support
                 if support is not None:
                     self._emptyAnalogSignal()
-                    raise TypeError("xdata must be passed if support is "
+                    raise TypeError("tdata must be passed if support is "
                         +"specified")
                 # just ydata
                 else:
-                    self._time = xdata
+                    self._time = tdata
                     warnings.warn("support created with given ydata! support is entire signal")
-                    self.support = EpochArray(np.array([0, xdata[-1]]))
-            self.xdata = xdata
+                    self.support = EpochArray(np.array([0, tdata[-1]]))
+            self.tdata = tdata
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
         """Restrict self._time and self.ydata to an EpochArray. If no
@@ -927,14 +1143,14 @@ class AnalogSignal:
                 'ignoring signal outside of support')
         self.ydata = self.ydata[indices]
         self._time = self._time[indices]
-        self.xdata = self.xdata[indices]
+        self.tdata = self.tdata[indices]
         if update:
             self.support = epocharray
 
     def _emptyAnalogSignal(self):
         """Empty all the instance attributes for an empty object."""
         self.ydata = np.array([])
-        self.xdata = np.array([])
+        self.tdata = np.array([])
         self.support = EpochArray([])
         self._fs = None
         self._time = None
@@ -960,15 +1176,15 @@ class AnalogSignal:
     #     self.ydata = val
 
     # @property
-    # def xdata(self):
-    #     if self.xdata is None:
-    #         warnings.warn("No xdata specified")
-    #     return self.xdata
+    # def tdata(self):
+    #     if self.tdata is None:
+    #         warnings.warn("No tdata specified")
+    #     return self.tdata
 
     @property
     def time(self):
         if self._time is None:
-            warnings.warn("No time calculated. This should be due to no xdata specified")
+            warnings.warn("No time calculated. This should be due to no tdata specified")
         return self._time
 
     # @property
@@ -984,27 +1200,8 @@ class AnalogSignal:
 
     @fs.setter
     def fs(self, val):
-        if self._fs == val:
-            return
-        try:
-            if val <= 0:
-                pass
-        except Exception:
-            raise TypeError("sampling rate must be a scalar")
-        if val <= 0:
-            raise ValueError("sampling rate must be positive")
-
-        # if it is the first time that a sampling rate is set,
-        # do not modify anything except for self._fs
-        if self._fs is None:
-            pass
-        else:
-            warning.warn(
-                "Sampling frequency has been updated! This will "
-                "modify internal times!"
-                )
-            self._time = self.xdata / val
-        self._fs = val
+        """(float) Sampling rate / frequency (Hz)."""
+        fssetter(self, val)
 
     @property
     def isempty(self):
@@ -1031,12 +1228,12 @@ class AnalogSignal:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             epoch = EpochArray(
-                    np.array([self.support.samples[index,:]])
+                    np.array([self.support.tdata[index,:]])
                 )
         self._index += 1
         return AnalogSignal(self.ydata,
                             fs=self.fs,
-                            xdata=self.xdata,
+                            tdata=self.tdata,
                             support=epoch
         )
 
@@ -1056,7 +1253,7 @@ class AnalogSignal:
         else:
             return AnalogSignal(self.ydata,
                                 fs=self.fs,
-                                xdata=self.xdata,
+                                tdata=self.tdata,
                                 support=epoch
             )
 
@@ -1180,7 +1377,7 @@ class AnalogSignalArray:
 
     Parameters
     ----------
-    samples : np.array
+    tdata : np.array
         If shape (n_epochs, 1) or (n_epochs,), the start time for each
         epoch.
         If shape (n_epochs, 2), the start and stop times for each epoch.
@@ -1194,12 +1391,12 @@ class AnalogSignalArray:
         The start and stop times for each epoch. With shape (n_epochs, 2).
     """
 
-    def __init__(self, *, samples, fs=None, duration=None, meta=None):
+    def __init__(self, *, tdata, fs=None, duration=None, meta=None):
 
-        # if no samples were received, return an empty EpochArray:
-        if len(samples) == 0:
-            self.samples = np.array([])
-            self.time = np.array([])
+        # if no tdata were received, return an empty EpochArray:
+        if len(tdata) == 0:
+            self._tdata = np.array([])
+            self._time = np.array([])
             self._fs = None
             self._meta = None
             return
@@ -1229,379 +1426,379 @@ class AnalogSignalArray:
 ########################################################################
 # class SpikeTrain
 ########################################################################
-class SpikeTrain:
-    """A set of action potential (spike) times of a putative unit/neuron.
+# class SpikeTrain:
+#     """A set of action potential (spike) times of a putative unit/neuron.
 
-    Parameters
-    ----------
-    samples : np.array(dtype=np.float64)
-    fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time
-        is assumed to be in sample numbers instead of actual time.
-    support : EpochArray, optional
-        EpochArray array on which spiketrain is defined.
-        Default is [0, last spike] inclusive.
-    label : str or None, optional
-        Information pertaining to the source of the spiketrain.
-    cell_type : str or other, optional
-        Identified cell type indicator, e.g., 'pyr', 'int'.
-    meta : dict
-        Metadata associated with spiketrain.
+#     Parameters
+#     ----------
+#     tdata : np.array(dtype=np.float64)
+#     fs : float, optional
+#         Sampling rate in Hz. If fs is passed as a parameter, then time
+#         is assumed to be in sample numbers instead of actual time.
+#     support : EpochArray, optional
+#         EpochArray array on which spiketrain is defined.
+#         Default is [0, last spike] inclusive.
+#     label : str or None, optional
+#         Information pertaining to the source of the spiketrain.
+#     cell_type : str or other, optional
+#         Identified cell type indicator, e.g., 'pyr', 'int'.
+#     meta : dict
+#         Metadata associated with spiketrain.
 
-    Attributes
-    ----------
-    time : np.array(dtype=np.float64)
-        With shape (n_samples,). Always in seconds.
-    samples : np.array(dtype=np.float64)
-        With shape (n_samples,). Sample numbers corresponding to spike
-        times, if available.
-    support : EpochArray on which spiketrain is defined.
-    n_spikes: integer
-        Number of spikes in SpikeTrain.
-    fs: float
-        Sampling frequency (Hz).
-    cell_type : str or other
-        Identified cell type.
-    label : str or None
-        Information pertaining to the source of the spiketrain.
-    meta : dict
-        Metadata associated with spiketrain.
-    """
+#     Attributes
+#     ----------
+#     time : np.array(dtype=np.float64)
+#         With shape (n_tdata,). Always in seconds.
+#     tdata : np.array(dtype=np.float64)
+#         With shape (n_tdata,). Sample numbers corresponding to spike
+#         times, if available.
+#     support : EpochArray on which spiketrain is defined.
+#     n_spikes: integer
+#         Number of spikes in SpikeTrain.
+#     fs: float
+#         Sampling frequency (Hz).
+#     cell_type : str or other
+#         Identified cell type.
+#     label : str or None
+#         Information pertaining to the source of the spiketrain.
+#     meta : dict
+#         Metadata associated with spiketrain.
+#     """
 
-    def __init__(self, samples, *, fs=None, support=None, label=None,
-                 cell_type=None, meta=None):
+#     def __init__(self, tdata, *, fs=None, support=None, label=None,
+#                  cell_type=None, meta=None):
 
-        samples = np.squeeze(samples)
+#         tdata = np.squeeze(tdata)
 
-        if samples.shape == (): #TODO: doesn't this mean it's empty?
-            samples = samples[..., np.newaxis]
+#         if tdata.shape == (): #TODO: doesn't this mean it's empty?
+#             tdata = tdata[..., np.newaxis]
 
-        if samples.ndim != 1:
-            raise ValueError("samples must be a vector")
+#         if tdata.ndim != 1:
+#             raise ValueError("tdata must be a vector")
 
-        # if no spike times are given, return an empty spiketrain:
-        if len(samples) == 0:
-            self._emptySpikeTrain()
-            return
+#         # if no spike times are given, return an empty spiketrain:
+#         if len(tdata) == 0:
+#             self._emptySpikeTrain()
+#             return
 
-        # set initial fs to None
-        self._fs = None
-        # then attempt to update the fs; this does input validation:
-        self.fs = fs
+#         # set initial fs to None
+#         self._fs = None
+#         # then attempt to update the fs; this does input validation:
+#         self.fs = fs
 
-        # if a sampling rate was given, relate time to samples using fs:
-        if fs is not None:
-            time = samples / fs
-        else:
-            time = samples
+#         # if a sampling rate was given, relate time to tdata using fs:
+#         if fs is not None:
+#             time = tdata / fs
+#         else:
+#             time = tdata
 
-        if label is not None and not isinstance(label, str):
-            raise ValueError("label must be a string")
+#         if label is not None and not isinstance(label, str):
+#             raise ValueError("label must be a string")
 
-        # set self.samples and self.time before restricting to support:
-        self.time = time
-        self.samples = samples
+#         # set self.tdata and self.time before restricting to support:
+#         self.time = time
+#         self.tdata = tdata
 
-        # determine spiketrain array support:
-        if support is None:
-            self.support = EpochArray(np.array([0, samples[-1]]), fs=fs)
-            # in the above, there's no reason to restrict to support
-        else:
-            # restrict spikes to only those within the spiketrain
-            # array's support:
-            self.support = support
-            self._restrict_to_epoch_array()
+#         # determine spiketrain array support:
+#         if support is None:
+#             self.support = EpochArray(np.array([0, tdata[-1]]), fs=fs)
+#             # in the above, there's no reason to restrict to support
+#         else:
+#             # restrict spikes to only those within the spiketrain
+#             # array's support:
+#             self.support = support
+#             self._restrict_to_epoch_array()
 
-        self.label = label
-        self._cell_type = cell_type
-        self._meta = meta
+#         self.label = label
+#         self._cell_type = cell_type
+#         self._meta = meta
 
-    def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
-        """Restrict self.time and self.samples to an EpochArray. If no
-        EpochArray is specified, self.support is used.
+#     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
+#         """Restrict self.time and self.tdata to an EpochArray. If no
+#         EpochArray is specified, self.support is used.
 
-        Parameters
-        ----------
-        epocharray : EpochArray, optional
-            EpochArray on which to restrict SpikeTrain. Default is
-            self.support
-        update: bool, optional
-            Overwrite self.support with epocharray if True (default).
-        """
-        if epocharray is None:
-            epocharray = self.support
-            update = False  # support did not change; no need to update
+#         Parameters
+#         ----------
+#         epocharray : EpochArray, optional
+#             EpochArray on which to restrict SpikeTrain. Default is
+#             self.support
+#         update: bool, optional
+#             Overwrite self.support with epocharray if True (default).
+#         """
+#         if epocharray is None:
+#             epocharray = self.support
+#             update = False  # support did not change; no need to update
 
-        indices = []
-        for eptime in epocharray.time:
-            t_start = eptime[0]
-            t_stop = eptime[1]
-            indices.append((self.time >= t_start) & (self.time <= t_stop))
-        indices = np.any(np.column_stack(indices), axis=1)
-        if np.count_nonzero(indices) < len(self.time):
-            warnings.warn(
-                'ignoring spikes outside of spiketrain support')
-        self.samples = self.samples[indices]
-        self.time = self.time[indices]
-        if update:
-            self.support = epocharray
+#         indices = []
+#         for eptime in epocharray.time:
+#             t_start = eptime[0]
+#             t_stop = eptime[1]
+#             indices.append((self.time >= t_start) & (self.time <= t_stop))
+#         indices = np.any(np.column_stack(indices), axis=1)
+#         if np.count_nonzero(indices) < len(self.time):
+#             warnings.warn(
+#                 'ignoring spikes outside of spiketrain support')
+#         self.tdata = self.tdata[indices]
+#         self.time = self.time[indices]
+#         if update:
+#             self.support = epocharray
 
-    def _emptySpikeTrain(self):
-        """empty all the instance attributes for an empty object."""
-        self.samples = np.array([])
-        self.time = np.array([])
-        self.support = EpochArray([])
-        self.label = None
-        self._fs = None
-        self._cell_type = None
-        self._meta = None
-        return
+#     def _emptySpikeTrain(self):
+#         """empty all the instance attributes for an empty object."""
+#         self.tdata = np.array([])
+#         self.time = np.array([])
+#         self.support = EpochArray([])
+#         self.label = None
+#         self._fs = None
+#         self._cell_type = None
+#         self._meta = None
+#         return
 
-    def __repr__(self):
-        if self.isempty:
-            return "<empty SpikeTrain>"
-        if self.fs is not None:
-            fsstr = " at %s Hz" % self.fs
-        else:
-            fsstr = ""
-        if self.label is not None:
-            labelstr = " from %s" % self.label
-        else:
-            labelstr = ""
-        if self.cell_type is not None:
-            typestr = "[%s]" % self.cell_type
-        else:
-            typestr = ""
+#     def __repr__(self):
+#         if self.isempty:
+#             return "<empty SpikeTrain>"
+#         if self.fs is not None:
+#             fsstr = " at %s Hz" % self.fs
+#         else:
+#             fsstr = ""
+#         if self.label is not None:
+#             labelstr = " from %s" % self.label
+#         else:
+#             labelstr = ""
+#         if self.cell_type is not None:
+#             typestr = "[%s]" % self.cell_type
+#         else:
+#             typestr = ""
 
-        return "<SpikeTrain%s: %s spikes%s>%s" % (
-            typestr, self.n_spikes, fsstr, labelstr)
+#         return "<SpikeTrain%s: %s spikes%s>%s" % (
+#             typestr, self.n_spikes, fsstr, labelstr)
 
-    def __getitem__(self, idx):
-        if isinstance(idx, EpochArray):
-            if idx.isempty:
-                return SpikeTrain([])
-            epoch = self.support.intersect(idx, boundaries=True)
-            if epoch.isempty:
-                return SpikeTrain([])
-            indices = []
-            for eptime in epoch.time:
-                t_start = eptime[0]
-                t_stop = eptime[1]
-                indices.append(
-                    (self.time >= t_start) & (self.time <= t_stop)
-                    )
-            indices = np.any(np.column_stack(indices), axis=1)
-            return SpikeTrain(self.samples[indices],
-                              fs=self.fs,
-                              support=epoch,
-                              label=self.label,
-                              cell_type=self.cell_type,
-                              meta=self.meta)
-        elif isinstance(idx, int):
-            try:
-                epoch = EpochArray(
-                    np.array([self.samples[idx], self.samples[idx]]),
-                    fs=self.fs,
-                    meta=self.meta
-                    )
-            except (StopIteration, IndexError): # index out of bounds, so return an empty spiketrain
-                # TODO: if I raise an index error for the iterator, how
-                # can I make sure to return an empty object for a simple
-                # out of bounds access?
-                # raise IndexError # this signals iterators to stop...
-                epoch = EpochArray([])
-                return SpikeTrain([], support=epoch)
+#     def __getitem__(self, idx):
+#         if isinstance(idx, EpochArray):
+#             if idx.isempty:
+#                 return SpikeTrain([])
+#             epoch = self.support.intersect(idx, boundaries=True)
+#             if epoch.isempty:
+#                 return SpikeTrain([])
+#             indices = []
+#             for eptime in epoch.time:
+#                 t_start = eptime[0]
+#                 t_stop = eptime[1]
+#                 indices.append(
+#                     (self.time >= t_start) & (self.time <= t_stop)
+#                     )
+#             indices = np.any(np.column_stack(indices), axis=1)
+#             return SpikeTrain(self.tdata[indices],
+#                               fs=self.fs,
+#                               support=epoch,
+#                               label=self.label,
+#                               cell_type=self.cell_type,
+#                               meta=self.meta)
+#         elif isinstance(idx, int):
+#             try:
+#                 epoch = EpochArray(
+#                     np.array([self.tdata[idx], self.tdata[idx]]),
+#                     fs=self.fs,
+#                     meta=self.meta
+#                     )
+#             except (StopIteration, IndexError): # index out of bounds, so return an empty spiketrain
+#                 # TODO: if I raise an index error for the iterator, how
+#                 # can I make sure to return an empty object for a simple
+#                 # out of bounds access?
+#                 # raise IndexError # this signals iterators to stop...
+#                 epoch = EpochArray([])
+#                 return SpikeTrain([], support=epoch)
 
-            return SpikeTrain(
-                self.samples[idx],
-                fs=self.fs,
-                support=epoch,
-                label=self.label,
-                cell_type=self.cell_type,
-                meta=self.meta
-                )
-        elif isinstance(idx, slice):
-            # TODO: add step functionality
-            start = idx.start
-            if start is None:
-                start = 0
-            if start >= self.n_spikes:
-                return SpikeTrain(
-                    [],
-                    fs=self.fs,
-                    support=None,
-                    label=self.label,
-                    cell_type=self.cell_type,
-                    meta=self.meta
-                    )
-            stop = idx.stop
-            if stop is None:
-                stop = -1
-            else:
-                stop = np.min(np.array([stop - 1, self.n_spikes - 1]))
-            epoch = EpochArray(
-                np.array([self.samples[start], self.samples[stop]]),
-                fs=self.fs,
-                meta=self.meta
-                )
-            return SpikeTrain(
-                self.samples[idx],
-                fs=self.fs,
-                support=epoch,
-                label=self.label,
-                cell_type=self.cell_type,
-                meta=self.meta
-                )
-        else:
-            raise TypeError(
-                'unsupported subsctipting type {}'.format(type(idx)))
+#             return SpikeTrain(
+#                 self.tdata[idx],
+#                 fs=self.fs,
+#                 support=epoch,
+#                 label=self.label,
+#                 cell_type=self.cell_type,
+#                 meta=self.meta
+#                 )
+#         elif isinstance(idx, slice):
+#             # TODO: add step functionality
+#             start = idx.start
+#             if start is None:
+#                 start = 0
+#             if start >= self.n_spikes:
+#                 return SpikeTrain(
+#                     [],
+#                     fs=self.fs,
+#                     support=None,
+#                     label=self.label,
+#                     cell_type=self.cell_type,
+#                     meta=self.meta
+#                     )
+#             stop = idx.stop
+#             if stop is None:
+#                 stop = -1
+#             else:
+#                 stop = np.min(np.array([stop - 1, self.n_spikes - 1]))
+#             epoch = EpochArray(
+#                 np.array([self.tdata[start], self.tdata[stop]]),
+#                 fs=self.fs,
+#                 meta=self.meta
+#                 )
+#             return SpikeTrain(
+#                 self.tdata[idx],
+#                 fs=self.fs,
+#                 support=epoch,
+#                 label=self.label,
+#                 cell_type=self.cell_type,
+#                 meta=self.meta
+#                 )
+#         else:
+#             raise TypeError(
+#                 'unsupported subsctipting type {}'.format(type(idx)))
 
-    def bin(self, *, ds=None):
-        """Bin spiketrain."""
-        return BinnedSpikeTrain(self, ds=ds)
+#     def bin(self, *, ds=None):
+#         """Bin spiketrain."""
+#         return BinnedSpikeTrain(self, ds=ds)
 
-    @property
-    def n_active(self):
-        """Number of active units per epoch with shape (n_epochs,)."""
-        return np.array([self[ep].n_spikes for ep in self.support])
+#     @property
+#     def n_active(self):
+#         """Number of active units per epoch with shape (n_epochs,)."""
+#         return np.array([self[ep].n_spikes for ep in self.support])
 
-    @property
-    def n_spikes(self):
-        """(int) The number of spikes."""
-        return len(self.time)
+#     @property
+#     def n_spikes(self):
+#         """(int) The number of spikes."""
+#         return len(self.time)
 
-    @property
-    def isempty(self):
-        """(bool) Empty SpikeTrain."""
-        return len(self.time) == 0
+#     @property
+#     def isempty(self):
+#         """(bool) Empty SpikeTrain."""
+#         return len(self.time) == 0
 
-    @property
-    def issorted(self):
-        """(bool) Sorted SpikeTrain."""
-        return is_sorted(self.samples)
+#     @property
+#     def issorted(self):
+#         """(bool) Sorted SpikeTrain."""
+#         return is_sorted(self.tdata)
 
-    @property
-    def cell_type(self):
-        """The neuron cell type."""
-        if self._cell_type is None:
-            warnings.warn("Cell type has not yet been specified!")
-        return self._cell_type
+#     @property
+#     def cell_type(self):
+#         """The neuron cell type."""
+#         if self._cell_type is None:
+#             warnings.warn("Cell type has not yet been specified!")
+#         return self._cell_type
 
-    @cell_type.setter
-    def cell_type(self, val):
-        self._cell_type = val
+#     @cell_type.setter
+#     def cell_type(self, val):
+#         self._cell_type = val
 
-    @property
-    def meta(self):
-        """Meta information associated with SpikeTrain."""
-        if self._meta is None:
-            warnings.warn("meta data is not available")
-        return self._meta
+#     @property
+#     def meta(self):
+#         """Meta information associated with SpikeTrain."""
+#         if self._meta is None:
+#             warnings.warn("meta data is not available")
+#         return self._meta
 
-    @meta.setter
-    def meta(self, val):
-        self._meta = val
+#     @meta.setter
+#     def meta(self, val):
+#         self._meta = val
 
-    @property
-    def fs(self):
-        """(float) Sampling frequency."""
-        return fsgetter(self)
+#     @property
+#     def fs(self):
+#         """(float) Sampling frequency."""
+#         return fsgetter(self)
 
-    @fs.setter
-    def fs(self, val):
-        """(float) Sampling frequency."""
-        fssetter(self, val)
+#     @fs.setter
+#     def fs(self, val):
+#         """(float) Sampling frequency."""
+#         fssetter(self, val)
 
-    def time_slice(self, t_start, t_stop):
-        """Creates a new nelpy.SpikeTrain corresponding to the time
-        slice of the original between (and including) times t_start and
-        t_stop. Setting either parameter to None uses infinite endpoints
-        for the time interval.
+#     def time_slice(self, t_start, t_stop):
+#         """Creates a new nelpy.SpikeTrain corresponding to the time
+#         slice of the original between (and including) times t_start and
+#         t_stop. Setting either parameter to None uses infinite endpoints
+#         for the time interval.
 
-        Parameters
-        ----------
-        spikes : nelpy.SpikeTrain
-        t_start : float
-        t_stop : float
+#         Parameters
+#         ----------
+#         spikes : nelpy.SpikeTrain
+#         t_start : float
+#         t_stop : float
 
-        Returns
-        -------
-        sliced_spikes : nelpy.SpikeTrain
-        """
-        if t_start is None:
-            t_start = -np.inf
-        if t_stop is None:
-            t_stop = np.inf
+#         Returns
+#         -------
+#         sliced_spikes : nelpy.SpikeTrain
+#         """
+#         if t_start is None:
+#             t_start = -np.inf
+#         if t_stop is None:
+#             t_stop = np.inf
 
-        if t_start > t_stop:
-            raise ValueError("t_start cannot be greater than t_stop")
+#         if t_start > t_stop:
+#             raise ValueError("t_start cannot be greater than t_stop")
 
-        indices = (self.time >= t_start) & (self.time <= t_stop)
+#         indices = (self.time >= t_start) & (self.time <= t_stop)
 
-        warnings.warn(
-            "Shouldn't use this function anymore! Now use slicing or "
-            "epoch-based indexing instead.",
-            DeprecationWarning
-            )
+#         warnings.warn(
+#             "Shouldn't use this function anymore! Now use slicing or "
+#             "epoch-based indexing instead.",
+#             DeprecationWarning
+#             )
 
-        return self[indices]
+#         return self[indices]
 
-    def time_slices(self, t_starts, t_stops):
-        """Creates a new object corresponding to the time slice of
-        the original between (and including) times t_start and t_stop.
-        Setting either parameter to None uses infinite endpoints for the
-        time interval.
+#     def time_slices(self, t_starts, t_stops):
+#         """Creates a new object corresponding to the time slice of
+#         the original between (and including) times t_start and t_stop.
+#         Setting either parameter to None uses infinite endpoints for the
+#         time interval.
 
-        Parameters
-        ----------
-        spiketrain : nelpy.SpikeTrain
-        t_starts : list of floats
-        t_stops : list of floats
+#         Parameters
+#         ----------
+#         spiketrain : nelpy.SpikeTrain
+#         t_starts : list of floats
+#         t_stops : list of floats
 
-        Returns
-        -------
-        sliced_spiketrain : nelpy.SpikeTrain
-        """
+#         Returns
+#         -------
+#         sliced_spiketrain : nelpy.SpikeTrain
+#         """
 
-        # TODO: check if any stops are before starts, like in EpochArray class
-        if len(t_starts) != len(t_stops):
-            raise ValueError(
-                "must have same number of start and stop times")
+#         # TODO: check if any stops are before starts, like in EpochArray class
+#         if len(t_starts) != len(t_stops):
+#             raise ValueError(
+#                 "must have same number of start and stop times")
 
-        indices = []
-        for t_start, t_stop in zip(t_starts, t_stops):
-            indices.append(
-                (self.time >= t_start) & (self.time <= t_stop)
-                )
-        indices = np.any(np.column_stack(indices), axis=1)
+#         indices = []
+#         for t_start, t_stop in zip(t_starts, t_stops):
+#             indices.append(
+#                 (self.time >= t_start) & (self.time <= t_stop)
+#                 )
+#         indices = np.any(np.column_stack(indices), axis=1)
 
-        warnings.warn(
-            "Shouldn't use this function anymore! Now use slicing or "
-            "epoch-based indexing instead.",
-             DeprecationWarning
-            )
+#         warnings.warn(
+#             "Shouldn't use this function anymore! Now use slicing or "
+#             "epoch-based indexing instead.",
+#              DeprecationWarning
+#             )
 
-        return self[indices]
+#         return self[indices]
 
-    def shift(self, time_offset, fs=None):
-        """Creates a new object corresponding to the original spike
-        train, but shifted by time_offset (can be positive or negative).
+#     def shift(self, time_offset, fs=None):
+#         """Creates a new object corresponding to the original spike
+#         train, but shifted by time_offset (can be positive or negative).
 
-        Parameters
-        ----------
-        spiketrain : nelpy.SpikeTrain
-        time_offset : float
-            Time offset, either in actual time (default) or in sample
-            numbers if fs is specified.
-        fs : float, optional
-            Sampling frequency.
+#         Parameters
+#         ----------
+#         spiketrain : nelpy.SpikeTrain
+#         time_offset : float
+#             Time offset, either in actual time (default) or in sample
+#             numbers if fs is specified.
+#         fs : float, optional
+#             Sampling frequency.
 
-        Returns
-        -------
-        spiketrain : nelpy.SpikeTrain
-        """
-        raise NotImplementedError(
-            "SpikeTrain.shift() has not been implemented yet!")
+#         Returns
+#         -------
+#         spiketrain : nelpy.SpikeTrain
+#         """
+#         raise NotImplementedError(
+#             "SpikeTrain.shift() has not been implemented yet!")
 ########################################################################
 ########################################################################
 
@@ -1609,12 +1806,12 @@ class SpikeTrain:
 ########################################################################
 # class SpikeTrainArray
 ########################################################################
-class SpikeTrainArray:
+class SpikeTrainArray(SpikeTrain):
     """A multiunit spiketrain array with shared support.
 
     Parameters
     ----------
-    samples : array (of length n_units) of np.array(dtype=np.float64)
+    tdata : array (of length n_units) of np.array(dtype=np.float64)
         containing spike times in in seconds (unless fs=None).
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
@@ -1635,9 +1832,9 @@ class SpikeTrainArray:
     Attributes
     ----------
     time : array of np.array(dtype=np.float64) spike times in seconds.
-        Array of length n_units, each entry with shape (n_samples,)
-    samples : list of np.array(dtype=np.float64) spike times in samples.
-        Array of length n_units, each entry with shape (n_samples,)
+        Array of length n_units, each entry with shape (n_tdata,)
+    tdata : list of np.array(dtype=np.float64) spike times in tdata.
+        Array of length n_units, each entry with shape (n_tdata,)
     support : EpochArray on which spiketrain array is defined.
     n_spikes: np.array(dtype=np.int) of shape (n_units,)
         Number of spikes in each unit.
@@ -1651,27 +1848,30 @@ class SpikeTrainArray:
         Metadata associated with spiketrain.
     """
 
-    # TODO: .flatten()
-    # TODO: .n_units
-    # TODO: .unit_ids
-    # TODO: indexing
     # TODO: support for single spiketrain
     # TODO: init input validation to mimic EpochArray
 
-    def __init__(self, samples, *, fs=None, support=None, label=None,
-                 cell_types=None, unit_ids=None, meta=None):
+    def __init__(self, tdata, *, fs=None, support=None, unit_ids=None,
+                 unit_labels=None, unit_tags=None, label=None):
 
-        samples = np.squeeze(samples)  # coerce samples into np.array
+        kwargs = {"fs": fs,
+                  "unit_ids": unit_ids,
+                  "unit_labels": unit_labels,
+                  "unit_tags": unit_tags,
+                  "label": label}
 
-        # Note: if we have an empty array of samples with no dimension,
-        # then calling len(samples) will return a TypeError.
+        tdata = np.squeeze(tdata)  # coerce tdata into np.array
+
+        # Note: if we have an empty array of tdata with no dimension,
+        # then calling len(tdata) will return a TypeError.
         try:
-            # if no samples were received, return an empty EpochArray:
-            if len(samples) == 0:
+            # if no tdata were received, return an empty SpikeTrainArray:
+            if len(tdata) == 0:
                 self._emptySpikeTrainArray()
                 return
         except TypeError:
-            warnings.warn("unsupported type; creating empty EpochArray")
+            warnings.warn(
+                "unsupported type; creating empty SpikeTrainArray")
             self._emptySpikeTrainArray()
             return
 
@@ -1680,67 +1880,53 @@ class SpikeTrainArray:
 
         # standardize input so that a list of lists is converted to an
         # array of arrays: BUG: this assumes more than one unit!!!
-        sampleArray = np.array(
-            [np.array(st, ndmin=1, copy=False) for st in samples])
+        tdataArray = np.array(
+            [np.array(st, ndmin=1, copy=False) for st in tdata])
 
-        # if only empty samples were received, return an empty
+        # if only empty tdata were received, return an empty
         # SpikeTrainArray:
-        if np.sum([st.size for st in sampleArray]) == 0:
+        if np.sum([st.size for st in tdataArray]) == 0:
             self._emptySpikeTrainArray()
             return
 
-        # set initial fs to None
-        self._fs = None
-        # then attempt to update the fs; this does input validation:
-        self.fs = fs
+        # initialize super so that self.fs is set:
+        self._time = tdataArray  # this is necessary so that super() can
+            # determine self.n_units when initializing. self.time will
+            # be updated later in __init__ to reflect subsequent changes
+        super().__init__(**kwargs)
 
-        # if a sampling rate was given, relate time to samples using fs:
+        # if a sampling rate was given, relate time to tdata using fs:
         if fs is not None:
-            time = sampleArray / fs
+            time = tdataArray / fs
         else:
-            time = sampleArray
+            time = tdataArray
 
         # determine spiketrain array support:
         if support is None:
-            # first_st = np.array([unit[0] for unit in sampleArray]).min()
+            # first_st = np.array([unit[0] for unit in tdataArray]).min()
             # BUG: if spiketrain is empty np.array([]) then unit[-1]
             # raises an error in the following:
             # FIX: list[-1] raises an IndexError for an empty list,
             # whereas list[-1:] returns an empty list.
-            last_st = np.array([unit[-1:] for unit in sampleArray]).max()
-            self.support = EpochArray(np.array([0, last_st]), fs=fs)
+            last_st = np.array([unit[-1:] for unit in tdataArray]).max()
+            self._support = EpochArray(np.array([0, last_st]), fs=fs)
             # in the above, there's no reason to restrict to support
         else:
             # restrict spikes to only those within the spiketrain
             # array's support:
-            self.support = support
+            self._support = support
 
-            time, sampleArray = self._restrict_to_epoch_array(epocharray=support, time=time, samples=sampleArray)
+            time, tdataArray = self._restrict_to_epoch_array(epocharray=support, time=time, tdata=tdataArray)
 
-        # if no samples remain after restricting to the support, return
+        # if no tdata remain after restricting to the support, return
         # an empty SpikeTrainArray:
-        if np.sum([st.size for st in sampleArray]) == 0:
+        if np.sum([st.size for st in tdataArray]) == 0:
             self._emptySpikeTrainArray()
             return
 
-        # set self.samples and self.time:
-        self.time = time
-        self.samples = sampleArray
-
-        # inherit unit IDs if available, otherwise initialize to default
-        if unit_ids is None:
-            self._unit_ids = list(range(1,self.n_units + 1))
-        else:
-            # do a few basic checks to see if unit_ids look right:
-            if len(unit_ids) != self.n_units:
-                raise TypeError("unit_ids inconsistent with n_units")
-            if len(set(unit_ids)) < len(unit_ids):
-                raise TypeError("duplicate unit_ids encountered")
-            self._unit_ids = unit_ids
-
-        self.label = label
-        self._cell_types = cell_types
-        self._meta = meta
+        # set self._tdata and self._time:
+        self._time = time
+        self._tdata = tdataArray
 
     def __iter__(self):
         """SpikeTrainArray iterator initialization."""
@@ -1751,26 +1937,28 @@ class SpikeTrainArray:
     def __next__(self):
         """SpikeTrainArray iterator advancer."""
         index = self._index
+
         if index > self.support.n_epochs - 1:
             raise StopIteration
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             support = self.support[index]
-            time, samples = self._restrict_to_epoch_array(
+            time, tdata = self._restrict_to_epoch_array(
                 epocharray=support,
                 time=self.time,
-                samples=self.samples,
+                tdata=self.tdata,
                 copy=True
                 )
-            sta = SpikeTrainArray(
-                samples = samples,
-                support = support,
-                fs = self.fs,
-                label = self.label,
-                cell_types = self._cell_types,
-                meta = self._meta,
-                unit_ids = self.unit_ids
-                )  # return sta one epoch at a time
+            kwargs = {"tdata": tdata,
+                  "support": support,
+                  "fs": self.fs,
+                  "unit_ids": self.unit_ids,
+                  "unit_labels": self.unit_labels,
+                  "unit_tags": self.unit_tags,
+                  "label": self.label}
+            # return sta one epoch at a time
+            sta = SpikeTrainArray(**kwargs)
         self._index += 1
         return sta
 
@@ -1778,14 +1966,19 @@ class SpikeTrainArray:
         """SpikeTrainArray index access."""
         # TODO: allow indexing of form sta[4,1:5] so that the STs of
         # epochs 1 to 5 (exlcusive) are returned, for neuron id 4.
+
+        kwargs = {"fs": self.fs,
+                  "unit_ids": self.unit_ids,
+                  "unit_labels": self.unit_labels,
+                  "unit_tags": self.unit_tags,
+                  "label": self.label}
+
         if isinstance(idx, EpochArray):
             if idx.isempty:
                 return SpikeTrainArray([])
             if idx.fs != self.support.fs:
                 support = self.support.intersect(
-                    epoch=EpochArray(
-                        idx.time*self.support.fs,
-                        fs=self.support.fs),
+                    epoch=EpochArray(idx.time, fs=None),
                     boundaries=True
                     )
             else:
@@ -1795,42 +1988,31 @@ class SpikeTrainArray:
                     ) # what if fs of slicing epoch is different?
             if support.isempty:
                 return SpikeTrainArray([])
-            time, samples = self._restrict_to_epoch_array(
+            time, tdata = self._restrict_to_epoch_array(
                 epocharray=support,
                 time=self.time,
-                samples=self.samples,
+                tdata=self.tdata,
                 copy=True
                 )
             sta = SpikeTrainArray(
-                samples = samples,
+                tdata = tdata,
                 support = support,
-                fs = self.fs,
-                label = self.label,
-                cell_types = self._cell_types,
-                meta = self._meta,
-                unit_ids = self.unit_ids
-                )
+                **kwargs)
             return sta
         elif isinstance(idx, int):
             if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
                 return SpikeTrainArray([])
             try:
                 support = self.support[idx]
-                time, samples = self._restrict_to_epoch_array(
+                time, tdata = self._restrict_to_epoch_array(
                     epocharray=support,
                     time=self.time,
-                    samples=self.samples,
-                    copy=True
-                    )
+                    tdata=self.tdata,
+                    copy=True)
                 sta = SpikeTrainArray(
-                    samples = samples,
+                    tdata = tdata,
                     support = support,
-                    fs = self.fs,
-                    label = self.label,
-                    cell_types = self._cell_types,
-                    meta = self._meta,
-                    unit_ids = self.unit_ids
-                    )
+                    **kwargs)
                 return sta
             except IndexError:
                 # index out of bounds: return an empty SpikeTrainArray
@@ -1838,66 +2020,24 @@ class SpikeTrainArray:
         else:
             try:
                 support = self.support[idx]
-                time, samples = self._restrict_to_epoch_array(
+                time, tdata = self._restrict_to_epoch_array(
                     epocharray=support,
                     time=self.time,
-                    samples=self.samples,
+                    tdata=self.tdata,
                     copy=True
                     )
                 sta = SpikeTrainArray(
-                    samples = samples,
+                    tdata = tdata,
                     support = support,
-                    fs = self.fs,
-                    label = self.label,
-                    cell_types = self._cell_types,
-                    meta = self._meta,
-                    unit_ids = self.unit_ids
-                    )
+                    **kwargs)
                 return sta
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
 
-    def CalcFiringRate():
-        """Calculate firing rate over unit."""
-
-        raise NotImplementedError("CalcFiringRate not implemented yet.")
-
-    def flatten(self, *, multiunit_id=None):
-        """Collapse spike trains across units.
-
-        Parameters
-        ----------
-        multiunit_id: (int)
-            (unit) ID to assign to flattened spike train, default is 0.
-        """
-        if self.n_units == 1:
-            return self
-
-        # raise NotImplementedError until SpikeTrainArray supports one
-        # unit spike trains:
-        raise NotImplementedError(
-            "SpikeTrainArray.flatten() has not been implemented yet!")
-
-        if multiunit_id is None:
-            multiunit_id = 0
-        allspikes = self.samples[0]
-        for unit in range(1,self.n_units):
-            allspikes = linear_merge(allspikes, self.samples[unit])
-
-        flatspiketrain = SpikeTrainArray(
-            samples = list(allspikes),
-            fs = self.fs,
-            support = self.support,
-            label = self.label,
-            cell_types = None,
-            unit_ids=[multiunit_id]
-            )
-        return flatspiketrain
-
-    def _restrict_to_epoch_array(self, *, epocharray, time, samples,
+    def _restrict_to_epoch_array(self, *, epocharray, time, tdata,
                                  copy=True):
-        """Returns time and samples restricted to an EpochArray.
+        """Returns time and tdata restricted to an EpochArray.
 
         Parameters
         ----------
@@ -1905,14 +2045,14 @@ class SpikeTrainArray:
             EpochArray on which to restrict SpikeTrainArray. Default is
             self.support
         """
-        # Potential BUG: not sure if time and samples point to same
+        # Potential BUG: not sure if time and tdata point to same
         # object (like when only time was passed to __init__), then
-        # doing samples[unit] = ... followed by time[unit] = ... might
+        # doing tdata[unit] = ... followed by time[unit] = ... might
         # be applying the shrinking twice, no? We need a thorough test
         # for this! And I need to understand the shared memory 100%.
         if copy:
             time = time.copy()
-            samples = samples.copy()
+            tdata = tdata.copy()
         # BUG: this assumes multiple units for the enumeration to work
         for unit, st_time in enumerate(time):
             indices = []
@@ -1924,51 +2064,20 @@ class SpikeTrainArray:
             if np.count_nonzero(indices) < len(st_time):
                 warnings.warn(
                     'ignoring spikes outside of spiketrain support')
-            samples[unit] = samples[unit][indices]
+            tdata[unit] = tdata[unit][indices]
             time[unit] = time[unit][indices]
-        return time, samples
-
-    # def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
-    #     """Restrict self.time and self.samples to an EpochArray. If no
-    #     EpochArray is specified, self.support is used.
-
-    #     Parameters
-    #     ----------
-    #     epocharray : EpochArray, optional
-    #         EpochArray on which to restrict SpikeTrainArray. Default is
-    #         self.support
-    #     update: bool, optional
-    #         Overwrite self.support with epocharray if True (default).
-    #     """
-    #     if epocharray is None:
-    #         epocharray = self.support
-    #         update = False  # support did not change; no need to update
-
-    #     # BUG: this assumes multiple units for the enumeration to work
-    #     for unit, st_time in enumerate(self.time):
-    #         indices = []
-    #         for eptime in epocharray.time:
-    #             t_start = eptime[0]
-    #             t_stop = eptime[1]
-    #             indices.append((st_time >= t_start) & (st_time <= t_stop))
-    #         indices = np.any(np.column_stack(indices), axis=1)
-    #         if np.count_nonzero(indices) < len(st_time):
-    #             warnings.warn(
-    #                 'ignoring spikes outside of spiketrain support')
-    #         self.samples[unit] = self.samples[unit][indices]
-    #         self.time[unit] = self.time[unit][indices]
-    #     if update:
-    #         self.support = epocharray
+        return time, tdata
 
     def _emptySpikeTrainArray(self):
         """empty all the instance attributes for an empty object."""
-        self.samples = np.array([])
-        self.time = np.array([])
-        self.support = EpochArray([])
-        self.label = None
+        self._tdata = np.array([])
+        self._time = np.array([])
+        self._support = EpochArray([])
         self._fs = None
-        self._cell_types = None
-        self._meta = None
+        self._unit_ids = None
+        self._unit_labels = None
+        self._unit_tags = None
+        self._label = None
         return
 
     def __repr__(self):
@@ -1990,14 +2099,14 @@ class SpikeTrainArray:
         return BinnedSpikeTrainArray(self, ds=ds)
 
     @property
-    def n_units(self):
-        """(int) The number of units."""
-        return len(self.time)
+    def tdata(self):
+        """Spike times in sample numbers (default fs = 1 Hz)."""
+        return self._tdata
 
     @property
-    def unit_ids(self):
-        """(n_units, ) Unit IDs contained in the SpikeTrainArray."""
-        return self._unit_ids
+    def time(self):
+        """Spike times in seconds."""
+        return self._time
 
     @property
     def n_spikes(self):
@@ -2013,53 +2122,11 @@ class SpikeTrainArray:
             'SpikeTrainArray.n_active not implemented yet')
 
     @property
-    def isempty(self):
-        """(bool) Empty SpikeTrainArray."""
-        return np.sum([len(st) for st in self.time]) == 0
-
-    @property
     def issorted(self):
         """(bool) Sorted SpikeTrainArray."""
         return np.array(
-            [is_sorted(spiketrain) for spiketrain in self.samples]
+            [is_sorted(spiketrain) for spiketrain in self.tdata]
             ).all()
-
-    @property
-    def cell_types(self):
-        """The neuron cell type."""
-        raise NotImplementedError(
-            'SpikeTrainArray.cell_types not implemented yet')
-        if self._cell_types is None:
-            warnings.warn("Cell types have not yet been specified!")
-        return self._cell_types
-
-    @cell_types.setter
-    def cell_types(self, val):
-        raise NotImplementedError(
-            'SpikeTrainArray.cell_types(setter) not implemented yet')
-        self._cell_types = val
-
-    @property
-    def meta(self):
-        """Meta information associated with SpikeTrainArray."""
-        if self._meta is None:
-            warnings.warn("meta data is not available")
-        return self._meta
-
-    @meta.setter
-    def meta(self, val):
-        self._meta = val
-
-    @property
-    def fs(self):
-        """(float) Sampling frequency."""
-        return fsgetter(self)
-
-    @fs.setter
-    def fs(self, val):
-        """(float) Sampling frequency."""
-        fssetter(self, val)
-
 #----------------------------------------------------------------------#
 #======================================================================#
 
@@ -2155,7 +2222,7 @@ class BinnedSpikeTrain:
             ds = 0.0625
 
         # TODO: this is not a good empty object to return; fix it!
-        # if no samples were received, return an empty BinnedSpikeTrain:
+        # if no tdata were received, return an empty BinnedSpikeTrain:
         if spiketrain.isempty:
             self.ds = ds
             return
@@ -2256,7 +2323,7 @@ class BinnedSpikeTrain:
             try:
                 if val <= 0:
                     pass
-            except:
+            except TypeError:
                 raise TypeError("bin width must be a scalar")
             if val <= 0:
                 raise ValueError("bin width must be positive")
@@ -2337,7 +2404,7 @@ class BinnedSpikeTrainArray:
             ds = 0.0625
 
         # TODO: this is not a good empty object to return; fix it!
-        # if no samples were received, return an empty BinnedSpikeTrain:
+        # if no tdata were received, return an empty BinnedSpikeTrain:
         if spiketrainarray.isempty:
             self.ds = ds
             return
@@ -2385,17 +2452,17 @@ class BinnedSpikeTrainArray:
         """(np.array) The bin edges (in seconds)."""
         return self._bins
 
-    @property
-    def n_units(self):
-        """(int) The number of units."""
-        return self.data.shape[0]
+    # @property
+    # def n_units(self):
+    #     """(int) The number of units."""
+    #     return self.data.shape[0]
 
-    @property
-    def support(self):
-        """(nelpy.EpochArray) The support of the underlying spiketrain
-        (in seconds).
-         """
-        return self._support
+    # @property
+    # def support(self):
+    #     """(nelpy.EpochArray) The support of the underlying spiketrain
+    #     (in seconds).
+    #      """
+    #     return self._support
 
     @property
     def binnedSupport(self):
@@ -2421,10 +2488,10 @@ class BinnedSpikeTrainArray:
         """(int) The number of bins."""
         return len(self.centers)
 
-    @property
-    def isempty(self):
-        """(bool) Empty BinnedSpikeTrain."""
-        return len(self.centers) == 0
+    # @property
+    # def isempty(self):
+    #     """(bool) Empty BinnedSpikeTrain."""
+    #     return len(self.centers) == 0
 
     @property
     def ds(self):
