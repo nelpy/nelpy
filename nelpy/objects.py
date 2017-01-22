@@ -16,10 +16,19 @@ __all__ = ['EventArray',
 # useful for when we want to do from xxx import * in the package
 # __init__ method
 
-from .utils import is_sorted, get_contiguous_segments, linear_merge
-
 import warnings
 import numpy as np
+
+from .utils import is_sorted, get_contiguous_segments, linear_merge
+
+
+# Force warnings.warn() to omit the source code line in the message
+formatwarning_orig = warnings.formatwarning
+warnings.formatwarning = lambda message, category, filename, lineno, \
+    line=None: formatwarning_orig(
+        message, category, filename, lineno, line='')
+
+
 # from shapely.geometry import Point
 
 ########################################################################
@@ -298,6 +307,64 @@ class SpikeTrain(object):
             raise NotImplementedError(
             "SpikeTrain.flatten() not supported for this type yet!")
 
+    def _unit_subset(self, unit_list):
+        """Return a SpikeTrain restricted to a subset of units.
+
+        Parameters
+        ----------
+        unit_list : array-like
+            Array or list of unit_ids.
+        """
+        unit_subset_ids = []
+        for unit in unit_list:
+            try:
+                id = self.unit_ids.index(unit)
+            except ValueError:
+                warnings.warn("unit_id " + str(unit) + " not found in SpikeTrain; ignoring")
+                pass
+            else:
+                unit_subset_ids.append(id)
+
+        # if len(unit_subset_ids) == 0:
+        #     warnings.warn("no units remaining in requested unit subset")
+        #     # BUG: how do I return (simply) an empty SpikeTrain? I can't
+        #     # easily instantiate a new one, because I have to
+        #     # instantiate the derived class. This might be okay, I can
+        #     # do isinstance() checks, but the code seems messy. What
+        #     # alternatives do I have? My brain isn't working now.
+        #     raise NotImplementedError("Finish writing this return code!")
+        #     return EMPTY_DERIVED_CLASS_OBJECT
+
+        new_unit_ids = np.asarray(self.unit_ids)[unit_subset_ids]
+        new_unit_labels = np.asarray(self.unit_labels)[unit_subset_ids]
+
+        # @no_warnings
+        # def warnn(message):
+        #     warnings.warn(message)
+
+        if isinstance(self, SpikeTrainArray):
+            if len(unit_subset_ids) == 0:
+                return SpikeTrainArray([])
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                kwargs = {"tdata": self.tdata[unit_subset_ids],
+                          "fs": self.fs,
+                          "support": self.support,
+                          "unit_ids": new_unit_ids,
+                          "unit_labels": new_unit_labels,
+                          "unit_tags": self.unit_tags, # BUG: may need to prune tags
+                          "label": self.label}
+            return SpikeTrainArray(**kwargs)
+        elif isinstance(self, BinnedSpikeTrainArray):
+            if len(unit_subset_ids) == 0:
+                return BinnedSpikeTrainArray([])
+            # should be very similar to above, but with a few additional
+            # kwargs
+            raise NotImplementedError(
+            "BinnedSpikeTrainArray._unit_slice() not implemented yet!")
+        else:
+            raise NotImplementedError(
+            "SpikeTrain._unit_slice() not supported for this type yet!")
 
 ########################################################################
 # class EpochArray
