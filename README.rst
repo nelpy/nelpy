@@ -3,7 +3,7 @@ Nelpy
 =====
 
 Neuroelectrophysiology object model and analysis in Python.
-===========================================================
+-----------------------------------------------------------
 
 Overview
 ========
