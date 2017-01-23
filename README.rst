@@ -51,7 +51,7 @@ Where
 License
 =======
 
-Nelpy is distributed under the MIT license. See the `LICENSE <LICENSE>` file for details.
+Nelpy is distributed under the MIT license. See the `LICENSE <LICENSE>`_ file for details.
 
 Install
 =======
