@@ -5,6 +5,22 @@ Nelpy
 Neuroelectrophysiology object model and analysis in Python.
 ===========================================================
 
+Overview
+========
+Nelpy (NeuroELectroPhysiologY) is an open source package for analysis of
+neuroelectrophysiology data arising (primarily) from extracellular
+electrode recordings during neuroscience experiments. The functionality
+of this package includes:
+
+- item 1
+- item 2
+- hidden Markov model analysis of neural activity
+- basic data exploration and visualization operating directly on the
+core nelpy objects
+
+Quick example
+=============
+
 Let's give it a try. Create a SpikeTrainArray::
 
     >>> import nelpy as nel  # main nelpy imports
@@ -16,8 +32,8 @@ Do something::
     >>> st.n_units
     3.0
 
-First things first
-==================
+Related work and inspiration
+============================
 Nelpy drew heavy inspiration from the `python-vdmlab` package from the
 van der Meer lab at Dartmouth College (https://github.com/vandermeerlab),
 which was created by Emily Irvine (https://github.com/emirvine). It is
