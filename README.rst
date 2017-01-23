@@ -68,8 +68,8 @@ License
 
 Nelpy is distributed under the MIT license. See the `LICENSE <LICENSE>`_ file for details.
 
-Install
-=======
+Installation
+============
 
 The easiest way to install Nelpy is to use pip. From the terminal, run::
 
