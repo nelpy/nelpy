@@ -64,9 +64,9 @@ Alternatively, you can install the latest version of nelpy by running the follow
 
     git clone https://github.com/eackermann/nelpy.git
     cd nelpy
-    python setup.py install [develop]
+    python setup.py [install, develop]
 
-where the `develop` argument is optional if you want to modify the code.
+where the `develop` argument should be used if you want to modify the code.
 
 Where
 =====
