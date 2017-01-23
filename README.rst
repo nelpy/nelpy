@@ -15,8 +15,7 @@ of this package includes:
 - item 1
 - item 2
 - hidden Markov model analysis of neural activity
-- basic data exploration and visualization operating directly on the
-core nelpy objects
+- basic data exploration and visualization operating directly on the core nelpy objects
 
 Quick example
 =============
