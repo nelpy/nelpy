@@ -54,20 +54,6 @@ ripple detection, Bayesian decoding, and so on. In short, nelpy is more than jus
 an object model, but the nelpy core is designed to be a flexible, readable, yet
 powerful object model for neuroelectrophysiology.
 
-Where
-=====
-
-===================   ========================================================
- download             https://pypi.python.org/pypi/nelpy
- docs                 coming soon!
- code                 https://github.com/eackermann/nelpy
-===================   ========================================================
-
-License
-=======
-
-Nelpy is distributed under the MIT license. See the `LICENSE <LICENSE>`_ file for details.
-
 Installation
 ============
 
@@ -82,3 +68,17 @@ Alternatively, you can install the latest version of nelpy by running the follow
     python setup.py install [develop]
 
 where the `develop` argument is optional if you want to modify the code.
+
+Where
+=====
+
+===================   ========================================================
+ download             https://pypi.python.org/pypi/nelpy
+ docs                 coming soon!
+ code                 https://github.com/eackermann/nelpy
+===================   ========================================================
+
+License
+=======
+
+Nelpy is distributed under the MIT license. See the `LICENSE <LICENSE>`_ file for details.
