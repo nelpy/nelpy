@@ -101,6 +101,43 @@ def get_contiguous_segments(data,step=None, sort=False):
         bdries.append([start, stop])
     return np.asarray(bdries)
 
+def is_single_unit(array):
+    """(Boolean) Returns True if input array is a single unit,
+    False otherwise.
+
+    Examples
+    --------
+    >>> is_single_unit([[1,2,3]])  # embedded single list
+    True
+    >>> is_single_unit([1,2,3])  # single list
+    True
+    >>> is_single_unit([[]])  # embedded single empty list
+    True
+    >>> is_single_unit([])  # single empty list
+    True
+    >>> is_single_unit(2)  # single scalar
+    True
+    >>> is_single_unit((2,3,4))  # tuple
+    True
+    >>> is_single_unit([(2,3,4)])  # list of single tuple
+    True
+    >>> is_single_unit([(2,3,4), (3,4,5)])  # list of tuples
+    False
+    >>> is_single_unit([[1,2,3],[2,3,4]])  # square matrix
+    False
+    >>> is_single_unit([[1,2,3],[2,3,4],[2,3]])  # jagged matrix
+    False
+    >>> is_single_unit([[],[],[]])  # empty lists
+    False
+    """
+    array = np.squeeze(array)
+    array = np.array(array, ndmin=1)
+    f1 = array.dtype is not np.dtype('O')  # True if single unit, or if square array; False if jagged array
+    # so how do we differentiate between square array and single unit? Square array should have different # rows from # elements
+    f2 = array.shape[0] == array.size  # False if square array, True otherwise
+
+    return f1 and f2
+
 ########################################################################
 # uncurated below this line!
 ########################################################################
