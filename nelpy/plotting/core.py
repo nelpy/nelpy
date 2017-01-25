@@ -1,11 +1,4 @@
-from ..objects import (EventArray,
-                       EpochArray,
-                       AnalogSignal,
-                       AnalogSignalArray,
-                       SpikeTrain,
-                       SpikeTrainArray,
-                       BinnedSpikeTrain,
-                       BinnedSpikeTrainArray)
+from ..objects import *
 
 import numpy as np
 import matplotlib as mpl

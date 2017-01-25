@@ -6,7 +6,6 @@ __all__ = ['EventArray',
            'AnalogSignal',
            'AnalogSignalArray',
            'SpikeTrainArray',
-           'BinnedSpikeTrain',
            'BinnedSpikeTrainArray']
 
 # TODO: how should we organize our modules so that nelpy.objects.np does
@@ -293,18 +292,33 @@ class SpikeTrain(object):
             for unit in range(1,self.n_units):
                 allspikes = linear_merge(allspikes, self.tdata[unit])
 
-            kwargs = {"tdata": list(allspikes),
-                      "fs": self.fs,
-                      "support": self.support,
-                      "unit_ids": [unit_id],
-                      "unit_labels": unit_label,
-                      "unit_tags": None,
-                      "label": self.label
-                      }
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                kwargs = {"tdata": list(allspikes),
+                        "fs": self.fs,
+                        "support": self.support,
+                        "unit_ids": [unit_id],
+                        "unit_labels": unit_label,
+                        "unit_tags": None,
+                        "label": self.label
+                        }
             flatspiketrain = SpikeTrainArray(**kwargs)
             return flatspiketrain
 
         elif isinstance(self, BinnedSpikeTrainArray):
+            # data.sum(axis=0)
+            # with warnings.catch_warnings():
+            #     warnings.simplefilter("ignore")
+            #     kwargs = {"tdata": list(allspikes),
+            #             "fs": self.fs,
+            #             "support": self.support,
+            #             "unit_ids": [unit_id],
+            #             "unit_labels": unit_label,
+            #             "unit_tags": None,
+            #             "label": self.label
+            #             }
+            # flatspiketrain = SpikeTrainArray(**kwargs)
+            # return flatspiketrain
             raise NotImplementedError(
             "BinnedSpikeTrainArray.flatten() not implemented yet!")
         else:
@@ -1552,9 +1566,9 @@ class SpikeTrainArray(SpikeTrain):
                  unit_labels=None, unit_tags=None, label=None):
 
         def standardize_to_2d(data):
-            data = np.squeeze(data)  # coerce tdata into np.array
             data = np.squeeze(data)  # deals with extraneous dimensions
-            data = np.array(data, ndmin=1)  # deal with scalars
+            data = np.array(data, ndmin=1)  # deals with extraneous
+                # dimensions
             f1 = data.dtype is not np.dtype('O')  # True if single unit,
                 # or if square array; False if jagged array
             # so how do we differentiate between square array and single
@@ -1573,18 +1587,18 @@ class SpikeTrainArray(SpikeTrain):
 
         tdata = standardize_to_2d(tdata)
 
-        kwargs = {"fs": fs,
-                  "unit_ids": unit_ids,
-                  "unit_labels": unit_labels,
-                  "unit_tags": unit_tags,
-                  "label": label}
-
         # if only empty tdata were received AND no support, return empty
         # SpikeTrainArray:
         if np.sum([st.size for st in tdata]) == 0 and support.isempty:
             warnings.warn("no data; returning empty SpikeTrainArray")
             self._emptySpikeTrainArray()
             return
+
+        kwargs = {"fs": fs,
+                  "unit_ids": unit_ids,
+                  "unit_labels": unit_labels,
+                  "unit_tags": unit_tags,
+                  "label": label}
 
         # initialize super so that self.fs is set:
         self._time = tdata  # this is necessary so that super() can
@@ -1831,245 +1845,245 @@ class SpikeTrainArray(SpikeTrain):
 #======================================================================#
 
 
-########################################################################
-# class BinnedSpikeTrain
-########################################################################
-class BinnedSpikeTrain:
-    """A set of binned action potential (spike) times of a putative unit
-    (neuron).
+# ########################################################################
+# # class BinnedSpikeTrain
+# ########################################################################
+# class BinnedSpikeTrain:
+#     """A set of binned action potential (spike) times of a putative unit
+#     (neuron).
 
-    Parameters
-    ----------
-    spiketrain : nelpy.SpikeTrain
-        The spiketrain to bin.
-    ds : float, optional
-        Bin size (width) in seconds. Default is 0.625 seconds, which
-        corresponds to half of a typical rodent theta cycle.
+#     Parameters
+#     ----------
+#     spiketrain : nelpy.SpikeTrain
+#         The spiketrain to bin.
+#     ds : float, optional
+#         Bin size (width) in seconds. Default is 0.625 seconds, which
+#         corresponds to half of a typical rodent theta cycle.
 
-    Attributes
-    ----------
-    ds : float
-        Bin width, in seconds.
-    centers : np.array
-        The centers of the bins. With shape (n_bins, 1).
-    data : np.array
-    bins : np.array
-        The edges of the bins. With shape (??? depends on n_epochs).
-        # TODO: check what is the format that numpy takes.
-        Also, consider making this an EventArray, so that the bins can
-        easily be overlayed on plots.
-    support : nelpy.EpochArray on which binned spiketrain is defined.
-    _binnedSupport : np.array of shape (n_epochs, 2) with the start and
-        stop bin index associated w each epoch.
-    """
+#     Attributes
+#     ----------
+#     ds : float
+#         Bin width, in seconds.
+#     centers : np.array
+#         The centers of the bins. With shape (n_bins, 1).
+#     data : np.array
+#     bins : np.array
+#         The edges of the bins. With shape (??? depends on n_epochs).
+#         # TODO: check what is the format that numpy takes.
+#         Also, consider making this an EventArray, so that the bins can
+#         easily be overlayed on plots.
+#     support : nelpy.EpochArray on which binned spiketrain is defined.
+#     _binnedSupport : np.array of shape (n_epochs, 2) with the start and
+#         stop bin index associated w each epoch.
+#     """
 
-    # TODO: considerations.
-    #
-    # We need an efficient data representation: consider a case where we
-    # have a support of [0,1] U [9999,10000]. In this case, we do not
-    # want to (needlessly) allocate space for all the bins in [1,9999].
-    # So a better approach might be to intelligently pre-compute the bin
-    # edges before binning. Bins should also be such that they
-    # completely enclose all epochs in the spiketrain's support.
-    #
-    # For example, with 0.5 second bins, and a spiketrain
-    # [0.8, 0.9 1.2 1.8 2.4 2.51] with support [0.8, 2.51] we would need
-    # bins 0.5--3.0 (left- to right-edge), that is,
-    # [0.5,1.0) U [1.0,1.5) U [1.5,2.0) U [2.5,3.0).
-    #
-    # In the first example, with a 5 second bin, we'd need
-    # [0,5) U [9995,10000) U [10000,10005), and NOT simply
-    # [0,5) U [9999,10004) because such an approach can cause lots of
-    # headaches down the road.
-    #
-    # Now implementation-wise: should we store the numpy arrays
-    # separately for each epoch? Should we have only one array, but keep
-    # track of the bin centers (most useful for plotting and other
-    # analysis) and the True support epochs? How about slicing and
-    # indexing? If we index a BinnedSpikeTrain with an EpochArray, then
-    # we should get only those bins back that fall in the intersection
-    # of the BinnedSpikeTrain's support and the indexing EpochArray. If
-    # we slice, should we slice by bins, or by epochs? I am still
-    # leaning towards slicing by epoch, so that BinnedSpikeTrain[2:5]
-    # will return binned data corresponding to epochs 2,3 and 4.
-    #
-    # It is also possible that the best hing to do is to have a dynamic
-    # representation, where one option is to store an array of bin
-    # centers, and another is to store compact representations
-    # (start, stop)-tuples for each bin epoch. This might save a lot of
-    # memory for large, contiguous segments, but it may be painfully
-    # slow for cases with lots of short epochs. For now, I think I will
-    # simply do the expanded (non-compact) representation.
-    #
-    # Also, should a BinnedSpikeTrain keep an unbinned copy of the
-    # associated SpikeTrain? That way we can re-bin and maybe do some
-    # interesting things, but it may also be pretty wasteful space
-    # (memory) wise...?
+#     # TODO: considerations.
+#     #
+#     # We need an efficient data representation: consider a case where we
+#     # have a support of [0,1] U [9999,10000]. In this case, we do not
+#     # want to (needlessly) allocate space for all the bins in [1,9999].
+#     # So a better approach might be to intelligently pre-compute the bin
+#     # edges before binning. Bins should also be such that they
+#     # completely enclose all epochs in the spiketrain's support.
+#     #
+#     # For example, with 0.5 second bins, and a spiketrain
+#     # [0.8, 0.9 1.2 1.8 2.4 2.51] with support [0.8, 2.51] we would need
+#     # bins 0.5--3.0 (left- to right-edge), that is,
+#     # [0.5,1.0) U [1.0,1.5) U [1.5,2.0) U [2.5,3.0).
+#     #
+#     # In the first example, with a 5 second bin, we'd need
+#     # [0,5) U [9995,10000) U [10000,10005), and NOT simply
+#     # [0,5) U [9999,10004) because such an approach can cause lots of
+#     # headaches down the road.
+#     #
+#     # Now implementation-wise: should we store the numpy arrays
+#     # separately for each epoch? Should we have only one array, but keep
+#     # track of the bin centers (most useful for plotting and other
+#     # analysis) and the True support epochs? How about slicing and
+#     # indexing? If we index a BinnedSpikeTrain with an EpochArray, then
+#     # we should get only those bins back that fall in the intersection
+#     # of the BinnedSpikeTrain's support and the indexing EpochArray. If
+#     # we slice, should we slice by bins, or by epochs? I am still
+#     # leaning towards slicing by epoch, so that BinnedSpikeTrain[2:5]
+#     # will return binned data corresponding to epochs 2,3 and 4.
+#     #
+#     # It is also possible that the best hing to do is to have a dynamic
+#     # representation, where one option is to store an array of bin
+#     # centers, and another is to store compact representations
+#     # (start, stop)-tuples for each bin epoch. This might save a lot of
+#     # memory for large, contiguous segments, but it may be painfully
+#     # slow for cases with lots of short epochs. For now, I think I will
+#     # simply do the expanded (non-compact) representation.
+#     #
+#     # Also, should a BinnedSpikeTrain keep an unbinned copy of the
+#     # associated SpikeTrain? That way we can re-bin and maybe do some
+#     # interesting things, but it may also be pretty wasteful space
+#     # (memory) wise...?
 
-    def __init__(self, spiketrain, *, ds=None):
-        # by default, the support of the binned spiketrain will be
-        # inherited from spiketrain
+#     def __init__(self, spiketrain, *, ds=None):
+#         # by default, the support of the binned spiketrain will be
+#         # inherited from spiketrain
 
-        if not isinstance(spiketrain, SpikeTrain):
-            raise TypeError(
-                'spiketrain must be a nelpy.SpikeTrain object.')
+#         if not isinstance(spiketrain, SpikeTrain):
+#             raise TypeError(
+#                 'spiketrain must be a nelpy.SpikeTrain object.')
 
-        self._ds = None
-        self._centers = np.array([])
+#         self._ds = None
+#         self._centers = np.array([])
 
-        if ds is None:
-            warnings.warn('no bin size was given, assuming 62.5 ms')
-            ds = 0.0625
+#         if ds is None:
+#             warnings.warn('no bin size was given, assuming 62.5 ms')
+#             ds = 0.0625
 
-        # TODO: this is not a good empty object to return; fix it!
-        # if no tdata were received, return an empty BinnedSpikeTrain:
-        if spiketrain.isempty:
-            self.ds = ds
-            return
+#         # TODO: this is not a good empty object to return; fix it!
+#         # if no tdata were received, return an empty BinnedSpikeTrain:
+#         if spiketrain.isempty:
+#             self.ds = ds
+#             return
 
-        self._spiketrain = spiketrain # TODO: remove this if we don't need it, or decide that it's too wasteful
-        self._support = spiketrain.support
-        self.ds = ds
+#         self._spiketrain = spiketrain # TODO: remove this if we don't need it, or decide that it's too wasteful
+#         self._support = spiketrain.support
+#         self.ds = ds
 
-        self._bin_spikes(
-            spiketrain=spiketrain,
-            epochArray=self.support,
-            ds=ds
-            )
+#         self._bin_spikes(
+#             spiketrain=spiketrain,
+#             epochArray=self.support,
+#             ds=ds
+#             )
 
-    def __repr__(self):
-        if self.isempty:
-            return "<empty BinnedSpikeTrain>"
-        if self.n_bins == 1:
-            bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
-            dstr = ""
-        else:
-            bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
-            dstr = " for a total of {} seconds.".format(self.n_bins*self.ds)
-        return "<BinnedSpikeTrain:%s>%s" % (bstr, dstr)
+#     def __repr__(self):
+#         if self.isempty:
+#             return "<empty BinnedSpikeTrain>"
+#         if self.n_bins == 1:
+#             bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
+#             dstr = ""
+#         else:
+#             bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
+#             dstr = " for a total of {} seconds.".format(self.n_bins*self.ds)
+#         return "<BinnedSpikeTrain:%s>%s" % (bstr, dstr)
 
-    def __getitem__(self, idx):
-        raise NotImplementedError(
-            'BinnedSpikeTrain.__getitem__ not implemented yet')
+#     def __getitem__(self, idx):
+#         raise NotImplementedError(
+#             'BinnedSpikeTrain.__getitem__ not implemented yet')
 
-    @property
-    def centers(self):
-        """(np.array) The bin centers (in seconds)."""
-        return self._centers
+#     @property
+#     def centers(self):
+#         """(np.array) The bin centers (in seconds)."""
+#         return self._centers
 
-    @property
-    def data(self):
-        """(np.array) The spike counts in all the bins.
-        See also BinnedSpikeTrain.centers
-        """
-        return self._data
+#     @property
+#     def data(self):
+#         """(np.array) The spike counts in all the bins.
+#         See also BinnedSpikeTrain.centers
+#         """
+#         return self._data
 
-    @property
-    def bins(self):
-        """(np.array) The bin edges (in seconds)."""
-        return self._bins
+#     @property
+#     def bins(self):
+#         """(np.array) The bin edges (in seconds)."""
+#         return self._bins
 
-    @property
-    def support(self):
-        """(nelpy.EpochArray) The support of the underlying spiketrain
-        (in seconds).
-         """
-        return self._support
+#     @property
+#     def support(self):
+#         """(nelpy.EpochArray) The support of the underlying spiketrain
+#         (in seconds).
+#          """
+#         return self._support
 
-    @property
-    def binnedSupport(self):
-        """(np.array) The binned support of the binned spiketrain (in
-        bin IDs) of shape (2, n_epochs).
-        """
-        return self._binnedSupport
+#     @property
+#     def binnedSupport(self):
+#         """(np.array) The binned support of the binned spiketrain (in
+#         bin IDs) of shape (2, n_epochs).
+#         """
+#         return self._binnedSupport
 
-    @property
-    def lengths(self):
-        """Lenghts of contiguous segments, in number of bins."""
-        return self.binnedSupport[1,:] - self.binnedSupport[0,:] + 1
+#     @property
+#     def lengths(self):
+#         """Lenghts of contiguous segments, in number of bins."""
+#         return self.binnedSupport[1,:] - self.binnedSupport[0,:] + 1
 
-    @property
-    def spiketrain(self):
-        """(nelpy.SpikeTrain) The original spiketrain associated with
-        the binned data.
-        """
-        return self._spiketrain
+#     @property
+#     def spiketrain(self):
+#         """(nelpy.SpikeTrain) The original spiketrain associated with
+#         the binned data.
+#         """
+#         return self._spiketrain
 
-    @property
-    def n_bins(self):
-        """(int) The number of bins."""
-        return len(self.centers)
+#     @property
+#     def n_bins(self):
+#         """(int) The number of bins."""
+#         return len(self.centers)
 
-    @property
-    def isempty(self):
-        """(bool) Empty BinnedSpikeTrain."""
-        return len(self.centers) == 0
+#     @property
+#     def isempty(self):
+#         """(bool) Empty BinnedSpikeTrain."""
+#         return len(self.centers) == 0
 
-    @property
-    def n_active(self):
-        """Number of active units per time bin with shape (n_bins,)."""
-        return self.data.clip(max=1)
+#     @property
+#     def n_active(self):
+#         """Number of active units per time bin with shape (n_bins,)."""
+#         return self.data.clip(max=1)
 
-    @property
-    def ds(self):
-        """(float) Bin width in seconds."""
-        return self._ds
+#     @property
+#     def ds(self):
+#         """(float) Bin width in seconds."""
+#         return self._ds
 
-    @ds.setter
-    def ds(self, val):
-        if self._ds is not None:
-            raise AttributeError("can't set attribute")
-        else:
-            try:
-                if val <= 0:
-                    pass
-            except TypeError:
-                raise TypeError("bin width must be a scalar")
-            if val <= 0:
-                raise ValueError("bin width must be positive")
-            self._ds = val
+#     @ds.setter
+#     def ds(self, val):
+#         if self._ds is not None:
+#             raise AttributeError("can't set attribute")
+#         else:
+#             try:
+#                 if val <= 0:
+#                     pass
+#             except TypeError:
+#                 raise TypeError("bin width must be a scalar")
+#             if val <= 0:
+#                 raise ValueError("bin width must be positive")
+#             self._ds = val
 
-    def _get_bins_to_cover_epoch(self, epoch, ds):
-        """(np.array) Return bin edges to cover an epoch."""
-        # start = ep.start - (ep.start % ds)
-        # start = ep.start - (ep.start / ds - floor(ep.start / ds))
-        # because e.g., 1 % 0.1 is messed up (precision error)
-        start = ds * np.floor(epoch.start / ds)
-        num = np.ceil((epoch.stop - start) / ds)
-        stop = start + ds * num
-        bins = np.linspace(start, stop, num+1)
-        centers = bins[:-1] + np.diff(bins) / 2
-        return bins, centers
+#     def _get_bins_to_cover_epoch(self, epoch, ds):
+#         """(np.array) Return bin edges to cover an epoch."""
+#         # start = ep.start - (ep.start % ds)
+#         # start = ep.start - (ep.start / ds - floor(ep.start / ds))
+#         # because e.g., 1 % 0.1 is messed up (precision error)
+#         start = ds * np.floor(epoch.start / ds)
+#         num = np.ceil((epoch.stop - start) / ds)
+#         stop = start + ds * num
+#         bins = np.linspace(start, stop, num+1)
+#         centers = bins[:-1] + np.diff(bins) / 2
+#         return bins, centers
 
-    def _bin_spikes(self, spiketrain, epochArray, ds):
-        b = []
-        c = []
-        s = []
-        left_edges = []
-        right_edges = []
-        counter = 0
-        for epoch in epochArray:
-            bins, centers = self._get_bins_to_cover_epoch(epoch, ds)
-            spike_counts, _ = np.histogram(
-                spiketrain.time,
-                bins=bins,
-                density=False,
-                range=(epoch.start,epoch.stop)
-                ) # TODO: is it faster to limit range, or to cut out spikes?
-            left_edges.append(counter)
-            counter += len(centers) - 1
-            right_edges.append(counter)
-            counter += 1
-            b.extend(bins.tolist())
-            c.extend(centers.tolist())
-            s.extend(spike_counts.tolist())
-        self._bins = np.array(b)
-        self._centers = np.array(c)
-        self._data = np.array(s)
-        self._binnedSupport = np.vstack(
-            (np.array(left_edges),
-             np.array(right_edges))
-            )
+#     def _bin_spikes(self, spiketrain, epochArray, ds):
+#         b = []
+#         c = []
+#         s = []
+#         left_edges = []
+#         right_edges = []
+#         counter = 0
+#         for epoch in epochArray:
+#             bins, centers = self._get_bins_to_cover_epoch(epoch, ds)
+#             spike_counts, _ = np.histogram(
+#                 spiketrain.time,
+#                 bins=bins,
+#                 density=False,
+#                 range=(epoch.start,epoch.stop)
+#                 ) # TODO: is it faster to limit range, or to cut out spikes?
+#             left_edges.append(counter)
+#             counter += len(centers) - 1
+#             right_edges.append(counter)
+#             counter += 1
+#             b.extend(bins.tolist())
+#             c.extend(centers.tolist())
+#             s.extend(spike_counts.tolist())
+#         self._bins = np.array(b)
+#         self._centers = np.array(c)
+#         self._data = np.array(s)
+#         self._binnedSupport = np.vstack(
+#             (np.array(left_edges),
+#              np.array(right_edges))
+#             )
 #----------------------------------------------------------------------#
 #======================================================================#
 
@@ -2077,7 +2091,7 @@ class BinnedSpikeTrain:
 ########################################################################
 # class BinnedSpikeTrainArray
 ########################################################################
-class BinnedSpikeTrainArray:
+class BinnedSpikeTrainArray(SpikeTrain):
     """Binned spiketrain array.
 
     Parameters
@@ -2098,6 +2112,21 @@ class BinnedSpikeTrainArray:
 
         self._ds = None
         self._centers = np.array([])
+
+        with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                kwargs = {"fs": spiketrainarray.fs,
+                        "unit_ids": spiketrainarray.unit_ids,
+                        "unit_labels": spiketrainarray.unit_labels,
+                        "unit_tags": spiketrainarray.unit_tags,
+                        "label": spiketrainarray.label}
+
+        # initialize super so that self.fs is set:
+        self._data = np.zeros((spiketrainarray.n_units,0))
+            # the above is necessary so that super() can determine
+            # self.n_units when initializing. self.time will
+            # be updated later in __init__ to reflect subsequent changes
+        super().__init__(**kwargs)
 
         if ds is None:
             warnings.warn('no bin size was given, assuming 62.5 ms')
@@ -2131,9 +2160,44 @@ class BinnedSpikeTrainArray:
             dstr = " for a total of {} seconds.".format(self.n_bins*self.ds)
         return "<BinnedSpikeTrainArray:%s%s>%s" % (ustr, bstr, dstr)
 
+    def __iter__(self):
+        """BinnedSpikeTrainArray iterator initialization."""
+        # initialize the internal index to zero when used as iterator
+        self._index = 0
+        return self
+
+    def __next__(self):
+        """BinnedSpikeTrainArray iterator advancer."""
+        index = self._index
+
+        if index > self.support.n_epochs - 1:
+            raise StopIteration
+
+        raise NotImplementedError("Not done yet!")
+        # with warnings.catch_warnings():
+        #     warnings.simplefilter("ignore")
+        #     support = self.support[index]
+        #     time, tdata = self._restrict_to_epoch_array(
+        #         epocharray=support,
+        #         time=self.time,
+        #         tdata=self.tdata,
+        #         copy=True
+        #         )
+        #     kwargs = {"tdata": tdata,
+        #           "support": support,
+        #           "fs": self.fs,
+        #           "unit_ids": self.unit_ids,
+        #           "unit_labels": self.unit_labels,
+        #           "unit_tags": self.unit_tags,
+        #           "label": self.label}
+        #     # return sta one epoch at a time
+        #     sta = SpikeTrainArray(**kwargs)
+        # self._index += 1
+        # return sta
+
     def __getitem__(self, idx):
         raise NotImplementedError(
-            'BinnedSpikeTrain.__getitem__ not implemented yet')
+            'BinnedSpikeTrainArray.__getitem__ not implemented yet')
 
     @property
     def centers(self):
@@ -2152,29 +2216,17 @@ class BinnedSpikeTrainArray:
         """(np.array) The bin edges (in seconds)."""
         return self._bins
 
-    # @property
-    # def n_units(self):
-    #     """(int) The number of units."""
-    #     return self.data.shape[0]
-
-    # @property
-    # def support(self):
-    #     """(nelpy.EpochArray) The support of the underlying spiketrain
-    #     (in seconds).
-    #      """
-    #     return self._support
-
     @property
     def binnedSupport(self):
         """(np.array) The binned support of the binned spiketrain (in
-        bin IDs) of shape (2, n_epochs).
+        bin IDs) of shape (n_epochs, 2).
         """
         return self._binnedSupport
 
     @property
     def lengths(self):
         """Lenghts of contiguous segments, in number of bins."""
-        return self.binnedSupport[1,:] - self.binnedSupport[0,:] + 1
+        return self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1
 
     @property
     def spiketrainarray(self):
@@ -2187,11 +2239,6 @@ class BinnedSpikeTrainArray:
     def n_bins(self):
         """(int) The number of bins."""
         return len(self.centers)
-
-    # @property
-    # def isempty(self):
-    #     """(bool) Empty BinnedSpikeTrain."""
-    #     return len(self.centers) == 0
 
     @property
     def ds(self):
@@ -2225,9 +2272,9 @@ class BinnedSpikeTrainArray:
         return bins, centers
 
     def _bin_spikes(self, spiketrainarray, epochArray, ds):
-        b = []
-        c = []
-        s = []
+        b = []  # bin list
+        c = []  # centers list
+        s = []  # data list
         for nn in range(spiketrainarray.n_units):
             s.append([])
         left_edges = []
@@ -2252,10 +2299,11 @@ class BinnedSpikeTrainArray:
         self._bins = np.array(b)
         self._centers = np.array(c)
         self._data = np.array(s)
-        self._binnedSupport = np.vstack(
-            (np.array(left_edges),
-             np.array(right_edges))
-            )
+        le = np.array(left_edges)
+        le = le[:, np.newaxis]
+        re = np.array(right_edges)
+        re = re[:, np.newaxis]
+        self._binnedSupport = np.hstack((le, re))
 
     @property
     def n_active(self):
