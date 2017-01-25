@@ -148,9 +148,13 @@ class SpikeTrain(object):
         if unit_ids is None:
             unit_ids = list(range(1,self.n_units + 1))
 
+        unit_ids = np.array(unit_ids, ndmin=1)  # standardize unit_ids
+
         # if unit_labels is empty, default to unit_ids
         if unit_labels is None:
             unit_labels = unit_ids
+
+        unit_labels = np.array(unit_labels, ndmin=1)  # standardize
 
         self.unit_ids = unit_ids
         self.unit_labels = unit_labels
@@ -1547,61 +1551,61 @@ class SpikeTrainArray(SpikeTrain):
     def __init__(self, tdata, *, fs=None, support=None, unit_ids=None,
                  unit_labels=None, unit_tags=None, label=None):
 
+        def standardize_to_2d(data):
+            data = np.squeeze(data)  # coerce tdata into np.array
+            data = np.squeeze(data)  # deals with extraneous dimensions
+            data = np.array(data, ndmin=1)  # deal with scalars
+            f1 = data.dtype is not np.dtype('O')  # True if single unit,
+                # or if square array; False if jagged array
+            # so how do we differentiate between square array and single
+            # unit? Square array should have different #rows from
+            # #elements
+            f2 = data.shape[0] == data.size  # False if square array,
+                # True otherwise
+            if f1 and f2:  # single unit!
+                data = np.array([data], ndmin=2)  # wrap single units
+            elif not f1:  # jagged array
+                # standardize input so that a list of lists is converted
+                # to an array of arrays:
+                data = np.array(
+                    [np.array(st, ndmin=1, copy=False) for st in data])
+            return data
+
+        tdata = standardize_to_2d(tdata)
+
         kwargs = {"fs": fs,
                   "unit_ids": unit_ids,
                   "unit_labels": unit_labels,
                   "unit_tags": unit_tags,
                   "label": label}
 
-        tdata = np.squeeze(tdata)  # coerce tdata into np.array
-
-        # Note: if we have an empty array of tdata with no dimension,
-        # then calling len(tdata) will return a TypeError.
-        try:
-            # if no tdata were received, return an empty SpikeTrainArray:
-            if len(tdata) == 0:
-                self._emptySpikeTrainArray()
-                return
-        except TypeError:
-            warnings.warn(
-                "unsupported type; creating empty SpikeTrainArray")
-            self._emptySpikeTrainArray()
-            return
-
-        # BUG: we cannot yet differentiate between a single spike train
-        # and a spike train array with multiple units. See issue #46
-
-        # standardize input so that a list of lists is converted to an
-        # array of arrays: BUG: this assumes more than one unit!!!
-        tdataArray = np.array(
-            [np.array(st, ndmin=1, copy=False) for st in tdata])
-
-        # if only empty tdata were received, return an empty
+        # if only empty tdata were received AND no support, return empty
         # SpikeTrainArray:
-        if np.sum([st.size for st in tdataArray]) == 0:
+        if np.sum([st.size for st in tdata]) == 0 and support.isempty:
+            warnings.warn("no data; returning empty SpikeTrainArray")
             self._emptySpikeTrainArray()
             return
 
         # initialize super so that self.fs is set:
-        self._time = tdataArray  # this is necessary so that super() can
+        self._time = tdata  # this is necessary so that super() can
             # determine self.n_units when initializing. self.time will
             # be updated later in __init__ to reflect subsequent changes
         super().__init__(**kwargs)
 
         # if a sampling rate was given, relate time to tdata using fs:
         if fs is not None:
-            time = tdataArray / fs
+            time = tdata / fs
         else:
-            time = tdataArray
+            time = tdata
 
         # determine spiketrain array support:
         if support is None:
-            # first_st = np.array([unit[0] for unit in tdataArray]).min()
+            # first_st = np.array([unit[0] for unit in tdata]).min()
             # BUG: if spiketrain is empty np.array([]) then unit[-1]
             # raises an error in the following:
             # FIX: list[-1] raises an IndexError for an empty list,
             # whereas list[-1:] returns an empty list.
-            last_st = np.array([unit[-1:] for unit in tdataArray]).max()
+            last_st = np.array([unit[-1:] for unit in tdata]).max()
             self._support = EpochArray(np.array([0, last_st]), fs=fs)
             # in the above, there's no reason to restrict to support
         else:
@@ -1609,17 +1613,20 @@ class SpikeTrainArray(SpikeTrain):
             # array's support:
             self._support = support
 
-            time, tdataArray = self._restrict_to_epoch_array(epocharray=support, time=time, tdata=tdataArray)
+            time, tdata = self._restrict_to_epoch_array(
+                epocharray=support,
+                time=time,
+                tdata=tdata)
 
         # if no tdata remain after restricting to the support, return
         # an empty SpikeTrainArray:
-        if np.sum([st.size for st in tdataArray]) == 0:
+        if np.sum([st.size for st in tdata]) == 0:
             self._emptySpikeTrainArray()
             return
 
         # set self._tdata and self._time:
         self._time = time
-        self._tdata = tdataArray
+        self._tdata = tdata
 
     def __iter__(self):
         """SpikeTrainArray iterator initialization."""
