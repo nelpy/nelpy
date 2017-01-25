@@ -47,7 +47,7 @@ def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
         >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
         >>> data = [3, 4, 2, 5, 2]
         >>> npl.plot(ep, data)
-        
+
     Hide the markers and change the linewidth:
 
         >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
@@ -143,7 +143,7 @@ def overviewstrip():
     """
     raise NotImplementedError("overviewstripplot() not implemented yet")
 
-def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, lw=None, lh=None, reindex = None,**kwargs):
+def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, lw=None, lh=None, collapse = None,**kwargs):
     """Docstring goes here."""
 
     # Sort out default values for the parameters
@@ -155,8 +155,12 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
         lw = 1.5
     if lh is None:
         lh = 0.95
-    if reindex is None:
-        reindex = False
+    if collapse is None:
+        collapse = False
+    
+    firstplot = False
+    if not ax.findobj(match=mpl.collections.LineCollection):
+        firstplot = True
 
     hh = lh/2.0  # half the line height
 
@@ -176,7 +180,7 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
         if prev_yrange[0] == 0:
             prev_yrange = [np.infty, 1]
 
-        if reindex:
+        if collapse:
             minunit = 1
             maxunit = data.n_units
             unitlist = range(1, data.n_units + 1)
@@ -190,19 +194,27 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
 
         yrange = [minunit - 0.5, maxunit + 0.5]
 
+
         if cmap is not None:
+            color_range = range(data.n_units)
             colors = cmap(np.linspace(0.25, 0.75, data.n_units)) # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
-            for unit, spiketrain in zip(unitlist, data.time):
-                ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[unit-1], lw=lw, **kwargs)
+            for unit, spiketrain, color_idx in zip(unitlist, data.time, color_range):
+                ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[color_idx], lw=lw, **kwargs)
         else:  # use a constant color:
             for unit, spiketrain in zip(unitlist, data.time):
                 ax.vlines(spiketrain, unit - hh, unit + hh, colors=color, lw=lw, **kwargs)
 
-        # change y-axis labels to integers
-        yint = range(minunit, maxunit + 1)
-        ax.set_yticks(yint)
-
         ax.set_ylim(yrange)
+
+        if firstplot:
+            ax.set_yticks(unitlist)
+            ax.set_yticklabels(data.unit_labels)
+
+        else:
+            new_yticklabels = [prev_yticklabel.get_text() for prev_yticklabel in ax.get_yticklabels()] \
+                            + data.unit_labels
+            ax.set_yticks(np.append(ax.get_yticks(), unitlist))
+            ax.set_yticklabels(new_yticklabels + data.unit_labels)
 
     elif isinstance(data, EpochArray):
         # TODO: how can I figure out an appropriate height when plotting a spiketrain support?
