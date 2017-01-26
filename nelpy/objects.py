@@ -371,7 +371,16 @@ class EpochArray:
         Metadata associated with spiketrain.
     """
 
-    def __init__(self, tdata, *, fs=None, duration=None, meta=None):
+    __attributes__ = ["_tdata", "_time", "_fs", "_meta"]
+
+    def __init__(self, tdata=None, *, fs=None, duration=None,
+                 meta=None, empty=False):
+
+        # if an empty object is requested, return it:
+        if empty:
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
 
         tdata = np.squeeze(tdata)  # coerce tdata into np.array
 
@@ -419,14 +428,12 @@ class EpochArray:
             try:
                 # if no tdata were received, return an empty EpochArray:
                 if len(tdata) == 0:
-                    self._emptyEpochArray()
-                    return
+                    return EpochArray(empty=True)
             except TypeError:
                 warnings.warn("unsupported type ("
                     + str(type(tdata))
                     + "); creating empty EpochArray")
-                self._emptyEpochArray()
-                return
+                return EpochArray(empty=True)
 
             # Only one epoch is given eg EpochArray([3,5,6,10]) with no
             # duration and more than two values:
@@ -476,14 +483,6 @@ class EpochArray:
         self._tdata = tdata
         self._fs = fs
         self._meta = meta
-
-    def _emptyEpochArray(self):
-        """Clears all instance variables."""
-        self._tdata = np.array([])
-        self._time = np.array([])
-        self._fs = None
-        self._meta = None
-        return
 
     def __repr__(self):
         if self.isempty:
@@ -1553,8 +1552,7 @@ class SpikeTrainArray(SpikeTrain):
         # SpikeTrainArray:
         if np.sum([st.size for st in tdata]) == 0 and support.isempty:
             warnings.warn("no data; returning empty SpikeTrainArray")
-            self._emptySpikeTrainArray()
-            return
+            return SpikeTrainArray(empty=True)
 
         kwargs = {"fs": fs,
                   "unit_ids": unit_ids,
@@ -1597,8 +1595,7 @@ class SpikeTrainArray(SpikeTrain):
         # if no tdata remain after restricting to the support, return
         # an empty SpikeTrainArray:
         if np.sum([st.size for st in tdata]) == 0:
-            self._emptySpikeTrainArray()
-            return
+            return SpikeTrainArray(empty=True)
 
         # set self._tdata and self._time:
         self._time = time
@@ -1800,18 +1797,6 @@ class SpikeTrainArray(SpikeTrain):
             tdata[unit] = tdata[unit][indices]
             time[unit] = time[unit][indices]
         return time, tdata
-
-    def _emptySpikeTrainArray(self):
-        """empty all the instance attributes for an empty object."""
-        self._tdata = np.array([])
-        self._time = np.array([])
-        self._support = EpochArray([])
-        self._fs = None
-        self._unit_ids = None
-        self._unit_labels = None
-        self._unit_tags = None
-        self._label = None
-        return
 
     def __repr__(self):
         if self.isempty:
