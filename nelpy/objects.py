@@ -134,6 +134,7 @@ class SpikeTrain(object):
                  unit_tags=None, label=None, empty=False):
 
         # if an empty object is requested, return it:
+        # TODO: do this with __attributes__
         if empty:
             self._fs = None
             self._unit_ids = None
@@ -1748,7 +1749,7 @@ class SpikeTrainArray(SpikeTrain):
             for attr in attrs:
                 exec("tempcopy." + attr + " = self." + attr)
         tempcopy._unit_ids = [unit_id]
-        tempcopy._unit_labels = unit_label
+        tempcopy._unit_labels = [unit_label]
         tempcopy._unit_tags = None
 
         # TODO: here we linear merge twice; once for tdata and once for
@@ -2138,6 +2139,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 exec("tempcopy." + attr + " = self." + attr)
         tempcopy._data = np.array(self.data.sum(axis=0), ndmin=2)
         tempcopy._unit_ids = [unit_id]
+        tempcopy._unit_labels = [unit_label]
         tempcopy._unit_tags = None
         return tempcopy
 
