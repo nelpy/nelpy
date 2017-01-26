@@ -301,40 +301,40 @@ class SpikeTrain(object):
                 warnings.warn("no units remaining in requested unit subset")
                 return SpikeTrainArray(empty=True)
 
-            tempcopy = SpikeTrainArray(empty=True)
+            spiketrainarray = SpikeTrainArray(empty=True)
             exclude = ["_tdata", "_time", "unit_ids", "unit_labels"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 for attr in attrs:
-                    exec("tempcopy." + attr + " = self." + attr)
+                    exec("spiketrainarray." + attr + " = self." + attr)
 
-            tempcopy._tdata = self.tdata[unit_subset_ids]
-            tempcopy._time = self.time[unit_subset_ids]
-            tempcopy._unit_ids = new_unit_ids
-            tempcopy._unit_labels = new_unit_labels
+            spiketrainarray._tdata = self.tdata[unit_subset_ids]
+            spiketrainarray._time = self.time[unit_subset_ids]
+            spiketrainarray._unit_ids = new_unit_ids
+            spiketrainarray._unit_labels = new_unit_labels
 
-            return tempcopy
+            return spiketrainarray
         elif isinstance(self, BinnedSpikeTrainArray):
             if len(unit_subset_ids) == 0:
                 warnings.warn("no units remaining in requested unit subset")
                 return BinnedSpikeTrainArray(empty=True)
 
-            tempcopy = BinnedSpikeTrainArray(empty=True)
+            binnedspiketrainarray = BinnedSpikeTrainArray(empty=True)
             exclude = ["_data", "unit_ids", "unit_labels"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 for attr in attrs:
-                    exec("tempcopy." + attr + " = self." + attr)
+                    exec("binnedspiketrainarray." + attr + " = self." + attr)
 
-            tempcopy._data = self.data[unit_subset_ids,:]
-            tempcopy._unit_ids = new_unit_ids
-            tempcopy._unit_labels = new_unit_labels
+            binnedspiketrainarray._data = self.data[unit_subset_ids,:]
+            binnedspiketrainarray._unit_ids = new_unit_ids
+            binnedspiketrainarray._unit_labels = new_unit_labels
 
-            return tempcopy
+            return binnedspiketrainarray
         else:
             raise NotImplementedError(
             "SpikeTrain._unit_slice() not supported for this type yet!")
@@ -509,7 +509,7 @@ class EpochArray:
             raise StopIteration
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            tempcopy = EpochArray(empty=True)
+            epocharray = EpochArray(empty=True)
 
             exclude = ["_tdata", "_time"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
@@ -517,11 +517,11 @@ class EpochArray:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 for attr in attrs:
-                    exec("tempcopy." + attr + " = self." + attr)
-            tempcopy._tdata = np.array([self.tdata[index, :]])
-            tempcopy._time = np.array([self.time[index, :]])
+                    exec("epocharray." + attr + " = self." + attr)
+            epocharray._tdata = np.array([self.tdata[index, :]])
+            epocharray._time = np.array([self.time[index, :]])
         self._index += 1
-        return tempcopy
+        return epocharray
 
     def __getitem__(self, idx):
         """EpochArray index access.
@@ -762,42 +762,38 @@ class EpochArray:
             new_starts = np.unique(new_starts)
             new_stops = np.unique(new_stops)
 
+        epocharray = EpochArray(empty=True)
+        exclude = ["_tdata", "_time", "_fs"]
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("epocharray." + attr + " = self." + attr)
+
         # case 1: (fs, fs) = (None, const)
         # case 2: (fs, fs) = (const, None)
         # case 3: (fs, fs) = (None, None)
         # case 4: (fs, fs) = (const, const)
         # case 5: (fs, fs) = (constA, constB)
 
-        if self.fs != epoch.fs:  # cases (1, 2, 5)
+        if self.fs != epoch.fs or self.fs is None:  # cases (1, 2, 3, 5)
             warnings.warn(
                 "sampling rates are different; intersecting along "
                 "time only and throwing away fs"
                 )
-            return EpochArray(
-                np.hstack(
-                    [np.array(new_starts)[..., np.newaxis],
-                     np.array(new_stops)[..., np.newaxis]]
-                    ),
-                fs=None,
-                meta=meta
-                )
-        elif self.fs is None:  # cases (1, 3) [1 already handled]
-            return EpochArray(
-                np.hstack(
-                    [np.array(new_starts)[..., np.newaxis],
-                     np.array(new_stops)[..., np.newaxis]]
-                    ),
-                fs=None,
-                meta=meta
-                )
+            epocharray._time = np.hstack(
+                [np.array(new_starts)[..., np.newaxis],
+                 np.array(new_stops)[..., np.newaxis]])
+            epocharray._tdata = epocharray._time
+            epocharray._fs = None
         else:  # case (4, )
-            return EpochArray(
-                np.hstack(
-                    [np.array(new_starts)[..., np.newaxis],
-                     np.array(new_stops)[..., np.newaxis]])*self.fs,
-                fs=self.fs,
-                meta=meta
-                )
+            epocharray._time = np.hstack(
+                [np.array(new_starts)[..., np.newaxis],
+                 np.array(new_stops)[..., np.newaxis]])
+            epocharray._tdata = epocharray._time*self.fs
+            epocharray._fs = self.fs
+
+        return epocharray
 
     def merge(self, gap=0.0):
         """Merges epochs that are close or overlapping.
@@ -1749,7 +1745,7 @@ class SpikeTrainArray(SpikeTrain):
         if unit_label is None:
             unit_label = "flattened"
 
-        tempcopy = SpikeTrainArray(empty=True)
+        spiketrainarray = SpikeTrainArray(empty=True)
 
         exclude = ["_tdata", "_time", "unit_ids", "unit_labels", "unit_tags"]
         attrs = (x for x in self.__attributes__ if x not in exclude)
@@ -1757,10 +1753,10 @@ class SpikeTrainArray(SpikeTrain):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for attr in attrs:
-                exec("tempcopy." + attr + " = self." + attr)
-        tempcopy._unit_ids = [unit_id]
-        tempcopy._unit_labels = [unit_label]
-        tempcopy._unit_tags = None
+                exec("spiketrainarray." + attr + " = self." + attr)
+        spiketrainarray._unit_ids = [unit_id]
+        spiketrainarray._unit_labels = [unit_label]
+        spiketrainarray._unit_tags = None
 
         # TODO: here we linear merge twice; once for tdata and once for
         # time. This is unneccessary, and can be optimized. But flatten()
@@ -1772,9 +1768,9 @@ class SpikeTrainArray(SpikeTrain):
         for unit in range(1,self.n_units):
             alltimes = linear_merge(alltimes, self.time[unit])
 
-        tempcopy._tdata = np.array(list(allspikes), ndmin=2)
-        tempcopy._time = np.array(list(alltimes), ndmin=2)
-        return tempcopy
+        spiketrainarray._tdata = np.array(list(allspikes), ndmin=2)
+        spiketrainarray._time = np.array(list(alltimes), ndmin=2)
+        return spiketrainarray
 
     def _restrict_to_epoch_array(self, *, epocharray, time, tdata,
                                  copy=True):
@@ -2135,7 +2131,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if unit_label is None:
             unit_label = "flattened"
 
-        tempcopy = BinnedSpikeTrainArray(empty=True)
+        binnedspiketrainarray = BinnedSpikeTrainArray(empty=True)
 
         exclude = ["_data", "unit_ids", "unit_labels", "unit_tags"]
         attrs = (x for x in self.__attributes__ if x not in "_data")
@@ -2143,12 +2139,12 @@ class BinnedSpikeTrainArray(SpikeTrain):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for attr in attrs:
-                exec("tempcopy." + attr + " = self." + attr)
-        tempcopy._data = np.array(self.data.sum(axis=0), ndmin=2)
-        tempcopy._unit_ids = [unit_id]
-        tempcopy._unit_labels = [unit_label]
-        tempcopy._unit_tags = None
-        return tempcopy
+                exec("binnedspiketrainarray." + attr + " = self." + attr)
+        binnedspiketrainarray._data = np.array(self.data.sum(axis=0), ndmin=2)
+        binnedspiketrainarray._unit_ids = [unit_id]
+        binnedspiketrainarray._unit_labels = [unit_label]
+        binnedspiketrainarray._unit_tags = None
+        return binnedspiketrainarray
 
 
 #----------------------------------------------------------------------#
