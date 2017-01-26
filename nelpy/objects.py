@@ -167,7 +167,8 @@ class SpikeTrain(object):
         self.label = label
 
     def __repr__(self):
-        return "<base SpikeTrain>"
+        address_str = " at " + str(hex(id(self)))
+        return "<base SpikeTrain" + address_str + ">"
 
     @property
     def isempty(self):
@@ -485,14 +486,15 @@ class EpochArray:
         self._meta = meta
 
     def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
         if self.isempty:
-            return "<empty EpochArray>"
+            return "<empty EpochArray" + address_str + ">"
         if self.n_epochs > 1:
             nstr = "%s epochs" % (self.n_epochs)
         else:
             nstr = "1 epoch"
         dstr = "totaling %s seconds" % self.duration
-        return "<EpochArray: %s> %s" % (nstr, dstr)
+        return "<EpochArray%s: %s> %s" % (address_str, nstr, dstr)
 
     def __iter__(self):
         """EpochArray iterator initialization."""
@@ -518,7 +520,6 @@ class EpochArray:
                     exec("tempcopy." + attr + " = self." + attr)
             tempcopy._tdata = np.array([self.tdata[index, :]])
             tempcopy._time = np.array([self.time[index, :]])
-
         self._index += 1
         return tempcopy
 
@@ -1021,10 +1022,11 @@ class EventArray:
         self._meta = meta
 
     def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
         if self.isempty:
-            return "<empty EventArray>"
+            return "<empty EventArray" + address_str + ">"
         # return "<EventArray: %s> %s" % (nstr, dstr)
-        return "<EventArray"
+        return "<EventArray" + address_str + ">"
 
     def __getitem__(self, idx):
         raise NotImplementedError(
@@ -1808,8 +1810,9 @@ class SpikeTrainArray(SpikeTrain):
         return time, tdata
 
     def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
         if self.isempty:
-            return "<empty SpikeTrainArray>"
+            return "<empty SpikeTrainArray" + address_str + ">"
         if self.fs is not None:
             fsstr = " at %s Hz" % self.fs
         else:
@@ -1819,7 +1822,7 @@ class SpikeTrainArray(SpikeTrain):
         else:
             labelstr = ""
         numstr = " %s units" % self.n_units
-        return "<SpikeTrainArray:%s>%s%s" % (numstr, fsstr, labelstr)
+        return "<SpikeTrainArray%s:%s>%s%s" % (address_str, numstr, fsstr, labelstr)
 
     def bin(self, *, ds=None):
         """Bin spiketrain array."""
@@ -1940,8 +1943,9 @@ class BinnedSpikeTrainArray(SpikeTrain):
         return newcopy
 
     def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
         if self.isempty:
-            return "<empty BinnedSpikeTrainArray>"
+            return "<empty BinnedSpikeTrainArray" + address_str + ">"
         ustr = " {} units in".format(self.n_units)
         if self.n_bins == 1:
             bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
@@ -1949,7 +1953,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         else:
             bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
             dstr = " for a total of {} seconds.".format(self.n_bins*self.ds)
-        return "<BinnedSpikeTrainArray:%s%s>%s" % (ustr, bstr, dstr)
+        return "<BinnedSpikeTrainArray%s:%s%s>%s" % (address_str, ustr, bstr, dstr)
 
     def __iter__(self):
         """BinnedSpikeTrainArray iterator initialization."""
