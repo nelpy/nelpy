@@ -2,7 +2,7 @@
 Nelpy
 =====
 
-**N**uro**el**ectro**p**hysiolog**y** object model and analysis in Python.
+**N**\ euro\ **el**\ ectro**p**hysiolog**y** object model and analysis in Python.
 
 Overview
 ========
