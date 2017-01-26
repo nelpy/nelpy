@@ -128,8 +128,18 @@ class SpikeTrain(object):
         Information pertaining to the source of the spike train.
     """
 
+    __attributes__ = ["_fs", "_unit_ids", "_unit_labels", "_unit_tags"]
+
     def __init__(self, *, fs=None, unit_ids=None, unit_labels=None,
-                 unit_tags=None, label=None):
+                 unit_tags=None, label=None, empty=False):
+
+        # if an empty object is requested, return it:
+        if empty:
+            self._fs = None
+            self._unit_ids = None
+            self._unit_labels = None
+            self._unit_tags = None
+            return
 
         # set initial fs to None
         self._fs = None
@@ -1557,11 +1567,19 @@ class SpikeTrainArray(SpikeTrain):
         Metadata associated with spiketrain.
     """
 
-    # TODO: support for single spiketrain
-    # TODO: init input validation to mimic EpochArray
+    __attributes__ = ["_tdata", "_time", "_support"]
+    __attributes__.extend(SpikeTrain.__attributes__)
 
-    def __init__(self, tdata, *, fs=None, support=None, unit_ids=None,
-                 unit_labels=None, unit_tags=None, label=None):
+    def __init__(self, tdata=None, *, fs=None, support=None, unit_ids=None,
+                 unit_labels=None, unit_tags=None, label=None,
+                 empty=False):
+
+        # if an empty object is requested, return it:
+        if empty:
+            super().__init__(empty=True)
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
 
         def standardize_to_2d(data):
             data = np.squeeze(data)  # deals with extraneous dimensions
@@ -1639,6 +1657,13 @@ class SpikeTrainArray(SpikeTrain):
         # set self._tdata and self._time:
         self._time = time
         self._tdata = tdata
+
+    def copy(self):
+        """Returns a copy of the SpikeTrainArray."""
+        newcopy = SpikeTrainArray(empty=True)
+        for attr in self.__attributes__:
+            exec("newcopy." + attr + " = self." + attr)
+        return newcopy
 
     def __iter__(self):
         """SpikeTrainArray iterator initialization."""
@@ -1860,7 +1885,20 @@ class BinnedSpikeTrainArray(SpikeTrain):
     time : np.array
         The start and stop times for each epoch. With shape (n_epochs, 2).
     """
-    def __init__(self, spiketrainarray, *, ds=None):
+
+    __attributes__ = ["_ds", "_bins", "_data", "_centers", "_support",
+                      "_binnedSupport", "_spiketrainarray"]
+    __attributes__.extend(SpikeTrain.__attributes__)
+
+    def __init__(self, spiketrainarray=None, *, ds=None, empty=False):
+
+        # if an empty object is requested, return it:
+        if empty:
+            super().__init__(empty=True)
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
+
         if not isinstance(spiketrainarray, SpikeTrainArray):
             raise TypeError(
                 'spiketrainarray must be a nelpy.SpikeTrainArray object.')
@@ -1890,8 +1928,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         # TODO: this is not a good empty object to return; fix it!
         # if no tdata were received, return an empty BinnedSpikeTrain:
         if spiketrainarray.isempty:
-            self.ds = ds
-            return
+            return BinnedSpikeTrainArray(empty=True)
 
         self._spiketrainarray = spiketrainarray # TODO: remove this if we don't need it, or decide that it's too wasteful
         self._support = spiketrainarray.support
@@ -1902,6 +1939,13 @@ class BinnedSpikeTrainArray(SpikeTrain):
             epochArray=self.support,
             ds=ds
             )
+
+    def copy(self):
+        """Returns a copy of the BinnedSpikeTrainArray."""
+        newcopy = BinnedSpikeTrainArray(empty=True)
+        for attr in self.__attributes__:
+            exec("newcopy." + attr + " = self." + attr)
+        return newcopy
 
     def __repr__(self):
         if self.isempty:
