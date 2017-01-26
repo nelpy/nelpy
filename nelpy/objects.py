@@ -134,12 +134,9 @@ class SpikeTrain(object):
                  unit_tags=None, label=None, empty=False):
 
         # if an empty object is requested, return it:
-        # TODO: do this with __attributes__
         if empty:
-            self._fs = None
-            self._unit_ids = None
-            self._unit_labels = None
-            self._unit_tags = None
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
             return
 
         # set initial fs to None
@@ -295,43 +292,48 @@ class SpikeTrain(object):
             else:
                 unit_subset_ids.append(id)
 
-        # if len(unit_subset_ids) == 0:
-        #     warnings.warn("no units remaining in requested unit subset")
-        #     # BUG: how do I return (simply) an empty SpikeTrain? I can't
-        #     # easily instantiate a new one, because I have to
-        #     # instantiate the derived class. This might be okay, I can
-        #     # do isinstance() checks, but the code seems messy. What
-        #     # alternatives do I have? My brain isn't working now.
-        #     raise NotImplementedError("Finish writing this return code!")
-        #     return EMPTY_DERIVED_CLASS_OBJECT
-
         new_unit_ids = np.asarray(self.unit_ids)[unit_subset_ids]
         new_unit_labels = np.asarray(self.unit_labels)[unit_subset_ids]
 
-        # @no_warnings
-        # def warnn(message):
-        #     warnings.warn(message)
-
         if isinstance(self, SpikeTrainArray):
             if len(unit_subset_ids) == 0:
-                return SpikeTrainArray([])
+                warnings.warn("no units remaining in requested unit subset")
+                return SpikeTrainArray(empty=True)
+
+            tempcopy = SpikeTrainArray(empty=True)
+            exclude = ["_tdata", "_time", "unit_ids", "unit_labels"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                kwargs = {"tdata": self.tdata[unit_subset_ids],
-                          "fs": self.fs,
-                          "support": self.support,
-                          "unit_ids": new_unit_ids,
-                          "unit_labels": new_unit_labels,
-                          "unit_tags": self.unit_tags, # BUG: may need to prune tags
-                          "label": self.label}
-            return SpikeTrainArray(**kwargs)
+                for attr in attrs:
+                    exec("tempcopy." + attr + " = self." + attr)
+
+            tempcopy._tdata = self.tdata[unit_subset_ids]
+            tempcopy._time = self.time[unit_subset_ids]
+            tempcopy._unit_ids = new_unit_ids
+            tempcopy._unit_labels = new_unit_labels
+
+            return tempcopy
         elif isinstance(self, BinnedSpikeTrainArray):
             if len(unit_subset_ids) == 0:
-                return BinnedSpikeTrainArray([])
-            # should be very similar to above, but with a few additional
-            # kwargs
-            raise NotImplementedError(
-            "BinnedSpikeTrainArray._unit_slice() not implemented yet!")
+                warnings.warn("no units remaining in requested unit subset")
+                return BinnedSpikeTrainArray(empty=True)
+
+            tempcopy = BinnedSpikeTrainArray(empty=True)
+            exclude = ["_data", "unit_ids", "unit_labels"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("tempcopy." + attr + " = self." + attr)
+
+            tempcopy._data = self.data[unit_subset_ids,:]
+            tempcopy._unit_ids = new_unit_ids
+            tempcopy._unit_labels = new_unit_labels
+
+            return tempcopy
         else:
             raise NotImplementedError(
             "SpikeTrain._unit_slice() not supported for this type yet!")
@@ -2137,7 +2139,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         tempcopy = BinnedSpikeTrainArray(empty=True)
 
-        exclude = ["_data", "unit_ids", "unit_tags"]
+        exclude = ["_data", "unit_ids", "unit_labels", "unit_tags"]
         attrs = (x for x in self.__attributes__ if x not in "_data")
 
         with warnings.catch_warnings():
