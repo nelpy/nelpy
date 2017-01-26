@@ -2107,6 +2107,13 @@ class BinnedSpikeTrainArray(SpikeTrain):
         # other numpy methods to get a more efficient implementation:
         return self.data.clip(max=1).sum(axis=0)
 
+    @property
+    def n_spikes(self):
+        """(np.array) The number of spikes in each unit."""
+        if self.isempty:
+            return 0
+        return self.data.sum(axis=1)
+
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
 
