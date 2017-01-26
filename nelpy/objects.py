@@ -312,23 +312,6 @@ class SpikeTrain(object):
                         }
             flatspiketrain = SpikeTrainArray(**kwargs)
             return flatspiketrain
-
-        elif isinstance(self, BinnedSpikeTrainArray):
-            # data.sum(axis=0)
-            # with warnings.catch_warnings():
-            #     warnings.simplefilter("ignore")
-            #     kwargs = {"tdata": list(allspikes),
-            #             "fs": self.fs,
-            #             "support": self.support,
-            #             "unit_ids": [unit_id],
-            #             "unit_labels": unit_label,
-            #             "unit_tags": None,
-            #             "label": self.label
-            #             }
-            # flatspiketrain = SpikeTrainArray(**kwargs)
-            # return flatspiketrain
-            raise NotImplementedError(
-            "BinnedSpikeTrainArray.flatten() not implemented yet!")
         else:
             raise NotImplementedError(
             "SpikeTrain.flatten() not supported for this type yet!")
@@ -1570,9 +1553,9 @@ class SpikeTrainArray(SpikeTrain):
     __attributes__ = ["_tdata", "_time", "_support"]
     __attributes__.extend(SpikeTrain.__attributes__)
 
-    def __init__(self, tdata=None, *, fs=None, support=None, unit_ids=None,
-                 unit_labels=None, unit_tags=None, label=None,
-                 empty=False):
+    def __init__(self, tdata=None, *, fs=None, support=None,
+                 unit_ids=None, unit_labels=None, unit_tags=None,
+                 label=None, empty=False):
 
         # if an empty object is requested, return it:
         if empty:
@@ -1972,10 +1955,10 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if index > self.support.n_epochs - 1:
             raise StopIteration
 
-        raise NotImplementedError("Not done yet!")
         # with warnings.catch_warnings():
         #     warnings.simplefilter("ignore")
         #     support = self.support[index]
+
         #     time, tdata = self._restrict_to_epoch_array(
         #         epocharray=support,
         #         time=self.time,
@@ -2110,6 +2093,37 @@ class BinnedSpikeTrainArray(SpikeTrain):
         # TODO: profile several alternatves. Could use data > 0, or
         # other numpy methods to get a more efficient implementation:
         return self.data.clip(max=1).sum(axis=0)
+
+    def flatten(self, *, unit_id=None, unit_label=None):
+        """Collapse spike trains across units.
+
+        WARNING! unit_tags are thrown away when flattening.
+
+        Parameters
+        ----------
+        unit_id: (int)
+            (unit) ID to assign to flattened spike train, default is 0.
+        unit_label (str)
+            (unit) Label for spike train, default is 'flattened'.
+        """
+        if self.n_units == 1:  # already flattened
+            return self
+
+        # default args:
+        if unit_id is None:
+            unit_id = 0
+        if unit_label is None:
+            unit_label = "flattened"
+
+        tempcopy = BinnedSpikeTrainArray(empty=True)
+
+        attrs = (x for x in self.__attributes__ if x not in "_data")
+
+        for attr in attrs:
+            exec("tempcopy." + attr + " = self." + attr)
+        tempcopy._data = np.array(self.data.sum(axis=0), ndmin=2)
+        return tempcopy
+
 
 #----------------------------------------------------------------------#
 #======================================================================#
