@@ -128,7 +128,7 @@ class SpikeTrain(object):
         Information pertaining to the source of the spike train.
     """
 
-    __attributes__ = ["_fs", "_unit_ids", "_unit_labels", "_unit_tags"]
+    __attributes__ = ["_fs", "_unit_ids", "_unit_labels", "_unit_tags", "label"]
 
     def __init__(self, *, fs=None, unit_ids=None, unit_labels=None,
                  unit_tags=None, label=None, empty=False):
@@ -272,49 +272,6 @@ class SpikeTrain(object):
         else:
             label = val
         self._label = label
-
-    def flatten(self, *, unit_id=None, unit_label=None):
-        """Collapse spike trains across units.
-
-        WARNING! unit_tags are thrown away when flattening.
-
-        Parameters
-        ----------
-        unit_id: (int)
-            (unit) ID to assign to flattened spike train, default is 0.
-        unit_label (str)
-            (unit) Label for spike train, default is 'flattened'.
-        """
-
-        if self.n_units == 1:  # already flattened
-            return self
-
-        # default args:
-        if unit_id is None:
-            unit_id = 0
-        if unit_label is None:
-            unit_label = "flattened"
-
-        if isinstance(self, SpikeTrainArray):
-            allspikes = self.tdata[0]
-            for unit in range(1,self.n_units):
-                allspikes = linear_merge(allspikes, self.tdata[unit])
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                kwargs = {"tdata": list(allspikes),
-                        "fs": self.fs,
-                        "support": self.support,
-                        "unit_ids": [unit_id],
-                        "unit_labels": unit_label,
-                        "unit_tags": None,
-                        "label": self.label
-                        }
-            flatspiketrain = SpikeTrainArray(**kwargs)
-            return flatspiketrain
-        else:
-            raise NotImplementedError(
-            "SpikeTrain.flatten() not supported for this type yet!")
 
     def _unit_subset(self, unit_list):
         """Return a SpikeTrain restricted to a subset of units.
@@ -1755,6 +1712,52 @@ class SpikeTrainArray(SpikeTrain):
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
 
+    def flatten(self, *, unit_id=None, unit_label=None):
+        """Collapse spike trains across units.
+
+        WARNING! unit_tags are thrown away when flattening.
+
+        Parameters
+        ----------
+        unit_id: (int)
+            (unit) ID to assign to flattened spike train, default is 0.
+        unit_label (str)
+            (unit) Label for spike train, default is 'flattened'.
+        """
+        if self.n_units == 1:  # already flattened
+            return self
+
+        # default args:
+        if unit_id is None:
+            unit_id = 0
+        if unit_label is None:
+            unit_label = "flattened"
+
+        tempcopy = SpikeTrainArray(empty=True)
+
+        exclude = ["_tdata", "_time", "unit_ids", "unit_labels", "unit_tags"]
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+
+        for attr in attrs:
+            exec("tempcopy." + attr + " = self." + attr)
+        tempcopy._unit_ids = [unit_id]
+        tempcopy._unit_labels = unit_label
+        tempcopy._unit_tags = None
+
+        # TODO: here we linear merge twice; once for tdata and once for
+        # time. This is unneccessary, and can be optimized. But flatten()
+        # shouldn't be called often, so it's low priority,
+        allspikes = self.tdata[0]
+        for unit in range(1,self.n_units):
+            allspikes = linear_merge(allspikes, self.tdata[unit])
+        alltimes = self.time[0]
+        for unit in range(1,self.n_units):
+            alltimes = linear_merge(alltimes, self.time[unit])
+
+        tempcopy._tdata = np.array(list(allspikes), ndmin=2)
+        tempcopy._time = np.array(list(alltimes), ndmin=2)
+        return tempcopy
+
     def _restrict_to_epoch_array(self, *, epocharray, time, tdata,
                                  copy=True):
         """Returns time and tdata restricted to an EpochArray.
@@ -2117,11 +2120,14 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         tempcopy = BinnedSpikeTrainArray(empty=True)
 
+        exclude = ["_data", "unit_ids", "unit_tags"]
         attrs = (x for x in self.__attributes__ if x not in "_data")
 
         for attr in attrs:
             exec("tempcopy." + attr + " = self." + attr)
         tempcopy._data = np.array(self.data.sum(axis=0), ndmin=2)
+        tempcopy._unit_ids = [unit_id]
+        tempcopy._unit_tags = None
         return tempcopy
 
 
