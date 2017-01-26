@@ -1601,8 +1601,10 @@ class SpikeTrainArray(SpikeTrain):
     def copy(self):
         """Returns a copy of the SpikeTrainArray."""
         newcopy = SpikeTrainArray(empty=True)
-        for attr in self.__attributes__:
-            exec("newcopy." + attr + " = self." + attr)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in self.__attributes__:
+                exec("newcopy." + attr + " = self." + attr)
         return newcopy
 
     def __iter__(self):
@@ -1738,8 +1740,10 @@ class SpikeTrainArray(SpikeTrain):
         exclude = ["_tdata", "_time", "unit_ids", "unit_labels", "unit_tags"]
         attrs = (x for x in self.__attributes__ if x not in exclude)
 
-        for attr in attrs:
-            exec("tempcopy." + attr + " = self." + attr)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("tempcopy." + attr + " = self." + attr)
         tempcopy._unit_ids = [unit_id]
         tempcopy._unit_labels = unit_label
         tempcopy._unit_tags = None
@@ -1929,8 +1933,10 @@ class BinnedSpikeTrainArray(SpikeTrain):
     def copy(self):
         """Returns a copy of the BinnedSpikeTrainArray."""
         newcopy = BinnedSpikeTrainArray(empty=True)
-        for attr in self.__attributes__:
-            exec("newcopy." + attr + " = self." + attr)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in self.__attributes__:
+                exec("newcopy." + attr + " = self." + attr)
         return newcopy
 
     def __repr__(self):
@@ -2123,8 +2129,10 @@ class BinnedSpikeTrainArray(SpikeTrain):
         exclude = ["_data", "unit_ids", "unit_tags"]
         attrs = (x for x in self.__attributes__ if x not in "_data")
 
-        for attr in attrs:
-            exec("tempcopy." + attr + " = self." + attr)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("tempcopy." + attr + " = self." + attr)
         tempcopy._data = np.array(self.data.sum(axis=0), ndmin=2)
         tempcopy._unit_ids = [unit_id]
         tempcopy._unit_tags = None
