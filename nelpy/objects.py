@@ -507,13 +507,20 @@ class EpochArray:
             raise StopIteration
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            epoch = EpochArray(
-                        np.array([self.tdata[index, :]]),
-                        fs=self.fs,
-                        meta=self.meta
-                        )
+            tempcopy = EpochArray(empty=True)
+
+            exclude = ["_tdata", "_time"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("tempcopy." + attr + " = self." + attr)
+            tempcopy._tdata = np.array([self.tdata[index, :]])
+            tempcopy._time = np.array([self.time[index, :]])
+
         self._index += 1
-        return epoch
+        return tempcopy
 
     def __getitem__(self, idx):
         """EpochArray index access.
@@ -529,7 +536,7 @@ class EpochArray:
             # case 4: (fs, fs) = (const, const)
             # case 5: (fs, fs) = (constA, constB)
             if idx.isempty:  # case 0:
-                return EpochArray([])
+                return EpochArray(empty=True)
             if idx.fs != self.fs:  # cases (1, 2, 5):
                 epoch = self.intersect(
                     epoch=EpochArray(idx.time, fs=None),
@@ -541,7 +548,7 @@ class EpochArray:
                     boundaries=True
                     ) # what if fs of slicing epoch is different?
             if epoch.isempty:
-                return EpochArray([])
+                return EpochArray(empty=True)
             return epoch
         elif isinstance(idx, int):
             try:
@@ -553,7 +560,7 @@ class EpochArray:
                 return epoch
             except IndexError:
                 # index is out of bounds, so return an empty EpochArray
-                return EpochArray([])
+                return EpochArray(empty=True)
         else:
             try:
                 epocharray = EpochArray(
@@ -716,6 +723,8 @@ class EpochArray:
         """
         if self.isempty or epoch.isempty:
             warnings.warn('epoch intersection is empty')
+            # TODO: copy everything except time? Wouldn't rest get
+            # lost anyway due to no samples ==> return EpochArray(empty)?
             return EpochArray([], duration=[], meta=meta)
 
         new_starts = []
@@ -1657,7 +1666,7 @@ class SpikeTrainArray(SpikeTrain):
 
         if isinstance(idx, EpochArray):
             if idx.isempty:
-                return SpikeTrainArray([])
+                return SpikeTrainArray(empty=True)
             if idx.fs != self.support.fs:
                 support = self.support.intersect(
                     epoch=EpochArray(idx.time, fs=None),
@@ -1669,7 +1678,7 @@ class SpikeTrainArray(SpikeTrain):
                     boundaries=True
                     ) # what if fs of slicing epoch is different?
             if support.isempty:
-                return SpikeTrainArray([])
+                return SpikeTrainArray(empty=True)
             time, tdata = self._restrict_to_epoch_array(
                 epocharray=support,
                 time=self.time,
@@ -1683,7 +1692,7 @@ class SpikeTrainArray(SpikeTrain):
             return sta
         elif isinstance(idx, int):
             if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
-                return SpikeTrainArray([])
+                return SpikeTrainArray(empty=True)
             try:
                 support = self.support[idx]
                 time, tdata = self._restrict_to_epoch_array(
@@ -1698,7 +1707,7 @@ class SpikeTrainArray(SpikeTrain):
                 return sta
             except IndexError:
                 # index out of bounds: return an empty SpikeTrainArray
-                return SpikeTrainArray([])
+                return SpikeTrainArray(empty=True)
         else:
             try:
                 support = self.support[idx]
