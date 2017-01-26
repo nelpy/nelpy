@@ -128,7 +128,7 @@ class SpikeTrain(object):
         Information pertaining to the source of the spike train.
     """
 
-    __attributes__ = ["_fs", "_unit_ids", "_unit_labels", "_unit_tags", "label"]
+    __attributes__ = ["_fs", "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
 
     def __init__(self, *, fs=None, unit_ids=None, unit_labels=None,
                  unit_tags=None, label=None, empty=False):
@@ -177,7 +177,10 @@ class SpikeTrain(object):
         if isinstance(self, SpikeTrainArray):
             return np.sum([len(st) for st in self.time]) == 0
         elif isinstance(self, BinnedSpikeTrainArray):
-            return len(self.centers) == 0
+            try:
+                return len(self.centers) == 0
+            except TypeError:
+                return True  # this happens when self.centers == None
         else:
             raise NotImplementedError(
             "isempty should be defined in derived class")
@@ -1823,7 +1826,7 @@ class SpikeTrainArray(SpikeTrain):
 
     def bin(self, *, ds=None):
         """Bin spiketrain array."""
-        return BinnedSpikeTrainArray(self, ds=ds)
+        return BinnedSpikeTrainArray(self, ds=ds, empty=self.isempty)
 
     @property
     def tdata(self):
