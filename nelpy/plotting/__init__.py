@@ -14,12 +14,7 @@ This is the nelpy plotting module.
 #                        BinnedSpikeTrain,
 #                        BinnedSpikeTrainArray)
 
-from .core import (plot,
-                   comboplot,
-                   raster,
-                   matshow,
-                   overviewstrip,
-                   epoch_plot)
+from .core import *
 
 from .scalebar import add_scalebar
 

@@ -5,6 +5,38 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import warnings
 
+import matplotlib.artist as artist
+
+__all__ = ['plot',
+           'raster',
+           'epoch_plot']
+
+class RasterLabelData(artist.Artist):
+
+    def __init__(self):
+        self.label_data = {}  # (k, v) = (unit_id, (unit_loc, unit_label))
+        artist.Artist.__init__(self)
+        self.yrange = []
+
+    def __repr__(self):
+        return "<nelpy.RasterLabelData at " + str(hex(id(self))) + ">"
+
+    @property
+    def label_data(self):
+        return self._label_data
+
+    @label_data.setter
+    def label_data(self, val):
+        self._label_data = val
+
+    @property
+    def yrange(self):
+        return self._yrange
+
+    @yrange.setter
+    def yrange(self, val):
+        self._yrange = val
+
 def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
          mec=None, **kwargs):
     """Plot an array-like object on an EpochArray.
@@ -136,7 +168,9 @@ def overviewstrip():
     """
     raise NotImplementedError("overviewstripplot() not implemented yet")
 
-def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=True, lw=None, lh=None, reindex = None,**kwargs):
+def raster(data, *, cmap=None, color=None, legend=True, ax=None,
+           plot_support=True, lw=None, lh=None, vertstack=None,
+           **kwargs):
     """Docstring goes here."""
 
     # Sort out default values for the parameters
@@ -148,54 +182,79 @@ def raster(data, *, cmap=None, color=None, legend=True, ax=None, plot_support=Tr
         lw = 1.5
     if lh is None:
         lh = 0.95
-    if reindex is None:
-        reindex = False
+    if vertstack is None:
+        vertstack = False
+
+    firstplot = False
+    if not ax.findobj(match=RasterLabelData):
+        firstplot = True
+        ax.add_artist(RasterLabelData())
 
     hh = lh/2.0  # half the line height
 
     # Handle different types of input data
     if isinstance(data, SpikeTrainArray):
-        # the following example code can be used (modified) to correctly label
-        # only those units which have spike trains on the axis (cumulative)
-        #######################################################################
-#         ylabels = [item.get_text() for item in ax.get_yticklabels()]
-#         ylabels[1] = 'Testing'
-#         ax.set_yticklabels(ylabels)
-        #######################################################################
-        print("unit labels from object: ", data.unit_labels)
 
-        prev_yrange = ax.get_ylim()
-        # hacky fix for default empty axes:
-        if prev_yrange[0] == 0:
-            prev_yrange = [np.infty, 1]
+        label_data = ax.findobj(match=RasterLabelData)[0].label_data
+        unitlist = [np.NINF for element in data.unit_ids]
 
-        if reindex:
-            minunit = 1
-            maxunit = data.n_units
-            unitlist = range(1, data.n_units + 1)
+        if firstplot:
+            if vertstack:
+                minunit = 1
+                maxunit = data.n_units
+                unitlist = range(1, data.n_units + 1)
+            else:
+                minunit = np.array(data.unit_ids).min()
+                maxunit = np.array(data.unit_ids).max()
+                unitlist = data.unit_ids
+        # see if any of the unit_ids has already been plotted. If so,
+        # then merge
         else:
-            minunit = np.array(data.unit_ids).min()
-            maxunit = np.array(data.unit_ids).max()
-            unitlist = data.unit_ids
+            for idx, unit_id in enumerate(data.unit_ids):
+                if unit_id in label_data.keys():
+                    position, _ = label_data[unit_id]
+                    unitlist[idx] = position
+                else:  # unit not yet plotted
+                    if vertstack:
+                        unitlist[idx] = 1 + max(int(ax.get_yticks()[-1]),
+                                                max(unitlist))
+                    else:
+                        warnings.warn("Spike trains may be plotted in "
+                                      "the same vertical position as "
+                                      "another unit")
+                        unitlist[idx] = data.unit_ids[idx]
 
-        minunit = int(np.min([np.ceil(prev_yrange[0]), minunit]))
-        maxunit = int(np.max([np.floor(prev_yrange[1]), maxunit]))
+        if firstplot:
+            minunit = int(minunit)
+            maxunit = int(maxunit)
+        else:
+            prev_yrange = ax.get_ylim()
+            minunit = int(np.min([np.ceil(prev_yrange[0]), np.min(unitlist)]))
+            maxunit = int(np.max([np.floor(prev_yrange[1]), np.max(unitlist)]))
 
         yrange = [minunit - 0.5, maxunit + 0.5]
 
         if cmap is not None:
+            color_range = range(data.n_units)
             colors = cmap(np.linspace(0.25, 0.75, data.n_units)) # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
-            for unit, spiketrain in zip(unitlist, data.time):
-                ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[unit-1], lw=lw, **kwargs)
+            for unit, spiketrain, color_idx in zip(unitlist, data.time, color_range):
+                ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[color_idx], lw=lw, **kwargs)
         else:  # use a constant color:
             for unit, spiketrain in zip(unitlist, data.time):
                 ax.vlines(spiketrain, unit - hh, unit + hh, colors=color, lw=lw, **kwargs)
 
-        # change y-axis labels to integers
-        yint = range(minunit, maxunit + 1)
-        ax.set_yticks(yint)
-
         ax.set_ylim(yrange)
+
+        label_data = ax.findobj(match=RasterLabelData)[0].label_data  # get existing label data from axis
+        for unit_id, loc, label in zip(data.unit_ids, unitlist, data.unit_labels):
+            label_data[unit_id] = (loc, label)  # gives (location, unit label)
+        unitlocs = []
+        unitlabels = []
+        for loc, label in label_data.values():
+            unitlocs.append(loc)
+            unitlabels.append(label)
+        ax.set_yticks(unitlocs)
+        ax.set_yticklabels(unitlabels)
 
     elif isinstance(data, EpochArray):
         # TODO: how can I figure out an appropriate height when plotting a spiketrain support?
