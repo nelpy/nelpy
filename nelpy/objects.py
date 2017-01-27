@@ -788,6 +788,10 @@ class AnalogSignal:
     support : EpochArray, optional
         EpochArray array on which spiketrain is defined.
         Default is [0, last spike] inclusive.
+    step : int
+        specifies step size of samples passed as xdata if fs is given,
+        default set to 1. e.g. decimated data would have sample numbers
+        every ten samples so step=10
 
     Attributes
     ----------
@@ -801,11 +805,13 @@ class AnalogSignal:
         See Parameters
     support : EpochArray, optional
         See Parameters
+    step : int
+        See Parameters
 
     """
-    def __init__(self, ydata, *, xdata=None, fs=None, support=None):
+    def __init__(self, ydata, *, xdata=None, fs=None, support=None, step=1):
         ydata = np.squeeze(ydata).astype(float)
-        
+        self.step=step
 
         # Note; if we have an empty array of ydata with no dimension,
         # then calling len(ydata) will return a TypeError
@@ -854,7 +860,7 @@ class AnalogSignal:
                     warnings.warn("support created with given xdata and sampling rate, fs!")
                     self._time = time
                     self.support = EpochArray(get_contiguous_segments(xdata,
-                        step=1/fs), fs=fs)
+                        step=step), fs=fs)
             else:
                 time = xdata
                 self.xdata = xdata
@@ -941,6 +947,7 @@ class AnalogSignal:
         return
 
     def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
         if self.isempty:
             return "<empty AnalogSignal>"
         if self.n_epochs > 1:
@@ -948,7 +955,7 @@ class AnalogSignal:
         else:
             nstr = "1 epoch"
         dstr = "totalling %s seconds" % self.support.duration
-        return "<AnalogSignal: %s> %s" % (nstr,dstr)
+        return "base <AnalogSignal %s: %s> %s" % (address_str, nstr,dstr)
 
     # @property
     # def ydata(self):
@@ -1039,8 +1046,9 @@ class AnalogSignal:
         return AnalogSignal(self.ydata,
                             fs=self.fs,
                             xdata=self.xdata,
-                            support=epoch
-        )     
+                            support=epoch,
+                            step=self.step
+                )     
 
     def __getitem__(self, idx):
         """AnalogSignal index access.
@@ -1059,8 +1067,17 @@ class AnalogSignal:
             return AnalogSignal(self.ydata,
                                 fs=self.fs,
                                 xdata=self.xdata,
-                                support=epoch
-            )
+                                support=epoch,
+                                step=self.step
+                    )
+
+    def copy(self):
+        return AnalogSignal(self.ydata,
+                            fs = self.fs,
+                            xdata=self.xdata,
+                            support=self.support,
+                            step=self.step
+                )
     
     def mean(self):
         """Calculates the mean of all of ydata"""
@@ -1090,12 +1107,18 @@ class AnalogSignal:
 
         Returns
         ----------
-        clipped_array : ndarray
-            An array with the elements of ydata, but where the values < 
+        clipped_analogsignal : AnalogSignal
+            AnalogSignal with the signal clipped with the elements of ydata, but where the values < 
             min are replaced with min and the values > max are replaced 
             with max. 
         """
-        return np.clip(self.ydata, min, max)
+        new_ydata = np.clip(self.ydata, min, max)
+        return AnalogSignal(new_ydata,
+                                fs=self.fs,
+                                xdata=self.xdata,
+                                support=self.support,
+                                step=self.step
+                )
 #----------------------------------------------------------------------#
 #======================================================================#
 
