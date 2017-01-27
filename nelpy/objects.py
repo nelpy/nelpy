@@ -469,11 +469,6 @@ class EpochArray:
         if tdata.ndim == 2 and np.any(tdata[:, 1] - tdata[:, 0] < 0):
             raise ValueError("start must be less than or equal to stop")
 
-        # TODO: why not just sort in-place here? Why store sort_idx? Why do
-        # we explicitly sort epoch tdata, but not spike times?
-        # sort_idx = np.argsort(tdata[:, 0])
-        # tdata = tdata[sort_idx]
-
         # if a sampling rate was given, relate time to tdata using fs:
         if fs is not None:
             time = tdata / fs
@@ -539,36 +534,45 @@ class EpochArray:
             if idx.isempty:  # case 0:
                 return EpochArray(empty=True)
             if idx.fs != self.fs:  # cases (1, 2, 5):
-                epoch = self.intersect(
-                    epoch=EpochArray(idx.time, fs=None),
-                    boundaries=True
-                    )
+                epocharray = EpochArray(empty=True)
+                epocharray._time = idx.time
+                epoch = self.intersect(epocharray, boundaries=True)
             else:  # cases (3, 4)
                 epoch = self.intersect(
                     epoch=idx,
                     boundaries=True
-                    ) # what if fs of slicing epoch is different?
+                    )
             if epoch.isempty:
                 return EpochArray(empty=True)
             return epoch
         elif isinstance(idx, int):
+            epocharray = EpochArray(empty=True)
+            exclude = ["_tdata", "_time"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("epocharray." + attr + " = self." + attr)
             try:
-                epoch = EpochArray(
-                    np.array([self.tdata[idx, :]]),
-                    fs=self.fs,
-                    meta=self.meta
-                    )
-                return epoch
+                epocharray._time = self.time[[idx], :]  # use np integer indexing! Cool!
+                epocharray._tdata = self.tdata[[idx], :]
+                return epocharray
             except IndexError:
                 # index is out of bounds, so return an empty EpochArray
                 return EpochArray(empty=True)
         else:
             try:
-                epocharray = EpochArray(
-                    np.array([self.starts[idx], self.stops[idx]]).T,
-                    fs=self.fs,
-                    meta=self.meta
-                    )
+                epocharray = EpochArray(empty=True)
+                exclude = ["_tdata", "_time"]
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    for attr in attrs:
+                        exec("epocharray." + attr + " = self." + attr)
+                epocharray._time = np.array([self.starts[idx],
+                                             self.stops[idx]]).T
+                epocharray._tdata = np.array([self._tdatastarts[idx],
+                                              self._tdatastops[idx]]).T
                 return epocharray
             except Exception:
                 raise TypeError(
@@ -634,7 +638,7 @@ class EpochArray:
         return self.time[:, 0]
 
     @property
-    def _tdatatarts(self):
+    def _tdatastarts(self):
         """(np.array) The start of each epoch, in tdata"""
         if self.isempty:
             return []
@@ -648,7 +652,7 @@ class EpochArray:
         return self.time[:, 0][0]
 
     @property
-    def _tdatatart(self):
+    def _tdatastart(self):
         """(np.array) The start of the first epoch, in tdata"""
         if self.isempty:
             return []
@@ -662,7 +666,7 @@ class EpochArray:
         return self.time[:, 1]
 
     @property
-    def _tdatatops(self):
+    def _tdatastops(self):
         """(np.array) The stop of each epoch, in tdata"""
         if self.isempty:
             return []
@@ -676,7 +680,7 @@ class EpochArray:
         return self.time[:, 1][-1]
 
     @property
-    def _tdatatop(self):
+    def _tdatastop(self):
         """(np.array) The stop of the first epoch, in tdata"""
         return self.tdata[:, 0][0]
 
@@ -694,13 +698,16 @@ class EpochArray:
 
     @property
     def isempty(self):
-        """(bool) Empty SpikeTrain."""
-        return len(self.time) == 0
+        """(bool) Empty EpochArray."""
+        try:
+            return len(self.time) == 0
+        except TypeError:
+            return True  # this happens when self.time is None
 
     def copy(self):
         """(EpochArray) Returns a copy of the current epoch array."""
-        new_starts = np.array(self._tdatatarts)
-        new_stops = np.array(self._tdatatops)
+        new_starts = np.array(self._tdatastarts)
+        new_stops = np.array(self._tdatastops)
         return EpochArray(
             new_starts,
             duration=new_stops - new_starts,
@@ -708,7 +715,7 @@ class EpochArray:
             meta=self.meta
             )
 
-    def intersect(self, epoch, boundaries=True, meta=None):
+    def intersect(self, epoch, *, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of epoch arrays.
         Sampling rates can be different.
         Parameters
@@ -795,7 +802,7 @@ class EpochArray:
 
         return epocharray
 
-    def merge(self, gap=0.0):
+    def merge(self, *, gap=0.0):
         """Merges epochs that are close or overlapping.
         Parameters
         ----------
@@ -817,22 +824,22 @@ class EpochArray:
         if self.fs is not None:
             gap = gap * self.fs
 
-        stops = epoch._tdatatops[:-1] + gap
-        starts = epoch._tdatatarts[1:]
+        stops = epoch._tdatastops[:-1] + gap
+        starts = epoch._tdatastarts[1:]
         to_merge = (stops - starts) >= 0
 
-        new_starts = [epoch._tdatatarts[0]]
+        new_starts = [epoch._tdatastarts[0]]
         new_stops = []
 
-        next_stop = epoch._tdatatops[0]
+        next_stop = epoch._tdatastops[0]
         for i in range(epoch.time.shape[0] - 1):
-            this_stop = epoch._tdatatops[i]
+            this_stop = epoch._tdatastops[i]
             next_stop = max(next_stop, this_stop)
             if not to_merge[i]:
                 new_stops.append(next_stop)
-                new_starts.append(epoch._tdatatarts[i + 1])
+                new_starts.append(epoch._tdatastarts[i + 1])
 
-        new_stops.append(epoch._tdatatops[-1])
+        new_stops.append(epoch._tdatastops[-1])
 
         new_starts = np.array(new_starts)
         new_stops = np.array(new_stops)
