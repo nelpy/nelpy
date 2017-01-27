@@ -706,14 +706,12 @@ class EpochArray:
 
     def copy(self):
         """(EpochArray) Returns a copy of the current epoch array."""
-        new_starts = np.array(self._tdatastarts)
-        new_stops = np.array(self._tdatastops)
-        return EpochArray(
-            new_starts,
-            duration=new_stops - new_starts,
-            fs=self.fs,
-            meta=self.meta
-            )
+        newcopy = EpochArray(empty=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in self.__attributes__:
+                exec("newcopy." + attr + " = self." + attr)
+        return newcopy
 
     def intersect(self, epoch, *, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of epoch arrays.
