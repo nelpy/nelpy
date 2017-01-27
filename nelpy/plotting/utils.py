@@ -415,6 +415,29 @@ def align_xlabels(ycoord, *axes):
     for ax in axes:
         set_xlabel_coords(ycoord, ax=ax)
 
+def no_xticks(ax=None):
+    """Remove the tick marks on the x-axis (but leave the labels).
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.tick_params(axis=u'x', which=u'both',length=0)
+
+def no_yticks(ax=None):
+    """Remove the tick marks on the y-axis (but leave the labels).
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.tick_params(axis=u'y', which=u'both',length=0)
 
 def no_xticklabels(ax=None):
     """Remove the tick labels on the x-axis (but leave the tick marks).
