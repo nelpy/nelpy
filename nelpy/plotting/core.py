@@ -168,6 +168,30 @@ def overviewstrip():
     """
     raise NotImplementedError("overviewstripplot() not implemented yet")
 
+def rasterc(spiketrain, nbins=25, **kwargs):
+    fig = plt.figure(figsize=(12, 4))
+    gs = gridspec.GridSpec(2, 1, hspace=0.01, height_ratios=[0.2,0.8])
+    ax1 = plt.subplot(gs[0])
+    ax2 = plt.subplot(gs[1])
+
+    ds = (spiketrain.support.stop - spiketrain.support.start)/nbins
+    steps = np.squeeze(spiketrain.bin(ds=ds).flatten().data)
+    stepsx = np.linspace(spiketrain.support.start, spiketrain.support.stop, num=nbins)
+#     ax1.plot(stepsx, steps, drawstyle='steps-mid', color='none');
+    ax1.set_ylim([-0.5, np.max(steps)+1])
+    npl.raster(spiketrain, ax=ax2, **kwargs)
+
+    npl.utils.clear_left_right(ax=ax1)
+    npl.utils.clear_top_bottom(ax=ax1)
+    npl.utils.clear_top(ax=ax2)
+
+    ax1.fill_between(stepsx, steps, step='mid', color='0.4')
+
+    npl.utils.sync_xlims(ax1, ax2)
+
+    return ax1, ax2
+
+
 def raster(data, *, cmap=None, color=None, legend=True, ax=None,
            plot_support=True, lw=None, lh=None, vertstack=None,
            **kwargs):

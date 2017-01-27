@@ -16,6 +16,8 @@ This is the nelpy plotting module.
 
 from .core import *
 
+from .utils import *
+
 from .scalebar import add_scalebar
 
 __version__ = '0.0.2'  # should I maintain a separate version for this?
