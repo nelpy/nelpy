@@ -6,7 +6,6 @@ __all__ = ['EventArray',
            'AnalogSignal',
            'AnalogSignalArray',
            'SpikeTrainArray',
-           'BinnedSpikeTrain',
            'BinnedSpikeTrainArray']
 
 # TODO: how should we organize our modules so that nelpy.objects.np does
@@ -21,13 +20,11 @@ import numpy as np
 
 from .utils import is_sorted, get_contiguous_segments, linear_merge
 
-
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
-
 
 # from shapely.geometry import Point
 
@@ -131,8 +128,16 @@ class SpikeTrain(object):
         Information pertaining to the source of the spike train.
     """
 
+    __attributes__ = ["_fs", "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
+
     def __init__(self, *, fs=None, unit_ids=None, unit_labels=None,
-                 unit_tags=None, label=None):
+                 unit_tags=None, label=None, empty=False):
+
+        # if an empty object is requested, return it:
+        if empty:
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
 
         # set initial fs to None
         self._fs = None
@@ -148,9 +153,13 @@ class SpikeTrain(object):
         if unit_ids is None:
             unit_ids = list(range(1,self.n_units + 1))
 
+        unit_ids = np.array(unit_ids, ndmin=1)  # standardize unit_ids
+
         # if unit_labels is empty, default to unit_ids
         if unit_labels is None:
             unit_labels = unit_ids
+
+        unit_labels = np.array(unit_labels, ndmin=1)  # standardize
 
         self.unit_ids = unit_ids
         self.unit_labels = unit_labels
@@ -158,7 +167,8 @@ class SpikeTrain(object):
         self.label = label
 
     def __repr__(self):
-        return "<base SpikeTrain>"
+        address_str = " at " + str(hex(id(self)))
+        return "<base SpikeTrain" + address_str + ">"
 
     @property
     def isempty(self):
@@ -166,7 +176,10 @@ class SpikeTrain(object):
         if isinstance(self, SpikeTrainArray):
             return np.sum([len(st) for st in self.time]) == 0
         elif isinstance(self, BinnedSpikeTrainArray):
-            return len(self.centers) == 0
+            try:
+                return len(self.centers) == 0
+            except TypeError:
+                return True  # this happens when self.centers == None
         else:
             raise NotImplementedError(
             "isempty should be defined in derived class")
@@ -262,51 +275,6 @@ class SpikeTrain(object):
             label = val
         self._label = label
 
-    def flatten(self, *, unit_id=None, unit_label=None):
-        """Collapse spike trains across units.
-
-        WARNING! unit_tags are thrown away when flattening.
-
-        Parameters
-        ----------
-        unit_id: (int)
-            (unit) ID to assign to flattened spike train, default is 0.
-        unit_label (str)
-            (unit) Label for spike train, default is 'flattened'.
-        """
-
-        if self.n_units == 1:  # already flattened
-            return self
-
-        # default args:
-        if unit_id is None:
-            unit_id = 0
-        if unit_label is None:
-            unit_label = "flattened"
-
-        if isinstance(self, SpikeTrainArray):
-            allspikes = self.tdata[0]
-            for unit in range(1,self.n_units):
-                allspikes = linear_merge(allspikes, self.tdata[unit])
-
-            kwargs = {"tdata": list(allspikes),
-                      "fs": self.fs,
-                      "support": self.support,
-                      "unit_ids": [unit_id],
-                      "unit_labels": unit_label,
-                      "unit_tags": None,
-                      "label": self.label
-                      }
-            flatspiketrain = SpikeTrainArray(**kwargs)
-            return flatspiketrain
-
-        elif isinstance(self, BinnedSpikeTrainArray):
-            raise NotImplementedError(
-            "BinnedSpikeTrainArray.flatten() not implemented yet!")
-        else:
-            raise NotImplementedError(
-            "SpikeTrain.flatten() not supported for this type yet!")
-
     def _unit_subset(self, unit_list):
         """Return a SpikeTrain restricted to a subset of units.
 
@@ -325,43 +293,48 @@ class SpikeTrain(object):
             else:
                 unit_subset_ids.append(id)
 
-        # if len(unit_subset_ids) == 0:
-        #     warnings.warn("no units remaining in requested unit subset")
-        #     # BUG: how do I return (simply) an empty SpikeTrain? I can't
-        #     # easily instantiate a new one, because I have to
-        #     # instantiate the derived class. This might be okay, I can
-        #     # do isinstance() checks, but the code seems messy. What
-        #     # alternatives do I have? My brain isn't working now.
-        #     raise NotImplementedError("Finish writing this return code!")
-        #     return EMPTY_DERIVED_CLASS_OBJECT
-
         new_unit_ids = np.asarray(self.unit_ids)[unit_subset_ids]
         new_unit_labels = np.asarray(self.unit_labels)[unit_subset_ids]
 
-        # @no_warnings
-        # def warnn(message):
-        #     warnings.warn(message)
-
         if isinstance(self, SpikeTrainArray):
             if len(unit_subset_ids) == 0:
-                return SpikeTrainArray([])
+                warnings.warn("no units remaining in requested unit subset")
+                return SpikeTrainArray(empty=True)
+
+            spiketrainarray = SpikeTrainArray(empty=True)
+            exclude = ["_tdata", "_time", "unit_ids", "unit_labels"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                kwargs = {"tdata": self.tdata[unit_subset_ids],
-                          "fs": self.fs,
-                          "support": self.support,
-                          "unit_ids": new_unit_ids,
-                          "unit_labels": new_unit_labels,
-                          "unit_tags": self.unit_tags, # BUG: may need to prune tags
-                          "label": self.label}
-            return SpikeTrainArray(**kwargs)
+                for attr in attrs:
+                    exec("spiketrainarray." + attr + " = self." + attr)
+
+            spiketrainarray._tdata = self.tdata[unit_subset_ids]
+            spiketrainarray._time = self.time[unit_subset_ids]
+            spiketrainarray._unit_ids = new_unit_ids
+            spiketrainarray._unit_labels = new_unit_labels
+
+            return spiketrainarray
         elif isinstance(self, BinnedSpikeTrainArray):
             if len(unit_subset_ids) == 0:
-                return BinnedSpikeTrainArray([])
-            # should be very similar to above, but with a few additional
-            # kwargs
-            raise NotImplementedError(
-            "BinnedSpikeTrainArray._unit_slice() not implemented yet!")
+                warnings.warn("no units remaining in requested unit subset")
+                return BinnedSpikeTrainArray(empty=True)
+
+            binnedspiketrainarray = BinnedSpikeTrainArray(empty=True)
+            exclude = ["_data", "unit_ids", "unit_labels"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("binnedspiketrainarray." + attr + " = self." + attr)
+
+            binnedspiketrainarray._data = self.data[unit_subset_ids,:]
+            binnedspiketrainarray._unit_ids = new_unit_ids
+            binnedspiketrainarray._unit_labels = new_unit_labels
+
+            return binnedspiketrainarray
         else:
             raise NotImplementedError(
             "SpikeTrain._unit_slice() not supported for this type yet!")
@@ -399,7 +372,16 @@ class EpochArray:
         Metadata associated with spiketrain.
     """
 
-    def __init__(self, tdata, *, fs=None, duration=None, meta=None):
+    __attributes__ = ["_tdata", "_time", "_fs", "_meta"]
+
+    def __init__(self, tdata=None, *, fs=None, duration=None,
+                 meta=None, empty=False):
+
+        # if an empty object is requested, return it:
+        if empty:
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
 
         tdata = np.squeeze(tdata)  # coerce tdata into np.array
 
@@ -447,14 +429,12 @@ class EpochArray:
             try:
                 # if no tdata were received, return an empty EpochArray:
                 if len(tdata) == 0:
-                    self._emptyEpochArray()
-                    return
+                    return EpochArray(empty=True)
             except TypeError:
                 warnings.warn("unsupported type ("
                     + str(type(tdata))
                     + "); creating empty EpochArray")
-                self._emptyEpochArray()
-                return
+                return EpochArray(empty=True)
 
             # Only one epoch is given eg EpochArray([3,5,6,10]) with no
             # duration and more than two values:
@@ -489,11 +469,6 @@ class EpochArray:
         if tdata.ndim == 2 and np.any(tdata[:, 1] - tdata[:, 0] < 0):
             raise ValueError("start must be less than or equal to stop")
 
-        # TODO: why not just sort in-place here? Why store sort_idx? Why do
-        # we explicitly sort epoch tdata, but not spike times?
-        # sort_idx = np.argsort(tdata[:, 0])
-        # tdata = tdata[sort_idx]
-
         # if a sampling rate was given, relate time to tdata using fs:
         if fs is not None:
             time = tdata / fs
@@ -505,23 +480,16 @@ class EpochArray:
         self._fs = fs
         self._meta = meta
 
-    def _emptyEpochArray(self):
-        """Clears all instance variables."""
-        self._tdata = np.array([])
-        self._time = np.array([])
-        self._fs = None
-        self._meta = None
-        return
-
     def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
         if self.isempty:
-            return "<empty EpochArray>"
+            return "<empty EpochArray" + address_str + ">"
         if self.n_epochs > 1:
             nstr = "%s epochs" % (self.n_epochs)
         else:
             nstr = "1 epoch"
         dstr = "totaling %s seconds" % self.duration
-        return "<EpochArray: %s> %s" % (nstr, dstr)
+        return "<EpochArray%s: %s> %s" % (address_str, nstr, dstr)
 
     def __iter__(self):
         """EpochArray iterator initialization."""
@@ -536,13 +504,19 @@ class EpochArray:
             raise StopIteration
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            epoch = EpochArray(
-                        np.array([self.tdata[index, :]]),
-                        fs=self.fs,
-                        meta=self.meta
-                        )
+            epocharray = EpochArray(empty=True)
+
+            exclude = ["_tdata", "_time"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("epocharray." + attr + " = self." + attr)
+            epocharray._tdata = np.array([self.tdata[index, :]])
+            epocharray._time = np.array([self.time[index, :]])
         self._index += 1
-        return epoch
+        return epocharray
 
     def __getitem__(self, idx):
         """EpochArray index access.
@@ -558,38 +532,47 @@ class EpochArray:
             # case 4: (fs, fs) = (const, const)
             # case 5: (fs, fs) = (constA, constB)
             if idx.isempty:  # case 0:
-                return EpochArray([])
+                return EpochArray(empty=True)
             if idx.fs != self.fs:  # cases (1, 2, 5):
-                epoch = self.intersect(
-                    epoch=EpochArray(idx.time, fs=None),
-                    boundaries=True
-                    )
+                epocharray = EpochArray(empty=True)
+                epocharray._time = idx.time
+                epoch = self.intersect(epocharray, boundaries=True)
             else:  # cases (3, 4)
                 epoch = self.intersect(
                     epoch=idx,
                     boundaries=True
-                    ) # what if fs of slicing epoch is different?
+                    )
             if epoch.isempty:
-                return EpochArray([])
+                return EpochArray(empty=True)
             return epoch
         elif isinstance(idx, int):
+            epocharray = EpochArray(empty=True)
+            exclude = ["_tdata", "_time"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("epocharray." + attr + " = self." + attr)
             try:
-                epoch = EpochArray(
-                    np.array([self.tdata[idx, :]]),
-                    fs=self.fs,
-                    meta=self.meta
-                    )
-                return epoch
+                epocharray._time = self.time[[idx], :]  # use np integer indexing! Cool!
+                epocharray._tdata = self.tdata[[idx], :]
+                return epocharray
             except IndexError:
                 # index is out of bounds, so return an empty EpochArray
-                return EpochArray([])
+                return EpochArray(empty=True)
         else:
             try:
-                epocharray = EpochArray(
-                    np.array([self.starts[idx], self.stops[idx]]).T,
-                    fs=self.fs,
-                    meta=self.meta
-                    )
+                epocharray = EpochArray(empty=True)
+                exclude = ["_tdata", "_time"]
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    for attr in attrs:
+                        exec("epocharray." + attr + " = self." + attr)
+                epocharray._time = np.array([self.starts[idx],
+                                             self.stops[idx]]).T
+                epocharray._tdata = np.array([self._tdatastarts[idx],
+                                              self._tdatastops[idx]]).T
                 return epocharray
             except Exception:
                 raise TypeError(
@@ -655,7 +638,7 @@ class EpochArray:
         return self.time[:, 0]
 
     @property
-    def _tdatatarts(self):
+    def _tdatastarts(self):
         """(np.array) The start of each epoch, in tdata"""
         if self.isempty:
             return []
@@ -669,7 +652,7 @@ class EpochArray:
         return self.time[:, 0][0]
 
     @property
-    def _tdatatart(self):
+    def _tdatastart(self):
         """(np.array) The start of the first epoch, in tdata"""
         if self.isempty:
             return []
@@ -683,7 +666,7 @@ class EpochArray:
         return self.time[:, 1]
 
     @property
-    def _tdatatops(self):
+    def _tdatastops(self):
         """(np.array) The stop of each epoch, in tdata"""
         if self.isempty:
             return []
@@ -697,7 +680,7 @@ class EpochArray:
         return self.time[:, 1][-1]
 
     @property
-    def _tdatatop(self):
+    def _tdatastop(self):
         """(np.array) The stop of the first epoch, in tdata"""
         return self.tdata[:, 0][0]
 
@@ -715,21 +698,22 @@ class EpochArray:
 
     @property
     def isempty(self):
-        """(bool) Empty SpikeTrain."""
-        return len(self.time) == 0
+        """(bool) Empty EpochArray."""
+        try:
+            return len(self.time) == 0
+        except TypeError:
+            return True  # this happens when self.time is None
 
     def copy(self):
         """(EpochArray) Returns a copy of the current epoch array."""
-        new_starts = np.array(self._tdatatarts)
-        new_stops = np.array(self._tdatatops)
-        return EpochArray(
-            new_starts,
-            duration=new_stops - new_starts,
-            fs=self.fs,
-            meta=self.meta
-            )
+        newcopy = EpochArray(empty=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in self.__attributes__:
+                exec("newcopy." + attr + " = self." + attr)
+        return newcopy
 
-    def intersect(self, epoch, boundaries=True, meta=None):
+    def intersect(self, epoch, *, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of epoch arrays.
         Sampling rates can be different.
         Parameters
@@ -745,6 +729,8 @@ class EpochArray:
         """
         if self.isempty or epoch.isempty:
             warnings.warn('epoch intersection is empty')
+            # TODO: copy everything except time? Wouldn't rest get
+            # lost anyway due to no samples ==> return EpochArray(empty)?
             return EpochArray([], duration=[], meta=meta)
 
         new_starts = []
@@ -781,44 +767,40 @@ class EpochArray:
             new_starts = np.unique(new_starts)
             new_stops = np.unique(new_stops)
 
+        epocharray = EpochArray(empty=True)
+        exclude = ["_tdata", "_time", "_fs"]
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("epocharray." + attr + " = self." + attr)
+
         # case 1: (fs, fs) = (None, const)
         # case 2: (fs, fs) = (const, None)
         # case 3: (fs, fs) = (None, None)
         # case 4: (fs, fs) = (const, const)
         # case 5: (fs, fs) = (constA, constB)
 
-        if self.fs != epoch.fs:  # cases (1, 2, 5)
+        if self.fs != epoch.fs or self.fs is None:  # cases (1, 2, 3, 5)
             warnings.warn(
                 "sampling rates are different; intersecting along "
                 "time only and throwing away fs"
                 )
-            return EpochArray(
-                np.hstack(
-                    [np.array(new_starts)[..., np.newaxis],
-                     np.array(new_stops)[..., np.newaxis]]
-                    ),
-                fs=None,
-                meta=meta
-                )
-        elif self.fs is None:  # cases (1, 3) [1 already handled]
-            return EpochArray(
-                np.hstack(
-                    [np.array(new_starts)[..., np.newaxis],
-                     np.array(new_stops)[..., np.newaxis]]
-                    ),
-                fs=None,
-                meta=meta
-                )
+            epocharray._time = np.hstack(
+                [np.array(new_starts)[..., np.newaxis],
+                 np.array(new_stops)[..., np.newaxis]])
+            epocharray._tdata = epocharray._time
+            epocharray._fs = None
         else:  # case (4, )
-            return EpochArray(
-                np.hstack(
-                    [np.array(new_starts)[..., np.newaxis],
-                     np.array(new_stops)[..., np.newaxis]])*self.fs,
-                fs=self.fs,
-                meta=meta
-                )
+            epocharray._time = np.hstack(
+                [np.array(new_starts)[..., np.newaxis],
+                 np.array(new_stops)[..., np.newaxis]])
+            epocharray._tdata = epocharray._time*self.fs
+            epocharray._fs = self.fs
 
-    def merge(self, gap=0.0):
+        return epocharray
+
+    def merge(self, *, gap=0.0):
         """Merges epochs that are close or overlapping.
         Parameters
         ----------
@@ -840,22 +822,22 @@ class EpochArray:
         if self.fs is not None:
             gap = gap * self.fs
 
-        stops = epoch._tdatatops[:-1] + gap
-        starts = epoch._tdatatarts[1:]
+        stops = epoch._tdatastops[:-1] + gap
+        starts = epoch._tdatastarts[1:]
         to_merge = (stops - starts) >= 0
 
-        new_starts = [epoch._tdatatarts[0]]
+        new_starts = [epoch._tdatastarts[0]]
         new_stops = []
 
-        next_stop = epoch._tdatatops[0]
+        next_stop = epoch._tdatastops[0]
         for i in range(epoch.time.shape[0] - 1):
-            this_stop = epoch._tdatatops[i]
+            this_stop = epoch._tdatastops[i]
             next_stop = max(next_stop, this_stop)
             if not to_merge[i]:
                 new_stops.append(next_stop)
-                new_starts.append(epoch._tdatatarts[i + 1])
+                new_starts.append(epoch._tdatastarts[i + 1])
 
-        new_stops.append(epoch._tdatatops[-1])
+        new_stops.append(epoch._tdatastops[-1])
 
         new_starts = np.array(new_starts)
         new_stops = np.array(new_stops)
@@ -1041,10 +1023,11 @@ class EventArray:
         self._meta = meta
 
     def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
         if self.isempty:
-            return "<empty EventArray>"
+            return "<empty EventArray" + address_str + ">"
         # return "<EventArray: %s> %s" % (nstr, dstr)
-        return "<EventArray"
+        return "<EventArray" + address_str + ">"
 
     def __getitem__(self, idx):
         raise NotImplementedError(
@@ -1541,11 +1524,47 @@ class SpikeTrainArray(SpikeTrain):
         Metadata associated with spiketrain.
     """
 
-    # TODO: support for single spiketrain
-    # TODO: init input validation to mimic EpochArray
+    __attributes__ = ["_tdata", "_time", "_support"]
+    __attributes__.extend(SpikeTrain.__attributes__)
 
-    def __init__(self, tdata, *, fs=None, support=None, unit_ids=None,
-                 unit_labels=None, unit_tags=None, label=None):
+    def __init__(self, tdata=None, *, fs=None, support=None,
+                 unit_ids=None, unit_labels=None, unit_tags=None,
+                 label=None, empty=False):
+
+        # if an empty object is requested, return it:
+        if empty:
+            super().__init__(empty=True)
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
+
+        def standardize_to_2d(data):
+            data = np.squeeze(data)  # deals with extraneous dimensions
+            data = np.array(data, ndmin=1)  # deals with extraneous
+                # dimensions
+            f1 = data.dtype is not np.dtype('O')  # True if single unit,
+                # or if square array; False if jagged array
+            # so how do we differentiate between square array and single
+            # unit? Square array should have different #rows from
+            # #elements
+            f2 = data.shape[0] == data.size  # False if square array,
+                # True otherwise
+            if f1 and f2:  # single unit!
+                data = np.array([data], ndmin=2)  # wrap single units
+            elif not f1:  # jagged array
+                # standardize input so that a list of lists is converted
+                # to an array of arrays:
+                data = np.array(
+                    [np.array(st, ndmin=1, copy=False) for st in data])
+            return data
+
+        tdata = standardize_to_2d(tdata)
+
+        # if only empty tdata were received AND no support, return empty
+        # SpikeTrainArray:
+        if np.sum([st.size for st in tdata]) == 0 and support.isempty:
+            warnings.warn("no data; returning empty SpikeTrainArray")
+            return SpikeTrainArray(empty=True)
 
         kwargs = {"fs": fs,
                   "unit_ids": unit_ids,
@@ -1553,55 +1572,26 @@ class SpikeTrainArray(SpikeTrain):
                   "unit_tags": unit_tags,
                   "label": label}
 
-        tdata = np.squeeze(tdata)  # coerce tdata into np.array
-
-        # Note: if we have an empty array of tdata with no dimension,
-        # then calling len(tdata) will return a TypeError.
-        try:
-            # if no tdata were received, return an empty SpikeTrainArray:
-            if len(tdata) == 0:
-                self._emptySpikeTrainArray()
-                return
-        except TypeError:
-            warnings.warn(
-                "unsupported type; creating empty SpikeTrainArray")
-            self._emptySpikeTrainArray()
-            return
-
-        # BUG: we cannot yet differentiate between a single spike train
-        # and a spike train array with multiple units. See issue #46
-
-        # standardize input so that a list of lists is converted to an
-        # array of arrays: BUG: this assumes more than one unit!!!
-        tdataArray = np.array(
-            [np.array(st, ndmin=1, copy=False) for st in tdata])
-
-        # if only empty tdata were received, return an empty
-        # SpikeTrainArray:
-        if np.sum([st.size for st in tdataArray]) == 0:
-            self._emptySpikeTrainArray()
-            return
-
         # initialize super so that self.fs is set:
-        self._time = tdataArray  # this is necessary so that super() can
+        self._time = tdata  # this is necessary so that super() can
             # determine self.n_units when initializing. self.time will
             # be updated later in __init__ to reflect subsequent changes
         super().__init__(**kwargs)
 
         # if a sampling rate was given, relate time to tdata using fs:
         if fs is not None:
-            time = tdataArray / fs
+            time = tdata / fs
         else:
-            time = tdataArray
+            time = tdata
 
         # determine spiketrain array support:
         if support is None:
-            # first_st = np.array([unit[0] for unit in tdataArray]).min()
+            # first_st = np.array([unit[0] for unit in tdata]).min()
             # BUG: if spiketrain is empty np.array([]) then unit[-1]
             # raises an error in the following:
             # FIX: list[-1] raises an IndexError for an empty list,
             # whereas list[-1:] returns an empty list.
-            last_st = np.array([unit[-1:] for unit in tdataArray]).max()
+            last_st = np.array([unit[-1:] for unit in tdata]).max()
             self._support = EpochArray(np.array([0, last_st]), fs=fs)
             # in the above, there's no reason to restrict to support
         else:
@@ -1609,17 +1599,28 @@ class SpikeTrainArray(SpikeTrain):
             # array's support:
             self._support = support
 
-            time, tdataArray = self._restrict_to_epoch_array(epocharray=support, time=time, tdata=tdataArray)
+            time, tdata = self._restrict_to_epoch_array(
+                epocharray=support,
+                time=time,
+                tdata=tdata)
 
         # if no tdata remain after restricting to the support, return
         # an empty SpikeTrainArray:
-        if np.sum([st.size for st in tdataArray]) == 0:
-            self._emptySpikeTrainArray()
-            return
+        if np.sum([st.size for st in tdata]) == 0:
+            return SpikeTrainArray(empty=True)
 
         # set self._tdata and self._time:
         self._time = time
-        self._tdata = tdataArray
+        self._tdata = tdata
+
+    def copy(self):
+        """Returns a copy of the SpikeTrainArray."""
+        newcopy = SpikeTrainArray(empty=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in self.__attributes__:
+                exec("newcopy." + attr + " = self." + attr)
+        return newcopy
 
     def __iter__(self):
         """SpikeTrainArray iterator initialization."""
@@ -1668,7 +1669,7 @@ class SpikeTrainArray(SpikeTrain):
 
         if isinstance(idx, EpochArray):
             if idx.isempty:
-                return SpikeTrainArray([])
+                return SpikeTrainArray(empty=True)
             if idx.fs != self.support.fs:
                 support = self.support.intersect(
                     epoch=EpochArray(idx.time, fs=None),
@@ -1680,7 +1681,7 @@ class SpikeTrainArray(SpikeTrain):
                     boundaries=True
                     ) # what if fs of slicing epoch is different?
             if support.isempty:
-                return SpikeTrainArray([])
+                return SpikeTrainArray(empty=True)
             time, tdata = self._restrict_to_epoch_array(
                 epocharray=support,
                 time=self.time,
@@ -1694,7 +1695,7 @@ class SpikeTrainArray(SpikeTrain):
             return sta
         elif isinstance(idx, int):
             if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
-                return SpikeTrainArray([])
+                return SpikeTrainArray(empty=True)
             try:
                 support = self.support[idx]
                 time, tdata = self._restrict_to_epoch_array(
@@ -1709,7 +1710,7 @@ class SpikeTrainArray(SpikeTrain):
                 return sta
             except IndexError:
                 # index out of bounds: return an empty SpikeTrainArray
-                return SpikeTrainArray([])
+                return SpikeTrainArray(empty=True)
         else:
             try:
                 support = self.support[idx]
@@ -1727,6 +1728,54 @@ class SpikeTrainArray(SpikeTrain):
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
+
+    def flatten(self, *, unit_id=None, unit_label=None):
+        """Collapse spike trains across units.
+
+        WARNING! unit_tags are thrown away when flattening.
+
+        Parameters
+        ----------
+        unit_id: (int)
+            (unit) ID to assign to flattened spike train, default is 0.
+        unit_label (str)
+            (unit) Label for spike train, default is 'flattened'.
+        """
+        if self.n_units == 1:  # already flattened
+            return self
+
+        # default args:
+        if unit_id is None:
+            unit_id = 0
+        if unit_label is None:
+            unit_label = "flattened"
+
+        spiketrainarray = SpikeTrainArray(empty=True)
+
+        exclude = ["_tdata", "_time", "unit_ids", "unit_labels", "unit_tags"]
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("spiketrainarray." + attr + " = self." + attr)
+        spiketrainarray._unit_ids = [unit_id]
+        spiketrainarray._unit_labels = [unit_label]
+        spiketrainarray._unit_tags = None
+
+        # TODO: here we linear merge twice; once for tdata and once for
+        # time. This is unneccessary, and can be optimized. But flatten()
+        # shouldn't be called often, so it's low priority,
+        allspikes = self.tdata[0]
+        for unit in range(1,self.n_units):
+            allspikes = linear_merge(allspikes, self.tdata[unit])
+        alltimes = self.time[0]
+        for unit in range(1,self.n_units):
+            alltimes = linear_merge(alltimes, self.time[unit])
+
+        spiketrainarray._tdata = np.array(list(allspikes), ndmin=2)
+        spiketrainarray._time = np.array(list(alltimes), ndmin=2)
+        return spiketrainarray
 
     def _restrict_to_epoch_array(self, *, epocharray, time, tdata,
                                  copy=True):
@@ -1761,21 +1810,10 @@ class SpikeTrainArray(SpikeTrain):
             time[unit] = time[unit][indices]
         return time, tdata
 
-    def _emptySpikeTrainArray(self):
-        """empty all the instance attributes for an empty object."""
-        self._tdata = np.array([])
-        self._time = np.array([])
-        self._support = EpochArray([])
-        self._fs = None
-        self._unit_ids = None
-        self._unit_labels = None
-        self._unit_tags = None
-        self._label = None
-        return
-
     def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
         if self.isempty:
-            return "<empty SpikeTrainArray>"
+            return "<empty SpikeTrainArray" + address_str + ">"
         if self.fs is not None:
             fsstr = " at %s Hz" % self.fs
         else:
@@ -1785,11 +1823,11 @@ class SpikeTrainArray(SpikeTrain):
         else:
             labelstr = ""
         numstr = " %s units" % self.n_units
-        return "<SpikeTrainArray:%s>%s%s" % (numstr, fsstr, labelstr)
+        return "<SpikeTrainArray%s:%s>%s%s" % (address_str, numstr, fsstr, labelstr)
 
     def bin(self, *, ds=None):
         """Bin spiketrain array."""
-        return BinnedSpikeTrainArray(self, ds=ds)
+        return BinnedSpikeTrainArray(self, ds=ds, empty=self.isempty)
 
     @property
     def tdata(self):
@@ -1825,252 +1863,9 @@ class SpikeTrainArray(SpikeTrain):
 
 
 ########################################################################
-# class BinnedSpikeTrain
-########################################################################
-class BinnedSpikeTrain:
-    """A set of binned action potential (spike) times of a putative unit
-    (neuron).
-
-    Parameters
-    ----------
-    spiketrain : nelpy.SpikeTrain
-        The spiketrain to bin.
-    ds : float, optional
-        Bin size (width) in seconds. Default is 0.625 seconds, which
-        corresponds to half of a typical rodent theta cycle.
-
-    Attributes
-    ----------
-    ds : float
-        Bin width, in seconds.
-    centers : np.array
-        The centers of the bins. With shape (n_bins, 1).
-    data : np.array
-    bins : np.array
-        The edges of the bins. With shape (??? depends on n_epochs).
-        # TODO: check what is the format that numpy takes.
-        Also, consider making this an EventArray, so that the bins can
-        easily be overlayed on plots.
-    support : nelpy.EpochArray on which binned spiketrain is defined.
-    _binnedSupport : np.array of shape (n_epochs, 2) with the start and
-        stop bin index associated w each epoch.
-    """
-
-    # TODO: considerations.
-    #
-    # We need an efficient data representation: consider a case where we
-    # have a support of [0,1] U [9999,10000]. In this case, we do not
-    # want to (needlessly) allocate space for all the bins in [1,9999].
-    # So a better approach might be to intelligently pre-compute the bin
-    # edges before binning. Bins should also be such that they
-    # completely enclose all epochs in the spiketrain's support.
-    #
-    # For example, with 0.5 second bins, and a spiketrain
-    # [0.8, 0.9 1.2 1.8 2.4 2.51] with support [0.8, 2.51] we would need
-    # bins 0.5--3.0 (left- to right-edge), that is,
-    # [0.5,1.0) U [1.0,1.5) U [1.5,2.0) U [2.5,3.0).
-    #
-    # In the first example, with a 5 second bin, we'd need
-    # [0,5) U [9995,10000) U [10000,10005), and NOT simply
-    # [0,5) U [9999,10004) because such an approach can cause lots of
-    # headaches down the road.
-    #
-    # Now implementation-wise: should we store the numpy arrays
-    # separately for each epoch? Should we have only one array, but keep
-    # track of the bin centers (most useful for plotting and other
-    # analysis) and the True support epochs? How about slicing and
-    # indexing? If we index a BinnedSpikeTrain with an EpochArray, then
-    # we should get only those bins back that fall in the intersection
-    # of the BinnedSpikeTrain's support and the indexing EpochArray. If
-    # we slice, should we slice by bins, or by epochs? I am still
-    # leaning towards slicing by epoch, so that BinnedSpikeTrain[2:5]
-    # will return binned data corresponding to epochs 2,3 and 4.
-    #
-    # It is also possible that the best hing to do is to have a dynamic
-    # representation, where one option is to store an array of bin
-    # centers, and another is to store compact representations
-    # (start, stop)-tuples for each bin epoch. This might save a lot of
-    # memory for large, contiguous segments, but it may be painfully
-    # slow for cases with lots of short epochs. For now, I think I will
-    # simply do the expanded (non-compact) representation.
-    #
-    # Also, should a BinnedSpikeTrain keep an unbinned copy of the
-    # associated SpikeTrain? That way we can re-bin and maybe do some
-    # interesting things, but it may also be pretty wasteful space
-    # (memory) wise...?
-
-    def __init__(self, spiketrain, *, ds=None):
-        # by default, the support of the binned spiketrain will be
-        # inherited from spiketrain
-
-        if not isinstance(spiketrain, SpikeTrain):
-            raise TypeError(
-                'spiketrain must be a nelpy.SpikeTrain object.')
-
-        self._ds = None
-        self._centers = np.array([])
-
-        if ds is None:
-            warnings.warn('no bin size was given, assuming 62.5 ms')
-            ds = 0.0625
-
-        # TODO: this is not a good empty object to return; fix it!
-        # if no tdata were received, return an empty BinnedSpikeTrain:
-        if spiketrain.isempty:
-            self.ds = ds
-            return
-
-        self._spiketrain = spiketrain # TODO: remove this if we don't need it, or decide that it's too wasteful
-        self._support = spiketrain.support
-        self.ds = ds
-
-        self._bin_spikes(
-            spiketrain=spiketrain,
-            epochArray=self.support,
-            ds=ds
-            )
-
-    def __repr__(self):
-        if self.isempty:
-            return "<empty BinnedSpikeTrain>"
-        if self.n_bins == 1:
-            bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
-            dstr = ""
-        else:
-            bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
-            dstr = " for a total of {} seconds.".format(self.n_bins*self.ds)
-        return "<BinnedSpikeTrain:%s>%s" % (bstr, dstr)
-
-    def __getitem__(self, idx):
-        raise NotImplementedError(
-            'BinnedSpikeTrain.__getitem__ not implemented yet')
-
-    @property
-    def centers(self):
-        """(np.array) The bin centers (in seconds)."""
-        return self._centers
-
-    @property
-    def data(self):
-        """(np.array) The spike counts in all the bins.
-        See also BinnedSpikeTrain.centers
-        """
-        return self._data
-
-    @property
-    def bins(self):
-        """(np.array) The bin edges (in seconds)."""
-        return self._bins
-
-    @property
-    def support(self):
-        """(nelpy.EpochArray) The support of the underlying spiketrain
-        (in seconds).
-         """
-        return self._support
-
-    @property
-    def binnedSupport(self):
-        """(np.array) The binned support of the binned spiketrain (in
-        bin IDs) of shape (2, n_epochs).
-        """
-        return self._binnedSupport
-
-    @property
-    def lengths(self):
-        """Lenghts of contiguous segments, in number of bins."""
-        return self.binnedSupport[1,:] - self.binnedSupport[0,:] + 1
-
-    @property
-    def spiketrain(self):
-        """(nelpy.SpikeTrain) The original spiketrain associated with
-        the binned data.
-        """
-        return self._spiketrain
-
-    @property
-    def n_bins(self):
-        """(int) The number of bins."""
-        return len(self.centers)
-
-    @property
-    def isempty(self):
-        """(bool) Empty BinnedSpikeTrain."""
-        return len(self.centers) == 0
-
-    @property
-    def n_active(self):
-        """Number of active units per time bin with shape (n_bins,)."""
-        return self.data.clip(max=1)
-
-    @property
-    def ds(self):
-        """(float) Bin width in seconds."""
-        return self._ds
-
-    @ds.setter
-    def ds(self, val):
-        if self._ds is not None:
-            raise AttributeError("can't set attribute")
-        else:
-            try:
-                if val <= 0:
-                    pass
-            except TypeError:
-                raise TypeError("bin width must be a scalar")
-            if val <= 0:
-                raise ValueError("bin width must be positive")
-            self._ds = val
-
-    def _get_bins_to_cover_epoch(self, epoch, ds):
-        """(np.array) Return bin edges to cover an epoch."""
-        # start = ep.start - (ep.start % ds)
-        # start = ep.start - (ep.start / ds - floor(ep.start / ds))
-        # because e.g., 1 % 0.1 is messed up (precision error)
-        start = ds * np.floor(epoch.start / ds)
-        num = np.ceil((epoch.stop - start) / ds)
-        stop = start + ds * num
-        bins = np.linspace(start, stop, num+1)
-        centers = bins[:-1] + np.diff(bins) / 2
-        return bins, centers
-
-    def _bin_spikes(self, spiketrain, epochArray, ds):
-        b = []
-        c = []
-        s = []
-        left_edges = []
-        right_edges = []
-        counter = 0
-        for epoch in epochArray:
-            bins, centers = self._get_bins_to_cover_epoch(epoch, ds)
-            spike_counts, _ = np.histogram(
-                spiketrain.time,
-                bins=bins,
-                density=False,
-                range=(epoch.start,epoch.stop)
-                ) # TODO: is it faster to limit range, or to cut out spikes?
-            left_edges.append(counter)
-            counter += len(centers) - 1
-            right_edges.append(counter)
-            counter += 1
-            b.extend(bins.tolist())
-            c.extend(centers.tolist())
-            s.extend(spike_counts.tolist())
-        self._bins = np.array(b)
-        self._centers = np.array(c)
-        self._data = np.array(s)
-        self._binnedSupport = np.vstack(
-            (np.array(left_edges),
-             np.array(right_edges))
-            )
-#----------------------------------------------------------------------#
-#======================================================================#
-
-
-########################################################################
 # class BinnedSpikeTrainArray
 ########################################################################
-class BinnedSpikeTrainArray:
+class BinnedSpikeTrainArray(SpikeTrain):
     """Binned spiketrain array.
 
     Parameters
@@ -2084,13 +1879,41 @@ class BinnedSpikeTrainArray:
     time : np.array
         The start and stop times for each epoch. With shape (n_epochs, 2).
     """
-    def __init__(self, spiketrainarray, *, ds=None):
+
+    __attributes__ = ["_ds", "_bins", "_data", "_centers", "_support",
+                      "_binnedSupport", "_spiketrainarray"]
+    __attributes__.extend(SpikeTrain.__attributes__)
+
+    def __init__(self, spiketrainarray=None, *, ds=None, empty=False):
+
+        # if an empty object is requested, return it:
+        if empty:
+            super().__init__(empty=True)
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
+
         if not isinstance(spiketrainarray, SpikeTrainArray):
             raise TypeError(
                 'spiketrainarray must be a nelpy.SpikeTrainArray object.')
 
         self._ds = None
         self._centers = np.array([])
+
+        with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                kwargs = {"fs": spiketrainarray.fs,
+                        "unit_ids": spiketrainarray.unit_ids,
+                        "unit_labels": spiketrainarray.unit_labels,
+                        "unit_tags": spiketrainarray.unit_tags,
+                        "label": spiketrainarray.label}
+
+        # initialize super so that self.fs is set:
+        self._data = np.zeros((spiketrainarray.n_units,0))
+            # the above is necessary so that super() can determine
+            # self.n_units when initializing. self.time will
+            # be updated later in __init__ to reflect subsequent changes
+        super().__init__(**kwargs)
 
         if ds is None:
             warnings.warn('no bin size was given, assuming 62.5 ms')
@@ -2099,8 +1922,7 @@ class BinnedSpikeTrainArray:
         # TODO: this is not a good empty object to return; fix it!
         # if no tdata were received, return an empty BinnedSpikeTrain:
         if spiketrainarray.isempty:
-            self.ds = ds
-            return
+            return BinnedSpikeTrainArray(empty=True)
 
         self._spiketrainarray = spiketrainarray # TODO: remove this if we don't need it, or decide that it's too wasteful
         self._support = spiketrainarray.support
@@ -2112,9 +1934,19 @@ class BinnedSpikeTrainArray:
             ds=ds
             )
 
+    def copy(self):
+        """Returns a copy of the BinnedSpikeTrainArray."""
+        newcopy = BinnedSpikeTrainArray(empty=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in self.__attributes__:
+                exec("newcopy." + attr + " = self." + attr)
+        return newcopy
+
     def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
         if self.isempty:
-            return "<empty BinnedSpikeTrainArray>"
+            return "<empty BinnedSpikeTrainArray" + address_str + ">"
         ustr = " {} units in".format(self.n_units)
         if self.n_bins == 1:
             bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
@@ -2122,11 +1954,46 @@ class BinnedSpikeTrainArray:
         else:
             bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
             dstr = " for a total of {} seconds.".format(self.n_bins*self.ds)
-        return "<BinnedSpikeTrainArray:%s%s>%s" % (ustr, bstr, dstr)
+        return "<BinnedSpikeTrainArray%s:%s%s>%s" % (address_str, ustr, bstr, dstr)
+
+    def __iter__(self):
+        """BinnedSpikeTrainArray iterator initialization."""
+        # initialize the internal index to zero when used as iterator
+        self._index = 0
+        return self
+
+    def __next__(self):
+        """BinnedSpikeTrainArray iterator advancer."""
+        index = self._index
+
+        if index > self.support.n_epochs - 1:
+            raise StopIteration
+
+        # with warnings.catch_warnings():
+        #     warnings.simplefilter("ignore")
+        #     support = self.support[index]
+
+        #     time, tdata = self._restrict_to_epoch_array(
+        #         epocharray=support,
+        #         time=self.time,
+        #         tdata=self.tdata,
+        #         copy=True
+        #         )
+        #     kwargs = {"tdata": tdata,
+        #           "support": support,
+        #           "fs": self.fs,
+        #           "unit_ids": self.unit_ids,
+        #           "unit_labels": self.unit_labels,
+        #           "unit_tags": self.unit_tags,
+        #           "label": self.label}
+        #     # return sta one epoch at a time
+        #     sta = SpikeTrainArray(**kwargs)
+        # self._index += 1
+        # return sta
 
     def __getitem__(self, idx):
         raise NotImplementedError(
-            'BinnedSpikeTrain.__getitem__ not implemented yet')
+            'BinnedSpikeTrainArray.__getitem__ not implemented yet')
 
     @property
     def centers(self):
@@ -2145,29 +2012,17 @@ class BinnedSpikeTrainArray:
         """(np.array) The bin edges (in seconds)."""
         return self._bins
 
-    # @property
-    # def n_units(self):
-    #     """(int) The number of units."""
-    #     return self.data.shape[0]
-
-    # @property
-    # def support(self):
-    #     """(nelpy.EpochArray) The support of the underlying spiketrain
-    #     (in seconds).
-    #      """
-    #     return self._support
-
     @property
     def binnedSupport(self):
         """(np.array) The binned support of the binned spiketrain (in
-        bin IDs) of shape (2, n_epochs).
+        bin IDs) of shape (n_epochs, 2).
         """
         return self._binnedSupport
 
     @property
     def lengths(self):
         """Lenghts of contiguous segments, in number of bins."""
-        return self.binnedSupport[1,:] - self.binnedSupport[0,:] + 1
+        return self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1
 
     @property
     def spiketrainarray(self):
@@ -2180,11 +2035,6 @@ class BinnedSpikeTrainArray:
     def n_bins(self):
         """(int) The number of bins."""
         return len(self.centers)
-
-    # @property
-    # def isempty(self):
-    #     """(bool) Empty BinnedSpikeTrain."""
-    #     return len(self.centers) == 0
 
     @property
     def ds(self):
@@ -2218,9 +2068,9 @@ class BinnedSpikeTrainArray:
         return bins, centers
 
     def _bin_spikes(self, spiketrainarray, epochArray, ds):
-        b = []
-        c = []
-        s = []
+        b = []  # bin list
+        c = []  # centers list
+        s = []  # data list
         for nn in range(spiketrainarray.n_units):
             s.append([])
         left_edges = []
@@ -2245,10 +2095,11 @@ class BinnedSpikeTrainArray:
         self._bins = np.array(b)
         self._centers = np.array(c)
         self._data = np.array(s)
-        self._binnedSupport = np.vstack(
-            (np.array(left_edges),
-             np.array(right_edges))
-            )
+        le = np.array(left_edges)
+        le = le[:, np.newaxis]
+        re = np.array(right_edges)
+        re = re[:, np.newaxis]
+        self._binnedSupport = np.hstack((le, re))
 
     @property
     def n_active(self):
@@ -2256,6 +2107,50 @@ class BinnedSpikeTrainArray:
         # TODO: profile several alternatves. Could use data > 0, or
         # other numpy methods to get a more efficient implementation:
         return self.data.clip(max=1).sum(axis=0)
+
+    @property
+    def n_spikes(self):
+        """(np.array) The number of spikes in each unit."""
+        if self.isempty:
+            return 0
+        return self.data.sum(axis=1)
+
+    def flatten(self, *, unit_id=None, unit_label=None):
+        """Collapse spike trains across units.
+
+        WARNING! unit_tags are thrown away when flattening.
+
+        Parameters
+        ----------
+        unit_id: (int)
+            (unit) ID to assign to flattened spike train, default is 0.
+        unit_label (str)
+            (unit) Label for spike train, default is 'flattened'.
+        """
+        if self.n_units == 1:  # already flattened
+            return self
+
+        # default args:
+        if unit_id is None:
+            unit_id = 0
+        if unit_label is None:
+            unit_label = "flattened"
+
+        binnedspiketrainarray = BinnedSpikeTrainArray(empty=True)
+
+        exclude = ["_data", "unit_ids", "unit_labels", "unit_tags"]
+        attrs = (x for x in self.__attributes__ if x not in "_data")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("binnedspiketrainarray." + attr + " = self." + attr)
+        binnedspiketrainarray._data = np.array(self.data.sum(axis=0), ndmin=2)
+        binnedspiketrainarray._unit_ids = [unit_id]
+        binnedspiketrainarray._unit_labels = [unit_label]
+        binnedspiketrainarray._unit_tags = None
+        return binnedspiketrainarray
+
 
 #----------------------------------------------------------------------#
 #======================================================================#
