@@ -12,27 +12,27 @@ __all__ = ['plot',
            'epoch_plot']
 
 class RasterLabelData(artist.Artist):
-    
+
     def __init__(self):
         self.label_data = {}  # (k, v) = (unit_id, (unit_loc, unit_label))
         artist.Artist.__init__(self)
         self.yrange = []
-        
+
     def __repr__(self):
         return "<nelpy.RasterLabelData at " + str(hex(id(self))) + ">"
-        
+
     @property
     def label_data(self):
         return self._label_data
-    
+
     @label_data.setter
     def label_data(self, val):
         self._label_data = val
-        
+
     @property
     def yrange(self):
         return self._yrange
-    
+
     @yrange.setter
     def yrange(self, val):
         self._yrange = val
@@ -40,7 +40,7 @@ class RasterLabelData(artist.Artist):
 def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
          mec=None, **kwargs):
     """Plot an array-like object on an EpochArray.
-    
+
     Parameters
     ----------
     epocharray : nelpy.EpochArray
@@ -59,12 +59,12 @@ def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
         Marker edge color, default is equal to color.
     kwargs :
         Other keyword arguments are passed to main plot() call
-    
+
     Returns
     -------
     ax : matplotlib axis
         Axis object with plot data.
-    
+
     Examples
     --------
     Plot a simple 5-element list on an EpochArray:
@@ -190,11 +190,11 @@ def rasterc(spiketrain, nbins=25, **kwargs):
     npl.utils.sync_xlims(ax1, ax2)
 
     return ax1, ax2
-        
-def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None, 
+
+def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
            vertstack=None, labels=None, **kwargs):
     """Make a raster plot from a SpikeTrainArray object.
-    
+
     Parameters
     ----------
     data : nelpy.SpikeTrainArray object
@@ -208,20 +208,20 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     lh : float, optional
         Line height, default value of 0.95
     vertstack : Stack units in vertically adjacent positions, optional
-        Default is to plot units in absolute positions according 
+        Default is to plot units in absolute positions according
         to their unit_ids
     labels : Labels for input data units, optional
-        If not specified, default is to use the unit_labels from the 
-        SpikeTrainArray input. See SpikeTrainArray docstring for 
+        If not specified, default is to use the unit_labels from the
+        SpikeTrainArray input. See SpikeTrainArray docstring for
         default behavior of unit_labels
     kwargs :
         Other keyword arguments are passed to main vlines() call
-    
+
     Returns
     -------
     ax : matplotlib axis
         Axis object with plot data.
-    
+
     Examples
     --------
     Instantiate a SpikeTrainArray and create a raster plot
@@ -230,18 +230,18 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
         >>> stdata3 = [5,12,14,15,16,18,22,23,24]
         >>> stdata4 = [5,12,14,15,16,18,23,25,32]
 
-        >>> sta1 = nelpy.SpikeTrainArray([stdata1, stdata2, stdata3, 
-                                          stdata4, stdata1+stdata4], 
+        >>> sta1 = nelpy.SpikeTrainArray([stdata1, stdata2, stdata3,
+                                          stdata4, stdata1+stdata4],
                                           fs=5, unit_ids=[1,2,3,4,6])
         >>> ax = raster(sta1, color='cyan', lw=2, lh=2)
-        
-    Instantiate another SpikeTrain Array, stack units, and specify labels. 
-    Note that the user-specified labels in the call to raster() will be 
+
+    Instantiate another SpikeTrain Array, stack units, and specify labels.
+    Note that the user-specified labels in the call to raster() will be
     shown instead of the unit_labels associated with the input data
-        >>> sta3 = nelpy.SpikeTrainArray([stdata1, stdata4, stdata2+stdata3], 
-                                         support=ep1, fs=5, unit_ids=[10,5,12], 
+        >>> sta3 = nelpy.SpikeTrainArray([stdata1, stdata4, stdata2+stdata3],
+                                         support=ep1, fs=5, unit_ids=[10,5,12],
                                          unit_labels=['some', 'more', 'cells'])
-        >>> raster(sta3, color=plt.cm.Blues, lw=2, lh=2, vertstack=True, 
+        >>> raster(sta3, color=plt.cm.Blues, lw=2, lh=2, vertstack=True,
                    labels=['units', 'of', 'interest'])
     """
 
@@ -256,12 +256,12 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
         lh = 0.95
     if vertstack is None:
         vertstack = False
-    
+
     firstplot = False
     if not ax.findobj(match=RasterLabelData):
         firstplot = True
         ax.add_artist(RasterLabelData())
-    
+
     # override labels
     if labels is not None:
         unit_labels = labels
@@ -272,15 +272,15 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
 
     # Handle different types of input data
     if isinstance(data, SpikeTrainArray):
-        
+
         label_data = ax.findobj(match=RasterLabelData)[0].label_data
         unitlist = [np.NINF for element in data.unit_ids]
         # no override labels so use unit_labels from input
-        if not unit_labels: 
+        if not unit_labels:
             unit_labels = data.unit_labels
-        
+
         if firstplot:
-            if vertstack: 
+            if vertstack:
                 minunit = 1
                 maxunit = data.n_units
                 unitlist = range(1, data.n_units + 1)
@@ -288,7 +288,7 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
                 minunit = np.array(data.unit_ids).min()
                 maxunit = np.array(data.unit_ids).max()
                 unitlist = data.unit_ids
-        # see if any of the unit_ids has already been plotted. If so, 
+        # see if any of the unit_ids has already been plotted. If so,
         # then merge
         else:
             for idx, unit_id in enumerate(data.unit_ids):
@@ -297,7 +297,7 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
                     unitlist[idx] = position
                 else:  # unit not yet plotted
                     if vertstack:
-                        unitlist[idx] = 1 + max(int(ax.get_yticks()[-1]), 
+                        unitlist[idx] = 1 + max(int(ax.get_yticks()[-1]),
                                                 max(unitlist))
                     else:
                         warnings.warn("Spike trains may be plotted in "
@@ -318,16 +318,16 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
         if cmap is not None:
             color_range = range(data.n_units)
             # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
-            colors = cmap(np.linspace(0.25, 0.75, data.n_units)) 
+            colors = cmap(np.linspace(0.25, 0.75, data.n_units))
             for unit, spiketrain, color_idx in zip(unitlist, data.time, color_range):
                 ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[color_idx], lw=lw, **kwargs)
         else:  # use a constant color:
             for unit, spiketrain in zip(unitlist, data.time):
                 ax.vlines(spiketrain, unit - hh, unit + hh, colors=color, lw=lw, **kwargs)
-        
+
         # get existing label data so we can set some attributes
         rld = ax.findobj(match=RasterLabelData)[0]
-        
+
         ax.set_ylim(yrange)
         rld.yrange = yrange
 
