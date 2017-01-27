@@ -1,7 +1,8 @@
 #encoding : utf-8
 """This file contains the nelpy plotting functions and utilities.
 
-Parts of this code from graphing.py Copyright (c) 2013 Jessica B. Hamrick
+Some functions Copyright (c) 2016 Etienne R. Ackermann
+Some functions Copyright (c) 2013 Jessica B. Hamrick
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -13,7 +14,6 @@ the following conditions:
 
 The above copyright notice and this permission notice shall be
 included in all copies or substantial portions of the Software.
- *
 """
 
 # TODO: see https://gist.github.com/arnaldorusso/6611ff6c05e1efc2fb72
@@ -25,10 +25,37 @@ from matplotlib import cm
 from matplotlib import colors as mplcolors
 import matplotlib.pyplot as plt
 
-__all__ = ["annotate", "figure_grid", "savefig", "clear_left_right", "clear_top_bottom"]
+__all__ = ['align_xlabels',
+           'align_ylabels',
+           'annotate',
+           'clear_bottom',
+           'clear_left',
+           'clear_left_right',
+           'clear_right',
+           'clear_top',
+           'clear_top_bottom',
+           'figure_grid',
+           'FixedOrderFormatter',
+           'no_xticklabels',
+           'no_yticklabels',
+           'outward_ticks',
+           'savefig',
+           'set_figsize',
+           'set_scientific',
+           'set_xlabel_coords',
+           'set_ylabel_coords',
+           'sync_xlims',
+           'sync_ylims']
 
-def annotate(ax, text, xy=(0.5, 0.5), rotation=0, va=None, **kwargs):
+def annotate(text, ax=None, xy=None, rotation=None, va=None, **kwargs):
     """Docstring goes here."""
+
+    if ax is None:
+        ax = plt.gca()
+    if xy is None:
+        xy = (0.5, 0.5)
+    if rotation is None:
+        rotation = 0
     if rotation == 'vert' or rotation == 'v':
         rotation = 90
     if rotation == 'horz' or rotation == 'h':
