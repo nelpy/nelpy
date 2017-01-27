@@ -1995,12 +1995,13 @@ class BinnedSpikeTrainArray(SpikeTrain):
             attrs = (x for x in self.__attributes__ if x not in exclude)
             for attr in attrs:
                 exec("binnedspiketrain." + attr + " = self." + attr)
-            binstarts = np.insert(0, 1, np.cumsum(self.lengths + 1))[:-1] # start indices of bins
-            binstops = np.cumsum(self.lengths + 1) - 1 # stop indices of bins
-            binnedspiketrain._bins = 
-            binnedspiketrain._data = self.data[:,bsupport[0][0]:bsupport[0][1]+1]
+            binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+            binstart = binindices[index]
+            binstop = binindices[index+1]
+            binnedspiketrain._bins = self._bins[binstart:binstop]
+            binnedspiketrain._data = self._data[:,bsupport[0][0]:bsupport[0][1]+1]
             binnedspiketrain._support = support
-            binnedspiketrain._centers = self.centers[bsupport[0][0]:bsupport[0][1]+1]
+            binnedspiketrain._centers = self._centers[bsupport[0][0]:bsupport[0][1]+1]
             binnedspiketrain._binnedSupport = bsupport
         self._index += 1
         return binnedspiketrain
