@@ -174,7 +174,10 @@ class SpikeTrain(object):
     def isempty(self):
         """(bool) Empty SpikeTrain."""
         if isinstance(self, SpikeTrainArray):
-            return np.sum([len(st) for st in self.time]) == 0
+            try:
+                return np.sum([len(st) for st in self.time]) == 0
+            except TypeError:
+                return True  # this happens when self.centers == None
         elif isinstance(self, BinnedSpikeTrainArray):
             try:
                 return len(self.centers) == 0
@@ -1631,10 +1634,8 @@ class SpikeTrainArray(SpikeTrain):
     def __next__(self):
         """SpikeTrainArray iterator advancer."""
         index = self._index
-
         if index > self.support.n_epochs - 1:
             raise StopIteration
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             support = self.support[index]
@@ -1644,28 +1645,21 @@ class SpikeTrainArray(SpikeTrain):
                 tdata=self.tdata,
                 copy=True
                 )
-            kwargs = {"tdata": tdata,
-                  "support": support,
-                  "fs": self.fs,
-                  "unit_ids": self.unit_ids,
-                  "unit_labels": self.unit_labels,
-                  "unit_tags": self.unit_tags,
-                  "label": self.label}
-            # return sta one epoch at a time
-            sta = SpikeTrainArray(**kwargs)
+            spiketrain = SpikeTrainArray(empty=True)
+            exclude = ["_tdata", "_time", "_support"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            for attr in attrs:
+                exec("spiketrain." + attr + " = self." + attr)
+            spiketrain._tdata = tdata
+            spiketrain._time = time
+            spiketrain._support = support
         self._index += 1
-        return sta
+        return spiketrain
 
     def __getitem__(self, idx):
         """SpikeTrainArray index access."""
         # TODO: allow indexing of form sta[4,1:5] so that the STs of
         # epochs 1 to 5 (exlcusive) are returned, for neuron id 4.
-
-        kwargs = {"fs": self.fs,
-                  "unit_ids": self.unit_ids,
-                  "unit_labels": self.unit_labels,
-                  "unit_tags": self.unit_tags,
-                  "label": self.label}
 
         if isinstance(idx, EpochArray):
             if idx.isempty:
@@ -1682,49 +1676,69 @@ class SpikeTrainArray(SpikeTrain):
                     ) # what if fs of slicing epoch is different?
             if support.isempty:
                 return SpikeTrainArray(empty=True)
-            time, tdata = self._restrict_to_epoch_array(
-                epocharray=support,
-                time=self.time,
-                tdata=self.tdata,
-                copy=True
-                )
-            sta = SpikeTrainArray(
-                tdata = tdata,
-                support = support,
-                **kwargs)
-            return sta
-        elif isinstance(idx, int):
-            if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
-                return SpikeTrainArray(empty=True)
-            try:
-                support = self.support[idx]
-                time, tdata = self._restrict_to_epoch_array(
-                    epocharray=support,
-                    time=self.time,
-                    tdata=self.tdata,
-                    copy=True)
-                sta = SpikeTrainArray(
-                    tdata = tdata,
-                    support = support,
-                    **kwargs)
-                return sta
-            except IndexError:
-                # index out of bounds: return an empty SpikeTrainArray
-                return SpikeTrainArray(empty=True)
-        else:
-            try:
-                support = self.support[idx]
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
                 time, tdata = self._restrict_to_epoch_array(
                     epocharray=support,
                     time=self.time,
                     tdata=self.tdata,
                     copy=True
                     )
-                sta = SpikeTrainArray(
-                    tdata = tdata,
-                    support = support,
-                    **kwargs)
-                return sta
+                spiketrain = SpikeTrainArray(empty=True)
+                exclude = ["_tdata", "_time", "_support"]
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                for attr in attrs:
+                    exec("spiketrain." + attr + " = self." + attr)
+                spiketrain._tdata = tdata
+                spiketrain._time = time
+                spiketrain._support = support
+            return spiketrain
+        elif isinstance(idx, int):
+            if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
+                return SpikeTrainArray(empty=True)
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    support = self.support[idx]
+                    time, tdata = self._restrict_to_epoch_array(
+                        epocharray=support,
+                        time=self.time,
+                        tdata=self.tdata,
+                        copy=True
+                        )
+                    spiketrain = SpikeTrainArray(empty=True)
+                    exclude = ["_tdata", "_time", "_support"]
+                    attrs = (x for x in self.__attributes__ if x not in exclude)
+                    for attr in attrs:
+                        exec("spiketrain." + attr + " = self." + attr)
+                    spiketrain._tdata = tdata
+                    spiketrain._time = time
+                    spiketrain._support = support
+                return spiketrain
+            except IndexError:
+                # index out of bounds: return an empty SpikeTrainArray
+                return SpikeTrainArray(empty=True)
+        else:
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    support = self.support[idx]
+                    time, tdata = self._restrict_to_epoch_array(
+                        epocharray=support,
+                        time=self.time,
+                        tdata=self.tdata,
+                        copy=True
+                        )
+                    spiketrain = SpikeTrainArray(empty=True)
+                    exclude = ["_tdata", "_time", "_support"]
+                    attrs = (x for x in self.__attributes__ if x not in exclude)
+                    for attr in attrs:
+                        exec("spiketrain." + attr + " = self." + attr)
+                    spiketrain._tdata = tdata
+                    spiketrain._time = time
+                    spiketrain._support = support
+                return spiketrain
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
@@ -1812,17 +1826,19 @@ class SpikeTrainArray(SpikeTrain):
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
-        if self.isempty:
-            return "<empty SpikeTrainArray" + address_str + ">"
-        if self.fs is not None:
-            fsstr = " at %s Hz" % self.fs
-        else:
-            fsstr = ""
-        if self.label is not None:
-            labelstr = " from %s" % self.label
-        else:
-            labelstr = ""
-        numstr = " %s units" % self.n_units
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if self.isempty:
+                return "<empty SpikeTrainArray" + address_str + ">"
+            if self.fs is not None:
+                fsstr = " at %s Hz" % self.fs
+            else:
+                fsstr = ""
+            if self.label is not None:
+                labelstr = " from %s" % self.label
+            else:
+                labelstr = ""
+            numstr = " %s units" % self.n_units
         return "<SpikeTrainArray%s:%s>%s%s" % (address_str, numstr, fsstr, labelstr)
 
     def bin(self, *, ds=None):
