@@ -1985,27 +1985,25 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if index > self.support.n_epochs - 1:
             raise StopIteration
 
-        # with warnings.catch_warnings():
-        #     warnings.simplefilter("ignore")
-        #     support = self.support[index]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            support = self.support[index]
+            bsupport = self.binnedSupport[[index],:]
 
-        #     time, tdata = self._restrict_to_epoch_array(
-        #         epocharray=support,
-        #         time=self.time,
-        #         tdata=self.tdata,
-        #         copy=True
-        #         )
-        #     kwargs = {"tdata": tdata,
-        #           "support": support,
-        #           "fs": self.fs,
-        #           "unit_ids": self.unit_ids,
-        #           "unit_labels": self.unit_labels,
-        #           "unit_tags": self.unit_tags,
-        #           "label": self.label}
-        #     # return sta one epoch at a time
-        #     sta = SpikeTrainArray(**kwargs)
-        # self._index += 1
-        # return sta
+            binnedspiketrain = BinnedSpikeTrainArray(empty=True)
+            exclude = ["_bins", "_data", "_support", "_centers", "_binnedSupport"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            for attr in attrs:
+                exec("binnedspiketrain." + attr + " = self." + attr)
+            binstarts = np.insert(0, 1, np.cumsum(self.lengths + 1))[:-1] # start indices of bins
+            binstops = np.cumsum(self.lengths + 1) - 1 # stop indices of bins
+            binnedspiketrain._bins = 
+            binnedspiketrain._data = self.data[:,bsupport[0][0]:bsupport[0][1]+1]
+            binnedspiketrain._support = support
+            binnedspiketrain._centers = self.centers[bsupport[0][0]:bsupport[0][1]+1]
+            binnedspiketrain._binnedSupport = bsupport
+        self._index += 1
+        return binnedspiketrain
 
     def __getitem__(self, idx):
         raise NotImplementedError(
