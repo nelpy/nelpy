@@ -3,22 +3,32 @@ Neuroelectrophysiology object model and analysis in Python
 
 * Nelpy: Neuroelectrophysiology in Python.
 
+Nelpy defines a few fundamental data objects to make it easier to work
+with electrophysiology (ephys) data. It was originally designed for use
+with extracellular recorded data using implanted electrodes, but it can
+be much more broadly applicable.
+
+In addition, nelpy is intended to make **interactive** data analysis and
+exploration of these ephys data easy, by providing several convenience
+functions and common visualization functions that operate directly on
+the nelpy objects.
+
 First things first
 ==================
 
-This project is based on the `python-vdmlab` package from the
+Nelpy drew heavy inspiration from the `python-vdmlab` package from the
 van der Meer lab at Dartmouth College (https://github.com/vandermeerlab),
-created by Emily Irvine (https://github.com/emirvine). It is also inspired
-by the neuralensemble.org NEO project (http://neo.readthedocs.io/en/0.4.0/).
+which was created by Emily Irvine (https://github.com/emirvine). It is
+also inspired by the neuralensemble.org NEO project (http://neo.readthedocs.io).
 
 Scope of this work
 ==================
-The nelpy object model is expected to be quite similar to python-vdmlab object
+The nelpy object model is expected to be quite similar to the python-vdmlab object
 model, which in turn has significant overlap with neuralensemble.org's neo
 model. However, the nelpy object model extends the former by making binned data
 first class citizens, and by changing the API for indexing and extracting subsets
 of data, as well as making "functional support" an integral part of the model. It
-(nelpy) is impler and less well developed than neo, and specifically lacks in
+(nelpy) is currently simpler and less comprehensive than neo, and specifically lacks in
 terms of physical units and complex object hierarchies and nonlinear relationships.
 However, nelpy again makes binned data a core object, and nelpy further aims to
 add additional analysis code including filtering, smoothing, position analysis,
@@ -54,6 +64,7 @@ That's it!
 
 Documentation
 =============
+Coming soon! But the code is already pretty well documented.
 
 Users
 -----
@@ -64,3 +75,4 @@ See [here](developnotes.md)
 
 Testing
 -------
+Coming soon! Expected in release 0.1.0

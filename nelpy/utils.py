@@ -1,4 +1,5 @@
 """This module contains helper functions and utilities for nelpy."""
+
 __all__ = ['pairwise',
            'is_sorted',
            'linear_merge',
@@ -43,7 +44,7 @@ def linear_merge(list1, list2):
     value1 = next(list1)
     value2 = next(list2)
 
-    # We'll normally exit this loop from a next() call raising 
+    # We'll normally exit this loop from a next() call raising
     # StopIteration, which is how a generator function exits anyway.
     while True:
         if value1 <= value2:
@@ -80,14 +81,14 @@ def get_contiguous_segments(data,step=None, sort=False):
     """
     from itertools import groupby
     from operator import itemgetter
-    
+
     if step is None:
         step = 1
     if sort:
         data = np.sort(data)  # below groupby algorithm assumes sorted list
     if np.any(np.diff(data) < step):
         warnings.warn("some steps in the data are smaller than the requested step size.")
-        
+
     bdries = []
 
     for k, g in groupby(enumerate(data), lambda ix: step*ix[0] - ix[1]):
@@ -140,7 +141,6 @@ def find_nearest_indices(array, vals):
 
     """
     return np.array([find_nearest_idx(array, val) for val in vals], dtype=int)
-
 
 def get_sort_idx(tuning_curves):
     """Finds indices to sort neurons by max firing in tuning curve.

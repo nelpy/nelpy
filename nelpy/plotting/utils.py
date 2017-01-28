@@ -1,6 +1,19 @@
 #encoding : utf-8
 """This file contains the nelpy plotting functions and utilities.
- *
+
+Some functions Copyright (c) 2016 Etienne R. Ackermann
+Some functions Copyright (c) 2013 Jessica B. Hamrick
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
 """
 
 # TODO: see https://gist.github.com/arnaldorusso/6611ff6c05e1efc2fb72
@@ -12,10 +25,37 @@ from matplotlib import cm
 from matplotlib import colors as mplcolors
 import matplotlib.pyplot as plt
 
-__all__ = ["annotate", "figure_grid", "savefig"]
+__all__ = ['align_xlabels',
+           'align_ylabels',
+           'annotate',
+           'clear_bottom',
+           'clear_left',
+           'clear_left_right',
+           'clear_right',
+           'clear_top',
+           'clear_top_bottom',
+           'figure_grid',
+           'FixedOrderFormatter',
+           'no_xticklabels',
+           'no_yticklabels',
+           'outward_ticks',
+           'savefig',
+           'set_figsize',
+           'set_scientific',
+           'set_xlabel_coords',
+           'set_ylabel_coords',
+           'sync_xlims',
+           'sync_ylims']
 
-def annotate(ax, text, xy=(0.5, 0.5), rotation=0, va=None, **kwargs):
+def annotate(text, ax=None, xy=None, rotation=None, va=None, **kwargs):
     """Docstring goes here."""
+
+    if ax is None:
+        ax = plt.gca()
+    if xy is None:
+        xy = (0.5, 0.5)
+    if rotation is None:
+        rotation = 0
     if rotation == 'vert' or rotation == 'v':
         rotation = 90
     if rotation == 'horz' or rotation == 'h':
@@ -170,3 +210,351 @@ or-specific-number
     def _set_orderOfMagnitude(self, range):
         """Override to prevent order_of_mag being reset elsewhere."""
         self.orderOfMagnitude = self._order_of_mag
+
+def clear_top(ax=None):
+    """Remove the top edge of the axis bounding box.
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    References
+    ----------
+    http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.spines['top'].set_color('none')
+    ax.xaxis.set_ticks_position('bottom')
+
+
+def clear_bottom(ax=None):
+    """Remove the bottom edge of the axis bounding box.
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    References
+    ----------
+    http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.spines['bottom'].set_color('none')
+    ax.xaxis.set_ticks_position('top')
+
+
+def clear_top_bottom(ax=None):
+    """Remove the top and bottom edges of the axis bounding box.
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    References
+    ----------
+    http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.spines['top'].set_color('none')
+    ax.spines['bottom'].set_color('none')
+    ax.xaxis.set_ticks([])
+
+
+def clear_left(ax=None):
+    """Remove the left edge of the axis bounding box.
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    References
+    ----------
+    http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.spines['left'].set_color('none')
+    ax.yaxis.set_ticks_position('right')
+
+
+def clear_right(ax=None):
+    """Remove the right edge of the axis bounding box.
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    References
+    ----------
+    http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.spines['right'].set_color('none')
+    ax.yaxis.set_ticks_position('left')
+
+
+def clear_left_right(ax=None):
+    """Remove the left and right edges of the axis bounding box.
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    References
+    ----------
+    http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.spines['left'].set_color('none')
+    ax.spines['right'].set_color('none')
+    ax.yaxis.set_ticks([])
+
+
+def outward_ticks(ax=None, axis='both'):
+    """Make axis ticks face outwards rather than inwards (which is the
+    default).
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+    axis : string (default='both')
+        The axis (either 'x', 'y', or 'both') for which to set the tick
+        direction.
+
+    """
+
+    if ax is None:
+        ax = plt.gca()
+    if axis == 'both':
+        ax.tick_params(direction='out')
+    else:
+        ax.tick_params(axis=axis, direction='out')
+
+
+def set_xlabel_coords(y, x=0.5, ax=None):
+    """Set the y-coordinate (and optionally the x-coordinate) of the x-axis
+    label.
+
+    Parameters
+    ----------
+    y : float
+        y-coordinate for the label
+    x : float (default=0.5)
+        x-coordinate for the label
+    ax : axis object (default=pyplot.gca())
+
+    References
+    ----------
+    http://matplotlib.org/faq/howto_faq.html#align-my-ylabels-across-multiple-subplots
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.xaxis.set_label_coords(x, y)
+
+
+def set_ylabel_coords(x, y=0.5, ax=None):
+    """Set the x-coordinate (and optionally the y-coordinate) of the y-axis
+    label.
+
+    Parameters
+    ----------
+    x : float
+        x-coordinate for the label
+    y : float (default=0.5)
+        y-coordinate for the label
+    ax : axis object (default=pyplot.gca())
+
+    References
+    ----------
+    http://matplotlib.org/faq/howto_faq.html#align-my-ylabels-across-multiple-subplots
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.yaxis.set_label_coords(x, y)
+
+
+def align_ylabels(xcoord, *axes):
+    """Align the y-axis labels of multiple axes.
+
+    Parameters
+    ----------
+    xcoord : float
+        x-coordinate of the y-axis labels
+    *axes : axis objects
+        The matplotlib axis objects to format
+
+    """
+    for ax in axes:
+        set_ylabel_coords(xcoord, ax=ax)
+
+
+def align_xlabels(ycoord, *axes):
+    """Align the x-axis labels of multiple axes
+
+    Parameters
+    ----------
+    ycoord : float
+        y-coordinate of the x-axis labels
+    *axes : axis objects
+        The matplotlib axis objects to format
+
+    """
+    for ax in axes:
+        set_xlabel_coords(ycoord, ax=ax)
+
+def no_xticks(ax=None):
+    """Remove the tick marks on the x-axis (but leave the labels).
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.tick_params(axis=u'x', which=u'both',length=0)
+
+def no_yticks(ax=None):
+    """Remove the tick marks on the y-axis (but leave the labels).
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.tick_params(axis=u'y', which=u'both',length=0)
+
+def no_xticklabels(ax=None):
+    """Remove the tick labels on the x-axis (but leave the tick marks).
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.set_xticklabels([])
+
+
+def no_yticklabels(ax=None):
+    """Remove the tick labels on the y-axis (but leave the tick marks).
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.set_yticklabels([])
+
+
+def set_figsize(width, height, fig=None):
+    """Set the figure width and height.
+
+    Parameters
+    ----------
+    width : float
+        Figure width
+    height : float
+        Figure height
+    fig : figure object (default=pyplot.gcf())
+
+    """
+
+    if fig is None:
+        fig = plt.gcf()
+    fig.set_figwidth(width)
+    fig.set_figheight(height)
+
+
+def set_scientific(low, high, axis=None, ax=None):
+    """Set the axes or axis specified by `axis` to use scientific notation for
+    ticklabels, if the value is <10**low or >10**high.
+
+    Parameters
+    ----------
+    low : int
+        Lower exponent bound for non-scientific notation
+    high : int
+        Upper exponent bound for non-scientific notation
+    axis : str (default=None)
+        Which axis to format ('x', 'y', or None for both)
+    ax : axis object (default=pyplot.gca())
+        The matplotlib axis object to use
+
+    """
+    # get the axis
+    if ax is None:
+        ax = plt.gca()
+    # create the tick label formatter
+    fmt = plt.ScalarFormatter()
+    fmt.set_scientific(True)
+    fmt.set_powerlimits((low, high))
+    # format the axis/axes
+    if axis is None or axis == 'x':
+        ax.get_yaxis().set_major_formatter(fmt)
+    if axis is None or axis == 'y':
+        ax.get_yaxis().set_major_formatter(fmt)
+
+
+def sync_ylims(*axes):
+    """Synchronize the y-axis data limits for multiple axes. Uses the maximum
+    upper limit and minimum lower limit across all given axes.
+
+    Parameters
+    ----------
+    *axes : axis objects
+        List of matplotlib axis objects to format
+
+    Returns
+    -------
+    out : ymin, ymax
+        The computed bounds
+
+    """
+    ymins, ymaxs = zip(*[ax.get_ylim() for ax in axes])
+    ymin = min(ymins)
+    ymax = max(ymaxs)
+    for ax in axes:
+        ax.set_ylim(ymin, ymax)
+    return ymin, ymax
+
+
+def sync_xlims(*axes):
+    """Synchronize the x-axis data limits for multiple axes. Uses the maximum
+    upper limit and minimum lower limit across all given axes.
+
+    Parameters
+    ----------
+    *axes : axis objects
+        List of matplotlib axis objects to format
+
+    Returns
+    -------
+    out : yxin, xmax
+        The computed bounds
+
+    """
+    xmins, xmaxs = zip(*[ax.get_xlim() for ax in axes])
+    xmin = min(xmins)
+    xmax = max(xmaxs)
+    for ax in axes:
+        ax.set_xlim(xmin, xmax)
+        return xmin, xmax
