@@ -538,7 +538,8 @@ class EpochArray:
                 return EpochArray(empty=True)
             if idx.fs != self.fs:  # cases (1, 2, 5):
                 epocharray = EpochArray(empty=True)
-                epocharray._time = idx.time
+                epocharray._tdata = idx._tdata
+                epocharray._time = idx._time
                 epoch = self.intersect(epocharray, boundaries=True)
             else:  # cases (3, 4)
                 epoch = self.intersect(
