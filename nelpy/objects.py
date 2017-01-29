@@ -177,16 +177,10 @@ class SpikeTrain(ABC):
         """(bool) Empty SpikeTrain."""
         return
 
-    @property
+    @abstractmethod
     def n_units(self):
         """(int) The number of units."""
-        if isinstance(self, SpikeTrainArray):
-            return len(self.time)
-        elif isinstance(self, BinnedSpikeTrainArray):
-            return self.data.shape[0]
-        else:
-            raise NotImplementedError(
-            "n_units should be defined in derived class")
+        return
 
     @property
     def unit_ids(self):
@@ -1743,6 +1737,11 @@ class SpikeTrainArray(SpikeTrain):
         except TypeError:
             return True  # this happens when self.time == None
 
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        return len(self.time)
+
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
 
@@ -2017,6 +2016,11 @@ class BinnedSpikeTrainArray(SpikeTrain):
             return len(self.centers) == 0
         except TypeError:
             return True  # this happens when self.centers == None
+
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        return self.data.shape[0]
 
     @property
     def centers(self):
