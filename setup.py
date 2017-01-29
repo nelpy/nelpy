@@ -43,7 +43,7 @@ setup(
     tests_require=['pytest'],
     install_requires=['numpy>=1.9.0',
                     'scipy>=0.16.0',
-                    'matplotlib>=1.4.0',
+                    'matplotlib>=1.4.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
                     ],
     cmdclass={'test': PyTest},
     author_email='era3@rice.edu',
