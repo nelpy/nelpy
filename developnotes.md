@@ -128,3 +128,5 @@ except DivisorTooSmallError:
 http://stackoverflow.com/questions/101268/hidden-features-of-python#113198
 
 https://www.quantifiedcode.com/knowledge-base/
+
+http://mahugh.com/2016/04/27/python-and-vs-code/

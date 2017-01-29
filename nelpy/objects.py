@@ -1309,7 +1309,7 @@ class AnalogSignal:
             return AnalogSignal(ydata = np.array([]),
                         tdata = np.array([]),
                         support = None,
-                        fs = None                    
+                        fs = None
                     )
         else:
             return AnalogSignal(self.ydata,
@@ -1355,9 +1355,9 @@ class AnalogSignal:
         Returns
         ----------
         clipped_analogsignal : AnalogSignal
-            AnalogSignal with the signal clipped with the elements of ydata, but where the values < 
-            min are replaced with min and the values > max are replaced 
-            with max. 
+            AnalogSignal with the signal clipped with the elements of ydata, but where the values <
+            min are replaced with min and the values > max are replaced
+            with max.
         """
         new_ydata = np.clip(self.ydata, min, max)
         return AnalogSignal(new_ydata,
