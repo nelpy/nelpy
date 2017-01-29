@@ -40,22 +40,15 @@ setup(
     download_url = 'https://github.com/eackermann/nelpy/tarball/' + main_ns['__version__'],
     license='MIT License',
     author='Etienne Ackermann',
-    tests_require=['pytest'],
     install_requires=['numpy>=1.9.0',
                     'scipy>=0.16.0',
-                    'matplotlib>=1.4.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
+                    'matplotlib>=1.5.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
                     ],
-    cmdclass={'test': PyTest},
     author_email='era3@rice.edu',
     description='Neuroelectrophysiology object model and data analysis in Python.',
     long_description=long_description,
     packages=find_packages(),
     keywords = ['electrophysiology', 'cow', 'moo', 'neural data analysis'],
     include_package_data=True,
-    platforms='any',
-    test_suite='nelpy.tests.test_nelpy',
-    extras_require={
-        'testing': ['pytest'],
-        'docs': ['sphinx', 'numpydoc', 'mock']
-    }
+    platforms='any'
 )
