@@ -171,7 +171,7 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     Parameters
     ----------
     data : nelpy.SpikeTrainArray object
-    cmap: matplotlib colormap, optional
+    cmap : matplotlib colormap, optional
     color: matplotlib color, optional
         Plot color; default is '0.25'
     ax : axis object, optional
