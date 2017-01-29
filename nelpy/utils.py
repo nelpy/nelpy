@@ -1,8 +1,13 @@
+"""This module contains helper functions and utilities for nelpy."""
 
-__all__ = ['pairwise', 'is_sorted', 'linear_merge']
+__all__ = ['pairwise',
+           'is_sorted',
+           'linear_merge',
+           'get_contiguous_segments']
 
 from itertools import tee
 import numpy as np
+import warnings
 
 def pairwise(iterable):
     a, b = tee(iterable)
@@ -39,7 +44,7 @@ def linear_merge(list1, list2):
     value1 = next(list1)
     value2 = next(list2)
 
-    # We'll normally exit this loop from a next() call raising 
+    # We'll normally exit this loop from a next() call raising
     # StopIteration, which is how a generator function exits anyway.
     while True:
         if value1 <= value2:
@@ -64,6 +69,37 @@ def linear_merge(list1, list2):
                 yield value1
                 while True:
                     yield next(list1)
+
+def get_contiguous_segments(data,step=None, sort=False):
+    """Compute contiguous segments (seperated by step) in a list.
+    WARNING! This function assumes that a sorted list is passed.
+    If this is not the case (or if it is uncertain), use sort=True
+    to force the list to be sorted first.
+
+    Returns an array of size (n_segments, 2), with each row
+    being of the form ([start, stop]) inclusive.
+    """
+    from itertools import groupby
+    from operator import itemgetter
+
+    if step is None:
+        step = 1
+    if sort:
+        data = np.sort(data)  # below groupby algorithm assumes sorted list
+    if np.any(np.diff(data) < step):
+        warnings.warn("some steps in the data are smaller than the requested step size.")
+
+    bdries = []
+
+    for k, g in groupby(enumerate(data), lambda ix: step*ix[0] - ix[1]):
+        f = itemgetter(1)
+        gen = (f(x) for x in g)
+        start = next(gen)
+        stop = start
+        for stop in gen:
+            pass
+        bdries.append([start, stop])
+    return np.asarray(bdries)
 
 ########################################################################
 # uncurated below this line!
@@ -105,7 +141,6 @@ def find_nearest_indices(array, vals):
 
     """
     return np.array([find_nearest_idx(array, val) for val in vals], dtype=int)
-
 
 def get_sort_idx(tuning_curves):
     """Finds indices to sort neurons by max firing in tuning curve.
@@ -165,34 +200,4 @@ def epoch_position(position, epoch):
     """
     return position.time_slices(epoch.starts, epoch.stops)
 
-def get_contiguous_segments(data,step=None, sort=False):
-    """Compute contiguous segments (seperated by step) in a list.
-    WARNING! This function assumes that a sorted list is passed.
-    If this is not the case (or if it is uncertain), use sort=True
-    to force the list to be sorted first.
 
-    Returns an array of size (n_segments, 2), with each row
-    being of the form ([start, stop]) inclusive.
-    """
-    import warnings
-    from itertools import groupby
-    from operator import itemgetter
-    
-    if step is None:
-        step = 1
-    if sort:
-        data = np.sort(data)  # below groupby algorithm assumes sorted list
-    if np.any(np.diff(data) < step):
-        warnings.warn("some steps in the data are smaller than the requested step size.")
-        
-    bdries = []
-
-    for k, g in groupby(enumerate(data), lambda ix: step*ix[0] - ix[1]):
-        f = itemgetter(1)
-        gen = (f(x) for x in g)
-        start = next(gen)
-        stop = start
-        for stop in gen:
-            pass
-        bdries.append([start, stop])
-    return np.asarray(bdries)

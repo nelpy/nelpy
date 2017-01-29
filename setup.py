@@ -2,9 +2,12 @@ from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
 import io
 
-import nelpy
+from distutils.util import convert_path
 
-# here = os.path.abspath(os.path.dirname(__file__))
+main_ns = {}
+ver_path = convert_path('nelpy/version.py')
+with open(ver_path) as ver_file:
+    exec(ver_file.read(), main_ns)
 
 def read(*filenames, **kwargs):
     encoding = kwargs.get('encoding', 'utf-8')
@@ -32,9 +35,9 @@ class PyTest(TestCommand):
 
 setup(
     name='nelpy',
-    version=nelpy.__version__,
+    version=main_ns['__version__'],
     url='https://github.com/eackermann/nelpy/',
-    download_url = 'https://github.com/eackermann/nelpy/tarball/' + nelpy.__version__,
+    download_url = 'https://github.com/eackermann/nelpy/tarball/' + main_ns['__version__'],
     license='MIT License',
     author='Etienne Ackermann',
     tests_require=['pytest'],
