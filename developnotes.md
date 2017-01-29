@@ -127,4 +127,4 @@ except DivisorTooSmallError:
 
 http://stackoverflow.com/questions/101268/hidden-features-of-python#113198
 
-http://docs.quantifiedcode.com/python-code-patterns/correctness/mutable_default_value_as_argument.html
+https://www.quantifiedcode.com/knowledge-base/
