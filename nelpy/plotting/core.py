@@ -69,7 +69,7 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
 
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
-    #each iteration? 
+    #each iteration?
     if(isinstance(npl_obj, AnalogSignal)):
         pos = np.where(np.diff(npl_obj.tdata) > npl_obj.step)[0]+1
         ax.plot(np.insert(npl_obj.time, pos, np.nan),
@@ -79,7 +79,7 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
     if isinstance(npl_obj, EpochArray):
         epocharray = npl_obj
         if epocharray.n_epochs != len(data):
-            raise ValueError("epocharray and data musthave the same length")
+            raise ValueError("epocharray and data must have the same length")
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
