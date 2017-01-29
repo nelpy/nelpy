@@ -6,12 +6,12 @@ import warnings
 
 from .helpers import RasterLabelData
 from ..objects import *
-from ..utils import get_contiguous_segments
+from . import utils  # import plotting/utils
 
 __all__ = ['plot',
-           'raster',
-           'rasterc',
-           'epoch_plot']
+           'epochplot',
+           'rasterplot',
+           'rastercountplot']
 
 def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
          mec=None, **kwargs):
@@ -155,7 +155,7 @@ def overviewstrip():
     """
     raise NotImplementedError("overviewstripplot() not implemented yet")
 
-def rasterc(spiketrain, nbins=25, **kwargs):
+def rastercountplot(spiketrain, nbins=25, **kwargs):
     fig = plt.figure(figsize=(12, 4))
     gs = gridspec.GridSpec(2, 1, hspace=0.01, height_ratios=[0.2,0.8])
     ax1 = plt.subplot(gs[0])
@@ -166,19 +166,19 @@ def rasterc(spiketrain, nbins=25, **kwargs):
     stepsx = np.linspace(spiketrain.support.start, spiketrain.support.stop, num=nbins)
 #     ax1.plot(stepsx, steps, drawstyle='steps-mid', color='none');
     ax1.set_ylim([-0.5, np.max(steps)+1])
-    npl.raster(spiketrain, ax=ax2, **kwargs)
+    rasterplot(spiketrain, ax=ax2, **kwargs)
 
-    npl.utils.clear_left_right(ax=ax1)
-    npl.utils.clear_top_bottom(ax=ax1)
-    npl.utils.clear_top(ax=ax2)
+    utils.clear_left_right(ax=ax1)
+    utils.clear_top_bottom(ax=ax1)
+    utils.clear_top(ax=ax2)
 
     ax1.fill_between(stepsx, steps, step='mid', color='0.4')
 
-    npl.utils.sync_xlims(ax1, ax2)
+    utils.sync_xlims(ax1, ax2)
 
     return ax1, ax2
 
-def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
+def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
            vertstack=None, labels=None, **kwargs):
     """Make a raster plot from a SpikeTrainArray object.
 
@@ -220,7 +220,7 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
         >>> sta1 = nelpy.SpikeTrainArray([stdata1, stdata2, stdata3,
                                           stdata4, stdata1+stdata4],
                                           fs=5, unit_ids=[1,2,3,4,6])
-        >>> ax = raster(sta1, color='cyan', lw=2, lh=2)
+        >>> ax = rasterplot(sta1, color='cyan', lw=2, lh=2)
 
     Instantiate another SpikeTrain Array, stack units, and specify labels.
     Note that the user-specified labels in the call to raster() will be
@@ -228,7 +228,7 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
         >>> sta3 = nelpy.SpikeTrainArray([stdata1, stdata4, stdata2+stdata3],
                                          support=ep1, fs=5, unit_ids=[10,5,12],
                                          unit_labels=['some', 'more', 'cells'])
-        >>> raster(sta3, color=plt.cm.Blues, lw=2, lh=2, vertstack=True,
+        >>> rasterplot(sta3, color=plt.cm.Blues, lw=2, lh=2, vertstack=True,
                    labels=['units', 'of', 'interest'])
     """
 
@@ -333,7 +333,7 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
             "plotting {} not yet supported".format(str(type(data))))
     return ax
 
-def epoch_plot(ax, epochs, height=None, fc='0.5', ec=None,
+def epochplot(ax, epochs, height=None, fc='0.5', ec=None,
                       alpha=0.5, hatch='////'):
     """Docstring goes here.
     """
