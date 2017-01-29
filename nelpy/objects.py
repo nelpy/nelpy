@@ -1731,7 +1731,7 @@ class SpikeTrainArray(SpikeTrain):
 
     @property
     def isempty(self):
-       """(bool) Empty SpikeTrainArray."""
+        """(bool) Empty SpikeTrainArray."""
         try:
             return np.sum([len(st) for st in self.time]) == 0
         except TypeError:
@@ -2011,7 +2011,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
     @property
     def isempty(self):
-       """(bool) Empty BinnedSpikeTrainArray."""
+        """(bool) Empty BinnedSpikeTrainArray."""
         try:
             return len(self.centers) == 0
         except TypeError:
