@@ -18,6 +18,8 @@ __all__ = ['EventArray',
 import warnings
 import numpy as np
 
+from abc import ABC, abstractmethod
+
 from .utils import is_sorted, get_contiguous_segments, linear_merge
 
 # Force warnings.warn() to omit the source code line in the message
@@ -86,7 +88,7 @@ def fssetter(self, val):
 ########################################################################
 # class SpikeTrain
 ########################################################################
-class SpikeTrain(object):
+class SpikeTrain(ABC):
     """Base class for SpikeTrainArray and BinnedSpikeTrainArray.
 
     NOTE: This class can't really be instantiated, almost like a pseudo
@@ -170,33 +172,15 @@ class SpikeTrain(object):
         address_str = " at " + str(hex(id(self)))
         return "<base SpikeTrain" + address_str + ">"
 
-    @property
+    @abstractmethod
     def isempty(self):
         """(bool) Empty SpikeTrain."""
-        if isinstance(self, SpikeTrainArray):
-            try:
-                return np.sum([len(st) for st in self.time]) == 0
-            except TypeError:
-                return True  # this happens when self.centers == None
-        elif isinstance(self, BinnedSpikeTrainArray):
-            try:
-                return len(self.centers) == 0
-            except TypeError:
-                return True  # this happens when self.centers == None
-        else:
-            raise NotImplementedError(
-            "isempty should be defined in derived class")
+        return
 
-    @property
+    @abstractmethod
     def n_units(self):
         """(int) The number of units."""
-        if isinstance(self, SpikeTrainArray):
-            return len(self.time)
-        elif isinstance(self, BinnedSpikeTrainArray):
-            return self.data.shape[0]
-        else:
-            raise NotImplementedError(
-            "n_units should be defined in derived class")
+        return
 
     @property
     def unit_ids(self):
@@ -538,7 +522,8 @@ class EpochArray:
                 return EpochArray(empty=True)
             if idx.fs != self.fs:  # cases (1, 2, 5):
                 epocharray = EpochArray(empty=True)
-                epocharray._time = idx.time
+                epocharray._tdata = idx._tdata
+                epocharray._time = idx._time
                 epoch = self.intersect(epocharray, boundaries=True)
             else:  # cases (3, 4)
                 epoch = self.intersect(
@@ -1085,9 +1070,10 @@ class AnalogSignal:
         See Parameters
 
     """
+    __attributes__ = ['ydata','tdata','_time','fs','support','step']
     def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=1):
         ydata = np.squeeze(ydata).astype(float)
-        self.step=step
+        self._step=step
 
 
         # Note; if we have an empty array of ydata with no dimension,
@@ -1217,11 +1203,9 @@ class AnalogSignal:
 
     def _emptyAnalogSignal(self):
         """Empty all the instance attributes for an empty object."""
-        self.ydata = np.array([])
-        self.tdata = np.array([])
-        self.support = None
-        self._fs = None
-        self._time = None
+        # if an empty object is requested, return it:
+        for attr in self.__attributes__:
+            exec("self." + attr + " = None")
         return
 
     def __repr__(self):
@@ -1250,6 +1234,9 @@ class AnalogSignal:
     #         warnings.warn("No tdata specified")
     #     return self.tdata
 
+    @property
+    def step(self):
+        return self._step
     @property
     def time(self):
         if self._time is None:
@@ -1304,7 +1291,7 @@ class AnalogSignal:
                             fs=self.fs,
                             tdata=self.tdata,
                             support=epoch,
-                            step=self.step
+                            step=self._step
                 )
 
     def __getitem__(self, idx):
@@ -1316,7 +1303,8 @@ class AnalogSignal:
             intersect passed epocharray with support,
             index particular a singular epoch or multiple epochs with slice
         """
-        if idx >= self.support.n_epochs:
+        epoch = self.support[idx]
+        if epoch is None:
             warnings.warn("Index resulted in empty epoch array")
             return AnalogSignal(ydata = np.array([]),
                         tdata = np.array([]),
@@ -1327,8 +1315,8 @@ class AnalogSignal:
             return AnalogSignal(self.ydata,
                                 fs=self.fs,
                                 tdata=self.tdata,
-                                support=self.support[idx],
-                                step=self.step
+                                support=epoch,
+                                step=self._step
                     )
 
     def copy(self):
@@ -1336,7 +1324,7 @@ class AnalogSignal:
                             fs = self.fs,
                             tdata=self.tdata,
                             support=self.support,
-                            step=self.step
+                            step=self._step
                 )
     def mean(self):
         """Returns the mean of the entire signal."""
@@ -1556,7 +1544,6 @@ class SpikeTrainArray(SpikeTrain):
 
     __attributes__ = ["_tdata", "_time", "_support"]
     __attributes__.extend(SpikeTrain.__attributes__)
-
     def __init__(self, tdata=None, *, fs=None, support=None,
                  unit_ids=None, unit_labels=None, unit_tags=None,
                  label=None, empty=False):
@@ -1592,9 +1579,10 @@ class SpikeTrainArray(SpikeTrain):
 
         # if only empty tdata were received AND no support, return empty
         # SpikeTrainArray:
-        if np.sum([st.size for st in tdata]) == 0 and support.isempty:
+        if np.sum([st.size for st in tdata]) == 0 and support is None:
             warnings.warn("no data; returning empty SpikeTrainArray")
-            return SpikeTrainArray(empty=True)
+            self = SpikeTrainArray(empty=True)
+            return
 
         kwargs = {"fs": fs,
                   "unit_ids": unit_ids,
@@ -1769,6 +1757,19 @@ class SpikeTrainArray(SpikeTrain):
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
+
+    @property
+    def isempty(self):
+        """(bool) Empty SpikeTrainArray."""
+        try:
+            return np.sum([len(st) for st in self.time]) == 0
+        except TypeError:
+            return True  # this happens when self.time == None
+
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        return len(self.time)
 
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
@@ -2036,6 +2037,19 @@ class BinnedSpikeTrainArray(SpikeTrain):
     def __getitem__(self, idx):
         raise NotImplementedError(
             'BinnedSpikeTrainArray.__getitem__ not implemented yet')
+
+    @property
+    def isempty(self):
+        """(bool) Empty BinnedSpikeTrainArray."""
+        try:
+            return len(self.centers) == 0
+        except TypeError:
+            return True  # this happens when self.centers == None
+
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        return self.data.shape[0]
 
     @property
     def centers(self):

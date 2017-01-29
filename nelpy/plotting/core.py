@@ -1,50 +1,23 @@
-from ..objects import *
-
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import warnings
 
-import matplotlib.artist as artist
+from .helpers import RasterLabelData
+from ..objects import *
 
 __all__ = ['plot',
            'raster',
            'epoch_plot']
 
-class RasterLabelData(artist.Artist):
-
-    def __init__(self):
-        self.label_data = {}  # (k, v) = (unit_id, (unit_loc, unit_label))
-        artist.Artist.__init__(self)
-        self.yrange = []
-
-    def __repr__(self):
-        return "<nelpy.RasterLabelData at " + str(hex(id(self))) + ">"
-
-    @property
-    def label_data(self):
-        return self._label_data
-
-    @label_data.setter
-    def label_data(self, val):
-        self._label_data = val
-
-    @property
-    def yrange(self):
-        return self._yrange
-
-    @yrange.setter
-    def yrange(self, val):
-        self._yrange = val
-
-def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
+def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
          mec=None, **kwargs):
     """Plot an array-like object on an EpochArray.
 
     Parameters
     ----------
-    epocharray : nelpy.EpochArray
-        EpochArray on which the data is defined.
+    npl_obj : nelpy.EpochArray or nelpy.AnalogSignal 
+        EpochArray on which the data is defined or AnalogSignal with data
     data : array-like
         Data to plot on y axis; must be of size (epocharray.n_epochs,).
     ax : axis object, optional
@@ -91,24 +64,35 @@ def plot(epocharray, data, *, ax=None, lw=None, mew=None, color=None,
     if mec is None:
         mec = color
 
-    if epocharray.n_epochs != len(data):
-        raise ValueError("epocharray and data musthave the same length")
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        for epoch, val in zip(epocharray, data):
-            ax.plot(
-                [epoch.start, epoch.stop],
-                [val, val],
-                '-o',
-                color=color,
-                mec=mec,
-                markerfacecolor='w',
-                lw=lw,
-                mew=mew,
+    #TODO: better solution for this? we could just iterate over the epochs and
+    #plot them but that might take up too much time since a copy is being made
+    #each iteration? 
+    if(isinstance(npl_obj, AnalogSignal)):
+        pos = np.where(np.diff(npl_obj.tdata) > npl_obj.step)[0]+1
+        ax.plot(np.insert(npl_obj.time, pos, np.nan),
+                np.insert(npl_obj.ydata,pos, np.nan),
                 **kwargs)
 
-    ax.set_ylim([np.array(data).min()-0.5, np.array(data).max()+0.5])
+    if isinstance(npl_obj, EpochArray):
+        epocharray = npl_obj
+        if epocharray.n_epochs != len(data):
+            raise ValueError("epocharray and data musthave the same length")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for epoch, val in zip(epocharray, data):
+                ax.plot(
+                    [epoch.start, epoch.stop],
+                    [val, val],
+                    '-o',
+                    color=color,
+                    mec=mec,
+                    markerfacecolor='w',
+                    lw=lw,
+                    mew=mew,
+                    **kwargs)
+
+        # ax.set_ylim([np.array(data).min()-0.5, np.array(data).max()+0.5])
 
     return ax
 
@@ -198,7 +182,7 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     Parameters
     ----------
     data : nelpy.SpikeTrainArray object
-    cmap: matplotlib colormap, optional
+    cmap : matplotlib colormap, optional
     color: matplotlib color, optional
         Plot color; default is '0.25'
     ax : axis object, optional
