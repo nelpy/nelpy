@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import warnings
 
 from .helpers import RasterLabelData
@@ -9,6 +10,7 @@ from ..utils import get_contiguous_segments
 
 __all__ = ['plot',
            'raster',
+           'rasterc',
            'epoch_plot']
 
 def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
