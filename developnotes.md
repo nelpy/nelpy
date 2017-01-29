@@ -95,7 +95,7 @@ Nelpy package organization (preliminary)
 
 Pruning release tags
 ====================
-After pruning / cleaning remote releases, run 
+After pruning / cleaning remote releases, run
 
 git tag -l | xargs git tag -d
 git fetch --tags
@@ -103,3 +103,28 @@ git fetch --tags
 to get local tags to match those of remote.
 
 See [here](http://stackoverflow.com/questions/1841341/remove-local-tags-that-are-no-longer-on-the-remote-repository).
+
+Some useful resx
+================
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class DivisorTooSmallError(StandardError):
+    def __init__(self, arg):
+        self.args = arg
+
+
+def divide(a, b):
+    if b < 1:
+        raise DivisorTooSmallError
+    return a / b
+
+
+try:
+    divide(10, 0)
+except DivisorTooSmallError:
+    print("Unable to divide these numbers!")
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+http://stackoverflow.com/questions/101268/hidden-features-of-python#113198
+
+https://www.quantifiedcode.com/knowledge-base/

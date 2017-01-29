@@ -1,42 +1,15 @@
-from ..objects import *
-from ..utils import get_contiguous_segments
-
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import warnings
 
-import matplotlib.artist as artist
+from .helpers import RasterLabelData
+from ..objects import *
+from ..utils import get_contiguous_segments
 
 __all__ = ['plot',
            'raster',
            'epoch_plot']
-
-class RasterLabelData(artist.Artist):
-
-    def __init__(self):
-        self.label_data = {}  # (k, v) = (unit_id, (unit_loc, unit_label))
-        artist.Artist.__init__(self)
-        self.yrange = []
-
-    def __repr__(self):
-        return "<nelpy.RasterLabelData at " + str(hex(id(self))) + ">"
-
-    @property
-    def label_data(self):
-        return self._label_data
-
-    @label_data.setter
-    def label_data(self, val):
-        self._label_data = val
-
-    @property
-    def yrange(self):
-        return self._yrange
-
-    @yrange.setter
-    def yrange(self, val):
-        self._yrange = val
 
 def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
          mec=None, **kwargs):
@@ -210,7 +183,7 @@ def raster(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     Parameters
     ----------
     data : nelpy.SpikeTrainArray object
-    cmap: matplotlib colormap, optional
+    cmap : matplotlib colormap, optional
     color: matplotlib color, optional
         Plot color; default is '0.25'
     ax : axis object, optional

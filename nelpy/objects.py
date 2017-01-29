@@ -18,6 +18,8 @@ __all__ = ['EventArray',
 import warnings
 import numpy as np
 
+from abc import ABC, abstractmethod
+
 from .utils import is_sorted, get_contiguous_segments, linear_merge
 
 # Force warnings.warn() to omit the source code line in the message
@@ -86,7 +88,7 @@ def fssetter(self, val):
 ########################################################################
 # class SpikeTrain
 ########################################################################
-class SpikeTrain(object):
+class SpikeTrain(ABC):
     """Base class for SpikeTrainArray and BinnedSpikeTrainArray.
 
     NOTE: This class can't really be instantiated, almost like a pseudo
@@ -170,33 +172,15 @@ class SpikeTrain(object):
         address_str = " at " + str(hex(id(self)))
         return "<base SpikeTrain" + address_str + ">"
 
-    @property
+    @abstractmethod
     def isempty(self):
         """(bool) Empty SpikeTrain."""
-        if isinstance(self, SpikeTrainArray):
-            try:
-                return np.sum([len(st) for st in self.time]) == 0
-            except TypeError:
-                return True  # this happens when self.centers == None
-        elif isinstance(self, BinnedSpikeTrainArray):
-            try:
-                return len(self.centers) == 0
-            except TypeError:
-                return True  # this happens when self.centers == None
-        else:
-            raise NotImplementedError(
-            "isempty should be defined in derived class")
+        return
 
-    @property
+    @abstractmethod
     def n_units(self):
         """(int) The number of units."""
-        if isinstance(self, SpikeTrainArray):
-            return len(self.time)
-        elif isinstance(self, BinnedSpikeTrainArray):
-            return self.data.shape[0]
-        else:
-            raise NotImplementedError(
-            "n_units should be defined in derived class")
+        return
 
     @property
     def unit_ids(self):
@@ -1596,9 +1580,10 @@ class SpikeTrainArray(SpikeTrain):
 
         # if only empty tdata were received AND no support, return empty
         # SpikeTrainArray:
-        if np.sum([st.size for st in tdata]) == 0 and support.isempty:
+        if np.sum([st.size for st in tdata]) == 0 and support is None:
             warnings.warn("no data; returning empty SpikeTrainArray")
-            return SpikeTrainArray(empty=True)
+            self = SpikeTrainArray(empty=True)
+            return
 
         kwargs = {"fs": fs,
                   "unit_ids": unit_ids,
@@ -1773,6 +1758,19 @@ class SpikeTrainArray(SpikeTrain):
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
+
+    @property
+    def isempty(self):
+        """(bool) Empty SpikeTrainArray."""
+        try:
+            return np.sum([len(st) for st in self.time]) == 0
+        except TypeError:
+            return True  # this happens when self.time == None
+
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        return len(self.time)
 
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
@@ -2040,6 +2038,19 @@ class BinnedSpikeTrainArray(SpikeTrain):
     def __getitem__(self, idx):
         raise NotImplementedError(
             'BinnedSpikeTrainArray.__getitem__ not implemented yet')
+
+    @property
+    def isempty(self):
+        """(bool) Empty BinnedSpikeTrainArray."""
+        try:
+            return len(self.centers) == 0
+        except TypeError:
+            return True  # this happens when self.centers == None
+
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        return self.data.shape[0]
 
     @property
     def centers(self):
