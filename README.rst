@@ -11,10 +11,11 @@ neuroelectrophysiology data arising (primarily) from extracellular
 electrode recordings during neuroscience experiments. The functionality
 of this package includes:
 
-- item 1
-- item 2
+- several container objects (SpikeTrain, BinnedSpikeTrain, AnalogSignal, EpochArray) with nice human-readable ``__repr__`` methods
+- powerful ways to interact with the data in the container objects
 - hidden Markov model analysis of neural activity
 - basic data exploration and visualization operating directly on the core nelpy objects
+- and much more
 
 Quick example
 =============
