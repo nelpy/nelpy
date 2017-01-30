@@ -48,7 +48,7 @@ setup(
     description='Neuroelectrophysiology object model and data analysis in Python.',
     long_description=long_description,
     packages=find_packages(),
-    keywords = ['electrophysiology', 'cow', 'moo', 'neural data analysis'],
+    keywords = "electrophysiology neuroscience data analysis",
     include_package_data=True,
     platforms='any'
 )
