@@ -63,11 +63,13 @@ Installation
 The easiest way to install Nelpy is to use pip. From the terminal, run:
 
 .. code-block:: bash
+
     pip install nelpy
 
 Alternatively, you can install the latest version of nelpy by running the following commands:
 
 .. code-block:: bash
+
     git clone https://github.com/eackermann/nelpy.git
     cd nelpy
     python setup.py [install, develop]
