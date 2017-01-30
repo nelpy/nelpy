@@ -6,7 +6,7 @@ Nelpy
 
 Overview
 ========
-Nelpy (NeuroELectroPhysiologY) is an open source package for analysis of
+Nelpy (**N**\ euro\ **el**\ ectro\ **p**\ hysiolog\ **y**) is an open source package for analysis of
 neuroelectrophysiology data arising (primarily) from extracellular
 electrode recordings during neuroscience experiments. The functionality
 of this package includes:
@@ -21,13 +21,17 @@ Quick example
 
 Let's give it a try. Create a SpikeTrainArray::
 
-    >>> import nelpy as nel  # main nelpy imports
-    >>> import nelpy.plotting as npl  # optional plotting imports
-    >>> spike_times = np.array([1, 2, np.nan, 4, 5])
+.. code-block:: python
+
+    import nelpy as nel  # main nelpy imports
+    import nelpy.plotting as npl  # optional plotting imports
+    spike_times = np.array([1, 2, np.nan, 4, 5])
 
 Do something::
 
-    >>> st.n_units
+.. code-block:: python
+
+    st.n_units
     3.0
 
 Related work and inspiration
@@ -58,9 +62,13 @@ Installation
 
 The easiest way to install Nelpy is to use pip. From the terminal, run::
 
+.. code-block:: bash
+
     pip install nelpy
 
 Alternatively, you can install the latest version of nelpy by running the following commands::
+
+.. code-block:: bash
 
     git clone https://github.com/eackermann/nelpy.git
     cd nelpy
