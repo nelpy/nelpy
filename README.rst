@@ -22,6 +22,7 @@ Quick example
 Let's give it a try. Create a ``SpikeTrainArray``:
 
 .. code-block:: python
+
     import nelpy as nel  # main nelpy imports
     import nelpy.plotting as npl  # optional plotting imports
     spike_times = np.array([1, 2, np.nan, 4, 5])
@@ -29,6 +30,7 @@ Let's give it a try. Create a ``SpikeTrainArray``:
 Do something:
 
 .. code-block:: python
+
     st.n_units
     3.0
 
