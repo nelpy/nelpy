@@ -544,10 +544,11 @@ class EpochArray:
             try:
                 epocharray._time = self.time[[idx], :]  # use np integer indexing! Cool!
                 epocharray._tdata = self.tdata[[idx], :]
-                return epocharray
             except IndexError:
                 # index is out of bounds, so return an empty EpochArray
-                return EpochArray(empty=True)
+                pass
+            finally:
+                return epocharray
         else:
             try:
                 epocharray = EpochArray(empty=True)
@@ -1710,31 +1711,29 @@ class SpikeTrainArray(SpikeTrain):
                 spiketrain._support = support
             return spiketrain
         elif isinstance(idx, int):
+            spiketrain = SpikeTrainArray(empty=True)
+            exclude = ["_tdata", "_time", "_support"]
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                for attr in attrs:
+                    exec("spiketrain." + attr + " = self." + attr)
+                support = self.support[idx]
+                spiketrain._support = support
             if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
-                return SpikeTrainArray(empty=True)
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    support = self.support[idx]
-                    time, tdata = self._restrict_to_epoch_array(
+                return spiketrain
+            else:
+                time, tdata = self._restrict_to_epoch_array(
                         epocharray=support,
                         time=self.time,
                         tdata=self.tdata,
                         copy=True
                         )
-                    spiketrain = SpikeTrainArray(empty=True)
-                    exclude = ["_tdata", "_time", "_support"]
-                    attrs = (x for x in self.__attributes__ if x not in exclude)
-                    for attr in attrs:
-                        exec("spiketrain." + attr + " = self." + attr)
-                    spiketrain._tdata = tdata
-                    spiketrain._time = time
-                    spiketrain._support = support
+                spiketrain._tdata = tdata
+                spiketrain._time = time
+                spiketrain._support = support
                 return spiketrain
-            except IndexError:
-                # index out of bounds: return an empty SpikeTrainArray
-                return SpikeTrainArray(empty=True)
-        else:
+        else:  # most likely slice indexing
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
@@ -2030,13 +2029,80 @@ class BinnedSpikeTrainArray(SpikeTrain):
             binnedspiketrain._data = self._data[:,bsupport[0][0]:bsupport[0][1]+1]
             binnedspiketrain._support = support
             binnedspiketrain._centers = self._centers[bsupport[0][0]:bsupport[0][1]+1]
-            binnedspiketrain._binnedSupport = bsupport
+            binnedspiketrain._binnedSupport = bsupport - bsupport[0,0]
         self._index += 1
         return binnedspiketrain
 
     def __getitem__(self, idx):
-        raise NotImplementedError(
-            'BinnedSpikeTrainArray.__getitem__ not implemented yet')
+        """BinnedSpikeTrainArray index access."""
+        if isinstance(idx, EpochArray):
+            if idx.isempty:
+                return BinnedSpikeTrainArray(empty=True)
+            if idx.fs != self.support.fs:
+                support = self.support.intersect(
+                    epoch=EpochArray(idx.time, fs=None),
+                    boundaries=True
+                    )
+            else:
+                support = self.support.intersect(
+                    epoch=idx,
+                    boundaries=True
+                    ) # what if fs of slicing epoch is different?
+            if support.isempty:
+                return BinnedSpikeTrainArray(empty=True)
+            # next we need to determine the binnedSupport:
+
+            raise NotImplementedError("Aargh!!!")
+
+            # with warnings.catch_warnings():
+            #     warnings.simplefilter("ignore")
+
+            #     time, tdata = self._restrict_to_epoch_array(
+            #         epocharray=support,
+            #         time=self.time,
+            #         tdata=self.tdata,
+            #         copy=True
+            #         )
+            #     spiketrain = SpikeTrainArray(empty=True)
+            #     exclude = ["_tdata", "_time", "_support"]
+            #     attrs = (x for x in self.__attributes__ if x not in exclude)
+            #     for attr in attrs:
+            #         exec("spiketrain." + attr + " = self." + attr)
+            #     spiketrain._tdata = tdata
+            #     spiketrain._time = time
+            #     spiketrain._support = support
+            # return spiketrain
+
+        elif isinstance(idx, int):
+            binnedspiketrain = BinnedSpikeTrainArray(empty=True)
+            exclude = ["_data", "_bins", "_support", "_centers", "_spiketrainarray", "_binnedSupport"]
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                for attr in attrs:
+                    exec("binnedspiketrain." + attr + " = self." + attr)
+            support = self.support[idx]
+            binnedspiketrain._support = support
+            if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
+                return binnedspiketrain
+            else:
+                bsupport = self.binnedSupport[[idx],:]
+                centers = self.centers[bsupport[0,0]:bsupport[0,1]+1]
+                binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+                binstart = binindices[idx]
+                binstop = binindices[idx+1]
+                binnedspiketrain._data = self._data[:,bsupport[0,0]:bsupport[0,1]+1]
+                binnedspiketrain._bins = self._bins[binstart:binstop]
+                binnedspiketrain._binnedSupport = bsupport - bsupport[0,0]
+                binnedspiketrain._centers = centers
+                return binnedspiketrain
+        else:  # most likely a slice
+            try:
+                # have to be careful about re-indexing binnedSupport
+                raise NotImplementedError("Aargh222!!!")
+            except Exception:
+                raise TypeError(
+                    'unsupported subsctipting type {}'.format(type(idx)))
 
     @property
     def isempty(self):
@@ -2111,8 +2177,13 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 raise ValueError("bin width must be positive")
             self._ds = val
 
-    def _get_bins_to_cover_epoch(self, epoch, ds):
+    @staticmethod
+    def _get_bins_to_cover_epoch(epoch, ds):
         """(np.array) Return bin edges to cover an epoch."""
+        # warnings.warn("WARNING! Using _get_bins_to_cover_epoch assumes " \
+        #     "a starting time of 0 seconds. This is not always approapriate," \
+        #     " but more flexibility is not yet supported.")
+        # TODO: add flexibility to start at aritrary time
         # start = ep.start - (ep.start % ds)
         # start = ep.start - (ep.start / ds - floor(ep.start / ds))
         # because e.g., 1 % 0.1 is messed up (precision error)
