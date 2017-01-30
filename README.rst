@@ -19,6 +19,15 @@ of this package includes:
 Quick example
 =============
 
+To get a license, you can use `SPDX license identifier <http://spdx.org/licenses/>`_:
+
+.. code-block:: python
+
+    import license
+    mit = license.find('MIT')
+
+Each license is a static class providing a few properties:
+
 Let's give it a try. Create a SpikeTrainArray::
 
 .. code-block:: python
