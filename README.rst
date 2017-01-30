@@ -19,27 +19,16 @@ of this package includes:
 Quick example
 =============
 
-To get a license, you can use `SPDX license identifier <http://spdx.org/licenses/>`_:
+Let's give it a try. Create a ``SpikeTrainArray``:
 
 .. code-block:: python
-
-    import license
-    mit = license.find('MIT')
-
-Each license is a static class providing a few properties:
-
-Let's give it a try. Create a SpikeTrainArray::
-
-.. code-block:: python
-
     import nelpy as nel  # main nelpy imports
     import nelpy.plotting as npl  # optional plotting imports
     spike_times = np.array([1, 2, np.nan, 4, 5])
 
-Do something::
+Do something:
 
 .. code-block:: python
-
     st.n_units
     3.0
 
@@ -69,16 +58,14 @@ powerful object model for neuroelectrophysiology.
 Installation
 ============
 
-The easiest way to install Nelpy is to use pip. From the terminal, run::
+The easiest way to install Nelpy is to use pip. From the terminal, run:
 
 .. code-block:: bash
-
     pip install nelpy
 
-Alternatively, you can install the latest version of nelpy by running the following commands::
+Alternatively, you can install the latest version of nelpy by running the following commands:
 
 .. code-block:: bash
-
     git clone https://github.com/eackermann/nelpy.git
     cd nelpy
     python setup.py [install, develop]
