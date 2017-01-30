@@ -20,18 +20,18 @@ def read(*filenames, **kwargs):
 
 # long_description = read('README.md', 'CHANGES.txt')
 # long_description = read('README.md')
-long_description = 'Neuroelectrophysiology object model and data analysis in Python.'
+long_description = read('README.rst')
 
-class PyTest(TestCommand):
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
+# class PyTest(TestCommand):
+#     def finalize_options(self):
+#         TestCommand.finalize_options(self)
+#         self.test_args = []
+#         self.test_suite = True
 
-    def run_tests(self):
-        import pytest
-        errcode = pytest.main(self.test_args)
-        sys.exit(errcode)
+#     def run_tests(self):
+#         import pytest
+#         errcode = pytest.main(self.test_args)
+#         sys.exit(errcode)
 
 setup(
     name='nelpy',
@@ -40,22 +40,15 @@ setup(
     download_url = 'https://github.com/eackermann/nelpy/tarball/' + main_ns['__version__'],
     license='MIT License',
     author='Etienne Ackermann',
-    tests_require=['pytest'],
     install_requires=['numpy>=1.9.0',
                     'scipy>=0.16.0',
-                    'matplotlib>=1.4.0',
+                    'matplotlib>=1.5.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
                     ],
-    cmdclass={'test': PyTest},
     author_email='era3@rice.edu',
     description='Neuroelectrophysiology object model and data analysis in Python.',
     long_description=long_description,
-    packages=['nelpy'],
+    packages=find_packages(),
     keywords = ['electrophysiology', 'cow', 'moo', 'neural data analysis'],
     include_package_data=True,
-    platforms='any',
-    test_suite='nelpy.tests.test_nelpy',
-    extras_require={
-        'testing': ['pytest'],
-        'docs': ['sphinx', 'numpydoc', 'mock']
-    }
+    platforms='any'
 )
