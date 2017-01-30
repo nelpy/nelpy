@@ -97,8 +97,10 @@ Pruning release tags
 ====================
 After pruning / cleaning remote releases, run
 
+```
 git tag -l | xargs git tag -d
 git fetch --tags
+```
 
 to get local tags to match those of remote.
 
