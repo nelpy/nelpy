@@ -6,12 +6,9 @@ Nelpy
 
 Overview
 ========
-Nelpy (**N**\ euro\ **el**\ ectro\ **p**\ hysiolog\ **y**) is an open source package for analysis of
-neuroelectrophysiology data arising (primarily) from extracellular
-electrode recordings during neuroscience experiments. The functionality
-of this package includes:
+Nelpy (**N**\ euro\ **el**\ ectro\ **p**\ hysiolog\ **y**) is an open source package for analysis of neuroelectrophysiology data arising (primarily) from extracellular electrode recordings during neuroscience experiments. The functionality of this package includes:
 
-- several container objects (SpikeTrain, BinnedSpikeTrain, AnalogSignal, EpochArray) with nice human-readable ``__repr__`` methods
+- several container objects (``SpikeTrain``, ``BinnedSpikeTrain``, ``AnalogSignal``, ``EpochArray``) with nice human-readable ``__repr__`` methods
 - powerful ways to interact with the data in the container objects
 - hidden Markov model analysis of neural activity
 - basic data exploration and visualization operating directly on the core nelpy objects
@@ -26,15 +23,16 @@ Let's give it a try. Create a ``SpikeTrainArray``:
 
     import nelpy as nel  # main nelpy imports
     import nelpy.plotting as npl  # optional plotting imports
-    spike_times = np.array([1, 2, np.nan, 4, 5])
+    spike_times = np.array([1, 2, 4, 5, 10])
+    st = nel.SpikeTrainArray(spike_times, fs=1)
 
 Do something:
 
 .. code-block:: python
 
-    st.n_units
-    3.0
-
+    st.n_spikes
+    5
+    
 Related work and inspiration
 ============================
 Nelpy drew heavy inspiration from the `python-vdmlab` package from the
@@ -61,7 +59,7 @@ powerful object model for neuroelectrophysiology.
 Installation
 ============
 
-The easiest way to install Nelpy is to use pip. From the terminal, run:
+The easiest way to install nelpy is to use ``pip``. From the terminal, run:
 
 .. code-block:: bash
 
@@ -75,7 +73,7 @@ Alternatively, you can install the latest version of nelpy by running the follow
     cd nelpy
     python setup.py [install, develop]
 
-where the `develop` argument should be used if you want to modify the code.
+where the ``develop`` argument should be used if you want to modify the code.
 
 Where
 =====
@@ -89,4 +87,4 @@ Where
 License
 =======
 
-Nelpy is distributed under the MIT license. See the `LICENSE <LICENSE>`_ file for details.
+Nelpy is distributed under the MIT license. See the `LICENSE <https://github.com/eackermann/nelpy/blob/master/LICENSE>`_ file for details.
