@@ -6,7 +6,9 @@ Neuroelectrophysiology object model, data exploration, and analysis in Python.
 
 Overview
 ========
-Nelpy (**N**\ euro\ **el**\ ectro\ **p**\ hysiolog\ **y**) is an open source package for analysis of neuroelectrophysiology data arising (primarily) from extracellular electrode recordings during neuroscience experiments. The functionality of this package includes:
+Nelpy (**N**\ euro\ **el**\ ectro\ **p**\ hysiolog\ **y**) is an open source package for analysis of neuroelectrophysiology data. Nelpy defines a number of data objects to make it easier to work with electrophysiology (ephys) data, and although it was originally designed for use with extracellular recorded data, it can be used much more broadly. Nelpy is intended to make interactive data analysis and exploration of these ephys data easy, by providing several convenience functions and common visualizations that operate directly on the nelpy objects.
+
+More specifically, the functionality of this package includes:
 
 - several container objects (``SpikeTrain``, ``BinnedSpikeTrain``, ``AnalogSignal``, ``EpochArray``, ...) with nice human-readable ``__repr__`` methods
 - powerful ways to interact with the data in the container objects
