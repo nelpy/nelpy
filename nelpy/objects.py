@@ -2052,7 +2052,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 return BinnedSpikeTrainArray(empty=True)
             # next we need to determine the binnedSupport:
 
-            raise NotImplementedError("Aargh!!!")
+            raise NotImplementedError("EpochArray indexing for BinnedSpikeTrainArrays not supported yet")
 
             # with warnings.catch_warnings():
             #     warnings.simplefilter("ignore")
@@ -2099,7 +2099,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         else:  # most likely a slice
             try:
                 # have to be careful about re-indexing binnedSupport
-                raise NotImplementedError("Aargh222!!!")
+                raise NotImplementedError("slice indexing for BinnedSpikeTrainArrays not supported yet")
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))

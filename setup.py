@@ -18,8 +18,6 @@ def read(*filenames, **kwargs):
             buf.append(f.read())
     return sep.join(buf)
 
-# long_description = read('README.md', 'CHANGES.txt')
-# long_description = read('README.md')
 long_description = read('README.rst')
 
 # class PyTest(TestCommand):
@@ -39,7 +37,7 @@ setup(
     url='https://github.com/eackermann/nelpy/',
     download_url = 'https://github.com/eackermann/nelpy/tarball/' + main_ns['__version__'],
     license='MIT License',
-    author='Etienne Ackermann',
+    author='Etienne Ackermann, Emily Irvine',
     install_requires=['numpy>=1.9.0',
                     'scipy>=0.16.0',
                     'matplotlib>=1.5.0', # 1.4.3 doesn't support the step kwarg in rasterc yet

@@ -32,7 +32,7 @@ Do something:
 
     st.n_spikes
     5
-    
+
 Related work and inspiration
 ============================
 Nelpy drew heavy inspiration from the ``python-vdmlab`` package from the
