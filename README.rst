@@ -35,14 +35,14 @@ Do something:
     
 Related work and inspiration
 ============================
-Nelpy drew heavy inspiration from the `python-vdmlab` package from the
+Nelpy drew heavy inspiration from the ``python-vdmlab`` package from the
 van der Meer lab at Dartmouth College (https://github.com/vandermeerlab),
 which was created by Emily Irvine (https://github.com/emirvine). It is
 also inspired by the neuralensemble.org NEO project (http://neo.readthedocs.io).
 
 **Short history:** Etienne A started the nelpy project for two main reasons, namely
 
-1. he wanted / needed a ``BinnedSpikeTrain`` object for hidden Markov model analysis that wasn't avaialable in ``neo`` or ``vdmlab``, and
+1. he wanted / needed a ``BinnedSpikeTrain`` object for hidden Markov model analysis that wasn't (at the time) avaialable in ``neo`` or ``python-vdmlab``, and
 2. he fundamentally wanted to add "support" attributes to all the container objects. Here "support" should be understood in the mathematical sense of "domain of definition", whereas the mathematical support technically would not include some elements for which the function maps to zero. This is important for spike trains, for example, where it is important to differentiate "no spike at time t" from "no record at time t".
 
 Scope of this work
