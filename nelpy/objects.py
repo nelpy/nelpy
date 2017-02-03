@@ -1610,7 +1610,7 @@ class SpikeTrainArray(SpikeTrain):
             # raises an error in the following:
             # FIX: list[-1] raises an IndexError for an empty list,
             # whereas list[-1:] returns an empty list.
-            last_st = np.array([unit[-1:] for unit in tdata]).max()
+            last_st = np.array([unit[-1:] for unit in tdata if len(unit) !=0]).max()
             self._support = EpochArray(np.array([0, last_st]), fs=fs)
             # in the above, there's no reason to restrict to support
         else:
