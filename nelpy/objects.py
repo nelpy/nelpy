@@ -1818,21 +1818,22 @@ class SpikeTrainArray(SpikeTrain):
         spiketrainarray._time = np.array(list(alltimes), ndmin=2)
         return spiketrainarray
 
-    def _restrict_to_epoch_array(self, *, epocharray, time, tdata,
-                                 copy=True):
+    @staticmethod
+    def _restrict_to_epoch_array(epocharray, time, tdata, copy=True):
         """Returns time and tdata restricted to an EpochArray.
 
         Parameters
         ----------
-        epocharray : EpochArray, optional
-            EpochArray on which to restrict SpikeTrainArray. Default is
-            self.support
+        epocharray : EpochArray
         """
         # Potential BUG: not sure if time and tdata point to same
         # object (like when only time was passed to __init__), then
         # doing tdata[unit] = ... followed by time[unit] = ... might
         # be applying the shrinking twice, no? We need a thorough test
         # for this! And I need to understand the shared memory 100%.
+
+        singleunit = len(tdata)==1  # bool
+        # TODO: upgrade this to use copy.copy or copy.deepcopy:
         if copy:
             time = time.copy()
             tdata = tdata.copy()
@@ -1847,8 +1848,12 @@ class SpikeTrainArray(SpikeTrain):
             if np.count_nonzero(indices) < len(st_time):
                 warnings.warn(
                     'ignoring spikes outside of spiketrain support')
-            tdata[unit] = tdata[unit][indices]
-            time[unit] = time[unit][indices]
+            if singleunit:
+                tdata = np.array([tdata[0,indices]], ndmin=2)
+                time = np.array([time[0,indices]], ndmin=2)
+            else:
+                tdata[unit] = tdata[unit][indices]
+                time[unit] = time[unit][indices]
         return time, tdata
 
     def __repr__(self):
