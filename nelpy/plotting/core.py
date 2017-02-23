@@ -1,8 +1,10 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import warnings
+
 
 from .helpers import RasterLabelData
 from ..objects import *
@@ -333,12 +335,13 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
             "plotting {} not yet supported".format(str(type(data))))
     return ax
 
-def epochplot(ax, epochs, height=None, fc='0.5', ec=None,
+def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec=None,
                       alpha=0.5, hatch='////', label=None, **kwargs):
     """Docstring goes here.
     """
+    if ax is None:
+        ax = plt.gca()
 
-    import matplotlib.patches as patches
     for ii, (start, stop) in enumerate(zip(epochs.starts, epochs.stops)):
         ax.add_patch(
             patches.Rectangle(
