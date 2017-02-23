@@ -13,6 +13,8 @@ with hmmlearn.
 
 # see https://github.com/ckemere/hmmlearn
 from hmmlearn.hmm import PoissonHMM as PHMM
+from .objects import BinnedSpikeTrainArray
+from warnings import warn
 
 class PoissonHMM(PHMM):
     """Nelpy extension of PoissonHMM.
@@ -45,11 +47,11 @@ class PoissonHMM(PHMM):
         # create shortcuts to super() methods that are overridden in
         # this class
 
-        # TODO: does this syntax actually work?
-        self.fit_ = PHMM.fit
-        self.decode_ = PHMM.fit
-        self.score_ = PHMM.score
-        self.score_samples_ = PHMM.score_samples
+        # TODO: does this syntax actually work? YES! :)
+        self._fit = PHMM.fit
+        self._decode = PHMM.fit
+        self._score = PHMM.score
+        self._score_samples = PHMM.score_samples
 
     def fit(self, X, lengths=None):
         """Estimate model parameters using nelpy objects.
@@ -72,9 +74,9 @@ class PoissonHMM(PHMM):
         self : object
             Returns self.
         """
-
-        # bst.lengths and bst.data.T should get us very close
-        pass
+        if not isinstance(X, BinnedSpikeTrainArray):
+            raise TypeError("PoissonHMM.fit() expects a BinnedSpikeTrainArray")
+        self._fit(self, X.data.T, lengths=X.lengths)
 
     def __repr__(self):
         try:
