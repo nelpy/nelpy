@@ -15,7 +15,7 @@ with hmmlearn.
 from hmmlearn.hmm import PoissonHMM as PHMM
 
 class PoissonHMM(PHMM):
-    """Nelpy PoissonHMM.
+    """Nelpy extension of PoissonHMM.
 
     Parameters
     ----------
@@ -92,11 +92,11 @@ class PoissonHMM(PHMM):
         augmented space (e.g. position).
         """
         raise NotImplementedError(
-            "nelpy.PoissonHMM.decde_ext() not yet implemented")
+            "nelpy.PoissonHMM.fit_ext() not yet implemented")
 
     def decode_ext(self):
         """Decode observations to the state space, and then map those
         states to an associated external representation (e.g. position).
         """
         raise NotImplementedError(
-            "nelpy.PoissonHMM.decde_ext() not yet implemented")
+            "nelpy.PoissonHMM.decode_ext() not yet implemented")

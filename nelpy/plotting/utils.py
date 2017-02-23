@@ -84,7 +84,10 @@ def figure_grid(b=True, fig=None ):
         pass
 
 def get_extension_from_filename(name):
-    """Extracts an extension from a filename string."""
+    """Extracts an extension from a filename string.
+
+    returns filename, extension
+    """
     name = name.strip()
     ext = ((name.split('\\')[-1]).split('/')[-1]).split('.')
     if len(ext) > 1 and ext[-1] is not '':
