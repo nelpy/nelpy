@@ -2238,7 +2238,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             dstr = ""
         else:
             bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
-            dstr = " for a total of {}".format(time_string(self.duration))
+            dstr = " for a total of {}".format(time_string(self.n_bins*self.ds))
         return "<BinnedSpikeTrainArray%s:%s%s>%s" % (address_str, ustr, bstr, dstr)
 
     def __iter__(self):
