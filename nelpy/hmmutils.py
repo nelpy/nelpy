@@ -47,11 +47,209 @@ class PoissonHMM(PHMM):
         # create shortcuts to super() methods that are overridden in
         # this class
 
-        # TODO: does this syntax actually work? YES! :)
         self._fit = PHMM.fit
-        self._decode = PHMM.fit
         self._score = PHMM.score
         self._score_samples = PHMM.score_samples
+        self._predict = PHMM.predict
+        self._predict_proba = PHMM.predict_proba
+        self._decode = PHMM.fit
+
+        self._sample = PHMM.sample
+
+    def decode(self, X, lengths=None, algorithm=None):
+        """Find most likely state sequence corresponding to ``X``.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Feature matrix of individual samples.
+            OR
+            nelpy.BinnedSpikeTrainArray
+        lengths : array-like of integers, shape (n_sequences, ), optional
+            Lengths of the individual sequences in ``X``. The sum of
+            these should be ``n_samples``. This is not used when X is
+            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
+            automatically inferred.
+        algorithm : string, one of the ``DECODER_ALGORITHMS``
+            decoder algorithm to be used.
+
+        Returns
+        -------
+        logprob : float
+            Log probability of the produced state sequence.
+
+        state_sequence : array, shape (n_samples, )
+            Labels for each sample from ``X`` obtained via a given
+            decoder ``algorithm``.
+
+        See Also
+        --------
+        score_samples : Compute the log probability under the model and
+            posteriors.
+
+        score : Compute the log probability under the model.
+        """
+
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            return self._decode(self, X, lengths=lengths)
+        else:
+            # we have a BinnedSpikeTrainArray
+            return self._decode(self, X.data.T, lengths=X.lengths)
+
+    def predict_proba(self, X, lengths=None):
+        """Compute the posterior probability for each state in the model.
+
+        X : array-like, shape (n_samples, n_features)
+            Feature matrix of individual samples.
+            OR
+            nelpy.BinnedSpikeTrainArray
+        lengths : array-like of integers, shape (n_sequences, ), optional
+            Lengths of the individual sequences in ``X``. The sum of
+            these should be ``n_samples``. This is not used when X is
+            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
+            automatically inferred.
+
+        Returns
+        -------
+        posteriors : array, shape (n_samples, n_components)
+            State-membership probabilities for each sample from ``X``.
+        """
+
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            return self._predict_proba(self, X, lengths=lengths)
+        else:
+            # we have a BinnedSpikeTrainArray
+            return self._predict_proba(self, X.data.T, lengths=X.lengths)
+
+    def predict(self, X, lengths=None):
+        """Find most likely state sequence corresponding to ``X``.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Feature matrix of individual samples.
+            OR
+            nelpy.BinnedSpikeTrainArray
+        lengths : array-like of integers, shape (n_sequences, ), optional
+            Lengths of the individual sequences in ``X``. The sum of
+            these should be ``n_samples``. This is not used when X is
+            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
+            automatically inferred.
+
+        Returns
+        -------
+        state_sequence : array, shape (n_samples, )
+            Labels for each sample from ``X``.
+        """
+
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            return self._predict(self, X, lengths=lengths)
+        else:
+            # we have a BinnedSpikeTrainArray
+            return self._predict(self, X.data.T, lengths=X.lengths)
+
+    def sample(self, n_samples=1, random_state=None):
+        # TODO: here we should really use X.unit_ids, tags, etc. to
+        # return a BST object. Probably have to copy the attributes
+        # during init, but we will only have these if BST is used,
+        # instead of a feature matrix. So, if we only used a feature
+        # matrix, then we return a feature matrix? Or just a new,
+        # compatible BST?
+        """Generate random samples from the model.
+
+        DESCRIPTION GOES HERE... TODO TODO TODO TODO
+
+        Parameters
+        ----------
+        n_samples : int
+            Number of samples to generate.
+
+        random_state: RandomState or an int seed (0 by default)
+            A random number generator instance. If ``None``, the object's
+            random_state is used.
+
+        Returns
+        -------
+        X : array, shape (n_samples, n_features)
+            Feature matrix.
+        state_sequence : array, shape (n_samples, )
+            State sequence produced by the model.
+        """
+        raise NotImplementedError(
+            "PoissonHMM.sample() has not been implemented yet.")
+
+    def score_samples(self, X, lengths=None):
+        """Compute the log probability under the model and compute posteriors.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Feature matrix of individual samples.
+            OR
+            nelpy.BinnedSpikeTrainArray
+        lengths : array-like of integers, shape (n_sequences, ), optional
+            Lengths of the individual sequences in ``X``. The sum of
+            these should be ``n_samples``. This is not used when X is
+            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
+            automatically inferred.
+
+        Returns
+        -------
+        logprob : float
+            Log likelihood of ``X``.
+
+        posteriors : array, shape (n_samples, n_components)
+            State-membership probabilities for each sample in ``X``.
+
+        See Also
+        --------
+        score : Compute the log probability under the model.
+        decode : Find most likely state sequence corresponding to ``X``.
+        """
+
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            return self._score_samples(self, X, lengths=lengths)
+        else:
+            # we have a BinnedSpikeTrainArray
+            return self._score_samples(self, X.data.T, lengths=X.lengths)
+
+    def score(self, X, lengths=None):
+        """Compute the log probability under the model.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Feature matrix of individual samples.
+            OR
+            nelpy.BinnedSpikeTrainArray
+        lengths : array-like of integers, shape (n_sequences, ), optional
+            Lengths of the individual sequences in ``X``. The sum of
+            these should be ``n_samples``. This is not used when X is
+            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
+            automatically inferred.
+
+        Returns
+        -------
+        logprob : float
+            Log likelihood of ``X``.
+
+        See Also
+        --------
+        score_samples : Compute the log probability under the model and
+            posteriors.
+        decode : Find most likely state sequence corresponding to ``X``.
+        """
+
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            return self._score(self, X, lengths=lengths)
+        else:
+            # we have a BinnedSpikeTrainArray
+            return self._score(self, X.data.T, lengths=X.lengths)
 
     def fit(self, X, lengths=None):
         """Estimate model parameters using nelpy objects.
@@ -65,9 +263,13 @@ class PoissonHMM(PHMM):
         ----------
         X : array-like, shape (n_samples, n_units)
             Feature matrix of individual samples.
+            OR
+            nelpy.BinnedSpikeTrainArray
         lengths : array-like of integers, shape (n_sequences, )
             Lengths of the individual sequences in ``X``. The sum of
-            these should be ``n_samples``.
+            these should be ``n_samples``. This is not used when X is
+            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
+            automatically inferred.
 
         Returns
         -------
@@ -75,8 +277,12 @@ class PoissonHMM(PHMM):
             Returns self.
         """
         if not isinstance(X, BinnedSpikeTrainArray):
-            raise TypeError("PoissonHMM.fit() expects a BinnedSpikeTrainArray")
-        self._fit(self, X.data.T, lengths=X.lengths)
+            # assume we have a feature matrix
+            self._fit(self, X, lengths=lengths)
+        else:
+            # we have a BinnedSpikeTrainArray
+            self._fit(self, X.data.T, lengths=X.lengths)
+        return self
 
     def __repr__(self):
         try:
