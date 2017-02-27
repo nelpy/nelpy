@@ -62,7 +62,7 @@ class PoissonHMM(PHMM):
         self._score_samples = PHMM.score_samples
         self._predict = PHMM.predict
         self._predict_proba = PHMM.predict_proba
-        self._decode = PHMM.fit
+        self._decode = PHMM.decode
 
         self._sample = PHMM.sample
 
@@ -166,12 +166,8 @@ class PoissonHMM(PHMM):
             Labels for each sample from ``X``.
         """
 
-        if not isinstance(X, BinnedSpikeTrainArray):
-            # assume we have a feature matrix
-            return self._predict(self, X, lengths=lengths)
-        else:
-            # we have a BinnedSpikeTrainArray
-            return self._predict(self, X.data.T, lengths=X.lengths)
+        _, state_sequence = self.decode(X, lengths)
+        return state_sequence
 
     def sample(self, n_samples=1, random_state=None):
         # TODO: here we should really use X.unit_ids, tags, etc. to
