@@ -420,6 +420,11 @@ class SpikeTrain(ABC):
         return
 
     @property
+    def n_sequences(self):
+        """(int) The number of sequences."""
+        return self.support.n_epochs
+
+    @property
     def unit_ids(self):
         """Unit IDs contained in the SpikeTrain."""
         return self._unit_ids
