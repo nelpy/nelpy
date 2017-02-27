@@ -117,7 +117,15 @@ class PoissonHMM(PHMM):
             return self._decode(self, X, lengths=lengths)
         else:
             # we have a BinnedSpikeTrainArray
-            return self._decode(self, X.data.T, lengths=X.lengths)
+            logprobs = []
+            state_sequences = []
+            centers = []
+            for seq in X:
+                logprob, state_sequence = self._decode(self, seq.data.T, lengths=seq.lengths)
+                logprobs.append(logprob)
+                state_sequences.append(state_sequence)
+                centers.append(seq.centers)
+            return logprobs, state_sequences, centers
 
     def predict_proba(self, X, lengths=None):
         """Compute the posterior probability for each state in the model.
