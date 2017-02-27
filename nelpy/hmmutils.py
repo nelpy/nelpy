@@ -25,6 +25,13 @@ class PoissonHMM(PHMM):
     Attributes
     ----------
     """
+
+    __attributes__ = ['_fs',
+                      '_ds',
+                      '_unit_ids',
+                      '_unit_labels',
+                      '_unit_tags']
+
     def __init__(self, *, n_components, n_iter=None, init_params=None,
                  params=None, verbose=False):
 
@@ -44,9 +51,12 @@ class PoissonHMM(PHMM):
                       params=params,
                       verbose=verbose)
 
+        # initialize BinnedSpikeTrain attributes
+        for attrib in self.__attributes__:
+            exec("self." + attrib + " = None")
+
         # create shortcuts to super() methods that are overridden in
         # this class
-
         self._fit = PHMM.fit
         self._score = PHMM.score
         self._score_samples = PHMM.score_samples
@@ -55,6 +65,18 @@ class PoissonHMM(PHMM):
         self._decode = PHMM.fit
 
         self._sample = PHMM.sample
+
+    def assume_attributes(self, binnedSpikeTrainArray):
+        """Assume subset of attributes from a BinnedSpikeTrainArray.
+
+        This is used primarily to enable the sampling of sequences after
+        a model has been fit.
+        """
+
+        if self._ds is not None:
+            warn("PoissonHMM(BinnedSpikeTrain) attributes already exist.")
+        for attrib in self.__attributes__:
+            exec("self." + attrib + " = binnedSpikeTrainArray." + attrib)
 
     def decode(self, X, lengths=None, algorithm=None):
         """Find most likely state sequence corresponding to ``X``.
@@ -282,6 +304,7 @@ class PoissonHMM(PHMM):
         else:
             # we have a BinnedSpikeTrainArray
             self._fit(self, X.data.T, lengths=X.lengths)
+            self.assume_attributes(X)
         return self
 
     def __repr__(self):
