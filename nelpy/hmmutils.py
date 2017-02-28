@@ -14,6 +14,7 @@ with hmmlearn.
 # see https://github.com/ckemere/hmmlearn
 from hmmlearn.hmm import PoissonHMM as PHMM
 from .objects import BinnedSpikeTrainArray
+from .utils import swap_cols, swap_rows
 from warnings import warn
 
 class PoissonHMM(PHMM):
@@ -65,6 +66,35 @@ class PoissonHMM(PHMM):
         self._decode = PHMM.decode
 
         self._sample = PHMM.sample
+
+    def get_new_state_order(self, *, method=None, Xtrain=None, Xextern=None):
+        """return a state ordering, optionally using augmented data.
+
+        method \in ['transmat' (default), 'mode', 'mean']
+
+        If 'mode' or 'mean' is selected, Xtrain and Xextern are required
+        """
+        if method is None:
+            method = 'transmat'
+        neworder = []
+        raise NotImplementedError("not implemented yet")
+
+        return neworder
+
+    def reorder_states(self, neworder):
+        """Reorder internal HMM states according to a specified order.
+
+        neworder must be list-like, of size (n_components,)
+        """
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            swap_cols(self.transmat_, frm, to)
+            swap_rows(self.transmat_, frm, to)
+            swap_rows(self.means_, frm, to)
+            self.startprob_[frm], self.startprob_[to] = self.startprob_[to], self.startprob_[frm]
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
     def assume_attributes(self, binnedSpikeTrainArray):
         """Assume subset of attributes from a BinnedSpikeTrainArray.

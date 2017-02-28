@@ -1,6 +1,8 @@
 """This module contains helper functions and utilities for nelpy."""
 
-__all__ = ['pairwise',
+__all__ = ['swap_cols',
+           'swap_rows',
+           'pairwise',
            'is_sorted',
            'linear_merge',
            'time_string',
@@ -12,6 +14,14 @@ import warnings
 from itertools import tee
 from collections import namedtuple
 from math import floor
+
+def swap_cols(arr, frm, to):
+    """swap columns of a 2D np.array"""
+    arr[:,[frm, to]] = arr[:,[to, frm]]
+
+def swap_rows(arr, frm, to):
+    """swap rows of a 2D np.array"""
+    arr[[frm, to],:] = arr[[to, frm],:]
 
 def pairwise(iterable):
     """returns a zip of all neighboring pairs.
