@@ -21,6 +21,7 @@ from . version import __version__
 #                     find_nearest_indices)
 
 # from .hmmutils import PoissonHMM
+from . import hmmutils
 
 # from .plotting import plot
 
