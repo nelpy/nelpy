@@ -1,6 +1,6 @@
 """
-nelpy default API
-=================
+nelpy full API
+==============
 
 ``nelpy`` is a neuroelectrophysiology object model and data analysis suite
 based on the python-vdmlab project (https://github.com/mvdm/vandermeerlab),
@@ -11,6 +11,8 @@ and inspired by the neuralensemble.org NEO project
 from .objects import *  # NOTE: control exported symbols in objects.py
 
 from . import filtering
+from . import hmmutils
+from . import io
 from . import plotting
 from . import utils
 
