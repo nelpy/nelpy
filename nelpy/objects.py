@@ -1291,7 +1291,9 @@ class AnalogSignalArray:
     tdata : np.array(dtype=np.float,dimension=N), optional
         if fs is provided tdata is assumed to be sample numbers
         else it is assumed to be time but tdata can be a non time
-        variable
+        variable. Additionally, if tdata is time it is assumed to be
+        sampled regularly in order to generate epochs. Irregular 
+        sampling rates can be corrected with operations on the support.
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time.
@@ -1326,24 +1328,12 @@ class AnalogSignalArray:
         See Parameters
     interp : array of interpolation objects from scipy.interpolate
 
-    store_interp : bool
         See Parameters
     """
-    __attributes__ = ['ydata', 'tdata', '_time', '_fs', 'support', '_interp',
-                        'store_interp', ]
+    __attributes__ = ['_ydata', '_tdata', '_time', '_fs', '_support', '_interp']
     def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=1, 
-                 store_interp=True, empty=False):
-        # Was having random initialization problems so I'm setting this to
-        # none first. 
-        # TODO: look up why...afaik python doesn't need to have things 
-        # initialized...they are initialized to None?
-        # set initial fs to None
-        self._fs = None
-        # then attempt to update the fs; this does input validation:
-        self.fs = fs
-        # set initial _interp to None
-        self._interp = None
-        self.store_interp = store_interp
+                 empty=False):
+        
         
         if(empty):
             for attr in self.__attributes__:
@@ -1354,6 +1344,10 @@ class AnalogSignalArray:
         ydata = np.transpose(ydata)
         self._step = step
 
+        # set initial fs to None
+        self._fs = None
+        # then attempt to update the fs; this does input validation:
+        self.fs = fs
 
         # Note; if we have an empty array of ydata with no dimension,
         # then calling len(ydata) will return a TypeError
@@ -1375,38 +1369,35 @@ class AnalogSignalArray:
                 self.__init__([],empty=True)
                 raise TypeError("tdata and ydata size mismatch!")
 
-        self.ydata = ydata
+        self._ydata = ydata
 
         
 
         # Note: time will be None if this is not a time series and fs isn't
         # specified set xtime to None.
         self._time = None
-        time = None
 
         # Alright, let's handle all the possible parameter cases!
         if tdata is not None:
             if fs is not None:
                 time = tdata / fs
-                self.tdata = tdata
+                self._tdata = tdata
                 if support is not None:
                     # tdata, fs, support passed properly
-                    # self.support = support
                     self._time = time
                     self._restrict_to_epoch_array(epocharray=support)
                 # tdata, fs and no support
                 else:
                     warnings.warn("support created with given tdata and sampling rate, fs!")
                     self._time = time
-                    self.support = EpochArray(get_contiguous_segments(tdata,
+                    self._support = EpochArray(get_contiguous_segments(tdata,
                         step=step), fs=fs)
 
             else:
                 time = tdata
-                self.tdata = tdata
+                self._tdata = tdata
                 # tdata and support
                 if support is not None:
-                    # self.support = support
                     self._time = time
                     self._restrict_to_epoch_array(epocharray=support)
                     warnings.warn("support created with specified epoch array but no specified sampling rate")
@@ -1414,7 +1405,8 @@ class AnalogSignalArray:
                 else:
                     warnings.warn("support created with just tdata! no sampling rate specified so support is entire range of signal")
                     self._time = time
-                    self.support = EpochArray(np.array([0, time[-1]]))
+                    self._support = EpochArray(get_contiguous_segments(self._time,
+                        step=self._time[1]-self._time[0]))
         else:
             tdata = np.arange(0, len(ydata), 1)
             if fs is not None:
@@ -1427,7 +1419,7 @@ class AnalogSignalArray:
                 else:
                     self._time = time
                     warnings.warn("support created with given sampling rate, fs")
-                    self.support = EpochArray(np.array([0, time[-1]]))
+                    self._support = EpochArray(np.array([0, time[-1]]))
             else:
                 # just support
                 if support is not None:
@@ -1438,23 +1430,23 @@ class AnalogSignalArray:
                 else:
                     self._time = tdata
                     warnings.warn("support created with given ydata! support is entire signal")
-                    self.support = EpochArray(np.array([0, tdata[-1]]))
-            self.tdata = tdata
+                    self._support = EpochArray(np.array([0, tdata[-1]]))
+            self._tdata = tdata
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
-        """Restrict self._time and self.ydata to an EpochArray. If no
-        EpochArray is specified, self.support is used.
+        """Restrict self._time and self._ydata to an EpochArray. If no
+        EpochArray is specified, self._support is used.
 
         Parameters
         ----------
         epocharray : EpochArray, optional
         	EpochArray on which to restrict AnalogSignal. Default is
-        	self.support
+        	self._support
         update : bool, optional
-        	Overwrite self.support with epocharray if True (default).
+        	Overwrite self._support with epocharray if True (default).
         """
         if epocharray is None:
-            epocharray = self.support
+            epocharray = self._support
             update = False # support did not change; no need to update
 
         if epocharray.isempty:
@@ -1472,13 +1464,13 @@ class AnalogSignalArray:
             warnings.warn(
                 'ignoring signal outside of support')
         try:
-            self.ydata = self.ydata[indices,:]
+            self._ydata = self._ydata[indices,:]
         except IndexError:
-            self.ydata = self.ydata[indices]
+            self._ydata = self._ydata[indices]
         self._time = self._time[indices]
-        self.tdata = self.tdata[indices]
+        self._tdata = self._tdata[indices]
         if update:
-            self.support = epocharray
+            self._support = epocharray
 
     def _emptyAnalogSignal(self):
         """Empty all the instance attributes for an empty object."""
@@ -1493,45 +1485,48 @@ class AnalogSignalArray:
             return "<empty AnalogSignal>"
         if self.n_epochs > 1:
             try:
-                if(self.ydata.shape[1] > 0):
-                    nstr = "%s epochs in AnalogSignalArray with %s signals" % (self.n_epochs,self.ydata.shape[1])
+                if(self._ydata.shape[1] > 0):
+                    nstr = "%s epochs in AnalogSignalArray with %s signals" % (self.n_epochs,self._ydata.shape[1])
             except IndexError:
                 nstr = "%s epochs in AnalogSignalArray with 1 signal" % (self.n_epochs)
         else:
             nstr = "1 epoch"
-        dstr = "totalling %s seconds" % self.support.duration
+        dstr = "totalling %s seconds" % self._support.duration
         return "base <AnalogSignalArray %s: %s> %s" % (address_str, nstr,dstr)
 
 
-    # @property
-    # def ydata(self):
-    #     return self.ydata
+    @property
+    def ydata(self):
+        """(np.array N-Dimensional) ydata that was initially passed in but transposed
+        """
+        return self._ydata
 
-    # @ydata.setter
-    # def ydata(self, val):
-    #     """set ydata...user should NOT be able to call"""
-    #     self.ydata = val
+    @property
+    def tdata(self):
+        """(np.array 1D) Either sample numbers or time depending on what was passed in
+        """
+        if self._tdata is None:
+            warnings.warn("No tdata specified")
+        return self._tdata
 
-    # @property
-    # def tdata(self):
-    #     if self.tdata is None:
-    #         warnings.warn("No tdata specified")
-    #     return self.tdata
+    @property
+    def support(self):
+        """(nelpy.EpochArray) The support of the underlying spiketrain
+        (in seconds).
+         """
+        return self._support
 
     @property
     def step(self):
         return self._step
+
     @property
     def time(self):
+        """(np.array 1D) Time calculated off sample numbers and frequency or time passed in
+        """
         if self._time is None:
             warnings.warn("No time calculated. This should be due to no tdata specified")
         return self._time
-
-    # @property
-    # def support(self):
-    #     if self.support is None:
-    #         warnings.warn("No support specified")
-    #     return self.support
 
     @property
     def fs(self):
@@ -1546,12 +1541,12 @@ class AnalogSignalArray:
     @property
     def isempty(self):
         """(bool) checks length of ydata input"""
-        return len(self.ydata) == 0
+        return len(self._ydata) == 0
 
     @property
     def n_epochs(self):
         """(int) number of epochs in AnalogSignal"""
-        return self.support.n_epochs
+        return self._support.n_epochs
 
 
     def __iter__(self):
@@ -1568,12 +1563,12 @@ class AnalogSignalArray:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             epoch = EpochArray(
-                    np.array([self.support.tdata[index,:]])
+                    np.array([self._support.tdata[index,:]])
                 )
         self._index += 1
-        return AnalogSignalArray(np.transpose(self.ydata),
+        return AnalogSignalArray(np.transpose(self._ydata),
                             fs=self.fs,
-                            tdata=self.tdata,
+                            tdata=self._tdata,
                             support=epoch,
                             step=self._step
                 )
@@ -1587,7 +1582,7 @@ class AnalogSignalArray:
             intersect passed epocharray with support,
             index particular a singular epoch or multiple epochs with slice
         """
-        epoch = self.support[idx]
+        epoch = self._support[idx]
         if epoch is None:
             warnings.warn("Index resulted in empty epoch array")
             return AnalogSignalArray(ydata = np.array([]),
@@ -1596,35 +1591,35 @@ class AnalogSignalArray:
                         fs = None
                     )
         else:
-            return AnalogSignalArray(np.transpose(self.ydata),
+            return AnalogSignalArray(np.transpose(self._ydata),
                                 fs=self.fs,
-                                tdata=self.tdata,
+                                tdata=self._tdata,
                                 support=epoch,
                                 step=self._step
                     )
 
     def copy(self):
-        return AnalogSignalArray(np.transpose(self.ydata),
+        return AnalogSignalArray(np.transpose(self._ydata),
                             fs = self.fs,
-                            tdata=self.tdata,
-                            support=self.support,
+                            tdata=self._tdata,
+                            support=self._support,
                             step=self._step
                 )
     def mean(self):
         """Returns the mean of the entire signal."""
-        return np.mean(self.ydata,axis=0)
+        return np.mean(self._ydata,axis=0)
 
     def std(self):
         """Returns the standard deviation of the entire signal."""
-        return np.std(self.ydata,axis=0)
+        return np.std(self._ydata,axis=0)
 
     def max(self):
         """Returns the maximum of the entire signal."""
-        return np.amax(self.ydata,axis=0)
+        return np.amax(self._ydata,axis=0)
 
     def min(self):
         """Returns the minimum of the entire signal."""
-        return np.amin(self.ydata,axis=0)
+        return np.amin(self._ydata,axis=0)
 
     def clip(self, min, max):
         """Clip (limit) the values in ydata to min and max as specified.
@@ -1643,11 +1638,11 @@ class AnalogSignalArray:
             min are replaced with min and the values > max are replaced
             with max.
         """
-        new_ydata = np.clip(self.ydata, min, max)
+        new_ydata = np.clip(self._ydata, min, max)
         return AnalogSignalArray(np.transpose(new_ydata),
                                 fs=self.fs,
-                                tdata=self.tdata,
-                                support=self.support,
+                                tdata=self._tdata,
+                                support=self._support,
                                 step=self.step
                 )
 
@@ -1714,7 +1709,7 @@ class AnalogSignalArray:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            epoch = self.support.intersect(
+            epoch = self._support.intersect(
                 EpochArray(
                     [start, stop],
                     fs=fs))
@@ -1724,7 +1719,7 @@ class AnalogSignalArray:
                 analogsignalarray = AnalogSignalArray([],empty=True)
         return analogsignalarray
     
-    def interp(self, event):
+    def interp(self, event, *,store_interp=True):
         """Creates interpolate object if not created already via 
         scipy.interpolate.interp1d
 
@@ -1742,27 +1737,28 @@ class AnalogSignalArray:
         --------
         >>> print("I will make examples soon :P")
         """
-        if(self._interp is not None):
-            interp_vals = [interpObjectt(event) for interpObjectt in self._interp]
-        else:
-            if(self.store_interp):
+        try:
+            if(self._interp is not None):
+                interp_vals = [interpObjectt(event) for interpObjectt in self._interp]
+        except AttributeError:
+            if(store_interp):
                 self._interp = []
                 try:
-                    if(self.ydata.shape[1] > 0):
-                        for ydata in np.transpose(self.ydata):
+                    if(self._ydata.shape[1] > 0):
+                        for ydata in np.transpose(self._ydata):
                             self._interp.append(interpolate.interp1d(self._time, ydata))
                 except IndexError:
-                    self._interp.append(interpolate.interp1d(self._time,self.ydata))
+                    self._interp.append(interpolate.interp1d(self._time,self._ydata))
                     
                 interp_vals = [interpObjectt(event) for interpObjectt in self._interp]
             else:
                 tempInterpObj = []
                 try:
-                    if(self.ydata.shape[1] > 0):
-                        for ydata in np.transpose(self.ydata):
+                    if(self._ydata.shape[1] > 0):
+                        for ydata in np.transpose(self._ydata):
                             tempInterpObj.append(interpolate.interp1d(self._time, ydata))
                 except IndexError:
-                    tempInterpObj.append(interpolate.interp1d(self._time,self.ydata))
+                    tempInterpObj.append(interpolate.interp1d(self._time,self._ydata))
 
                 interp_vals = [interpObjectt(event) for interpObjectt in tempInterpObj]
 
