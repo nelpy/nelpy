@@ -1448,10 +1448,10 @@ class AnalogSignalArray:
         Parameters
         ----------
         epocharray : EpochArray, optional
-        	EpochArray on which to restrict AnalogSignal. Default is
-        	self.support
+            EpochArray on which to restrict AnalogSignal. Default is
+            self.support
         update : bool, optional
-        	Overwrite self.support with epocharray if True (default).
+            Overwrite self.support with epocharray if True (default).
         """
         if epocharray is None:
             epocharray = self.support
