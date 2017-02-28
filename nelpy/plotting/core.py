@@ -70,11 +70,18 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
-    if(isinstance(npl_obj, AnalogSignal)):
+    if(isinstance(npl_obj, AnalogSignalArray)):
         pos = np.where(np.diff(npl_obj.tdata) > npl_obj.step)[0]+1
-        ax.plot(np.insert(npl_obj.time, pos, np.nan),
-                np.insert(npl_obj.ydata,pos, np.nan),
-                **kwargs)
+        try:
+            if(npl_obj.ydata.shape[1] > 0):
+                for ydata in np.transpose(npl_obj.ydata):
+                    ax.plot(np.insert(npl_obj.time, pos, np.nan),
+                            np.insert(ydata,pos, np.nan),
+                            **kwargs)
+        except IndexError:
+            ax.plot(np.insert(npl_obj.time, pos, np.nan),
+                    np.insert(npl_obj.ydata,pos, np.nan),
+                    **kwargs)
 
     if isinstance(npl_obj, EpochArray):
         epocharray = npl_obj
