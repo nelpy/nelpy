@@ -13,6 +13,7 @@ from hmmlearn.hmm import PoissonHMM as PHMM
 from .objects import BinnedSpikeTrainArray
 from .utils import swap_cols, swap_rows
 from warnings import warn
+import numpy as np
 
 __all__ = ['PoissonHMM']
 
@@ -55,6 +56,8 @@ class PoissonHMM(PHMM):
         for attrib in self.__attributes__:
             exec("self." + attrib + " = None")
 
+        self._extern_ = None
+
         # create shortcuts to super() methods that are overridden in
         # this class
         self._fit = PHMM.fit
@@ -66,7 +69,48 @@ class PoissonHMM(PHMM):
 
         self._sample = PHMM.sample
 
-    def get_new_state_order(self, *, method=None, Xtrain=None, Xextern=None):
+    def __repr__(self):
+        try:
+            rep = super().__repr__()
+        except:
+            warning.warn(
+                "couldn't access super().__repr__;"
+                " upgrade dependencies to resolve this issue."
+                )
+            rep = "PoissonHMM"
+        return "nelpy." + rep
+
+    @property
+    def extern_(self):
+        """Mapping from states to external variables (e.g., position)"""
+        if self._extern_:
+            return self._extern_
+        else:
+            warn("no state <--> external mapping has been learnt yet!")
+            return None
+
+    def get_order_from_transmat(self, start_state=None):
+        """Docstring goes here"""
+
+        if start_state is None:
+            start_state = np.argmax(self.startprob_)
+
+        new_order = [start_state]
+        num_states = self.transmat_.shape[0]
+        rem_states = np.arange(0,start_state).tolist()
+        rem_states.extend(np.arange(start_state+1,num_states).tolist())
+        cs = start_state
+
+        for ii in np.arange(0,num_states-1):
+            nstilde = np.argmax(self.transmat_[cs,rem_states])
+            ns = rem_states[nstilde]
+            rem_states.remove(ns)
+            cs = ns
+            new_order.append(cs)
+
+        return new_order
+
+    def get_state_order(self, *, method=None, Xtrain=None, Xextern=None):
         """return a state ordering, optionally using augmented data.
 
         method \in ['transmat' (default), 'mode', 'mean']
@@ -75,9 +119,17 @@ class PoissonHMM(PHMM):
         """
         if method is None:
             method = 'transmat'
-        neworder = []
-        raise NotImplementedError("not implemented yet")
 
+        neworder = []
+
+        if method == 'transmat':
+            return self.get_order_from_transmat()
+        elif method == 'mode':
+            raise NotImplementedError("not implemented yet")
+        elif method == 'mean':
+            raise NotImplementedError("not implemented yet")
+        else:
+            raise NotImplementedError("ordering method not supported!")
         return neworder
 
     def reorder_states(self, neworder):
@@ -340,23 +392,41 @@ class PoissonHMM(PHMM):
             self.assume_attributes(X)
         return self
 
-    def __repr__(self):
-        try:
-            rep = super().__repr__()
-        except:
-            warning.warn(
-                "couldn't access super().__repr__;"
-                " upgrade dependencies to resolve this issue."
-                )
-            rep = "PoissonHMM"
-        return "nelpy." + rep
-
     def fit_ext(self):
         """Learn a mapping from the internal state space, to an external
         augmented space (e.g. position).
+
+        self.extern_ of size (n_components, n_extern)
         """
         raise NotImplementedError(
             "nelpy.PoissonHMM.fit_ext() not yet implemented")
+
+        x0=0; xl=100; num_pos_bins=50
+        xx_left = np.linspace(x0,xl,num_pos_bins+1)
+        xx_mid = np.linspace(x0,xl,num_pos_bins+1)[:-1]; xx_mid += (xx_mid[1]-xx_mid[0])/2
+        num_sequences = binned_st_train.n_sequences
+        num_states = hmm1a.n_components
+        state_pos = np.zeros((num_states, num_pos_bins)) # state position mapping
+
+        for seq in binned_st_train:
+            ll, pp = hmm1a.score_samples(seq)
+            xx, yy = get_position(exp_data['session1']['posdf'], seq.centers)
+            digitized = np.digitize(xx, xx_left) - 1 # spatial bin numbers
+            for ii, ppii in enumerate(pp):
+                state_pos[:,digitized[ii]] += np.transpose(ppii)
+
+        # normalize place fields:
+        placefields = state_pos.copy()
+        colsum = np.tile(placefields.sum(axis=1),(num_pos_bins,1)).T
+        placefields = placefields/colsum
+
+        # determine mean for each place field:
+        pfmeans = (np.tile(xx_mid,(num_states,1))*placefields).sum(axis=1)
+        pfmodes = xx_mid[placefields.argmax(axis=1)]
+
+        # order place fields by mean or mode:
+        mean_order = pfmeans.argsort()
+        mode_order = pfmodes.argsort()
 
     def decode_ext(self):
         """Decode observations to the state space, and then map those
