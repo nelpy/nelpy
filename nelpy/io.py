@@ -2,7 +2,7 @@
 """This file contains the nelpy io functions.
 
 This entire module will probably be deprecated soon, so don't rely
-on any ot this to keep working!
+on any of this to keep working!
 
 Example
 =======
