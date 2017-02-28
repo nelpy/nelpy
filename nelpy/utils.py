@@ -114,7 +114,7 @@ def get_contiguous_segments(data,step=None, sort=False):
 
     bdries = []
 
-    for k, g in groupby(enumerate(data), lambda ix: (round(100*step*ix[0] - 100*ix[1])//10)):
+    for k, g in groupby(enumerate(data), lambda ix: (round(1000*step*ix[0] - 1000*ix[1])//10)):
         f = itemgetter(1)
         gen = (f(x) for x in g)
         start = next(gen)
