@@ -5,9 +5,6 @@ with hmmlearn.
 
 # TODO: add helper code to
 # * choose number of parameters
-# * fit model
-# * score sequence paths
-# * score observations
 # * decode (with orderings)
 # * learn mapping to abstract behavior (default: position)
 
@@ -16,6 +13,8 @@ from hmmlearn.hmm import PoissonHMM as PHMM
 from .objects import BinnedSpikeTrainArray
 from .utils import swap_cols, swap_rows
 from warnings import warn
+
+__all__ = ['PoissonHMM']
 
 class PoissonHMM(PHMM):
     """Nelpy extension of PoissonHMM.

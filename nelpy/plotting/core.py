@@ -159,7 +159,7 @@ def occupancy():
     raise NotImplementedError("occupancy() not implemented yet")
 
 def overviewstrip():
-    """Plot an epoch array similar to vs scrollbar, to show gaps in e.g.
+    """Plot an epoch array similar to vscode scrollbar, to show gaps in e.g.
     matshow plots. TODO: complete me.
     """
     raise NotImplementedError("overviewstripplot() not implemented yet")
