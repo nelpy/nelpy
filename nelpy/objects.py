@@ -105,8 +105,8 @@ class AnalogSignalEmily:
         With shape (n_samples, dimensionality).
     time : np.array
         With shape (n_samples,).
-
     """
+
     def __init__(self, data, time):
         data = np.squeeze(data).astype(float)
         time = np.squeeze(time).astype(float)
@@ -1280,9 +1280,9 @@ class EventArray:
 class AnalogSignalArray:
     """Continuous analog signal(s) with regular sampling rates and same
     support. NOTE: ydata that is not equal dimensionality will NOT work
-    and error/warning messages may/may not be sent out. Also, in this 
-    current rendition, I am assuming tdata is the exact same for all 
-    signals passed through. As such, tdata is expected to be single 
+    and error/warning messages may/may not be sent out. Also, in this
+    current rendition, I am assuming tdata is the exact same for all
+    signals passed through. As such, tdata is expected to be single
     dimensional.
 
     Parameters
@@ -1292,7 +1292,7 @@ class AnalogSignalArray:
         if fs is provided tdata is assumed to be sample numbers
         else it is assumed to be time but tdata can be a non time
         variable. Additionally, if tdata is time it is assumed to be
-        sampled regularly in order to generate epochs. Irregular 
+        sampled regularly in order to generate epochs. Irregular
         sampling rates can be corrected with operations on the support.
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
@@ -1305,9 +1305,9 @@ class AnalogSignalArray:
         default set to 1. e.g. decimated data would have sample numbers
         every ten samples so step=10
     store_interp : bool
-        Flag to determine whether or not to store interpolation object 
-        after interpolation is requested/performed. Default is set to 
-        True meaning that it will be stored. 
+        Flag to determine whether or not to store interpolation object
+        after interpolation is requested/performed. Default is set to
+        True meaning that it will be stored.
     empty : bool
         Return an empty AnalogSignalArray if true else false. Default
         set to false.
@@ -1331,10 +1331,9 @@ class AnalogSignalArray:
         See Parameters
     """
     __attributes__ = ['_ydata', '_tdata', '_time', '_fs', '_support', '_interp']
-    def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=1, 
+    def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=1,
                  empty=False):
-        
-        
+
         if(empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
@@ -1370,8 +1369,6 @@ class AnalogSignalArray:
                 raise TypeError("tdata and ydata size mismatch!")
 
         self._ydata = ydata
-
-        
 
         # Note: time will be None if this is not a time series and fs isn't
         # specified set xtime to None.
@@ -1518,6 +1515,7 @@ class AnalogSignalArray:
 
     @property
     def step(self):
+        # TODO: add docstring
         return self._step
 
     @property
@@ -1718,9 +1716,9 @@ class AnalogSignalArray:
             else:
                 analogsignalarray = AnalogSignalArray([],empty=True)
         return analogsignalarray
-    
+
     def interp(self, event, *,store_interp=True):
-        """Creates interpolate object if not created already via 
+        """Creates interpolate object if not created already via
         scipy.interpolate.interp1d
 
         Parameters
@@ -1749,7 +1747,7 @@ class AnalogSignalArray:
                             self._interp.append(interpolate.interp1d(self._time, ydata))
                 except IndexError:
                     self._interp.append(interpolate.interp1d(self._time,self._ydata))
-                    
+
                 interp_vals = [interpObjectt(event) for interpObjectt in self._interp]
             else:
                 tempInterpObj = []
@@ -1793,9 +1791,9 @@ class AnalogSignalArray_v2:
         default set to 1. e.g. decimated data would have sample numbers
         every ten samples so step=10
     store_interp : bool
-        Flag to determine whether or not to store interpolation object 
-        after interpolation is requested/performed. Default is set to 
-        True meaning that it will be stored. 
+        Flag to determine whether or not to store interpolation object
+        after interpolation is requested/performed. Default is set to
+        True meaning that it will be stored.
     empty : bool
         Return an empty AnalogSignalArray if true else false. Default
         set to false.
@@ -1821,7 +1819,7 @@ class AnalogSignalArray_v2:
     """
     __attributes__ = ['ydata', 'tdata', '_time', 'fs', 'support', '_interp',
                         'store_interp', ]
-    def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=1, 
+    def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=1,
                  store_interp=True, empty=False):
 
         if(empty):
@@ -1840,7 +1838,7 @@ class AnalogSignalArray_v2:
         #     warnings.warn("unsupported type; creating empty AnalogSignalArray")
         #     self.__init__([],empty=True)
         #     return
-        
+
         # try:
         #     #check dimensionality
         #     if(ydata.shape[1] != tdata.shape[1]):
@@ -1855,7 +1853,7 @@ class AnalogSignalArray_v2:
         #     #check size if tdata and ydata are both one dimensional
         #     if(tdata is not None):
         #         if(tdata.shape[0] != ydata.shape[0]):
-            
+
 
     def __repr__(self):
         if self.isempty:

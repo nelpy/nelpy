@@ -6,7 +6,6 @@ with hmmlearn.
 # TODO: add helper code to
 # * choose number of parameters
 # * decode (with orderings)
-# * learn mapping to abstract behavior (default: position)
 
 # see https://github.com/ckemere/hmmlearn
 from hmmlearn.hmm import PoissonHMM as PHMM
@@ -14,17 +13,80 @@ from .objects import BinnedSpikeTrainArray
 from .utils import swap_cols, swap_rows
 from warnings import warn
 import numpy as np
+from pandas import unique
 
 __all__ = ['PoissonHMM']
 
 class PoissonHMM(PHMM):
-    """Nelpy extension of PoissonHMM.
+    """Nelpy extension of PoissonHMM: Hidden Markov Model with
+    independent Poisson emissions.
 
     Parameters
     ----------
+    n_components : int
+        Number of states.
+
+    startprob_prior : array, shape (n_components, )
+        Initial state occupation prior distribution.
+
+    transmat_prior : array, shape (n_components, n_components)
+        Matrix of prior transition probabilities between states.
+
+    algorithm : string, one of the :data:`base.DECODER_ALGORITHMS`
+        Decoder algorithm.
+
+    random_state: RandomState or an int seed (0 by default)
+        A random number generator instance.
+
+    n_iter : int, optional
+        Maximum number of iterations to perform.
+
+    tol : float, optional
+        Convergence threshold. EM will stop if the gain in log-likelihood
+        is below this value.
+
+    verbose : bool, optional
+        When ``True`` per-iteration convergence reports are printed
+        to :data:`sys.stderr`. You can diagnose convergence via the
+        :attr:`monitor_` attribute.
+
+    params : string, optional
+        Controls which parameters are updated in the training
+        process.  Can contain any combination of 's' for startprob,
+        't' for transmat, 'm' for means and 'c' for covars. Defaults
+        to all parameters.
+
+    init_params : string, optional
+        Controls which parameters are initialized prior to
+        training.  Can contain any combination of 's' for
+        startprob, 't' for transmat, 'm' for means and 'c' for covars.
+        Defaults to all parameters.
 
     Attributes
     ----------
+    n_features : int
+        Dimensionality of the (independent) Poisson emissions.
+
+    monitor_ : ConvergenceMonitor
+        Monitor object used to check the convergence of EM.
+
+    transmat_ : array, shape (n_components, n_components)
+        Matrix of transition probabilities between states.
+
+    startprob_ : array, shape (n_components, )
+        Initial state occupation distribution.
+
+    means_ : array, shape (n_components, n_features)
+        Mean parameters for each state.
+
+    extern_ : array, shape (n_components, n_extern)
+        Augmented mapping from state space to external variables.
+
+    Examples
+    --------
+    >>> from nelpy.hmmutils import PoissonHMM
+    >>> PoissonHMM(n_components=2)...
+
     """
 
     __attributes__ = ['_fs',
@@ -78,12 +140,23 @@ class PoissonHMM(PHMM):
                 " upgrade dependencies to resolve this issue."
                 )
             rep = "PoissonHMM"
-        return "nelpy." + rep
+        if self._extern_ is not None:
+            fit_ext = "True"
+        else:
+            fit_ext = "False"
+        try:
+            fit = "False"
+            if self.means_ is not None:
+                fit = "True"
+        except AttributeError:
+            fit = "False"
+        fitstr = "; fit=" + fit + ", fit_ext=" + fit_ext
+        return "nelpy." + rep + fitstr
 
     @property
     def extern_(self):
         """Mapping from states to external variables (e.g., position)"""
-        if self._extern_:
+        if self._extern_ is not None:
             return self._extern_
         else:
             warn("no state <--> external mapping has been learnt yet!")
@@ -110,12 +183,15 @@ class PoissonHMM(PHMM):
 
         return new_order
 
-    def get_state_order(self, *, method=None, Xtrain=None, Xextern=None):
+    def get_state_order(self, method=None):
         """return a state ordering, optionally using augmented data.
 
         method \in ['transmat' (default), 'mode', 'mean']
 
-        If 'mode' or 'mean' is selected, Xtrain and Xextern are required
+        If 'mode' or 'mean' is selected, self._extern_ must exist
+
+        NOTE: both 'mode' and 'mean' assume that _extern_ is in sorted
+        order; this is not tested explicitly.
         """
         if method is None:
             method = 'transmat'
@@ -125,11 +201,20 @@ class PoissonHMM(PHMM):
         if method == 'transmat':
             return self.get_order_from_transmat()
         elif method == 'mode':
-            raise NotImplementedError("not implemented yet")
+            if self._extern_ is not None:
+                neworder = self._extern_.argmax(axis=1).argsort()
+            else:
+                raise Exception("External mapping does not exist yet."
+                                "First use PoissonHMM.fit_ext()")
         elif method == 'mean':
-            raise NotImplementedError("not implemented yet")
+            if self._extern_ is not None:
+                (np.tile(np.arange(self._extern_.shape[1]),(self.n_components,1))*self._extern_).sum(axis=1).argsort()
+                neworder = self._extern_.argmax(axis=1).argsort()
+            else:
+                raise Exception("External mapping does not exist yet."
+                                "First use PoissonHMM.fit_ext()")
         else:
-            raise NotImplementedError("ordering method not supported!")
+            raise NotImplementedError("ordering method '" + str(method) + "' not supported!")
         return neworder
 
     def reorder_states(self, neworder):
@@ -144,6 +229,8 @@ class PoissonHMM(PHMM):
             swap_cols(self.transmat_, frm, to)
             swap_rows(self.transmat_, frm, to)
             swap_rows(self.means_, frm, to)
+            if self._extern_ is not None:
+                swap_rows(self._extern_, frm, to)
             self.startprob_[frm], self.startprob_[to] = self.startprob_[to], self.startprob_[frm]
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -255,8 +342,8 @@ class PoissonHMM(PHMM):
             Labels for each sample from ``X``.
         """
 
-        _, state_sequence = self.decode(X, lengths)
-        return state_sequence
+        _, state_sequences, centers = self.decode(X, lengths)
+        return state_sequences
 
     def sample(self, n_samples=1, random_state=None):
         # TODO: here we should really use X.unit_ids, tags, etc. to
@@ -322,7 +409,13 @@ class PoissonHMM(PHMM):
             return self._score_samples(self, X, lengths=lengths)
         else:
             # we have a BinnedSpikeTrainArray
-            return self._score_samples(self, X.data.T, lengths=X.lengths)
+            logprobs = []
+            posteriors = []
+            for seq in X:
+                logprob, posterior = self._score_samples(self, seq.data.T)
+                logprobs.append(logprob)
+                posteriors.append(posterior)
+            return logprobs, posteriors
 
     def score(self, X, lengths=None):
         """Compute the log probability under the model.
@@ -392,41 +485,63 @@ class PoissonHMM(PHMM):
             self.assume_attributes(X)
         return self
 
-    def fit_ext(self):
+    def fit_ext(self, X, ext, n_extern=None, lengths=None, save=True):
         """Learn a mapping from the internal state space, to an external
         augmented space (e.g. position).
 
+        ext : array-lke
+            array of external correlates (n_bins, )
+        n_extern : int
+            number of extern variables, with range 0,.. n_extern-1
+
+        save : bool
+            stores extern in PoissonHMM if true, discards it if not
+
         self.extern_ of size (n_components, n_extern)
         """
-        raise NotImplementedError(
-            "nelpy.PoissonHMM.fit_ext() not yet implemented")
 
-        x0=0; xl=100; num_pos_bins=50
-        xx_left = np.linspace(x0,xl,num_pos_bins+1)
-        xx_mid = np.linspace(x0,xl,num_pos_bins+1)[:-1]; xx_mid += (xx_mid[1]-xx_mid[0])/2
-        num_sequences = binned_st_train.n_sequences
-        num_states = hmm1a.n_components
-        state_pos = np.zeros((num_states, num_pos_bins)) # state position mapping
+        if n_extern is None:
+            n_extern = len(unique(ext))
+            ext_map = dict()
+            for ii, ele in enumerate(unique(ext)):
+                ext_map[ele] = ii
+        else:
+            ext_map = np.arange(n_extern)
 
-        for seq in binned_st_train:
-            ll, pp = hmm1a.score_samples(seq)
-            xx, yy = get_position(exp_data['session1']['posdf'], seq.centers)
-            digitized = np.digitize(xx, xx_left) - 1 # spatial bin numbers
-            for ii, ppii in enumerate(pp):
-                state_pos[:,digitized[ii]] += np.transpose(ppii)
+        # idea: here, ext can be anything, and n_extern should be range
+        # we can e.g., define extern correlates {leftrun, rightrun} and
+        # fit the mapping. This is not expexted to be good at all for
+        # most states, but it could allow us to identify a state or two
+        # for which there *might* be a strong predictive relationship.
+        # In this way, the binning, etc. should be done external to this
+        # function, but it might still make sense to encapsulate it as
+        # a helper function inside PoissonHMM?
 
-        # normalize place fields:
-        placefields = state_pos.copy()
-        colsum = np.tile(placefields.sum(axis=1),(num_pos_bins,1)).T
-        placefields = placefields/colsum
+        # xpos, ypos = get_position(exp_data['session1']['posdf'], bst.centers)
+        # x0=0; xl=100; n_extern=50
+        # xx_left = np.linspace(x0,xl,n_extern+1)
+        # xx_mid = np.linspace(x0,xl,n_extern+1)[:-1]; xx_mid += (xx_mid[1]-xx_mid[0])/2
+        # ext = np.digitize(xpos, xx_left) - 1 # spatial bin numbers
 
-        # determine mean for each place field:
-        pfmeans = (np.tile(xx_mid,(num_states,1))*placefields).sum(axis=1)
-        pfmodes = xx_mid[placefields.argmax(axis=1)]
+        extern = np.zeros((self.n_components, n_extern))
 
-        # order place fields by mean or mode:
-        mean_order = pfmeans.argsort()
-        mode_order = pfmodes.argsort()
+        _ignored_, posteriors = self.score_samples(X)
+        posteriors = np.vstack(posteriors)  # 1D array of states, of length n_bins
+
+        if len(posteriors) != len(ext):
+            raise ValueError("ext must have same lengt as decoded state sequence!")
+
+        for ii, posterior in enumerate(posteriors):
+            extern[:,ext_map[ext[ii]]] += np.transpose(posterior)
+
+        # normalize extern tuning curves:
+        colsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
+        extern = extern/colsum
+
+        if save:
+            self._extern_ = extern
+
+        return extern
 
     def decode_ext(self):
         """Decode observations to the state space, and then map those

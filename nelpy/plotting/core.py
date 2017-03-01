@@ -16,7 +16,7 @@ __all__ = ['plot',
            'rastercountplot']
 
 def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
-         mec=None, **kwargs):
+         mec=None, markerfacecolor=None, **kwargs):
     """Plot an array-like object on an EpochArray.
 
     Parameters
@@ -68,22 +68,36 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
         color = '0.3'
     if mec is None:
         mec = color
+    if markerfacecolor is None:
+        markerfacecolor = 'w'
 
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
     if(isinstance(npl_obj, AnalogSignalArray)):
-        pos = np.where(np.diff(npl_obj.tdata) > npl_obj.step)[0]+1
-        try:
-            if(npl_obj.ydata.shape[1] > 0):
-                for ydata in np.transpose(npl_obj.ydata):
-                    ax.plot(np.insert(npl_obj.time, pos, np.nan),
-                            np.insert(ydata,pos, np.nan),
-                            **kwargs)
-        except IndexError:
-            ax.plot(np.insert(npl_obj.time, pos, np.nan),
-                    np.insert(npl_obj.ydata,pos, np.nan),
-                    **kwargs)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for segment in npl_obj:
+                ax.plot(segment.tdata,
+                        segment.ydata,
+                        color=color,
+                        mec=mec,
+                        markerfacecolor='w',
+                        lw=lw,
+                        mew=mew,
+                        **kwargs
+                        )
+        # pos = np.where(np.diff(npl_obj.tdata) > npl_obj.step)[0]+1
+        # try:
+        #     if(npl_obj.ydata.shape[1] > 0):
+        #         for ydata in np.transpose(npl_obj.ydata):
+        #             ax.plot(np.insert(npl_obj.time, pos, np.nan),
+        #                     np.insert(ydata,pos, np.nan),
+        #                     **kwargs)
+        # except IndexError:
+        #     ax.plot(np.insert(npl_obj.time, pos, np.nan),
+        #             np.insert(npl_obj.ydata,pos, np.nan),
+        #             **kwargs)
 
     if isinstance(npl_obj, EpochArray):
         epocharray = npl_obj
@@ -99,7 +113,7 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
                     '-o',
                     color=color,
                     mec=mec,
-                    markerfacecolor='w',
+                    markerfacecolor=markerfacecolor,
                     lw=lw,
                     mew=mew,
                     **kwargs)
