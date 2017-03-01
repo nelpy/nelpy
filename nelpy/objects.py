@@ -1953,6 +1953,11 @@ class SpikeTrainArray(SpikeTrain):
 
         tdata = standardize_to_2d(tdata)
 
+        #sort spike trains, but only if necessary:
+        for ii, train in enumerate(tdata):
+            if not is_sorted(train):
+                tdata[ii] = np.sort(train)
+
         # if only empty tdata were received AND no support, return empty
         # SpikeTrainArray:
         if np.sum([st.size for st in tdata]) == 0 and support is None:
@@ -1980,13 +1985,13 @@ class SpikeTrainArray(SpikeTrain):
 
         # determine spiketrain array support:
         if support is None:
-            # first_st = np.array([unit[0] for unit in tdata]).min()
+            first_spk = np.array([unit[0] for unit in tdata if len(unit) !=0]).min()
             # BUG: if spiketrain is empty np.array([]) then unit[-1]
             # raises an error in the following:
             # FIX: list[-1] raises an IndexError for an empty list,
             # whereas list[-1:] returns an empty list.
-            last_st = np.array([unit[-1:] for unit in tdata if len(unit) !=0]).max()
-            self._support = EpochArray(np.array([0, last_st]), fs=fs)
+            last_spk = np.array([unit[-1:] for unit in tdata if len(unit) !=0]).max()
+            self._support = EpochArray(np.array([first_spk, last_spk]), fs=fs)
             # in the above, there's no reason to restrict to support
         else:
             # restrict spikes to only those within the spiketrain
