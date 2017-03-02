@@ -333,5 +333,3 @@ def epoch_position(position, epoch):
 
     """
     return position.time_slices(epoch.starts, epoch.stops)
-
-
