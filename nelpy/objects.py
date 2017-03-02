@@ -26,7 +26,7 @@ from abc import ABC, abstractmethod
 from .utils import is_sorted, \
                    get_contiguous_segments, \
                    linear_merge, \
-                   time_string
+                   PrettyDuration
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -717,7 +717,7 @@ class EpochArray:
             nstr = "%s epochs" % (self.n_epochs)
         else:
             nstr = "1 epoch"
-        dstr = "of duration {}".format(time_string(self.duration))
+        dstr = "of duration {}".format(PrettyDuration(self.duration))
         return "<EpochArray%s: %s> %s" % (address_str, nstr, dstr)
 
     def __iter__(self):
@@ -858,8 +858,8 @@ class EpochArray:
     def duration(self):
         """(float) The total duration of the epoch array."""
         if self.isempty:
-            return 0
-        return np.array(self.time[:, 1] - self.time[:, 0]).sum()
+            return PrettyDuration(0)
+        return PrettyDuration(np.array(self.time[:, 1] - self.time[:, 0]).sum())
 
     @property
     def starts(self):
@@ -1493,7 +1493,7 @@ class AnalogSignalArray:
                 nstr = " %s signals%s" % (self.n_signals, epstr)
         except IndexError:
             nstr = " 1 signal%s" % epstr
-        dstr = " for a total of {}".format(time_string(self.support.duration))
+        dstr = " for a total of {}".format(PrettyDuration(self.support.duration))
         return "<AnalogSignalArray%s:%s>%s" % (address_str, nstr, dstr)
 
     @property
@@ -2276,17 +2276,17 @@ class BinnedSpikeTrainArray(SpikeTrain):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
             return "<empty BinnedSpikeTrainArray" + address_str + ">"
-        ustr = " {} units in".format(self.n_units)
+        ustr = " {} units".format(self.n_units)
         if self.support.n_epochs > 1:
-            epstr = " ({} segments)".format(self.support.n_epochs)
+            epstr = " ({} segments) in".format(self.support.n_epochs)
         else:
-            epstr = ""
+            epstr = " in"
         if self.n_bins == 1:
             bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
             dstr = ""
         else:
             bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
-            dstr = " for a total of {}".format(time_string(self.n_bins*self.ds))
+            dstr = " for a total of {}".format(PrettyDuration(self.n_bins*self.ds))
         return "<BinnedSpikeTrainArray%s:%s%s%s>%s" % (address_str, ustr, epstr, bstr, dstr)
 
     def __iter__(self):
@@ -2568,9 +2568,5 @@ class BinnedSpikeTrainArray(SpikeTrain):
         binnedspiketrainarray._unit_tags = None
         return binnedspiketrainarray
 
-
 #----------------------------------------------------------------------#
 #======================================================================#
-
-# count number of spikes in an interval:
-        # spks_bin, bins = np.histogram(st_array/fs, bins=num_bins, density=False, range=(0,maxtime))

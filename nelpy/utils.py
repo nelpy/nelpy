@@ -5,7 +5,7 @@ __all__ = ['swap_cols',
            'pairwise',
            'is_sorted',
            'linear_merge',
-           'time_string',
+           'Duration',
            'get_contiguous_segments',
            'get_events_boundaries']
 
@@ -125,32 +125,49 @@ def get_contiguous_segments(data,step=None, sort=False):
 
     return np.asarray(bdries)
 
-def to_hms(seconds):
-    """convert seconds into hh:mm:ss:ms"""
-    ms = seconds % 1; ms = round(ms*1000)
-    seconds = floor(seconds)
-    m, s = divmod(seconds, 60)
-    h, m = divmod(m, 60)
-    Time = namedtuple('Time', 'hh mm ss ms')
-    time = Time(hh=h, mm=m, ss=s, ms=ms)
-    return time
+class PrettyDuration(float):
+    """Time duration with pretty print"""
 
-def time_string(seconds):
-    """returns a formatted time string."""
-    hh, mm, ss, s = to_hms(seconds)
-    if s > 0:
-        sstr = ".{}".format(int(s))
-    else:
-        sstr = ""
-    if hh > 0:
-        timestr = "{:01d}:{:02d}:{:02d}{} hours".format(hh, mm, ss, sstr)
-    elif mm > 0:
-        timestr = "{:01d}:{:02d}{} minutes".format(mm, ss, sstr)
-    elif ss > 0:
-        timestr = "{:01d}{} seconds".format(ss, sstr)
-    else:
-        timestr = "{} milliseconds".format(s)
-    return timestr
+    def __init__(self, seconds):
+        self.duration = seconds
+
+    def __str__(self):
+        return self.time_string(self.duration)
+
+    @staticmethod
+    def to_dhms(seconds):
+        """convert seconds into hh:mm:ss:ms"""
+        ms = seconds % 1; ms = round(ms*1000)
+        seconds = floor(seconds)
+        m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        d, h = divmod(h, 24)
+        Time = namedtuple('Time', 'dd hh mm ss ms')
+        time = Time(dd=d, hh=h, mm=m, ss=s, ms=ms)
+        return time
+
+    @staticmethod
+    def time_string(seconds):
+        """returns a formatted time string."""
+        dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
+        if s > 0:
+            sstr = ".{}".format(int(s))
+        else:
+            sstr = ""
+        if dd > 0:
+            daystr = "{:01d} days ".format(dd)
+        else:
+            daystr = ""
+        if hh > 0:
+            timestr = daystr + "{:01d}:{:02d}:{:02d}{} hours".format(hh, mm, ss, sstr)
+        elif mm > 0:
+            timestr = daystr + "{:01d}:{:02d}{} minutes".format(mm, ss, sstr)
+        elif ss > 0:
+            timestr = daystr + "{:01d}{} seconds".format(ss, sstr)
+        else:
+            timestr = daystr +"{} milliseconds".format(s)
+        return timestr
+
 
 def find_threshold_crossing_events(x, threshold):
     """Find threshold crossing events.
