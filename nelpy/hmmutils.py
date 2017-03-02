@@ -310,16 +310,17 @@ class PoissonHMM(PHMM):
 
         Returns
         -------
-        posteriors : array, shape (n_samples, n_components)
+        posteriors : array, shape (n_components, n_samples)
             State-membership probabilities for each sample from ``X``.
         """
 
         if not isinstance(X, BinnedSpikeTrainArray):
+            print("we have a " + str(type(X)))
             # assume we have a feature matrix
-            return self._predict_proba(self, X, lengths=lengths)
+            return np.transpose(self._predict_proba(self, X, lengths=lengths))
         else:
             # we have a BinnedSpikeTrainArray
-            return self._predict_proba(self, X.data.T, lengths=X.lengths)
+            return np.transpose(self._predict_proba(self, X.data.T, lengths=X.lengths))
 
     def predict(self, X, lengths=None):
         """Find most likely state sequence corresponding to ``X``.
@@ -395,7 +396,7 @@ class PoissonHMM(PHMM):
         logprob : float
             Log likelihood of ``X``.
 
-        posteriors : array, shape (n_samples, n_components)
+        posteriors : array, shape (n_components, n_samples)
             State-membership probabilities for each sample in ``X``.
 
         See Also
@@ -414,7 +415,7 @@ class PoissonHMM(PHMM):
             for seq in X:
                 logprob, posterior = self._score_samples(self, seq.data.T)
                 logprobs.append(logprob)
-                posteriors.append(posterior)
+                posteriors.append(posterior.T)
             return logprobs, posteriors
 
     def score(self, X, lengths=None):
@@ -525,8 +526,8 @@ class PoissonHMM(PHMM):
 
         extern = np.zeros((self.n_components, n_extern))
 
-        _ignored_, posteriors = self.score_samples(X)
-        posteriors = np.vstack(posteriors)  # 1D array of states, of length n_bins
+        posteriors = self.predict_proba(X)
+        posteriors = np.vstack(posteriors.T)  # 1D array of states, of length n_bins
 
         if len(posteriors) != len(ext):
             raise ValueError("ext must have same lengt as decoded state sequence!")
@@ -540,12 +541,106 @@ class PoissonHMM(PHMM):
 
         if save:
             self._extern_ = extern
+            self._extern_map = ext_map
 
         return extern
 
-    def decode_ext(self):
-        """Decode observations to the state space, and then map those
-        states to an associated external representation (e.g. position).
+    def decode_ext(self, X, lengths=None, algorithm=None):
+        """Find most likely state sequence corresponding to ``X``, and
+        then map those states to an associated external representation
+        (e.g. position).
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Feature matrix of individual samples.
+            OR
+            nelpy.BinnedSpikeTrainArray
+        lengths : array-like of integers, shape (n_sequences, ), optional
+            Lengths of the individual sequences in ``X``. The sum of
+            these should be ``n_samples``. This is not used when X is
+            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
+            automatically inferred.
+        algorithm : string, one of the ``DECODER_ALGORITHMS`` decoder
+            algorithm to be used.
+
+        Returns
+        -------
+        logprob : float
+            Log probability of the produced state sequence.
+
+        ext_sequences : array, shape (n_samples, )
+            External labels for each sample from ``X`` obtained via a
+            given decoder ``algorithm``.
+
+        ext_posteriors : array, shape (n_extern, n_samples)
+            State-membership probabilities for each sample in ``X``.
+
+        See Also
+        --------
+        score_samples : Compute the log probability under the model and
+            posteriors.
+
+        score : Compute the log probability under the model.
         """
-        raise NotImplementedError(
-            "nelpy.PoissonHMM.decode_ext() not yet implemented")
+
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            raise NotImplementedError("not implemented yet.")
+        else:
+            # we have a BinnedSpikeTrainArray
+            logprobs = []
+            state_sequences = []
+            external_sequences = []
+            posteriors = []
+            for seq in X:
+                logprob, state_sequence = self._decode(self, seq.data.T, lengths=seq.lengths, algorithm=algorithm)
+                logprobs.append(logprob)
+                external_sequence = np.asarray(self._extern_map)[state_sequence]
+                external_sequences.append(external_sequence)
+                posterior = self.predict_proba(seq)
+                posterior = np.dot(self._extern_.T, posterior)
+                posteriors.append(posterior)
+            return logprobs, state_sequences, posteriors
+
+# def score_samples_ext(self, X, lengths=None):
+#         """Compute the log probability under the model and compute posteriors.
+
+#         Parameters
+#         ----------
+#         X : array-like, shape (n_samples, n_features)
+#             Feature matrix of individual samples.
+#             OR
+#             nelpy.BinnedSpikeTrainArray
+#         lengths : array-like of integers, shape (n_sequences, ), optional
+#             Lengths of the individual sequences in ``X``. The sum of
+#             these should be ``n_samples``. This is not used when X is
+#             a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
+#             automatically inferred.
+
+#         Returns
+#         -------
+#         logprob : float
+#             Log likelihood of ``X``.
+
+#         posteriors : array, shape (n_samples, n_components)
+#             State-membership probabilities for each sample in ``X``.
+
+#         See Also
+#         --------
+#         score : Compute the log probability under the model.
+#         decode : Find most likely state sequence corresponding to ``X``.
+#         """
+
+#         if not isinstance(X, BinnedSpikeTrainArray):
+#             # assume we have a feature matrix
+#             return self._score_samples(self, X, lengths=lengths)
+#         else:
+#             # we have a BinnedSpikeTrainArray
+#             logprobs = []
+#             posteriors = []
+#             for seq in X:
+#                 logprob, posterior = self._score_samples(self, seq.data.T)
+#                 logprobs.append(logprob)
+#                 posteriors.append(posterior)
+#             return logprobs, posteriors
