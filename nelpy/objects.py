@@ -4,7 +4,6 @@
 __all__ = ['EventArray',
            'EpochArray',
            'AnalogSignalArray',
-           'AnalogSignalArray_v2',
            'SpikeTrainArray',
            'BinnedSpikeTrainArray',
            'AnalogSignalEmily',
@@ -1469,6 +1468,11 @@ class AnalogSignalArray:
         if update:
             self._support = epocharray
 
+    @property
+    def n_signals(self):
+        """(int) The number of signals."""
+        return self._ydata.shape[1]
+
     def _emptyAnalogSignal(self):
         """Empty all the instance attributes for an empty object."""
         # if an empty object is requested, return it:
@@ -1481,16 +1485,16 @@ class AnalogSignalArray:
         if self.isempty:
             return "<empty AnalogSignal>"
         if self.n_epochs > 1:
-            try:
-                if(self._ydata.shape[1] > 0):
-                    nstr = "%s epochs in AnalogSignalArray with %s signals" % (self.n_epochs,self._ydata.shape[1])
-            except IndexError:
-                nstr = "%s epochs in AnalogSignalArray with 1 signal" % (self.n_epochs)
+            epstr = " ({} segments)".format(self.n_epochs)
         else:
-            nstr = "1 epoch"
-        dstr = "totalling %s seconds" % self._support.duration
-        return "base <AnalogSignalArray %s: %s> %s" % (address_str, nstr,dstr)
-
+            epstr = ""
+        try:
+            if(self.n_signals > 0):
+                nstr = " %s signals%s" % (self.n_signals, epstr)
+        except IndexError:
+            nstr = " 1 signal%s" % epstr
+        dstr = " for a total of {}".format(time_string(self.support.duration))
+        return "<AnalogSignalArray%s:%s>%s" % (address_str, nstr, dstr)
 
     @property
     def ydata(self):
@@ -1765,113 +1769,6 @@ class AnalogSignalArray:
 #----------------------------------------------------------------------#
 #======================================================================#
 
-
-########################################################################
-# class AnalogSignalArray
-########################################################################
-class AnalogSignalArray_v2:
-    """Continuous analog signal(s) with regular sampling rates and same
-    support.
-
-    Parameters
-    ----------
-    ydata : np.array(dtype=np.float,dimension=N)
-    tdata : np.array(dtype=np.float,dimension=N), optional
-        if fs is provided tdata is assumed to be sample numbers
-        else it is assumed to be time but tdata can be a non time
-        variable
-    fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time
-        is assumed to be in sample numbers instead of actual time.
-    support : EpochArray, optional
-        EpochArray array on which LFP is defined.
-        Default is [0, last spike] inclusive.
-    step : int
-        specifies step size of samples passed as tdata if fs is given,
-        default set to 1. e.g. decimated data would have sample numbers
-        every ten samples so step=10
-    store_interp : bool
-        Flag to determine whether or not to store interpolation object
-        after interpolation is requested/performed. Default is set to
-        True meaning that it will be stored.
-    empty : bool
-        Return an empty AnalogSignalArray if true else false. Default
-        set to false.
-
-    Attributes
-    ----------
-    ydata : np.array
-        With shape (n_ydata,N).
-    tdata : np.array
-        With shape (n_tdata,N).
-    time : np.array
-        With shape (n_tdata,N).
-    fs : float, scalar, optional
-        See Parameters
-    support : EpochArray, optional
-        See Parameters
-    step : int
-        See Parameters
-    _interp : array of interpolation objects from scipy.interpolate
-
-    store_interp : bool
-        See Parameters
-    """
-    __attributes__ = ['ydata', 'tdata', '_time', 'fs', 'support', '_interp',
-                        'store_interp', ]
-    def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=1,
-                 store_interp=True, empty=False):
-
-        if(empty):
-            for attr in self.__attributes__:
-                exec("self." + attr + " = None")
-            return
-
-        # # Note; if we have an empty array of ydata with no dimension,
-        # # then calling len(ydata) will return a TypeError
-        # try:
-        #     # if no ydata are given return empty AnalogSignal
-        #     if len(ydata) == 0:
-        #         self.__init__([],empty=True)
-        #         return
-        # except TypeError:
-        #     warnings.warn("unsupported type; creating empty AnalogSignalArray")
-        #     self.__init__([],empty=True)
-        #     return
-
-        # try:
-        #     #check dimensionality
-        #     if(ydata.shape[1] != tdata.shape[1]):
-        #         self.__init__([],empty=True)
-        #         raise TypeError("tdata and ydata dimensionality mismatch")
-        #     #check size
-        #     if(tdata is not None):
-        #         if(tdata.shape[0] != ydata.shape[0]):
-        #             self.__init__([],empty=True)
-        #             raise TypeError("tdata and ydata size mismatch")
-        # except:
-        #     #check size if tdata and ydata are both one dimensional
-        #     if(tdata is not None):
-        #         if(tdata.shape[0] != ydata.shape[0]):
-
-
-    def __repr__(self):
-        if self.isempty:
-            return "<empty AnalogSignalArray"
-        # return "<AnalogSignalArray: %s> %s" % (nstr, dstr)
-        return "<AnalogSignalArray"
-
-    def __getitem__(self, idx):
-        raise NotImplementedError(
-            'AnalogSignalArray.__getitem__ not implemented yet')
-
-    @property
-    def isempty(self):
-        """(bool) Empty AnalogSignalArray."""
-        raise NotImplementedError(
-            'AnalogSignalArray.isempty not implemented yet')
-#----------------------------------------------------------------------#
-#======================================================================#
 
 ########################################################################
 # class SpikeTrainArray
@@ -2242,6 +2139,10 @@ class SpikeTrainArray(SpikeTrain):
             warnings.simplefilter("ignore")
             if self.isempty:
                 return "<empty SpikeTrainArray" + address_str + ">"
+            if self.support.n_epochs > 1:
+                epstr = " ({} segments)".format(self.support.n_epochs)
+            else:
+                epstr = ""
             if self.fs is not None:
                 fsstr = " at %s Hz" % self.fs
             else:
@@ -2251,7 +2152,7 @@ class SpikeTrainArray(SpikeTrain):
             else:
                 labelstr = ""
             numstr = " %s units" % self.n_units
-        return "<SpikeTrainArray%s:%s>%s%s" % (address_str, numstr, fsstr, labelstr)
+        return "<SpikeTrainArray%s:%s%s>%s%s" % (address_str, numstr, epstr, fsstr, labelstr)
 
     def bin(self, *, ds=None):
         """Bin spiketrain array."""
@@ -2376,13 +2277,17 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if self.isempty:
             return "<empty BinnedSpikeTrainArray" + address_str + ">"
         ustr = " {} units in".format(self.n_units)
+        if self.support.n_epochs > 1:
+            epstr = " ({} segments)".format(self.support.n_epochs)
+        else:
+            epstr = ""
         if self.n_bins == 1:
             bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
             dstr = ""
         else:
             bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
             dstr = " for a total of {}".format(time_string(self.n_bins*self.ds))
-        return "<BinnedSpikeTrainArray%s:%s%s>%s" % (address_str, ustr, bstr, dstr)
+        return "<BinnedSpikeTrainArray%s:%s%s%s>%s" % (address_str, ustr, epstr, bstr, dstr)
 
     def __iter__(self):
         """BinnedSpikeTrainArray iterator initialization."""
