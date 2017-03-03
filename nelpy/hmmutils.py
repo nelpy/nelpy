@@ -119,6 +119,7 @@ class PoissonHMM(PHMM):
             exec("self." + attrib + " = None")
 
         self._extern_ = None
+        # self._extern_map = None
 
         # create shortcuts to super() methods that are overridden in
         # this class
@@ -231,6 +232,7 @@ class PoissonHMM(PHMM):
             swap_rows(self.means_, frm, to)
             if self._extern_ is not None:
                 swap_rows(self._extern_, frm, to)
+                # swap_rows(self._extern_map, frm, to)
             self.startprob_[frm], self.startprob_[to] = self.startprob_[to], self.startprob_[frm]
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -501,13 +503,11 @@ class PoissonHMM(PHMM):
         self.extern_ of size (n_components, n_extern)
         """
 
+        ext_map = np.arange(n_extern)
         if n_extern is None:
             n_extern = len(unique(ext))
-            ext_map = dict()
             for ii, ele in enumerate(unique(ext)):
                 ext_map[ele] = ii
-        else:
-            ext_map = np.arange(n_extern)
 
         # idea: here, ext can be anything, and n_extern should be range
         # we can e.g., define extern correlates {leftrun, rightrun} and
@@ -541,7 +541,7 @@ class PoissonHMM(PHMM):
 
         if save:
             self._extern_ = extern
-            self._extern_map = ext_map
+            # self._extern_map = ext_map
 
         return extern
 
@@ -596,12 +596,12 @@ class PoissonHMM(PHMM):
             for seq in X:
                 logprob, state_sequence = self._decode(self, seq.data.T, lengths=seq.lengths, algorithm=algorithm)
                 logprobs.append(logprob)
-                external_sequence = np.asarray(self._extern_map)[state_sequence]
+                external_sequence = state_sequence
                 external_sequences.append(external_sequence)
                 posterior = self.predict_proba(seq)
                 posterior = np.dot(self._extern_.T, posterior)
                 posteriors.append(posterior)
-            return logprobs, state_sequences, posteriors
+            return logprobs, external_sequences, posteriors
 
 # def score_samples_ext(self, X, lengths=None):
 #         """Compute the log probability under the model and compute posteriors.

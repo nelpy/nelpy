@@ -17,11 +17,17 @@ from math import floor
 
 def swap_cols(arr, frm, to):
     """swap columns of a 2D np.array"""
-    arr[:,[frm, to]] = arr[:,[to, frm]]
+    if arr.ndim > 1:
+        arr[:,[frm, to]] = arr[:,[to, frm]]
+    else:
+        arr[frm], arr[to] = arr[to], arr[frm]
 
 def swap_rows(arr, frm, to):
     """swap rows of a 2D np.array"""
-    arr[[frm, to],:] = arr[[to, frm],:]
+    if arr.ndim > 1:
+        arr[[frm, to],:] = arr[[to, frm],:]
+    else:
+        arr[frm], arr[to] = arr[to], arr[frm]
 
 def pairwise(iterable):
     """returns a zip of all neighboring pairs.
