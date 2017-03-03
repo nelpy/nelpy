@@ -435,6 +435,8 @@ class SpikeTrain(ABC):
     @unit_ids.setter
     def unit_ids(self, val):
         if len(val) != self.n_units:
+            print(len(val))
+            print(self.n_units)
             raise TypeError("unit_ids must be of length n_units")
         elif len(set(val)) < len(val):
             raise TypeError("duplicate unit_ids are not allowed")
@@ -2218,7 +2220,8 @@ class SpikeTrainArray(SpikeTrain):
 
     def bin(self, *, ds=None):
         """Bin spiketrain array."""
-        return BinnedSpikeTrainArray(self, ds=ds, empty=self.isempty)
+        # return BinnedSpikeTrainArray(self, ds=ds, empty=self.isempty)
+        return BinnedSpikeTrainArray(self, ds=ds)
 
     @property
     def tdata(self):
@@ -2312,11 +2315,6 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if ds is None:
             warnings.warn('no bin size was given, assuming 62.5 ms')
             ds = 0.0625
-
-        # TODO: this is not a good empty object to return; fix it!
-        # if no tdata were received, return an empty BinnedSpikeTrain:
-        if spiketrainarray.isempty:
-            return BinnedSpikeTrainArray(empty=True)
 
         self._spiketrainarray = spiketrainarray # TODO: remove this if we don't need it, or decide that it's too wasteful
         self._support = spiketrainarray.support
@@ -2472,9 +2470,10 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def n_units(self):
         """(int) The number of units."""
-        if self.isempty:
+        try:
+            return self.data.shape[0]
+        except AttributeError:
             return 0
-        return self.data.shape[0]
 
     @property
     def centers(self):
