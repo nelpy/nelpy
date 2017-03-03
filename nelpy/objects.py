@@ -1482,6 +1482,8 @@ class AnalogSignalArray:
     @property
     def n_signals(self):
         """(int) The number of signals."""
+        if self.isempty:
+            return 0
         return self._ydata.shape[1]
 
     def _emptyAnalogSignal(self):
@@ -1494,7 +1496,7 @@ class AnalogSignalArray:
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
-            return "<empty AnalogSignal>"
+            return "<empty AnalogSignal" + address_str + ">"
         if self.n_epochs > 1:
             epstr = " ({} segments)".format(self.n_epochs)
         else:
