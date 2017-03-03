@@ -78,7 +78,7 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for segment in npl_obj:
-                ax.plot(segment.tdata,
+                ax.plot(segment._time,
                         segment.ydata,
                         color=color,
                         mec=mec,
@@ -87,15 +87,15 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
                         mew=mew,
                         **kwargs
                         )
-        # pos = np.where(np.diff(npl_obj.tdata) > npl_obj.step)[0]+1
+        # pos = np.where(np.diff(npl_obj._time) > npl_obj.step)[0]+1
         # try:
         #     if(npl_obj.ydata.shape[1] > 0):
         #         for ydata in np.transpose(npl_obj.ydata):
-        #             ax.plot(np.insert(npl_obj.time, pos, np.nan),
+        #             ax.plot(np.insert(npl_obj._time, pos, np.nan),
         #                     np.insert(ydata,pos, np.nan),
         #                     **kwargs)
         # except IndexError:
-        #     ax.plot(np.insert(npl_obj.time, pos, np.nan),
+        #     ax.plot(np.insert(npl_obj._time, pos, np.nan),
         #             np.insert(npl_obj.ydata,pos, np.nan),
         #             **kwargs)
 

@@ -1344,6 +1344,7 @@ class AnalogSignalArray:
         if(empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
+            self._support = EpochArray(empty=True)
             return
 
         ydata = np.squeeze(ydata).astype(float)
@@ -1551,7 +1552,10 @@ class AnalogSignalArray:
     @property
     def isempty(self):
         """(bool) checks length of ydata input"""
-        return len(self._ydata) == 0
+        try:
+            return len(self._ydata) == 0
+        except TypeError: #TypeError should happen if _ydata = []
+            return True
 
     @property
     def n_epochs(self):
@@ -1572,16 +1576,39 @@ class AnalogSignalArray:
             raise StopIteration
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            epoch = EpochArray(
-                    np.array([self._support.tdata[index,:]])
-                )
+            epoch = EpochArray(empty=True)
+            exclude = ["_tdata", "_time"]
+            attrs = (x for x in self._support.__attributes__ if x not in exclude)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("epoch." + attr + " = self._support." + attr)
+                try:
+                    epoch._time = self._support.time[[index], :]  # use np integer indexing! Cool!
+                    epoch._tdata = self._support.tdata[[index], :]
+                except IndexError:
+                    # index is out of bounds, so return an empty EpochArray
+                    pass
+            # epoch = EpochArray(
+            #         np.array([self._support.tdata[index,:]])
+            #     )
         self._index += 1
-        return AnalogSignalArray(np.transpose(self._ydata),
-                            fs=self.fs,
-                            tdata=self._tdata,
-                            support=epoch,
-                            step=self._step
-                )
+
+        asa = AnalogSignalArray([],empty=True)
+        exclude = ['_interp','_support']
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("asa." + attr + " = self." + attr)
+        asa._restrict_to_epoch_array(epocharray=epoch)
+        return asa
+        # return AnalogSignalArray(np.transpose(self._ydata),
+        #                     fs=self.fs,
+        #                     tdata=self._tdata,
+        #                     support=epoch,
+        #                     step=self._step
+        #         )
 
     def __getitem__(self, idx):
         """AnalogSignalArray index access.
@@ -1595,26 +1622,43 @@ class AnalogSignalArray:
         epoch = self._support[idx]
         if epoch is None:
             warnings.warn("Index resulted in empty epoch array")
-            return AnalogSignalArray(ydata = np.array([]),
-                        tdata = np.array([]),
-                        support = None,
-                        fs = None
-                    )
+            return AnalogSignalArray(empty=True)
+            # return AnalogSignalArray(ydata = np.array([]),
+            #             tdata = np.array([]),
+            #             support = None,
+            #             fs = None
+            #         )
         else:
-            return AnalogSignalArray(np.transpose(self._ydata),
-                                fs=self.fs,
-                                tdata=self._tdata,
-                                support=epoch,
-                                step=self._step
-                    )
+            asa = AnalogSignalArray([],empty=True)
+            exclude = ['_interp','_support']
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("asa." + attr + " = self." + attr)
+            asa._restrict_to_epoch_array(epocharray=epoch)
+            return asa
+            # return AnalogSignalArray(np.transpose(self._ydata),
+            #                     fs=self.fs,
+            #                     tdata=self._tdata,
+            #                     support=epoch,
+            #                     step=self._step
+            #        )
 
     def copy(self):
-        return AnalogSignalArray(np.transpose(self._ydata),
-                            fs = self.fs,
-                            tdata=self._tdata,
-                            support=self._support,
-                            step=self._step
-                )
+        asa = AnalogSignalArray([],empty=True)
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("asa." + attr + " = self." + attr)
+        return asa
+        # return AnalogSignalArray(np.transpose(self._ydata),
+        #                     fs = self.fs,
+        #                     tdata=self._tdata,
+        #                     support=self._support,
+        #                     step=self._step
+        #         )
     def mean(self):
         """Returns the mean of the entire signal."""
         return np.mean(self._ydata,axis=0)
