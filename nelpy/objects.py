@@ -376,6 +376,7 @@ class SpikeTrain(ABC):
         if empty:
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
+            self._support = EpochArray(empty=True)
             return
 
         # set initial fs to None
@@ -421,6 +422,8 @@ class SpikeTrain(ABC):
 
     @property
     def n_sequences(self):
+        if self.isempty:
+            return 0
         """(int) The number of sequences."""
         return self.support.n_epochs
 
@@ -752,6 +755,9 @@ class EpochArray:
 
         Accepts integers, slices, and EpochArrays.
         """
+        if self.isempty:
+            return self
+
         if isinstance(idx, EpochArray):
             # case #: (self, idx):
             # case 0: idx.isempty == True
@@ -925,6 +931,8 @@ class EpochArray:
     @property
     def issorted(self):
         """(bool) Left edges of epochs are sorted in ascending order."""
+        if self.isempty:
+            return True
         return is_sorted(self.starts)
 
     @property
@@ -1826,6 +1834,7 @@ class SpikeTrainArray(SpikeTrain):
             super().__init__(empty=True)
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
+            self._support = EpochArray(empty=True)
             return
 
         def standardize_to_2d(data):
@@ -1859,7 +1868,10 @@ class SpikeTrainArray(SpikeTrain):
         # SpikeTrainArray:
         if np.sum([st.size for st in tdata]) == 0 and support is None:
             warnings.warn("no data; returning empty SpikeTrainArray")
-            self = SpikeTrainArray(empty=True)
+            super().__init__(empty=True)
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            self._support = EpochArray(empty=True)
             return
 
         kwargs = {"fs": fs,
@@ -1902,8 +1914,9 @@ class SpikeTrainArray(SpikeTrain):
 
         # if no tdata remain after restricting to the support, return
         # an empty SpikeTrainArray:
-        if np.sum([st.size for st in tdata]) == 0:
-            return SpikeTrainArray(empty=True)
+        # if np.sum([st.size for st in tdata]) == 0:
+        #     print('wahoo!')
+        #     return SpikeTrainArray(empty=True)
 
         # set self._tdata and self._time:
         self._time = time
@@ -1953,6 +1966,9 @@ class SpikeTrainArray(SpikeTrain):
         """SpikeTrainArray index access."""
         # TODO: allow indexing of form sta[4,1:5] so that the STs of
         # epochs 1 to 5 (exlcusive) are returned, for neuron id 4.
+
+        if self.isempty:
+            return self
 
         if isinstance(idx, EpochArray):
             if idx.isempty:
@@ -2045,6 +2061,8 @@ class SpikeTrainArray(SpikeTrain):
     @property
     def n_units(self):
         """(int) The number of units."""
+        if self.isempty:
+            return 0
         return len(self.time)
 
     def flatten(self, *, unit_id=None, unit_label=None):
@@ -2059,7 +2077,7 @@ class SpikeTrainArray(SpikeTrain):
         unit_label (str)
             (unit) Label for spike train, default is 'flattened'.
         """
-        if self.n_units == 1:  # already flattened
+        if self.n_units < 2:  # already flattened
             return self
 
         # default args:
@@ -2184,6 +2202,8 @@ class SpikeTrainArray(SpikeTrain):
     @property
     def issorted(self):
         """(bool) Sorted SpikeTrainArray."""
+        if self.isempty:
+            return True
         return np.array(
             [is_sorted(spiketrain) for spiketrain in self.tdata]
             ).all()
@@ -2220,6 +2240,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             super().__init__(empty=True)
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
+            self._support = EpochArray(empty=True)
             return
 
         if not isinstance(spiketrainarray, SpikeTrainArray):
@@ -2325,6 +2346,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
     def __getitem__(self, idx):
         """BinnedSpikeTrainArray index access."""
+        if self.isempty:
+            return self
         if isinstance(idx, EpochArray):
             if idx.isempty:
                 return BinnedSpikeTrainArray(empty=True)
@@ -2405,6 +2428,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def n_units(self):
         """(int) The number of units."""
+        if self.isempty:
+            return 0
         return self.data.shape[0]
 
     @property
@@ -2521,6 +2546,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def n_active(self):
         """Number of active units per time bin with shape (n_bins,)."""
+        if self.isempty:
+            return 0
         # TODO: profile several alternatves. Could use data > 0, or
         # other numpy methods to get a more efficient implementation:
         return self.data.clip(max=1).sum(axis=0)
@@ -2544,7 +2571,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         unit_label (str)
             (unit) Label for spike train, default is 'flattened'.
         """
-        if self.n_units == 1:  # already flattened
+        if self.n_units < 2:  # already flattened
             return self
 
         # default args:
