@@ -1472,7 +1472,11 @@ class AnalogSignalArray:
     @property
     def n_signals(self):
         """(int) The number of signals."""
-        return self._ydata.shape[1]
+        try:
+            return self._ydata.shape[1]
+        except IndexError:
+            return 1
+        # return self._ydata.shape[1]
 
     def _emptyAnalogSignal(self):
         """Empty all the instance attributes for an empty object."""
