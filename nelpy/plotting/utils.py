@@ -38,6 +38,8 @@ __all__ = ['align_xlabels',
            'FixedOrderFormatter',
            'no_xticklabels',
            'no_yticklabels',
+           'no_xticks',
+           'no_yticks',
            'outward_ticks',
            'savefig',
            'set_figsize',
@@ -566,4 +568,4 @@ def sync_xlims(*axes):
     xmax = max(xmaxs)
     for ax in axes:
         ax.set_xlim(xmin, xmax)
-        return xmin, xmax
+    return xmin, xmax
