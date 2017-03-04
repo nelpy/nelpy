@@ -64,8 +64,6 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
         lw = 1.5
     if mew is None:
         mew = lw
-    if color is None:
-        color = '0.3'
     if mec is None:
         mec = color
     if markerfacecolor is None:
@@ -80,7 +78,7 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
             for segment in npl_obj:
                 ax.plot(segment._time,
                         segment.ydata,
-                        color=color,
+                        # color=color,
                         mec=mec,
                         markerfacecolor='w',
                         lw=lw,

@@ -1,8 +1,8 @@
 #encoding : utf-8
 """This file contains the nelpy plotting functions and utilities.
 
-Some functions Copyright (c) 2016 Etienne R. Ackermann
-Some functions Copyright (c) 2013 Jessica B. Hamrick
+Some functions Copyright (c) 2016, Etienne R. Ackermann
+Some functions are modified from Jessica B. Hamrick, Copyright (c) 2013
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the

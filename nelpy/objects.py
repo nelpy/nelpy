@@ -819,7 +819,7 @@ class EpochArray:
 
     @property
     def meta(self):
-        """Meta data associated with SpikeTrain."""
+        """Meta data associated with EpochArray."""
         if self._meta is None:
             warnings.warn("meta data is not available")
         return self._meta

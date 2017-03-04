@@ -164,12 +164,14 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, session='
 
         data_arr = eegdata.astype(dtype).view('i2')
         data_arr = data_arr.reshape(num_records,num_channels)
-        eeg = Map()
-        eeg['data'] = data_arr[:,channels]
-        eeg['channels'] = channels
-        eeg['samprate'] = fs
-        eeg['starttime'] = starttime
-        eeg['session'] = session_prefix
+        eeg = AnalogSignalArray(np.transpose(data_arr[:,channels]), fs=fs)
+        eeg._metahc3channels = channels
+        eeg._metahc3session = session_prefix
+        # eeg['data'] = data_arr[:,channels]
+        # eeg['channels'] = channels
+        # eeg['samprate'] = fs
+        # eeg['starttime'] = starttime
+        # eeg['session'] = session_prefix
 
         return eeg
 
