@@ -1306,8 +1306,8 @@ class AnalogSignalArray:
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time. See
-        fs_meta parameter below if sampling rate is to be stored as 
-        metadata and not used for calculations. 
+        fs_meta parameter below if sampling rate is to be stored as
+        metadata and not used for calculations.
     support : EpochArray, optional
         EpochArray array on which LFP is defined.
         Default is [0, last spike] inclusive.
@@ -1318,9 +1318,9 @@ class AnalogSignalArray:
     fs_meta: float, optional
         Optional sampling rate storage. The true sampling rate if tdata
         is time can be stored here. The above parameter, fs, must be left
-        blank if tdata is time and not sample numbers. This will not be 
+        blank if tdata is time and not sample numbers. This will not be
         used for any calculations. Just to store in AnalogSignalArray as
-        a value. 
+        a value.
     empty : bool
         Return an empty AnalogSignalArray if true else false. Default
         set to false.
@@ -1365,7 +1365,7 @@ class AnalogSignalArray:
         ydata = np.transpose(ydata)
         self._step = step
         self._fs_meta = fs_meta
-        
+
         # set initial fs to None
         self._fs = None
         # then attempt to update the fs; this does input validation:
@@ -1542,7 +1542,7 @@ class AnalogSignalArray:
         """ steps per sample
         Example 1: sample_numbers = np.array([1,2,3,4,5,6]) #aka tdata
         Steps per sample in the above case would be 1
-        
+
         Example 2: sample_numbers = np.array([1,3,5,7,9]) #aka tdata
         Steps per sample in Example 2 would be 2
         """
