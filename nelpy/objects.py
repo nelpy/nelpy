@@ -1645,6 +1645,11 @@ class AnalogSignalArray:
             asa._restrict_to_epoch_array(epocharray=epoch)
             return asa
 
+    def _subset(self, idx):
+        asa = self.copy()
+        asa._ydata = self._ydata[:,idx]
+        return asa
+
     def copy(self):
         asa = AnalogSignalArray([],empty=True)
         exclude = ['_interp']
