@@ -4,7 +4,7 @@ class TestSpikeTrainArrayEtienne:
 
     def test_1(self):
         sta = SpikeTrainArray([[],[],[]])
-        assert sta.n_units == 3
+        assert sta.n_units == 3  # fail
 
     def test_2(self):
         sta = SpikeTrainArray([[],[],[3]])
@@ -12,7 +12,7 @@ class TestSpikeTrainArrayEtienne:
 
     def test_3(self):
         sta = SpikeTrainArray([[1],[2],[3]])
-        assert sta.n_units == 3
+        assert sta.n_units == 3  # fail
 
     def test_4(self):
         sta = SpikeTrainArray([1])
@@ -20,11 +20,11 @@ class TestSpikeTrainArrayEtienne:
 
     def test_5(self):
         sta = SpikeTrainArray([])
-        assert sta.n_units == 1
+        assert sta.n_units == 1  # fail
 
     def test_6(self):
         sta = SpikeTrainArray([[]])
-        assert sta.n_units == 1
+        assert sta.n_units == 1  # fail
 
     def test_7(self):
         sta = SpikeTrainArray(1)
