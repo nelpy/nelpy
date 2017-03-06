@@ -435,8 +435,8 @@ class SpikeTrain(ABC):
     @unit_ids.setter
     def unit_ids(self, val):
         if len(val) != self.n_units:
-            print(len(val))
-            print(self.n_units)
+            # print(len(val))
+            # print(self.n_units)
             raise TypeError("unit_ids must be of length n_units")
         elif len(set(val)) < len(val):
             raise TypeError("duplicate unit_ids are not allowed")
@@ -1895,42 +1895,79 @@ class SpikeTrainArray(SpikeTrain):
             self._support = EpochArray(empty=True)
             return
 
+        def is_singletons(data):
+            """Returns True if data is a list of singletons (more than one)."""
+            data = np.array(data)
+            try:
+                if data.shape[-1] < 2 and np.max(data.shape) > 1:
+                    return True
+                if max(np.array(data).shape[:-1]) > 1 and data.shape[-1] == 1:
+                    return True
+            except (IndexError, TypeError, ValueError):
+                return False
+            return False
+
+        def is_single_unit(data):
+            """Returns True if data represents spike times from a single unit.
+
+            Examples
+            ========
+            [1, 2, 3]           : True
+            [[1, 2, 3]]         : True
+            [[1, 2, 3], []]     : False
+            [[], [], []]        : False
+            [[[[1, 2, 3]]]]     : True
+            [[[[[1],[2],[3]]]]] : False
+            """
+            try:
+                if isinstance(data[0][0], list) or isinstance(data[0][0], np.ndarray):
+                    warnings.warn("spike times input has too many layers!")
+                    if max(np.array(data).shape[:-1]) > 1:
+        #                 singletons = True
+                        return False
+                    data = np.squeeze(data)
+            except (IndexError, TypeError):
+                pass
+            try:
+                if isinstance(data[1], list) or isinstance(data[1], np.ndarray):
+                    return False
+            except (IndexError, TypeError):
+                pass
+            return True
+
         def standardize_to_2d(data):
-            data = np.squeeze(data)  # deals with extraneous dimensions
-            data = np.array(data, ndmin=1)  # deals with extraneous
-                # dimensions
-            f1 = data.dtype is not np.dtype('O')  # True if single unit,
-                # or if square array; False if jagged array
-            # so how do we differentiate between square array and single
-            # unit? Square array should have different #rows from
-            # #elements
-            f2 = data.shape[0] == data.size  # False if square array,
-                # True otherwise
-            if f1 and f2:  # single unit!
-                data = np.array([data], ndmin=2)  # wrap single units
-            elif not f1:  # jagged array
-                # standardize input so that a list of lists is converted
-                # to an array of arrays:
-                data = np.array(
-                    [np.array(st, ndmin=1, copy=False) for st in data])
+            if is_single_unit(data):
+                return np.array(np.squeeze(data), ndmin=2)
+            if is_singletons(data):
+                data = np.squeeze(data)
+                n = np.max(data.shape)
+                if len(data.shape) == 1:
+                    m = 1
+                else:
+                    m = np.min(data.shape)
+                data = np.reshape(data, (n,m))
+            else:
+                data = np.squeeze(data)
+                jagged = data.dtype == np.dtype('O')
+                print(jagged)
+
+                if jagged:  # jagged array
+                    # standardize input so that a list of lists is converted
+                    # to an array of arrays:
+                    data = np.array(
+                        [np.array(st, ndmin=1, copy=False) for st in data])
+                else:
+                    data = np.array(data, ndmin=2)
             return data
 
         tdata = standardize_to_2d(tdata)
+
+        print(tdata)
 
         #sort spike trains, but only if necessary:
         for ii, train in enumerate(tdata):
             if not is_sorted(train):
                 tdata[ii] = np.sort(train)
-
-        # if only empty tdata were received AND no support, return empty
-        # SpikeTrainArray:
-        if np.sum([st.size for st in tdata]) == 0 and support is None:
-            warnings.warn("no data; returning empty SpikeTrainArray")
-            super().__init__(empty=True)
-            for attr in self.__attributes__:
-                exec("self." + attr + " = None")
-            self._support = EpochArray(empty=True)
-            return
 
         kwargs = {"fs": fs,
                   "unit_ids": unit_ids,
@@ -1943,6 +1980,12 @@ class SpikeTrainArray(SpikeTrain):
             # determine self.n_units when initializing. self.time will
             # be updated later in __init__ to reflect subsequent changes
         super().__init__(**kwargs)
+
+        # if only empty tdata were received AND no support, attach an
+        # empty support:
+        if np.sum([st.size for st in tdata]) == 0 and support is None:
+            warnings.warn("no spikes; cannot automatically determine support")
+            support = EpochArray(empty=True)
 
         # if a sampling rate was given, relate time to tdata using fs:
         if fs is not None:
@@ -1965,10 +2008,11 @@ class SpikeTrainArray(SpikeTrain):
             # array's support:
             self._support = support
 
-            time, tdata = self._restrict_to_epoch_array(
-                epocharray=support,
-                time=time,
-                tdata=tdata)
+            if not support.isempty:
+                time, tdata = self._restrict_to_epoch_array(
+                    epocharray=support,
+                    time=time,
+                    tdata=tdata)
 
         # if no tdata remain after restricting to the support, return
         # an empty SpikeTrainArray:
@@ -2119,9 +2163,10 @@ class SpikeTrainArray(SpikeTrain):
     @property
     def n_units(self):
         """(int) The number of units."""
-        if self.isempty:
+        try:
+            return len(self.time)
+        except TypeError:
             return 0
-        return len(self.time)
 
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
