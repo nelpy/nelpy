@@ -1916,10 +1916,11 @@ class SpikeTrainArray(SpikeTrain):
             """
             try:
                 if isinstance(data[0][0], list) or isinstance(data[0][0], np.ndarray):
-                    warn("spike times input has too many layers!")
+                    warnings.warn("spike times input has too many layers!")
                     if max(np.array(data).shape[:-1]) > 1:
         #                 singletons = True
                         return False
+                    data = np.squeeze(data)
             except (IndexError, TypeError):
                 pass
             try:
@@ -1943,6 +1944,7 @@ class SpikeTrainArray(SpikeTrain):
             else:
                 data = np.squeeze(data)
                 jagged = data.dtype == np.dtype('O')
+                print(jagged)
 
                 if jagged:  # jagged array
                     # standardize input so that a list of lists is converted
@@ -1951,10 +1953,11 @@ class SpikeTrainArray(SpikeTrain):
                         [np.array(st, ndmin=1, copy=False) for st in data])
                 else:
                     data = np.array(data, ndmin=2)
-
             return data
 
         tdata = standardize_to_2d(tdata)
+
+        print(tdata)
 
         #sort spike trains, but only if necessary:
         for ii, train in enumerate(tdata):
