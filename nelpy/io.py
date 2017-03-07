@@ -97,7 +97,10 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, session='
         num_elec = get_num_electrodes(sessiondir)
         if verbose:
             print('Number of electrode (.clu) files found:', num_elec)
-        st_array = []
+        if includeUnsortedSpikes:
+            st_array = [[]]
+        else:
+            st_array = []
         # note: using pandas.read_table is orders of magnitude faster here than using numpy.loadtxt
         for ele in np.arange(num_elec):
             #%time dt1a = np.loadtxt( base_filename1 + '.clu.' + str(ele + 1), skiprows=1,dtype=int)
@@ -108,11 +111,12 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, session='
             eu = eudf.u.values[1:]
             ts = tsdf.t.values
             # discard units labeled as '0' or '1', as these correspond to mechanical noise and unsortable units
-            ts = ts[eu!=0]
-            eu = eu[eu!=0]
+            ts = ts[eu!=0]  # always discard mechanical noise
+            eu = eu[eu!=0]  # always discard mechanical noise
+
             if not includeUnsortedSpikes:
-                ts = ts[eu!=1]
-                eu = eu[eu!=1]
+                ts = ts[eu!=1]  # potentially discard unsortable spikes
+                eu = eu[eu!=1]  # potentially discard unsortable spikes
 
             for uu in np.arange(max_units-2):
                 st_array.append(ts[eu==uu+2])
@@ -123,11 +127,16 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, session='
         if verbose:
             print('Spike times (in sample numbers) for a total of {} units were read successfully...'.format(len(st_array)))
 
+        if includeUnsortedSpikes:
+            unit_ids = np.arange(len(st_array))
+        else:
+            unit_ids = np.arange(1, len(st_array)+1)
+
         # make sure that spike times are sorted! (this is not true for unit 0 of the hc-3 dataset, for example):
         for unit, spikes in enumerate(st_array):
             st_array[unit] = np.sort(spikes)
 
-        spikes = SpikeTrainArray(st_array, label=session_prefix, fs=fs)
+        spikes = SpikeTrainArray(st_array, label=session_prefix, fs=fs, unit_ids=unit_ids)
 
         # spikes = Map()
         # spikes['data'] = st_array
