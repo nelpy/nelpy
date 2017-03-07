@@ -67,6 +67,21 @@ def linear_merge(list1, list2):
     >>> [i for i in linear_merge(a, b)]
     [1, 2, 2, 2, 2, 3, 4, 4]
     """
+
+    # if any of the lists are empty, return the other (possibly also
+    # empty) list: (this is necessary because having either list1 or
+    # list2 be empty makes this quite a bit more complicated...)
+    if isinstance(list1, (list, np.ndarray)):
+        if len(list1) == 0:
+            list2 = iter(list2)
+            while True:
+                yield next(list2)
+    if isinstance(list2, (list, np.ndarray)):
+        if len(list2) == 0:
+            list1 = iter(list1)
+            while True:
+                yield next(list1)
+
     list1 = iter(list1)
     list2 = iter(list2)
 
