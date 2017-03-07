@@ -1948,9 +1948,10 @@ class SpikeTrainArray(SpikeTrain):
                 data = np.reshape(data, (n,m))
             else:
                 data = np.squeeze(data)
-                jagged = data.dtype == np.dtype('O')
-                print(jagged)
-
+                if data.dtype == np.dtype('O'):
+                    jagged = True
+                else:
+                    jagged = False
                 if jagged:  # jagged array
                     # standardize input so that a list of lists is converted
                     # to an array of arrays:
@@ -1961,8 +1962,6 @@ class SpikeTrainArray(SpikeTrain):
             return data
 
         tdata = standardize_to_2d(tdata)
-
-        print(tdata)
 
         #sort spike trains, but only if necessary:
         for ii, train in enumerate(tdata):
