@@ -5,7 +5,7 @@ __all__ = ['swap_cols',
            'pairwise',
            'is_sorted',
            'linear_merge',
-           'Duration',
+           'PrettyDuration',
            'get_contiguous_segments',
            'get_events_boundaries']
 
@@ -48,7 +48,7 @@ def is_sorted(iterable, key=lambda a, b: a <= b):
     return all(key(a, b) for a, b in pairwise(iterable))
 
 def linear_merge(list1, list2):
-    """Merge two sorted lists in linear time.
+    """Merge two SORTED lists in linear time.
 
     Returns a generator of the merged result.
 
