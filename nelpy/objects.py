@@ -2007,11 +2007,11 @@ class SpikeTrainArray(SpikeTrain):
             # array's support:
             self._support = support
 
-            if not support.isempty:
-                time, tdata = self._restrict_to_epoch_array(
-                    epocharray=support,
-                    time=time,
-                    tdata=tdata)
+            # if not support.isempty:
+        time, tdata = self._restrict_to_epoch_array(
+            epocharray=self._support,
+            time=time,
+            tdata=tdata)
 
         # if no tdata remain after restricting to the support, return
         # an empty SpikeTrainArray:
@@ -2228,6 +2228,12 @@ class SpikeTrainArray(SpikeTrain):
         # doing tdata[unit] = ... followed by time[unit] = ... might
         # be applying the shrinking twice, no? We need a thorough test
         # for this! And I need to understand the shared memory 100%.
+
+        if epocharray.isempty:
+            n_units = len(tdata)
+            time = np.zeros((n_units,0))
+            tdata = np.zeros((n_units,0))
+            return time, tdata
 
         singleunit = len(tdata)==1  # bool
         # TODO: upgrade this to use copy.copy or copy.deepcopy:
