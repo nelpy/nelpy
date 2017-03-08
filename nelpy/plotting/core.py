@@ -1,25 +1,95 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import warnings
+
 
 from .helpers import RasterLabelData
 from ..objects import *
 from . import utils  # import plotting/utils
 
 __all__ = ['plot',
+           'imagesc',
            'epochplot',
            'rasterplot',
            'rastercountplot']
 
+def imagesc(x=None, y=None, data=None, *, ax=None, **kwargs):
+    """Plots a 2D matrix / image similar to Matlab's imagesc.
+
+    Parameters
+    ----------
+    x : array-like, optional
+        x values (cols)
+    y : array-like, optional
+        y-values (rows)
+    data : ndarray of shape (Nrows, Ncols)
+        matrix to visualize
+    ax : matplotlib axis, optional
+        Plot in given axis; if None creates a new figure
+    kwargs :
+        Other keyword arguments are passed to main imagesc() call
+
+    Returns
+    -------
+    ax : matplotlib axis
+        Axis object with plot data.
+    image : matplotlib image
+
+    Example
+    -------
+    Plot a simple matrix using imagesc
+
+        >>> x = np.linspace(-100, -10, 10)
+        >>> y = np.array([-8, -3.0])
+        >>> data = np.random.randn(y.size,x.size)
+        >>> imagesc(x, y, data)
+    or
+        >>> imagesc(data)
+
+    Adding a colorbar
+
+        >>> ax, img = imagesc(data)
+        >>> from mpl_toolkits.axes_grid1 import make_axes_locatable
+        >>> divider = make_axes_locatable(ax)
+        >>> cax = divider.append_axes("right", size="3.5%", pad=0.1)
+        >>> cb=plt.colorbar(img, cax=cax)
+        >>> npl.utils.no_yticks(cax)
+    """
+
+    def extents(f):
+        delta = f[1] - f[0]
+        return [f[0] - delta/2, f[-1] + delta/2]
+
+    if ax is None:
+        ax = plt.gca()
+    if data is None:
+        if x is None: # no args
+            raise ValueError("Unknown input. Usage imagesc(x, y, data) or imagesc(data).")
+        elif y is None: # only one arg, so assume it to be data
+            data = x
+            x = np.arange(data.shape[1])
+            y = np.arange(data.shape[0])
+        else: # x and y, but no data
+            raise ValueError("Unknown input. Usage imagesc(x, y, data) or imagesc(data).")
+
+    if data.ndim != 2:
+        raise TypeError("data must be 2 dimensional")
+
+    image = ax.imshow(data, aspect='auto', interpolation='none',
+           extent=extents(x) + extents(y), origin='lower', **kwargs)
+
+    return ax, image
+
 def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
-         mec=None, **kwargs):
+         mec=None, markerfacecolor=None, **kwargs):
     """Plot an array-like object on an EpochArray.
 
     Parameters
     ----------
-    npl_obj : nelpy.EpochArray or nelpy.AnalogSignal 
+    npl_obj : nelpy.EpochArray or nelpy.AnalogSignal
         EpochArray on which the data is defined or AnalogSignal with data
     data : array-like
         Data to plot on y axis; must be of size (epocharray.n_epochs,).
@@ -62,19 +132,38 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
         lw = 1.5
     if mew is None:
         mew = lw
-    if color is None:
-        color = '0.3'
     if mec is None:
         mec = color
+    if markerfacecolor is None:
+        markerfacecolor = 'w'
 
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
-    if(isinstance(npl_obj, AnalogSignal)):
-        pos = np.where(np.diff(npl_obj.tdata) > npl_obj.step)[0]+1
-        ax.plot(np.insert(npl_obj.time, pos, np.nan),
-                np.insert(npl_obj.ydata,pos, np.nan),
-                **kwargs)
+    if(isinstance(npl_obj, AnalogSignalArray)):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for segment in npl_obj:
+                ax.plot(segment._time,
+                        segment.ydata,
+                        # color=color,
+                        mec=mec,
+                        markerfacecolor='w',
+                        lw=lw,
+                        mew=mew,
+                        **kwargs
+                        )
+        # pos = np.where(np.diff(npl_obj._time) > npl_obj.step)[0]+1
+        # try:
+        #     if(npl_obj.ydata.shape[1] > 0):
+        #         for ydata in np.transpose(npl_obj.ydata):
+        #             ax.plot(np.insert(npl_obj._time, pos, np.nan),
+        #                     np.insert(ydata,pos, np.nan),
+        #                     **kwargs)
+        # except IndexError:
+        #     ax.plot(np.insert(npl_obj._time, pos, np.nan),
+        #             np.insert(npl_obj.ydata,pos, np.nan),
+        #             **kwargs)
 
     if isinstance(npl_obj, EpochArray):
         epocharray = npl_obj
@@ -90,7 +179,7 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
                     '-o',
                     color=color,
                     mec=mec,
-                    markerfacecolor='w',
+                    markerfacecolor=markerfacecolor,
                     lw=lw,
                     mew=mew,
                     **kwargs)
@@ -150,7 +239,7 @@ def occupancy():
     raise NotImplementedError("occupancy() not implemented yet")
 
 def overviewstrip():
-    """Plot an epoch array similar to vs scrollbar, to show gaps in e.g.
+    """Plot an epoch array similar to vscode scrollbar, to show gaps in e.g.
     matshow plots. TODO: complete me.
     """
     raise NotImplementedError("overviewstripplot() not implemented yet")
@@ -333,13 +422,14 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
             "plotting {} not yet supported".format(str(type(data))))
     return ax
 
-def epochplot(ax, epochs, height=None, fc='0.5', ec=None,
-                      alpha=0.5, hatch='////'):
+def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec=None,
+                      alpha=0.5, hatch='////', label=None, **kwargs):
     """Docstring goes here.
     """
+    if ax is None:
+        ax = plt.gca()
 
-    import matplotlib.patches as patches
-    for start, stop in zip(epochs.starts, epochs.stops):
+    for ii, (start, stop) in enumerate(zip(epochs.starts, epochs.stops)):
         ax.add_patch(
             patches.Rectangle(
                 (start, 0),   # (x,y)
@@ -348,7 +438,9 @@ def epochplot(ax, epochs, height=None, fc='0.5', ec=None,
                 hatch=hatch,
                 facecolor=fc,
                 edgecolor=ec,
-                alpha=alpha
+                alpha=alpha,
+                label=label if ii == 0 else "_nolegend_",
+                **kwargs
             )
         )
     # ax.set_xlim([epochs.start, epochs.stop])

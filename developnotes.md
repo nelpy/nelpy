@@ -97,8 +97,10 @@ Pruning release tags
 ====================
 After pruning / cleaning remote releases, run
 
+```
 git tag -l | xargs git tag -d
 git fetch --tags
+```
 
 to get local tags to match those of remote.
 
@@ -130,3 +132,5 @@ http://stackoverflow.com/questions/101268/hidden-features-of-python#113198
 https://www.quantifiedcode.com/knowledge-base/
 
 http://mahugh.com/2016/04/27/python-and-vs-code/
+
+https://gist.github.com/JamesMGreene/cdd0ac49f90c987e45ac

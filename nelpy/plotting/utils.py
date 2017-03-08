@@ -1,8 +1,8 @@
 #encoding : utf-8
 """This file contains the nelpy plotting functions and utilities.
 
-Some functions Copyright (c) 2016 Etienne R. Ackermann
-Some functions Copyright (c) 2013 Jessica B. Hamrick
+Some functions Copyright (c) 2016, Etienne R. Ackermann
+Some functions are modified from Jessica B. Hamrick, Copyright (c) 2013
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -38,6 +38,8 @@ __all__ = ['align_xlabels',
            'FixedOrderFormatter',
            'no_xticklabels',
            'no_yticklabels',
+           'no_xticks',
+           'no_yticks',
            'outward_ticks',
            'savefig',
            'set_figsize',
@@ -84,7 +86,10 @@ def figure_grid(b=True, fig=None ):
         pass
 
 def get_extension_from_filename(name):
-    """Extracts an extension from a filename string."""
+    """Extracts an extension from a filename string.
+
+    returns filename, extension
+    """
     name = name.strip()
     ext = ((name.split('\\')[-1]).split('/')[-1]).split('.')
     if len(ext) > 1 and ext[-1] is not '':
@@ -211,7 +216,7 @@ or-specific-number
         """Override to prevent order_of_mag being reset elsewhere."""
         self.orderOfMagnitude = self._order_of_mag
 
-def clear_top(ax=None):
+def clear_top(*axes):
     """Remove the top edge of the axis bounding box.
 
     Parameters
@@ -223,13 +228,14 @@ def clear_top(ax=None):
     http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.spines['top'].set_color('none')
-    ax.xaxis.set_ticks_position('bottom')
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.spines['top'].set_color('none')
+        ax.xaxis.set_ticks_position('bottom')
 
 
-def clear_bottom(ax=None):
+def clear_bottom(*axes):
     """Remove the bottom edge of the axis bounding box.
 
     Parameters
@@ -241,13 +247,14 @@ def clear_bottom(ax=None):
     http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.spines['bottom'].set_color('none')
-    ax.xaxis.set_ticks_position('top')
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.spines['bottom'].set_color('none')
+        ax.xaxis.set_ticks_position('top')
 
 
-def clear_top_bottom(ax=None):
+def clear_top_bottom(*axes):
     """Remove the top and bottom edges of the axis bounding box.
 
     Parameters
@@ -259,14 +266,15 @@ def clear_top_bottom(ax=None):
     http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.spines['top'].set_color('none')
-    ax.spines['bottom'].set_color('none')
-    ax.xaxis.set_ticks([])
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.spines['top'].set_color('none')
+        ax.spines['bottom'].set_color('none')
+        ax.xaxis.set_ticks([])
 
 
-def clear_left(ax=None):
+def clear_left(*axes):
     """Remove the left edge of the axis bounding box.
 
     Parameters
@@ -278,13 +286,14 @@ def clear_left(ax=None):
     http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.spines['left'].set_color('none')
-    ax.yaxis.set_ticks_position('right')
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.spines['left'].set_color('none')
+        ax.yaxis.set_ticks_position('right')
 
 
-def clear_right(ax=None):
+def clear_right(*axes):
     """Remove the right edge of the axis bounding box.
 
     Parameters
@@ -296,13 +305,13 @@ def clear_right(ax=None):
     http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.spines['right'].set_color('none')
-    ax.yaxis.set_ticks_position('left')
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.spines['right'].set_color('none')
+        ax.yaxis.set_ticks_position('left')
 
-
-def clear_left_right(ax=None):
+def clear_left_right(*axes):
     """Remove the left and right edges of the axis bounding box.
 
     Parameters
@@ -314,14 +323,14 @@ def clear_left_right(ax=None):
     http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.spines['left'].set_color('none')
-    ax.spines['right'].set_color('none')
-    ax.yaxis.set_ticks([])
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.spines['left'].set_color('none')
+        ax.spines['right'].set_color('none')
+        ax.yaxis.set_ticks([])
 
-
-def outward_ticks(ax=None, axis='both'):
+def outward_ticks(*axes, axis='both'):
     """Make axis ticks face outwards rather than inwards (which is the
     default).
 
@@ -334,15 +343,15 @@ def outward_ticks(ax=None, axis='both'):
 
     """
 
-    if ax is None:
-        ax = plt.gca()
-    if axis == 'both':
-        ax.tick_params(direction='out')
-    else:
-        ax.tick_params(axis=axis, direction='out')
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        if axis == 'both':
+            ax.tick_params(direction='out')
+        else:
+            ax.tick_params(axis=axis, direction='out')
 
-
-def set_xlabel_coords(y, x=0.5, ax=None):
+def set_xlabel_coords(y, x=0.5, *axes):
     """Set the y-coordinate (and optionally the x-coordinate) of the x-axis
     label.
 
@@ -359,12 +368,12 @@ def set_xlabel_coords(y, x=0.5, ax=None):
     http://matplotlib.org/faq/howto_faq.html#align-my-ylabels-across-multiple-subplots
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.xaxis.set_label_coords(x, y)
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.xaxis.set_label_coords(x, y)
 
-
-def set_ylabel_coords(x, y=0.5, ax=None):
+def set_ylabel_coords(x, y=0.5, *axes):
     """Set the x-coordinate (and optionally the y-coordinate) of the y-axis
     label.
 
@@ -381,10 +390,10 @@ def set_ylabel_coords(x, y=0.5, ax=None):
     http://matplotlib.org/faq/howto_faq.html#align-my-ylabels-across-multiple-subplots
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.yaxis.set_label_coords(x, y)
-
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.yaxis.set_label_coords(x, y)
 
 def align_ylabels(xcoord, *axes):
     """Align the y-axis labels of multiple axes.
@@ -415,7 +424,7 @@ def align_xlabels(ycoord, *axes):
     for ax in axes:
         set_xlabel_coords(ycoord, ax=ax)
 
-def no_xticks(ax=None):
+def no_xticks(*axes):
     """Remove the tick marks on the x-axis (but leave the labels).
 
     Parameters
@@ -423,11 +432,12 @@ def no_xticks(ax=None):
     ax : axis object (default=pyplot.gca())
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.tick_params(axis=u'x', which=u'both',length=0)
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.tick_params(axis=u'x', which=u'both',length=0)
 
-def no_yticks(ax=None):
+def no_yticks(*axes):
     """Remove the tick marks on the y-axis (but leave the labels).
 
     Parameters
@@ -435,11 +445,12 @@ def no_yticks(ax=None):
     ax : axis object (default=pyplot.gca())
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.tick_params(axis=u'y', which=u'both',length=0)
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.tick_params(axis=u'y', which=u'both',length=0)
 
-def no_xticklabels(ax=None):
+def no_xticklabels(*axes):
     """Remove the tick labels on the x-axis (but leave the tick marks).
 
     Parameters
@@ -447,12 +458,12 @@ def no_xticklabels(ax=None):
     ax : axis object (default=pyplot.gca())
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.set_xticklabels([])
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.set_xticklabels([])
 
-
-def no_yticklabels(ax=None):
+def no_yticklabels(*axes):
     """Remove the tick labels on the y-axis (but leave the tick marks).
 
     Parameters
@@ -460,10 +471,10 @@ def no_yticklabels(ax=None):
     ax : axis object (default=pyplot.gca())
 
     """
-    if ax is None:
-        ax = plt.gca()
-    ax.set_yticklabels([])
-
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    for ax in axes:
+        ax.set_yticklabels([])
 
 def set_figsize(width, height, fig=None):
     """Set the figure width and height.
@@ -483,8 +494,7 @@ def set_figsize(width, height, fig=None):
     fig.set_figwidth(width)
     fig.set_figheight(height)
 
-
-def set_scientific(low, high, axis=None, ax=None):
+def set_scientific(low, high, axis=None, *axes):
     """Set the axes or axis specified by `axis` to use scientific notation for
     ticklabels, if the value is <10**low or >10**high.
 
@@ -501,17 +511,18 @@ def set_scientific(low, high, axis=None, ax=None):
 
     """
     # get the axis
-    if ax is None:
-        ax = plt.gca()
+    if len(axes) == 0:
+        axes = [plt.gca()]
     # create the tick label formatter
     fmt = plt.ScalarFormatter()
     fmt.set_scientific(True)
     fmt.set_powerlimits((low, high))
     # format the axis/axes
-    if axis is None or axis == 'x':
-        ax.get_yaxis().set_major_formatter(fmt)
-    if axis is None or axis == 'y':
-        ax.get_yaxis().set_major_formatter(fmt)
+    for ax in axes:
+        if axis is None or axis == 'x':
+            ax.get_yaxis().set_major_formatter(fmt)
+        if axis is None or axis == 'y':
+            ax.get_yaxis().set_major_formatter(fmt)
 
 
 def sync_ylims(*axes):
@@ -557,4 +568,4 @@ def sync_xlims(*axes):
     xmax = max(xmaxs)
     for ax in axes:
         ax.set_xlim(xmin, xmax)
-        return xmin, xmax
+    return xmin, xmax

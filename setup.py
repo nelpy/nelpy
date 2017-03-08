@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
+# from setuptools.command.test import test as TestCommand
 import io
 
 from distutils.util import convert_path
@@ -18,8 +18,6 @@ def read(*filenames, **kwargs):
             buf.append(f.read())
     return sep.join(buf)
 
-# long_description = read('README.md', 'CHANGES.txt')
-# long_description = read('README.md')
 long_description = read('README.rst')
 
 # class PyTest(TestCommand):
@@ -39,7 +37,7 @@ setup(
     url='https://github.com/eackermann/nelpy/',
     download_url = 'https://github.com/eackermann/nelpy/tarball/' + main_ns['__version__'],
     license='MIT License',
-    author='Etienne Ackermann',
+    author='Etienne Ackermann, Emily Irvine',
     install_requires=['numpy>=1.9.0',
                     'scipy>=0.16.0',
                     'matplotlib>=1.5.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
@@ -48,7 +46,7 @@ setup(
     description='Neuroelectrophysiology object model and data analysis in Python.',
     long_description=long_description,
     packages=find_packages(),
-    keywords = ['electrophysiology', 'cow', 'moo', 'neural data analysis'],
+    keywords = "electrophysiology neuroscience data analysis",
     include_package_data=True,
     platforms='any'
 )

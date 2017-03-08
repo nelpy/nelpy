@@ -2,40 +2,50 @@
 Nelpy
 =====
 
-**N**\ euro\ **el**\ ectro\ **p**\ hysiolog\ **y** object model and analysis in Python.
+Neuroelectrophysiology object model, data exploration, and analysis in Python.
 
 Overview
 ========
-Nelpy (NeuroELectroPhysiologY) is an open source package for analysis of
-neuroelectrophysiology data arising (primarily) from extracellular
-electrode recordings during neuroscience experiments. The functionality
-of this package includes:
+Nelpy (**N**\ euro\ **el**\ ectro\ **p**\ hysiolog\ **y**) is an open source package for analysis of neuroelectrophysiology data. Nelpy defines a number of data objects to make it easier to work with electrophysiology (ephys) data, and although it was originally designed for use with extracellular recorded data, it can be used much more broadly. Nelpy is intended to make interactive data analysis and exploration of these ephys data easy, by providing several convenience functions and common visualizations that operate directly on the nelpy objects.
 
-- item 1
-- item 2
+More specifically, the functionality of this package includes:
+
+- several container objects (``SpikeTrain``, ``BinnedSpikeTrain``, ``AnalogSignal``, ``EpochArray``, ...) with nice human-readable ``__repr__`` methods
+- powerful ways to interact with the data in the container objects
 - hidden Markov model analysis of neural activity
 - basic data exploration and visualization operating directly on the core nelpy objects
+- and much more
 
 Quick example
 =============
 
-Let's give it a try. Create a SpikeTrainArray::
+Let's give it a try. Create a ``SpikeTrainArray``:
 
-    >>> import nelpy as nel  # main nelpy imports
-    >>> import nelpy.plotting as npl  # optional plotting imports
-    >>> spike_times = np.array([1, 2, np.nan, 4, 5])
+.. code-block:: python
 
-Do something::
+    import nelpy as nel  # main nelpy imports
+    import nelpy.plotting as npl  # optional plotting imports
+    spike_times = np.array([1, 2, 4, 5, 10])
+    st = nel.SpikeTrainArray(spike_times, fs=1)
 
-    >>> st.n_units
-    3.0
+Do something:
+
+.. code-block:: python
+
+    st.n_spikes
+    5
 
 Related work and inspiration
 ============================
-Nelpy drew heavy inspiration from the `python-vdmlab` package from the
+Nelpy drew heavy inspiration from the ``python-vdmlab`` package from the
 van der Meer lab at Dartmouth College (https://github.com/vandermeerlab),
 which was created by Emily Irvine (https://github.com/emirvine). It is
 also inspired by the neuralensemble.org NEO project (http://neo.readthedocs.io).
+
+**Short history:** Etienne A started the nelpy project for two main reasons, namely
+
+1. he wanted / needed a ``BinnedSpikeTrain`` object for hidden Markov model analysis that wasn't (at the time) avaialable in ``neo`` or ``python-vdmlab``, and
+2. he fundamentally wanted to add "support" attributes to all the container objects. Here "support" should be understood in the mathematical sense of "domain of definition", whereas the mathematical support technically would not include some elements for which the function maps to zero. This is critical for spike trains, for example, where it is important to differentiate "no spike at time t" from "no record at time t".
 
 Scope of this work
 ==================
@@ -56,17 +66,23 @@ powerful object model for neuroelectrophysiology.
 Installation
 ============
 
-The easiest way to install Nelpy is to use pip. From the terminal, run::
+The easiest way to install nelpy is to use ``pip``. From the terminal, run:
+
+.. code-block:: bash
 
     pip install nelpy
 
-Alternatively, you can install the latest version of nelpy by running the following commands::
+Alternatively, you can install the latest version of nelpy by running the following commands:
+
+.. code-block:: bash
 
     git clone https://github.com/eackermann/nelpy.git
     cd nelpy
     python setup.py [install, develop]
 
-where the `develop` argument should be used if you want to modify the code.
+where the ``develop`` argument should be used if you want to modify the code.
+
+A weak prerequisite for installing nelpy is a modified version of `hmmlearn <https://github.com/ckemere/hmmlearn/tree/master/hmmlearn>`_. This requirement is weak, in the sense that installation will complete successfully without it, and most of nelpy can also be used without any problems. However, as soon as any of the hidden Markov model (HMM) functions are used, you will get an error if the correct version of ``hmmlearn`` is not installed. To make things easier, there is a handy 64-bit Windows wheel in the `hmmlearn directory <https://github.com/eackermann/nelpy/blob/master/hmmlearn/>`_ of this repository. Installation on Linux/Unix should be almost trivial.
 
 Where
 =====
@@ -80,4 +96,4 @@ Where
 License
 =======
 
-Nelpy is distributed under the MIT license. See the `LICENSE <LICENSE>`_ file for details.
+Nelpy is distributed under the MIT license. See the `LICENSE <https://github.com/eackermann/nelpy/blob/master/LICENSE>`_ file for details.
