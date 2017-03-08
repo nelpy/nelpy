@@ -233,7 +233,7 @@ def get_events_boundaries(x, PrimaryThreshold=None, SecondaryThreshold=None):
 
     events, _ = find_threshold_crossing_events(x, PrimaryThreshold)
 
-     if len(events) == 0:
+    if len(events) == 0:
         bounds, maxes, events = [], [], []
         warnings.warn("no events satisfied criteria")
         return bounds, maxes, events
