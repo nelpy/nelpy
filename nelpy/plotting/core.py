@@ -446,3 +446,5 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec=None,
             )
         )
     ax.set_xlim([epochs.start, epochs.stop])
+
+    return ax
