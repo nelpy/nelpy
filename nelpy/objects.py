@@ -1405,22 +1405,42 @@ class AnalogSignalArray:
                 if support is not None:
                     # tdata, fs, support passed properly
                     self._time = time
+                    # print(self._ydata)
                     self._restrict_to_epoch_array(epocharray=support)
+                    # print(self._ydata)
+                    if(self.support.isempty):
+                        warnings.warn("Support is empty. Empty AnalogSignalArray returned")
+                        exclude = ['_support','_ydata']
+                        attrs = (x for x in self.__attributes__ if x not in exclude)
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            for attr in attrs:
+                                exec("self." + attr + " = None")
+
                 # tdata, fs and no support
                 else:
                     warnings.warn("support created with given tdata and sampling rate, fs!")
                     self._time = time
                     self._support = EpochArray(get_contiguous_segments(tdata,
                         step=step), fs=fs)
-
             else:
                 time = tdata
                 self._tdata = tdata
                 # tdata and support
                 if support is not None:
                     self._time = time
+                    # print(self._ydata)
                     self._restrict_to_epoch_array(epocharray=support)
+                    # print(self._ydata)
                     warnings.warn("support created with specified epoch array but no specified sampling rate")
+                    if(self.support.isempty):
+                        warnings.warn("Support is empty. Empty AnalogSignalArray returned")
+                        exclude = ['_support','_ydata']
+                        attrs = (x for x in self.__attributes__ if x not in exclude)
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            for attr in attrs:
+                                exec("self." + attr + " = None")
                 # tdata
                 else:
                     warnings.warn("support created with just tdata! no sampling rate specified so support is entire range of signal")
@@ -1471,7 +1491,18 @@ class AnalogSignalArray:
 
         if epocharray.isempty:
             warnings.warn("Support specified is empty")
-            self.__init__([],empty=True)
+            # self.__init__([],empty=True)
+            exclude = ['_support','_ydata']
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("self." + attr + " = None")
+            try:
+                self._ydata = np.zeros([0,self._ydata.shape[1]])
+            except IndexError:
+                self._ydata = np.zeros(0)
+            self._support = epocharray
             return
 
         indices = []
@@ -1484,9 +1515,21 @@ class AnalogSignalArray:
             warnings.warn(
                 'ignoring signal outside of support')
         try:
-            self._ydata = self._ydata[indices,:]
+            if(self._ydata[indices,:] != None):
+                self._ydata = self._ydata[indices,:]
+            else:
+                try:
+                    self._ydata = np.zeros([0,self._ydata.shape[0]])
+                except IndexError:
+                    self._ydata = np.zeros(0)
         except IndexError:
-            self._ydata = self._ydata[indices]
+            if(self._ydata[indices] != None):
+                self._ydata = self._ydata[indices]
+            else:
+                try:
+                    self._ydata = np.zeros([0,self._ydata.shape[0]])
+                except IndexError:
+                    self._ydata = np.zeros(0)
         self._time = self._time[indices]
         self._tdata = self._tdata[indices]
         if update:
@@ -1499,6 +1542,8 @@ class AnalogSignalArray:
             return self._ydata.shape[1]
         except IndexError:
             return 1
+        except AttributeError:
+            return 0
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
@@ -1619,6 +1664,9 @@ class AnalogSignalArray:
             for attr in attrs:
                 exec("asa." + attr + " = self." + attr)
         asa._restrict_to_epoch_array(epocharray=epoch)
+        if(asa.support.isempty):
+            warnings.warn("Support is empty. Empty AnalogSignalArray returned")
+            asa = AnalogSignalArray([],empty=True)
         return asa
 
     def __getitem__(self, idx):
@@ -1643,6 +1691,9 @@ class AnalogSignalArray:
                 for attr in attrs:
                     exec("asa." + attr + " = self." + attr)
             asa._restrict_to_epoch_array(epocharray=epoch)
+            if(asa.support.isempty):
+                        warnings.warn("Support is empty. Empty AnalogSignalArray returned")
+                        asa = AnalogSignalArray([],empty=True)
             return asa
 
     def _subset(self, idx):
