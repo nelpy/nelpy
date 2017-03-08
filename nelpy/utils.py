@@ -116,6 +116,7 @@ def linear_merge(list1, list2):
 
 def get_contiguous_segments(data,step=None, sort=False):
     """Compute contiguous segments (seperated by step) in a list.
+
     WARNING! This function assumes that a sorted list is passed.
     If this is not the case (or if it is uncertain), use sort=True
     to force the list to be sorted first.
@@ -212,7 +213,7 @@ def find_threshold_crossing_events(x, threshold):
     return eventlist, eventmax
 
 def get_events_boundaries(x, PrimaryThreshold=None, SecondaryThreshold=None):
-    """get event boundaries such that event event.max >= PrimaryThreshold
+    """get event boundaries such that event.max >= PrimaryThreshold
     and the event extent is defined by SecondaryThreshold.
 
     Note that when PrimaryThreshold==SecondaryThreshold, then this is a

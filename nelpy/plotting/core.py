@@ -11,9 +11,77 @@ from ..objects import *
 from . import utils  # import plotting/utils
 
 __all__ = ['plot',
+           'imagesc',
            'epochplot',
            'rasterplot',
            'rastercountplot']
+
+def imagesc(x=None, y=None, data=None, *, ax=None, **kwargs):
+    """Plots a 2D matrix / image similar to Matlab's imagesc.
+
+    Parameters
+    ----------
+    x : array-like, optional
+        x values (cols)
+    y : array-like, optional
+        y-values (rows)
+    data : ndarray of shape (Nrows, Ncols)
+        matrix to visualize
+    ax : matplotlib axis, optional
+        Plot in given axis; if None creates a new figure
+    kwargs :
+        Other keyword arguments are passed to main imagesc() call
+
+    Returns
+    -------
+    ax : matplotlib axis
+        Axis object with plot data.
+    image : matplotlib image
+
+    Example
+    -------
+    Plot a simple matrix using imagesc
+
+        >>> x = np.linspace(-100, -10, 10)
+        >>> y = np.array([-8, -3.0])
+        >>> data = np.random.randn(y.size,x.size)
+        >>> imagesc(x, y, data)
+    or
+        >>> imagesc(data)
+
+    Adding a colorbar
+
+        >>> ax, img = imagesc(data)
+        >>> from mpl_toolkits.axes_grid1 import make_axes_locatable
+        >>> divider = make_axes_locatable(ax)
+        >>> cax = divider.append_axes("right", size="3.5%", pad=0.1)
+        >>> cb=plt.colorbar(img, cax=cax)
+        >>> npl.utils.no_yticks(cax)
+    """
+
+    def extents(f):
+        delta = f[1] - f[0]
+        return [f[0] - delta/2, f[-1] + delta/2]
+
+    if ax is None:
+        ax = plt.gca()
+    if data is None:
+        if x is None: # no args
+            raise ValueError("Unknown input. Usage imagesc(x, y, data) or imagesc(data).")
+        elif y is None: # only one arg, so assume it to be data
+            data = x
+            x = np.arange(data.shape[1])
+            y = np.arange(data.shape[0])
+        else: # x and y, but no data
+            raise ValueError("Unknown input. Usage imagesc(x, y, data) or imagesc(data).")
+
+    if data.ndim != 2:
+        raise TypeError("data must be 2 dimensional")
+
+    image = ax.imshow(data, aspect='auto', interpolation='none',
+           extent=extents(x) + extents(y), origin='lower', **kwargs)
+
+    return ax, image
 
 def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
          mec=None, markerfacecolor=None, **kwargs):
@@ -21,7 +89,7 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
 
     Parameters
     ----------
-    npl_obj : nelpy.EpochArray or nelpy.AnalogSignal 
+    npl_obj : nelpy.EpochArray or nelpy.AnalogSignal
         EpochArray on which the data is defined or AnalogSignal with data
     data : array-like
         Data to plot on y axis; must be of size (epocharray.n_epochs,).
