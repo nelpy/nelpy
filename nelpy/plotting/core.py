@@ -428,6 +428,8 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec=None,
     """
     if ax is None:
         ax = plt.gca()
+    if height is None:
+        height = 1
 
     for ii, (start, stop) in enumerate(zip(epochs.starts, epochs.stops)):
         ax.add_patch(
@@ -443,4 +445,4 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec=None,
                 **kwargs
             )
         )
-    # ax.set_xlim([epochs.start, epochs.stop])
+    ax.set_xlim([epochs.start, epochs.stop])
