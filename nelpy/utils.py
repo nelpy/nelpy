@@ -233,6 +233,11 @@ def get_events_boundaries(x, PrimaryThreshold=None, SecondaryThreshold=None):
 
     events, _ = find_threshold_crossing_events(x, PrimaryThreshold)
 
+     if len(events) == 0:
+        bounds, maxes, events = [], [], []
+        warnings.warn("no events satisfied criteria")
+        return bounds, maxes, events
+
     # Find periods where value is > SecondaryThreshold; note that the previous periods should be within these!
     assert SecondaryThreshold <= PrimaryThreshold, "Secondary Threshold by definition should include more data than Primary Threshold"
 
