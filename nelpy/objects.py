@@ -1473,6 +1473,23 @@ class AnalogSignalArray:
                     self._support = EpochArray(np.array([0, tdata[-1]]))
             self._tdata = tdata
 
+    def add_signal(self, signal, label=None):
+        """Docstring goes here.
+        Basically we add a signal, and we add a label
+        """
+        signal = np.squeeze(signal)
+        if signal.ndim > 1:
+            raise TypeError("Can only add one signal at a time!")
+        # TODO: This will have to change when Shay changes horizontal to vertical data storage
+        print("Fix me in the future!")
+        if self._ydata.ndim==1:
+            self._ydata = np.hstack([np.array(self._ydata, ndmin=2).T, np.array(signal, ndmin=2).T])
+        else:
+            self._ydata = np.hstack([self._ydata, np.array(signal, ndmin=2).T])
+        print('labels not supported yet!')
+        #TODO: add label support
+        return self
+
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
         """Restrict self._time and self._ydata to an EpochArray. If no
         EpochArray is specified, self._support is used.
