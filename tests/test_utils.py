@@ -21,3 +21,8 @@ class TestUtils:
         """Merge two unsorted lists"""
         merged = linear_merge([1,4,2],[3,6,5])
         assert list(merged) == [1,3,4,2,6,5]
+
+    def test_linear_merge5(self):
+        """Merge two empty lists"""
+        merged = linear_merge([],[])
+        assert list(merged) == []

@@ -14,6 +14,9 @@ import warnings
 from itertools import tee
 from collections import namedtuple
 from math import floor
+from scipy.signal import hilbert
+from scipy.ndimage.filters import gaussian_filter1d
+from . import objects # so that objects.AnalogSignalArray is exposed
 
 def swap_cols(arr, frm, to):
     """swap columns of a 2D np.array"""
@@ -261,6 +264,39 @@ def get_events_boundaries(x, PrimaryThreshold=None, SecondaryThreshold=None):
     events = events[unique_idx,:] # PrimaryThreshold to PrimaryThreshold
 
     return bounds, maxes, events
+
+def add_envelope1D(data, *, sigma=None, fs=None):
+    """Docstring goes here
+
+    sigma = 0 means no smoothing
+    """
+
+    if sigma is None:
+        sigma = 0.004   # 4 ms standard deviation
+    if fs is None:
+        if isinstance(data, (np.ndarray, list)):
+            raise ValueError("sampling frequency must be specified!")
+        elif isinstance(data, objects.AnalogSignalArray):
+            fs = data.fs
+
+    if isinstance(data, (np.ndarray, list)):
+        # Use hilbert transform to get an envelope
+        envelope = np.absolute(hilbert(data))
+        if sigma:
+            # Smooth envelope with a gaussian (sigma = 4 ms)
+            EnvelopeSmoothingSD = sigma*fs
+            smoothed_envelope = gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
+            envelope = smoothed_envelope
+    elif isinstance(data, objects.AnalogSignalArray):
+        envelope = np.absolute(hilbert(data.ydata))
+        if sigma:
+            # Smooth envelope with a gaussian (sigma = 4 ms)
+            EnvelopeSmoothingSD = sigma*fs
+            smoothed_envelope = gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
+            envelope = smoothed_envelope
+        newasa = data.add_signal(envelope, label='envelope')
+        return newasa
+    return envelope
 
 ########################################################################
 # uncurated below this line!
