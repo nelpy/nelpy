@@ -450,6 +450,38 @@ def no_yticks(*axes):
     for ax in axes:
         ax.tick_params(axis=u'y', which=u'both',length=0)
 
+def no_ticks(*axes, where=None):
+    """Remove the tick marks on the desired axes (but leave the labels).
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+    where : string, optional (default 'all') or list
+        Where to remove ticks ['left', 'right', 'top', 'bottom', 'all']
+
+    """
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    if where is None:
+        where = ['all']
+
+    if isinstance(where, str):
+        where = [where]
+    for ax in axes:
+        if 'left' in where:
+            ax.tick_params(axis=u'y', which=u'both', left=False)
+        if 'right' in where:
+            ax.tick_params(axis=u'y', which=u'both', right=False)
+        if 'top' in where:
+            ax.tick_params(axis=u'x', which=u'both', top=False)
+        if 'bottom' in where:
+            ax.tick_params(axis=u'x', which=u'both', bottom=False)
+        if 'all' in where:
+            ax.tick_params(axis=u'y', which=u'both', left=False)
+            ax.tick_params(axis=u'y', which=u'both', right=False)
+            ax.tick_params(axis=u'x', which=u'both', top=False)
+            ax.tick_params(axis=u'x', which=u'both', bottom=False)
+
 def no_xticklabels(*axes):
     """Remove the tick labels on the x-axis (but leave the tick marks).
 

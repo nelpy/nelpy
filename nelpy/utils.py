@@ -16,6 +16,7 @@ from collections import namedtuple
 from math import floor
 from scipy.signal import hilbert
 from scipy.ndimage.filters import gaussian_filter1d
+from . import objects # so that objects.AnalogSignalArray is exposed
 
 def swap_cols(arr, frm, to):
     """swap columns of a 2D np.array"""
@@ -269,14 +270,13 @@ def add_envelope1D(data, *, sigma=None, fs=None):
 
     sigma = 0 means no smoothing
     """
-    from .objects import AnalogSignalArray
 
     if sigma is None:
         sigma = 0.004   # 4 ms standard deviation
     if fs is None:
         if isinstance(data, (np.ndarray, list)):
             raise ValueError("sampling frequency must be specified!")
-        elif isinstance(data, AnalogSignalArray):
+        elif isinstance(data, objects.AnalogSignalArray):
             fs = data.fs
 
     if isinstance(data, (np.ndarray, list)):
@@ -287,7 +287,7 @@ def add_envelope1D(data, *, sigma=None, fs=None):
             EnvelopeSmoothingSD = sigma*fs
             smoothed_envelope = gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
-    elif isinstance(data, AnalogSignalArray):
+    elif isinstance(data, objects.AnalogSignalArray):
         envelope = np.absolute(hilbert(data.ydata))
         if sigma:
             # Smooth envelope with a gaussian (sigma = 4 ms)
