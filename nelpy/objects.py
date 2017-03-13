@@ -1545,6 +1545,11 @@ class AnalogSignalArray:
         except AttributeError:
             return 0
 
+    @property
+    def length(self):
+        """(int) The number of signals."""
+        
+
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
