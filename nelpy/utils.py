@@ -16,6 +16,8 @@ from collections import namedtuple
 from math import floor
 from scipy.signal import hilbert
 from scipy.ndimage.filters import gaussian_filter1d
+from numpy import log, ceil
+
 from . import objects # so that objects.AnalogSignalArray is exposed
 
 def swap_cols(arr, frm, to):
@@ -265,10 +267,10 @@ def get_events_boundaries(x, PrimaryThreshold=None, SecondaryThreshold=None):
 
     return bounds, maxes, events
 
-def add_envelope1D(data, *, sigma=None, fs=None):
+def signal_envelope1D(data, *, sigma=None, fs=None):
     """Docstring goes here
 
-    sigma = 0 means no smoothing
+    sigma = 0 means no smoothing (default 4 ms)
     """
 
     if sigma is None:
@@ -280,23 +282,77 @@ def add_envelope1D(data, *, sigma=None, fs=None):
             fs = data.fs
 
     if isinstance(data, (np.ndarray, list)):
+        # Compute number of samples to compute fast FFTs
+        padlen = nextfastpower(len(data)) - len(data)
+        # Pad data
+        paddeddata = np.pad(data, (0, padlen), 'constant')
         # Use hilbert transform to get an envelope
-        envelope = np.absolute(hilbert(data))
+        envelope = np.absolute(hilbert(paddeddata))
+        # Truncate results back to original length
+        envelope = envelope[:len(data)]
         if sigma:
-            # Smooth envelope with a gaussian (sigma = 4 ms)
+            # Smooth envelope with a gaussian (sigma = 4 ms default)
             EnvelopeSmoothingSD = sigma*fs
             smoothed_envelope = gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
     elif isinstance(data, objects.AnalogSignalArray):
-        envelope = np.absolute(hilbert(data.ydata))
+        # Compute number of samples to compute fast FFTs:
+        padlen = nextfastpower(len(data.ydata)) - len(data.ydata)
+        # Pad data
+        paddeddata = np.pad(data.ydata, (0, padlen), 'constant')
+        # Use hilbert transform to get an envelope
+        envelope = np.absolute(hilbert(paddeddata))
+        # Truncate results back to original length
+        envelope = envelope[:len(data.ydata)]
         if sigma:
-            # Smooth envelope with a gaussian (sigma = 4 ms)
+            # Smooth envelope with a gaussian (sigma = 4 ms default)
             EnvelopeSmoothingSD = sigma*fs
             smoothed_envelope = gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
-        newasa = data.add_signal(envelope, label='envelope')
+        newasa = data.copy()
+        newasa._ydata = envelope
         return newasa
     return envelope
+
+def nextpower(n, base=2.0):
+    """Return the next integral power of two greater than the given number.
+    Specifically, return m such that
+        m >= n
+        m == 2**x
+    where x is an integer. Use base argument to specify a base other than 2.
+    This is useful for ensuring fast FFT sizes.
+
+    From https://gist.github.com/bhawkins/4479607 (Brian Hawkins)
+    """
+    x = base**ceil (log (n) / log (base))
+    if type(n) == np.ndarray:
+        return np.asarray (x, dtype=int)
+    else:
+        return int (x)
+
+def nextfastpower(n):
+    """Return the next integral power of small factors greater than the given
+    number.  Specifically, return m such that
+        m >= n
+        m == 2**x * 3**y * 5**z
+    where x, y, and z are integers.
+    This is useful for ensuring fast FFT sizes.
+
+    From https://gist.github.com/bhawkins/4479607 (Brian Hawkins)
+    """
+    if n < 7:
+        return max (n, 1)
+    # x, y, and z are all bounded from above by the formula of nextpower.
+    # Compute all possible combinations for powers of 3 and 5.
+    # (Not too many for reasonable FFT sizes.)
+    def power_series (x, base):
+        nmax = ceil (log (x) / log (base))
+        return np.logspace (0.0, nmax, num=nmax+1, base=base)
+    n35 = np.outer (power_series (n, 3.0), power_series (n, 5.0))
+    n35 = n35[n35<=n]
+    # Lump the powers of 3 and 5 together and solve for the powers of 2.
+    n2 = nextpower (n / n35)
+    return int (min (n2 * n35))
 
 ########################################################################
 # uncurated below this line!

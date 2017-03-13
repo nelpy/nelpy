@@ -1477,6 +1477,10 @@ class AnalogSignalArray:
         """Docstring goes here.
         Basically we add a signal, and we add a label
         """
+        # TODO: add functionality to check that supports are the same, etc.
+        if isinstance(signal, AnalogSignalArray):
+            signal = signal.ydata
+
         signal = np.squeeze(signal)
         if signal.ndim > 1:
             raise TypeError("Can only add one signal at a time!")
@@ -1719,7 +1723,7 @@ class AnalogSignalArray:
         return asa
 
     def copy(self):
-        asa = AnalogSignalArray([],empty=True)
+        asa = AnalogSignalArray([], empty=True)
         exclude = ['_interp']
         attrs = (x for x in self.__attributes__ if x not in exclude)
         with warnings.catch_warnings():
