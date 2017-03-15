@@ -217,12 +217,18 @@ def find_threshold_crossing_events(x, threshold):
     eventlist = np.asarray(eventlist)
     return eventlist, eventmax
 
-def get_events_boundaries(x, PrimaryThreshold=None, SecondaryThreshold=None):
+def get_events_boundaries(x, *, PrimaryThreshold=None, SecondaryThreshold=None,
+                          minThresholdLength=None, minLength=None,
+                          maxLength=None, ds=None):
     """get event boundaries such that event.max >= PrimaryThreshold
     and the event extent is defined by SecondaryThreshold.
 
     Note that when PrimaryThreshold==SecondaryThreshold, then this is a
     simple threshold crossing algorithm.
+
+    NB. minLength and maxLength are applied to the SecondaryThreshold
+        events, whereas minThresholdLength is applied to the
+        PrimaryThreshold events.
 
     returns bounds, maxes, events
         where bounds <==> SecondaryThreshold to SecondaryThreshold
@@ -237,6 +243,11 @@ def get_events_boundaries(x, PrimaryThreshold=None, SecondaryThreshold=None):
         SecondaryThreshold = np.mean(x) # + 0*np.std(x)
 
     events, _ = find_threshold_crossing_events(x, PrimaryThreshold)
+
+    # apply minThresholdLength criterion:
+    if minThresholdLength is not None and len(events) > 0:
+        durations = (events[:,1] - events[:,0] + 1) * ds
+        events = events[[durations >= minThresholdLength]]
 
     if len(events) == 0:
         bounds, maxes, events = [], [], []
@@ -258,6 +269,25 @@ def get_events_boundaries(x, PrimaryThreshold=None, SecondaryThreshold=None):
     #   (Note that there may be repeats if the larger window contains multiple > 3SD sections)
     bounds = bounds[outer_boundary_indices,:]
     maxes = broader_maxes[outer_boundary_indices]
+
+    if minLength is not None and len(events) > 0:
+        durations = (bounds[:,1] - bounds[:,0] + 1) * ds
+        # TODO: refactor [durations <= maxLength] but be careful about edge cases
+        bounds = bounds[[durations >= minLength]]
+        maxes = maxes[[durations >= minLength]]
+        events = events[[durations >= minLength]]
+
+    if maxLength is not None and len(events) > 0:
+        durations = (bounds[:,1] - bounds[:,0] + 1) * ds
+        # TODO: refactor [durations <= maxLength] but be careful about edge cases
+        bounds = bounds[[durations <= maxLength]]
+        maxes = maxes[[durations <= maxLength]]
+        events = events[[durations <= maxLength]]
+
+    if len(events) == 0:
+        bounds, maxes, events = [], [], []
+        warnings.warn("no events satisfied criteria")
+        return bounds, maxes, events
 
     # Now, since all that we care about are the larger windows, so we should get rid of repeats
     _, unique_idx = np.unique(bounds[:,0], return_index=True)
