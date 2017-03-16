@@ -2243,6 +2243,16 @@ class SpikeTrainArray(SpikeTrain):
         except TypeError:
             return 0
 
+    @property
+    def n_active(self):
+        """(int) The number of active units.
+
+        A unit is considered active if it fired at least one spike.
+        """
+        if self.isempty:
+            return 0
+        return np.count_nonzero(self.n_spikes)
+
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
 
@@ -2377,12 +2387,6 @@ class SpikeTrainArray(SpikeTrain):
         if self.isempty:
             return 0
         return np.array([len(unit) for unit in self.time])
-
-    @property
-    def n_active(self):
-        """Number of active units per epoch with shape (n_epochs,)."""
-        raise NotImplementedError(
-            'SpikeTrainArray.n_active not implemented yet')
 
     @property
     def issorted(self):
@@ -2726,6 +2730,16 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
     @property
     def n_active(self):
+        """Number of active units.
+
+        An active unit is any unit that fired at least one spike.
+        """
+        if self.isempty:
+            return 0
+        return np.count_nonzero(self.n_spikes)
+
+    @property
+    def n_active_per_bin(self):
         """Number of active units per time bin with shape (n_bins,)."""
         if self.isempty:
             return 0
