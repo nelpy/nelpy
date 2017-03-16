@@ -195,17 +195,29 @@ class PrettyDuration(float):
             timestr = daystr +"{} milliseconds".format(s)
         return timestr
 
-
-def find_threshold_crossing_events(x, threshold):
+def find_threshold_crossing_events(x, threshold, *, mode='above'):
     """Find threshold crossing events.
+
+    Parameters
+    ----------
+    x :
+    threshold :
+    mode : string, optional in ['above', 'below']; default 'above'
+        event triggering above, or below threshold
     """
     from itertools import groupby
     from operator import itemgetter
 
-    above_threshold = np.where(x > threshold, 1, 0)
+    if mode == 'below':
+        cross_threshold = np.where(x < threshold, 1, 0)
+    elif mode == 'above':
+        cross_threshold = np.where(x > threshold, 1, 0)
+    else:
+        raise NotImplementedError(
+            "mode {} not understood for find_threshold_crossing_events".format(str(mode)))
     eventlist = []
     eventmax = []
-    for k,v in groupby(enumerate(above_threshold),key=itemgetter(1)):
+    for k,v in groupby(enumerate(cross_threshold),key=itemgetter(1)):
         if k:
             v = list(v)
             eventlist.append([v[0][0],v[-1][0]])
@@ -217,9 +229,10 @@ def find_threshold_crossing_events(x, threshold):
     eventlist = np.asarray(eventlist)
     return eventlist, eventmax
 
-def get_events_boundaries(x, *, PrimaryThreshold=None, SecondaryThreshold=None,
+def get_events_boundaries(x, *, PrimaryThreshold=None,
+                          SecondaryThreshold=None,
                           minThresholdLength=None, minLength=None,
-                          maxLength=None, ds=None):
+                          maxLength=None, ds=None, mode='above'):
     """get event boundaries such that event.max >= PrimaryThreshold
     and the event extent is defined by SecondaryThreshold.
 
@@ -230,6 +243,20 @@ def get_events_boundaries(x, *, PrimaryThreshold=None, SecondaryThreshold=None,
         events, whereas minThresholdLength is applied to the
         PrimaryThreshold events.
 
+    Parameters
+    ----------
+    x :
+    PrimaryThreshold : float
+    SecondaryThreshold : float
+    minThresholdLength : float
+    minLength : float
+    maxLength : float
+    ds : float
+    mode : string, optional in ['above', 'below']; default 'above'
+        event triggering above, or below threshold
+
+    Returns
+    -------
     returns bounds, maxes, events
         where bounds <==> SecondaryThreshold to SecondaryThreshold
               maxes  <==> maximum value during each event
@@ -242,7 +269,10 @@ def get_events_boundaries(x, *, PrimaryThreshold=None, SecondaryThreshold=None,
     if SecondaryThreshold is None: # by default, revert back to mean of x
         SecondaryThreshold = np.mean(x) # + 0*np.std(x)
 
-    events, _ = find_threshold_crossing_events(x, PrimaryThreshold)
+    events, _ = \
+        find_threshold_crossing_events(x=x,
+                                       threshold=PrimaryThreshold,
+                                       mode=mode)
 
     # apply minThresholdLength criterion:
     if minThresholdLength is not None and len(events) > 0:
@@ -255,9 +285,13 @@ def get_events_boundaries(x, *, PrimaryThreshold=None, SecondaryThreshold=None,
         return bounds, maxes, events
 
     # Find periods where value is > SecondaryThreshold; note that the previous periods should be within these!
-    assert SecondaryThreshold <= PrimaryThreshold, "Secondary Threshold by definition should include more data than Primary Threshold"
+    assert SecondaryThreshold <= PrimaryThreshold, \
+        "Secondary Threshold by definition should include more data than Primary Threshold"
 
-    bounds, broader_maxes = find_threshold_crossing_events(x, SecondaryThreshold)
+    bounds, broader_maxes = \
+        find_threshold_crossing_events(x=x,
+                                       threshold=SecondaryThreshold,
+                                       mode=mode)
 
     # Find corresponding big windows for potential events
     #  Specifically, look for closest left edge that is just smaller
