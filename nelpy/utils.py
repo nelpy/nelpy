@@ -48,6 +48,10 @@ def pairwise(iterable):
     next(b, None)
     return zip(a, b)
 
+def argsort(seq):
+    # http://stackoverflow.com/questions/3071415/efficient-method-to-calculate-the-rank-vector-of-a-list-in-python
+    return sorted(range(len(seq)), key=seq.__getitem__)
+
 def is_sorted(iterable, key=lambda a, b: a <= b):
     """Check to see if iterable is monotonic increasing (sorted)."""
     return all(key(a, b) for a, b in pairwise(iterable))
