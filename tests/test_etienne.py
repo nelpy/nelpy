@@ -38,4 +38,12 @@ class TestEvenMore:
         asa.add_signal([3, 4, 5])
         assert np.array(asa._ydata == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
 
+    def test_PrettyTimePrint1(self):
+        """make sure that PrettyTimePrint prints correctly"""
+        assert print(nel.utils.PrettyDuration(62.3)) == '1:02:300 minutes'
+
+    def test_PrettyTimePrint1(self):
+        """make sure that PrettyTimePrint prints correctly"""
+        assert print(nel.utils.PrettyDuration(62.03)) == '1:02:030 minutes'
+
     #TODO: add tests for adding empty signals, and adding to empty signals

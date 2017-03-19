@@ -182,7 +182,7 @@ class PrettyDuration(float):
         """returns a formatted time string."""
         dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
         if s > 0:
-            sstr = ".{}".format(int(s))
+            sstr = ":{:03d}".format(int(s))
         else:
             sstr = ""
         if dd > 0:
