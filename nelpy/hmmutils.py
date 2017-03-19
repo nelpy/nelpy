@@ -96,7 +96,7 @@ class PoissonHMM(PHMM):
                       '_unit_tags']
 
     def __init__(self, *, n_components, n_iter=None, init_params=None,
-                 params=None, verbose=False):
+                 params=None, random_state=None, verbose=False):
 
         # assign default parameter values
         if n_iter is None:
@@ -112,6 +112,7 @@ class PoissonHMM(PHMM):
                       n_iter=n_iter,
                       init_params=init_params,
                       params=params,
+                      random_state=random_state,
                       verbose=verbose)
 
         # initialize BinnedSpikeTrain attributes
