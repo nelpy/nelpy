@@ -48,22 +48,22 @@ class TestEvenMore:
 
     def test_PrettyTimePrint2(self):
         """make sure that PrettyTimePrint prints correctly"""
-        assert print(nel.utils.PrettyDuration(4393.5)) == "1:13:13:500 hours"
+        assert str(nel.utils.PrettyDuration(4393.5)) == "1:13:13:500 hours"
 
     def test_PrettyTimePrint3(self):
         """make sure that PrettyTimePrint prints correctly"""
-        assert print(nel.utils.PrettyDuration(4393)) == "1:13:13 hours"
+        assert str(nel.utils.PrettyDuration(4393)) == "1:13:13 hours"
 
     def test_PrettyTimePrint4(self):
         """make sure that PrettyTimePrint prints correctly"""
-        assert print(nel.utils.PrettyDuration(3.5)) == "3.5 seconds"
+        assert str(nel.utils.PrettyDuration(3.5)) == "3.5 seconds"
 
     def test_PrettyTimePrint5(self):
         """make sure that PrettyTimePrint prints correctly"""
-        assert print(nel.utils.PrettyDuration(3.05)) == "3.05 seconds"
+        assert str(nel.utils.PrettyDuration(3.05)) == "3.05 seconds"
 
     def test_PrettyTimePrint6(self):
         """make sure that PrettyTimePrint prints correctly"""
-        assert print(nel.utils.PrettyDuration(3.0)) == "3 seconds"
+        assert str(nel.utils.PrettyDuration(3.0)) == "3 seconds"
 
     #TODO: add tests for adding empty signals, and adding to empty signals
