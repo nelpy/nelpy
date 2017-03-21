@@ -422,7 +422,7 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
             "plotting {} not yet supported".format(str(type(data))))
     return ax
 
-def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec=None,
+def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
                       alpha=0.5, hatch='////', label=None, **kwargs):
     """Docstring goes here.
     """

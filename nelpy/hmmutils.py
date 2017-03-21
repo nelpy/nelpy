@@ -286,14 +286,14 @@ class PoissonHMM(PHMM):
 
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
-            return self._decode(self, X, lengths=lengths)
+            return self._decode(self, X, lengths=lengths), None
         else:
             # we have a BinnedSpikeTrainArray
             logprobs = []
             state_sequences = []
             centers = []
             for seq in X:
-                logprob, state_sequence = self._decode(self, seq.data.T, lengths=seq.lengths)
+                logprob, state_sequence = self._decode(self, seq.data.T, lengths=seq.lengths, algorithm=algorithm)
                 logprobs.append(logprob)
                 state_sequences.append(state_sequence)
                 centers.append(seq.centers)
