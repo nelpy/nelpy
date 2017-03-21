@@ -431,11 +431,12 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
     if height is None:
         height = 1
 
-    try:
-        hc_before = mpl.rcParams['hatch.color']
-        mpl.rcParams['hatch.color']=hc
-    except KeyError:
-        warnings.warn("Hatch color not supported for matplotlib <2.0")
+    if hc is not None:
+        try:
+            hc_before = mpl.rcParams['hatch.color']
+            mpl.rcParams['hatch.color']=hc
+        except KeyError:
+            warnings.warn("Hatch color not supported for matplotlib <2.0")
 
     for ii, (start, stop) in enumerate(zip(epochs.starts, epochs.stops)):
         ax.add_patch(
@@ -453,9 +454,10 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
         )
     ax.set_xlim([epochs.start, epochs.stop])
 
-    try:
-        mpl.rcParams['hatch.color'] = hc_before
-    except UnboundLocalError:
-        pass
+    if hc is not None:
+        try:
+            mpl.rcParams['hatch.color'] = hc_before
+        except UnboundLocalError:
+            pass
 
     return ax
