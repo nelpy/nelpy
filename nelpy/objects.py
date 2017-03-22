@@ -2432,6 +2432,7 @@ class SpikeTrainArray(SpikeTrain):
             new_centers = []
 
             newdata = None
+
             for ii in range(n_events):
                 data = bst.data[:,edges[ii]:edges[ii+1]]
                 bins = bst.bins[binedges[ii]:binedges[ii+1]]
@@ -2459,12 +2460,13 @@ class SpikeTrainArray(SpikeTrain):
             # assemble new binned spike train array:
             newedges = np.cumsum(newlengths)
             newbst = BinnedSpikeTrainArray(empty=True)
-            newbst._data = newdata
-            newbst._support = EpochArray(newsupport, fs=1)
-            newbst._bins = newbins
-            newbst._centers = newcenters
-            newbst._ds = bst.ds*10
-            newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
+            if newdata is not None:
+                newbst._data = newdata
+                newbst._support = EpochArray(newsupport, fs=1)
+                newbst._bins = newbins
+                newbst._centers = newcenters
+                newbst._ds = bst.ds*10
+                newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
 
             return newbst
 
