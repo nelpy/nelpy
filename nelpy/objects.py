@@ -2369,6 +2369,117 @@ class SpikeTrainArray(SpikeTrain):
         # return BinnedSpikeTrainArray(self, ds=ds, empty=self.isempty)
         return BinnedSpikeTrainArray(self, ds=ds)
 
+    def _bin(self, *, ds_prime=None, ds=None, w=None):
+        """Bin spiketrain array, with optional smoothing and arbitrary offsets
+
+        ds is the bin width in seconds,
+        ds_prime is the number of finer resolution bins per ds bin that
+            are used for smoothing. If None, then no smoothing is applied
+
+        w number of fine bins to smooth over; default is equal to ds_prime
+        w == 1 means no smoothing, but arbitrary offsets
+
+        NOTE: with the original .bin(), the support is left the same as the
+            support of the underlying SpikeTrainArray, so that no support information
+            is lost. If we bin with arbitrary offsets, the support is recomputed,
+            so that it is the TRUE support of the binned spiketrain. It is unclear
+            which approach is better? Probably the latter.
+        """
+        def smooth_binned_array(arr, w=10):
+            """w : int
+                number of bins to include in window
+            """
+            smoothed = arr.astype(float) # copy array and cast to float
+            window = np.ones((w,))/w
+
+            # smooth per row
+            for rowi, row in enumerate(smoothed):
+                smoothed[rowi,:] = np.convolve(row, window, mode='same')
+
+            return smoothed
+
+        def rebin(arr, n, bins):
+            """n : int
+                number of bins to bin into new bin"""
+            cs = np.cumsum(arr, axis=1)
+            binidx = np.arange(start=n, stop=cs.shape[1]+1, step=n) - 1
+
+            rebinned = np.hstack((np.array(cs[:,n-1], ndmin=2).T, cs[:,binidx[1:]] - cs[:,binidx[:-1]]))
+            bins = bins[np.insert(binidx+1, 0, 0)]
+            return rebinned, bins
+
+        def smooth_and_rebin(bst, w=10, n=10):
+            """smooths and rebins a binned spike train array
+
+            Takes in a BinnedSpikeTrainArray binned with small bin width, and optionally smooths and re-bins
+            into a BinnedSpikeTrainArray with bin size n times bst.ds
+
+            w : int
+                number of bins of width bst.ds to smooth over
+            n : int
+                number of bins of width bst.ds to bin into new bin of width bst.ds*n
+            NOTE: when re-binning, we now start at the true beginning (in bst.ds resolution) of the event and bin from there,
+                but we do not _exceed_ the right event boundary. That is, we fit in as many bins as possible, without exceeding
+                the right event boundary.
+            """
+            # TODO: it could be even more useful to take in Spiketrains, and to (optionally) smooth and rebin.
+            # FFB! TODO: if either w or n is longer than some event size, an exception will occur. Handle it!
+
+            edges = np.insert(np.cumsum(bst.lengths), 0, 0)
+            newlengths = [0]
+            binedges = np.insert(np.cumsum(bst.lengths+1), 0, 0)
+            n_events = bst.support.n_epochs
+            new_centers = []
+
+            newdata = None
+            for ii in range(n_events):
+                data = bst.data[:,edges[ii]:edges[ii+1]]
+                bins = bst.bins[binedges[ii]:binedges[ii+1]]
+
+                datalen = data.shape[1]
+                if w <= datalen and n <= datalen:
+                    smoothed = smooth_binned_array(data, w=w)
+                    rebinned, bins = rebin(smoothed, n=n, bins=bins)
+
+                    newlengths.append(rebinned.shape[1])
+
+                    if newdata is None:
+                        newdata = rebinned
+                        newbins = bins
+                        newcenters = bins[:-1] + np.diff(bins) / 2
+                        newsupport = np.array([bins[0], bins[-1]])
+                    else:
+                        newdata = np.hstack((newdata, rebinned))
+                        newbins = np.hstack((newbins, bins))
+                        newcenters = np.hstack((newcenters, bins[:-1] + np.diff(bins) / 2))
+                        newsupport = np.vstack((newsupport, np.array([bins[0], bins[-1]])))
+                else:
+                    pass
+
+            # assemble new binned spike train array:
+            newedges = np.cumsum(newlengths)
+            newbst = BinnedSpikeTrainArray(empty=True)
+            newbst._data = newdata
+            newbst._support = EpochArray(newsupport, fs=1)
+            newbst._bins = newbins
+            newbst._centers = newcenters
+            newbst._ds = bst.ds*10
+            newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
+
+            return newbst
+
+
+        if ds_prime is None:
+            return BinnedSpikeTrainArray(self, ds=ds)
+
+        if w is None:
+            w = ds_prime
+        assert float(ds_prime).is_integer()
+        assert ds_prime > 0
+        bst = BinnedSpikeTrainArray(self, ds=ds/ds_prime) # fine resolution bins
+
+        return smooth_and_rebin(bst, w=w, n=int(ds_prime))
+
     @property
     def tdata(self):
         """Spike times in sample numbers (default fs = 1 Hz)."""
