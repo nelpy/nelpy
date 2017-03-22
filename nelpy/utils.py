@@ -206,6 +206,18 @@ class PrettyDuration(float):
             timestr = daystr +"{} milliseconds".format(s)
         return timestr
 
+def shrinkMatColsTo(mat, numCols):
+    """ Docstring goes here
+    Shrinks a NxM1 matrix down to an NxM2 matrix, where M2 <= M1"""
+    import scipy.ndimage
+    numCells = mat.shape[0]
+    numColsMat = mat.shape[1]
+    a = np.zeros((numCells, numCols))
+    for row in np.arange(numCells):
+        niurou = scipy.ndimage.interpolation.zoom(input=mat[row,:], zoom=(numCols/numColsMat), order = 1)
+        a[row,:] = niurou
+    return a
+
 def find_threshold_crossing_events(x, threshold, *, mode='above'):
     """Find threshold crossing events.
 
