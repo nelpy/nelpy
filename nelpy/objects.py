@@ -2467,6 +2467,8 @@ class SpikeTrainArray(SpikeTrain):
                 newbst._centers = newcenters
                 newbst._ds = bst.ds*10
                 newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
+            else:
+                warnings.warn("No events are long enough to contain any bins of width {}".format(PrettyDuration(ds)))
 
             return newbst
 
