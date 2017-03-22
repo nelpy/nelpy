@@ -2376,7 +2376,7 @@ class SpikeTrainArray(SpikeTrain):
         ds_prime is the number of finer resolution bins per ds bin that
             are used for smoothing. If None, then no smoothing is applied
 
-        w number of fine bins to smooth over; default is equal to ds_prime
+        w number of fine bins to smooth over; default is 1
         w == 1 means no smoothing, but arbitrary offsets
 
         NOTE: with the original .bin(), the support is left the same as the
@@ -2389,6 +2389,9 @@ class SpikeTrainArray(SpikeTrain):
             """w : int
                 number of bins to include in window
             """
+            if w==1: # perform no smoothing
+                return arr
+
             smoothed = arr.astype(float) # copy array and cast to float
             window = np.ones((w,))/w
 
@@ -2408,7 +2411,7 @@ class SpikeTrainArray(SpikeTrain):
             bins = bins[np.insert(binidx+1, 0, 0)]
             return rebinned, bins
 
-        def smooth_and_rebin(bst, w=10, n=10):
+        def smooth_and_rebin(bst, w=None, n=10):
             """smooths and rebins a binned spike train array
 
             Takes in a BinnedSpikeTrainArray binned with small bin width, and optionally smooths and re-bins
@@ -2477,7 +2480,10 @@ class SpikeTrainArray(SpikeTrain):
             return BinnedSpikeTrainArray(self, ds=ds)
 
         if w is None:
-            w = ds_prime
+            w = 1
+        else:
+            assert(float(w).is_integer())
+            w = int(w)
         assert float(ds_prime).is_integer()
         assert ds_prime > 0
         bst = BinnedSpikeTrainArray(self, ds=ds/ds_prime) # fine resolution bins
