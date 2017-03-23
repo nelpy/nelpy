@@ -456,7 +456,11 @@ class PoissonHMM(PHMM):
             return self._score(self, X, lengths=lengths)
         else:
             # we have a BinnedSpikeTrainArray
-            return self._score(self, X.data.T, lengths=X.lengths)
+            logprobs = []
+            for seq in X:
+                logprob = self._score(self, seq.data.T)
+                logprobs.append(logprob)
+        return logprobs
 
     def fit(self, X, lengths=None):
         """Estimate model parameters using nelpy objects.
