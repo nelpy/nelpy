@@ -166,8 +166,24 @@ class PoissonHMM(PHMM):
             warn("no state <--> external mapping has been learnt yet!")
             return None
 
-    def get_order_from_transmat(self, start_state=None):
-        """Docstring goes here"""
+    def _get_order_from_transmat(self, start_state=None):
+        """Determine a state ordering based on the transition matrix.
+
+        This is a greedy approach, starting at the a priori most probable
+        state, and moving to the next most probable state according to
+        the transition matrix, and so on.
+
+        Parameters
+        ----------
+        start_state : int, optional
+            Initial state to begin from. Defaults to the most probable
+            a priori state.
+
+        Returns
+        -------
+        new_order : list
+            List of states in transmat order.
+        """
 
         if start_state is None:
             start_state = np.argmax(self.startprob_)
@@ -195,7 +211,7 @@ class PoissonHMM(PHMM):
         If 'mode' or 'mean' is selected, self._extern_ must exist
 
         NOTE: both 'mode' and 'mean' assume that _extern_ is in sorted
-        order; this is not tested explicitly.
+        order; this is not verified explicitly.
         """
         if method is None:
             method = 'transmat'
@@ -203,7 +219,7 @@ class PoissonHMM(PHMM):
         neworder = []
 
         if method == 'transmat':
-            return self.get_order_from_transmat()
+            return self._get_order_from_transmat()
         elif method == 'mode':
             if self._extern_ is not None:
                 neworder = self._extern_.argmax(axis=1).argsort()
@@ -235,7 +251,6 @@ class PoissonHMM(PHMM):
             swap_rows(self.means_, frm, to)
             if self._extern_ is not None:
                 swap_rows(self._extern_, frm, to)
-                # swap_rows(self._extern_map, frm, to)
             self.startprob_[frm], self.startprob_[to] = self.startprob_[to], self.startprob_[frm]
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -400,10 +415,11 @@ class PoissonHMM(PHMM):
         Returns
         -------
         logprob : float
-            Log likelihood of ``X``.
+            Log likelihood of ``X``; one scalar for each sequence in X.
 
         posteriors : array, shape (n_components, n_samples)
-            State-membership probabilities for each sample in ``X``.
+            State-membership probabilities for each sample in ``X``;
+            one array for each sequence in X.
 
         See Also
         --------
@@ -442,7 +458,7 @@ class PoissonHMM(PHMM):
         Returns
         -------
         logprob : float
-            Log likelihood of ``X``.
+            Log likelihood of ``X``; one scalar for each sequence in X.
 
         See Also
         --------
