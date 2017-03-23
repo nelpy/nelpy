@@ -480,6 +480,11 @@ class SpikeTrain(ABC):
         return self._support
 
     @property
+    def n_epochs(self):
+        """Number of underlying epochs."""
+        return self.support.n_epochs
+
+    @property
     def fs(self):
         """(float) Sampling rate / frequency (Hz)."""
         return fsgetter(self)
@@ -2753,6 +2758,23 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def event_centers(self):
         """(np.array) The centers (in seconds) of each event."""
+        if self._event_centers is None:
+            raise NotImplementedError("event_centers not yet implemented")
+            # self._event_centers = midpoints
+        return self._event_centers
+
+    @property
+    def _midpoints(self):
+        """(np.array) The centers (in index space) of all events.
+
+        Example
+        -------
+        ax, img = npl.imagesc(bst.data) # data is of shape (n_units, n_bins)
+        # then _midpoints correspond to the xvals at the center of
+        # each event.
+        ax.plot(bst.event_centers, np.repeat(1, self.n_epochs), marker='o', color='w')
+
+        """
         if self._event_centers is None:
             midpoints = np.zeros(len(self.lengths))
             for idx, l in enumerate(self.lengths):
