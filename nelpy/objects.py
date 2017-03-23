@@ -2369,7 +2369,7 @@ class SpikeTrainArray(SpikeTrain):
         # return BinnedSpikeTrainArray(self, ds=ds, empty=self.isempty)
         return BinnedSpikeTrainArray(self, ds=ds)
 
-    def _bin(self, *, ds_prime=None, ds=None, w=None):
+    def _bin(self, *, ds_prime=None, ds=None, w=None, _bst=None):
         """Bin spiketrain array, with optional smoothing and arbitrary offsets
 
         ds is the bin width in seconds,
@@ -2467,7 +2467,7 @@ class SpikeTrainArray(SpikeTrain):
                 newbst._data = newdata
                 newbst._support = EpochArray(newsupport, fs=1)
                 newbst._bins = newbins
-                newbst._centers = newcenters
+                newbst._bin_centers = newcenters
                 newbst._ds = bst.ds*10
                 newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
             else:
@@ -2486,9 +2486,10 @@ class SpikeTrainArray(SpikeTrain):
             w = int(w)
         assert float(ds_prime).is_integer()
         assert ds_prime > 0
-        bst = BinnedSpikeTrainArray(self, ds=ds/ds_prime) # fine resolution bins
+        if _bst is None:
+            _bst = BinnedSpikeTrainArray(self, ds=ds/ds_prime) # fine resolution bins
 
-        return smooth_and_rebin(bst, w=w, n=int(ds_prime))
+        return smooth_and_rebin(_bst, w=w, n=int(ds_prime))
 
     @property
     def tdata(self):
@@ -2537,7 +2538,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         The start and stop times for each epoch. With shape (n_epochs, 2).
     """
 
-    __attributes__ = ["_ds", "_bins", "_data", "_centers", "_support",
+    __attributes__ = ["_ds", "_bins", "_data", "_bin_centers", "_support",
                       "_binnedSupport", "_spiketrainarray"]
     __attributes__.extend(SpikeTrain.__attributes__)
 
@@ -2549,6 +2550,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._support = EpochArray(empty=True)
+            self._event_centers = None
             return
 
         if not isinstance(spiketrainarray, SpikeTrainArray):
@@ -2556,7 +2558,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 'spiketrainarray must be a nelpy.SpikeTrainArray object.')
 
         self._ds = None
-        self._centers = np.array([])
+        self._bin_centers = np.array([])
+        self._event_centers = None
 
         with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -2632,7 +2635,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             bsupport = self.binnedSupport[[index],:]
 
             binnedspiketrain = BinnedSpikeTrainArray(empty=True)
-            exclude = ["_bins", "_data", "_support", "_centers", "_binnedSupport"]
+            exclude = ["_bins", "_data", "_support", "_bin_centers", "_binnedSupport"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
             for attr in attrs:
                 exec("binnedspiketrain." + attr + " = self." + attr)
@@ -2642,7 +2645,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             binnedspiketrain._bins = self._bins[binstart:binstop]
             binnedspiketrain._data = self._data[:,bsupport[0][0]:bsupport[0][1]+1]
             binnedspiketrain._support = support
-            binnedspiketrain._centers = self._centers[bsupport[0][0]:bsupport[0][1]+1]
+            binnedspiketrain._bin_centers = self._bin_centers[bsupport[0][0]:bsupport[0][1]+1]
             binnedspiketrain._binnedSupport = bsupport - bsupport[0,0]
         self._index += 1
         return binnedspiketrain
@@ -2691,7 +2694,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         elif isinstance(idx, int):
             binnedspiketrain = BinnedSpikeTrainArray(empty=True)
-            exclude = ["_data", "_bins", "_support", "_centers", "_spiketrainarray", "_binnedSupport"]
+            exclude = ["_data", "_bins", "_support", "_bin_centers", "_spiketrainarray", "_binnedSupport"]
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 attrs = (x for x in self.__attributes__ if x not in exclude)
@@ -2710,7 +2713,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 binnedspiketrain._data = self._data[:,bsupport[0,0]:bsupport[0,1]+1]
                 binnedspiketrain._bins = self._bins[binstart:binstop]
                 binnedspiketrain._binnedSupport = bsupport - bsupport[0,0]
-                binnedspiketrain._centers = centers
+                binnedspiketrain._bin_centers = centers
                 return binnedspiketrain
         else:  # most likely a slice
             try:
@@ -2739,7 +2742,23 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def centers(self):
         """(np.array) The bin centers (in seconds)."""
-        return self._centers
+        warnings.warn("centers is deprecated. Use bin_centers instead.", DeprecationWarning)
+        return self.bin_centers
+
+    @property
+    def bin_centers(self):
+        """(np.array) The bin centers (in seconds)."""
+        return self._bin_centers
+
+    @property
+    def event_centers(self):
+        """(np.array) The centers (in seconds) of each event."""
+        if self._event_centers is None:
+            midpoints = np.zeros(len(self.lengths))
+            for idx, l in enumerate(self.lengths):
+                midpoints[idx] = np.sum(self.lengths[:idx]) + l/2
+            self._event_centers = midpoints
+        return self._event_centers
 
     @property
     def data(self):
@@ -2839,7 +2858,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             b.extend(bins.tolist())
             c.extend(centers.tolist())
         self._bins = np.array(b)
-        self._centers = np.array(c)
+        self._bin_centers = np.array(c)
         self._data = np.array(s)
         le = np.array(left_edges)
         le = le[:, np.newaxis]
