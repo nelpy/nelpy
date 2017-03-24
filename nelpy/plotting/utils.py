@@ -601,3 +601,20 @@ def sync_xlims(*axes):
     for ax in axes:
         ax.set_xlim(xmin, xmax)
     return xmin, xmax
+
+def set_xlim(xlims, *axes):
+    """Sets the xlims for all axes.
+
+    Parameters
+    ----------
+    xlims : tuple? list?
+    *axes : axis objects
+        List of matplotlib axis objects to format
+
+    Returns
+    -------
+
+
+    """
+    for ax in axes:
+        ax.set_xlim(xlims[0], xlims[1])
