@@ -16,10 +16,7 @@ __all__ = ['EventArray',
 
 import warnings
 import numpy as np
-
 from scipy import interpolate
-from sys import float_info
-from collections import namedtuple
 
 # from shapely.geometry import Point
 from abc import ABC, abstractmethod
@@ -1361,14 +1358,16 @@ class AnalogSignalArray:
                 exec("self." + attr + " = None")
             self._support = EpochArray(empty=True)
             return
+        #check if single AnalogSignal or multiple AnalogSignals in array
+        #and standardize ydata to 2D
+        ydata = np.squeeze(ydata).astype(float)
         try:
-            if(np.asarray(ydata).shape[0] != np.asarray(ydata).size):
-                ydata = np.squeeze(ydata).astype(float)
-            else:
-                ydata = np.array(ydata).astype(float)
+            if(ydata.shape[0] == ydata.size):
+                ydata = np.array(ydata,ndmin=2).astype(float)
+
         except ValueError:
             raise TypeError("Unsupported type! integer or floating point expected")
-        ydata = np.transpose(ydata)
+        # ydata = np.transpose(ydata)
         self._step = step
         self._fs_meta = fs_meta
 
@@ -1393,12 +1392,11 @@ class AnalogSignalArray:
         # match, then TypeError!
         if(tdata is not None):
             tdata = np.squeeze(tdata).astype(float)
-            if(tdata.shape[0] != ydata.shape[0]):
+            if(tdata.shape[0] != ydata.shape[1]):
                 self.__init__([],empty=True)
                 raise TypeError("tdata and ydata size mismatch!")
 
         self._ydata = ydata
-
         # Note: time will be None if this is not a time series and fs isn't
         # specified set xtime to None.
         self._time = None
@@ -1454,7 +1452,7 @@ class AnalogSignalArray:
                     self._support = EpochArray(get_contiguous_segments(self._time,
                         step=self._time[1]-self._time[0]))
         else:
-            tdata = np.arange(0, ydata.shape[0], 1)
+            tdata = np.arange(0, ydata.shape[1], 1)
             if fs is not None:
                 time = tdata / fs
                 # fs and support
@@ -1525,10 +1523,7 @@ class AnalogSignalArray:
                 warnings.simplefilter("ignore")
                 for attr in attrs:
                     exec("self." + attr + " = None")
-            try:
-                self._ydata = np.zeros([0,self._ydata.shape[1]])
-            except IndexError:
-                self._ydata = np.zeros(0)
+            self._ydata = np.zeros([0,self._ydata.shape[0]])
             self._support = epocharray
             return
 
@@ -1541,22 +1536,10 @@ class AnalogSignalArray:
         if np.count_nonzero(indices) < len(self._time):
             warnings.warn(
                 'ignoring signal outside of support')
-        try:
-            if(self._ydata[indices,:] != None):
-                self._ydata = self._ydata[indices,:]
-            else:
-                try:
-                    self._ydata = np.zeros([0,self._ydata.shape[0]])
-                except IndexError:
-                    self._ydata = np.zeros(0)
-        except IndexError:
-            if(self._ydata[indices] != None):
-                self._ydata = self._ydata[indices]
-            else:
-                try:
-                    self._ydata = np.zeros([0,self._ydata.shape[0]])
-                except IndexError:
-                    self._ydata = np.zeros(0)
+        if(self._ydata[:,indices] != None):
+            self._ydata = self._ydata[:,indices]
+        else:
+            self._ydata = np.zeros([0,self._ydata.shape[0]])
         self._time = self._time[indices]
         self._tdata = self._tdata[indices]
         if update:
@@ -1567,8 +1550,6 @@ class AnalogSignalArray:
         """(int) The number of signals."""
         try:
             return self._ydata.shape[1]
-        except IndexError:
-            return 1
         except AttributeError:
             return 0
 
@@ -1655,12 +1636,6 @@ class AnalogSignalArray:
         """(int) number of epochs in AnalogSignalArray"""
         return self._support.n_epochs
 
-    @property
-    def n_samples(self):
-        """(int) number of time samples where signal is defined."""
-        if self.isempty:
-            return 0
-        return len(self.time)
 
     def __iter__(self):
         """AnalogSignal iterator initialization"""
@@ -1735,7 +1710,7 @@ class AnalogSignalArray:
 
     def _subset(self, idx):
         asa = self.copy()
-        asa._ydata = self._ydata[:,idx]
+        asa._ydata = self._ydata[idx,:]
         return asa
 
     def copy(self):
@@ -1752,28 +1727,28 @@ class AnalogSignalArray:
             pass
         return asa
 
-    def mean(self,*,axis=0):
+    def mean(self,*,axis=1):
         """Returns the mean of each signal in AnalogSignalArray."""
         try:
             return np.mean(self._ydata,axis=axis)
         except IndexError:
             return np.mean(self._ydata)
 
-    def std(self,*,axis=0):
+    def std(self,*,axis=1):
         """Returns the standard deviation of each signal in AnalogSignalArray."""
         try:
             return np.std(self._ydata,axis=axis)
         except IndexError:
             return np.std(self._ydata)
 
-    def max(self,*,axis=0):
+    def max(self,*,axis=1):
         """Returns the maximum of each signal in AnalogSignalArray"""
         try:
             return np.amax(self._ydata,axis=axis)
         except IndexError:
             return np.amax(self._ydata)
 
-    def min(self,*,axis=0):
+    def min(self,*,axis=1):
         """Returns the minimum of each signal in AnalogSignalArray"""
         try:
             return np.amin(self._ydata,axis=axis)
@@ -1834,7 +1809,7 @@ class AnalogSignalArray:
         >>> as.trim([0, 3])
         >>> as.trim(np.array([0, 3]))
         """
-
+        warnings.warn("AnalogSignalArray: Trim may not work!")
         # TODO: do comprehensive input validation
         if stop is not None:
             try:
@@ -1875,198 +1850,6 @@ class AnalogSignalArray:
                 analogsignalarray = AnalogSignalArray([],empty=True)
         return analogsignalarray
 
-    @property
-    def _ydata_rowsig(self):
-        """returns wide-format ydata s.t. each row is a signal."""
-        return self._ydata.T
-
-    @property
-    def _ydata_colsig(self):
-        """returns skinny-format ydata s.t. each column is a signal."""
-        return self._ydata
-
-    def _get_interp1d(self,* , kind='linear', copy=True, bounds_error=False,
-                      fill_value=np.nan, assume_sorted=None):
-        """returns a scipy interp1d object"""
-
-        if assume_sorted is None:
-            assume_sorted = is_sorted(self.time)
-
-        if self.n_signals > 1:
-            axis = 1
-        else:
-            axis = -1
-
-        f = interpolate.interp1d(x=self.time,
-                                 y=self._ydata_rowsig,
-                                 kind=kind,
-                                 axis=axis,
-                                 copy=copy,
-                                 bounds_error=bounds_error,
-                                 fill_value=fill_value,
-                                 assume_sorted=assume_sorted)
-        return f
-
-    def asarray(self,*, where=None, at=None, kind='linear', copy=True,
-                bounds_error=False, fill_value=np.nan, assume_sorted=None,
-                recalculate=False, store_interp=True, n_points=None,
-                split_by_epoch=False):
-        """returns a ydata_like array at requested points.
-        x, y, kind='linear', axis=-1, copy=True, bounds_error=None, fill_value=nan, assume_sorted=False
-        https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
-
-        Parameters
-        ----------
-        where : array_like or tuple, optional
-            array corresponding to np where condition
-            e.g., where=(ydata[1,:]>5) or tuple where=(speed>5,tspeed)
-        at : array_like, optional
-            Array of oints to evaluate array at. If none given, use
-            self.tdata together with 'where' if applicable.
-        n_points: int, optional
-            Number of points to interplate at. These points will be
-            distributed uniformly from self.support.start to stop.
-        split_by_epoch: bool
-            If True, separate arrays by epochs and return in a list.
-        Returns
-        -------
-        out : (array, array)
-            namedtuple tuple (xvals, yvals) of arrays, where xvals is an
-            array of time points for which (interpolated) ydata are
-            returned.
-        """
-
-        # TODO: implement splitting by epoch
-
-        if split_by_epoch:
-            raise NotImplementedError("split_by_epoch not yet implemented...")
-
-        XYArray = namedtuple('XYArray', ['xvals', 'yvals'])
-
-        if at is None and where is None and split_by_epoch is False and n_points is None:
-            xyarray = XYArray(self.time, self._ydata_rowsig)
-            return xyarray
-
-        if where is not None:
-            assert at is None and n_points is None, "'where', 'at', and 'n_points' cannot be used at the same time"
-            if isinstance(where, tuple):
-                y = np.array(where[1])
-                x = where[0]
-                assert len(x) == len(y), "'where' condition and array must have same number of elements"
-                at = y[x]
-            else:
-                x = where
-                assert len(x) == len(self.time), "'where' condition must have same number of elements as self.time"
-                at = self.time[x]
-        elif at is not None:
-            assert n_points is None, "'at' and 'n_points' cannot be used at the same time"
-        else:
-            at = np.linspace(self.support.start, self.support.stop, n_points)
-
-        # if we made it this far, either at or where has been specified, and at is now well defined.
-
-        # retrieve an existing, or construct a new interpolation object
-        if recalculate:
-            interpobj = self._get_interp1d(kind=kind,
-                                           copy=copy,
-                                           bounds_error=bounds_error,
-                                           fill_value=fill_value,
-                                           assume_sorted=assume_sorted)
-        else:
-            try:
-                interpobj = self._interp
-                if interpobj is None:
-                    interpobj = self._get_interp1d(kind=kind,
-                                                   copy=copy,
-                                                   bounds_error=bounds_error,
-                                                   fill_value=fill_value,
-                                                   assume_sorted=assume_sorted)
-            except AttributeError: # does not exist yet
-                interpobj = self._get_interp1d(kind=kind,
-                                               copy=copy,
-                                               bounds_error=bounds_error,
-                                               fill_value=fill_value,
-                                               assume_sorted=assume_sorted)
-
-        # store interpolation object, if desired
-        if store_interp:
-            self._interp = interpobj
-
-        # do the actual interpolation
-        out = interpobj(at)
-
-        # TODO: set all values outside of self.support to fill_value
-
-        xyarray = XYArray(xvals=np.asanyarray(at), yvals=np.asanyarray(out))
-        return xyarray
-
-    def simplify(self, *, ds=None, n_points=None):
-        """Returns an AnalogSignalArray where the ydata has been
-        simplified / subsampled.
-
-        This function is primarily intended to be used for plotting and
-        saving vector graphics without having too large file sizes as
-        a result of too many points.
-
-        Irrespective of whether 'ds' or 'n_points' are used, the exact
-        underlying support is propagated, and the first and last points
-        of the supports are always included, even if this would cause
-        n_points or ds to be violated.
-
-        Parameters
-        ----------
-        ds : float, optional
-            Time (in seconds), in which to step points.
-        n_points : int, optional
-            Number of points at which to intepolate ydata. If ds is None
-            and n_points is None, then default is to use n_points=5,000
-
-        Returns
-        -------
-        out : AnalogSignalArray
-            Copy of AnalogSignalArray where ydata is only stored at the
-            new subset of points.
-        """
-
-        if self.isempty:
-            return self
-
-        if ds is not None and n_points is not None:
-            raise ValueError("ds and n_points cannot be used together")
-
-        if n_points is not None:
-            # determine ds from number of desired points:
-            ds = self.support.duration / n_points
-
-        if ds is None:
-            # neither n_points nor ds was specified, so assume defaults:
-            n_points = 5000
-            ds = self.support.duration / n_points
-
-        # build list of points at which to evaluate the AnalogSignalArray
-        at = []
-        for start, stop in self.support.time:
-            newxvals = np.arange(start, stop, step=ds).tolist()
-            if newxvals[-1] + float_info.epsilon < stop:
-                newxvals.append(stop)
-            at.extend(newxvals)
-
-        _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
-
-        # now make a new simplified ASA:
-        asa = AnalogSignalArray([], empty=True)
-        exclude = ['_interp', '_ydata', '_tdata', '_time']
-        attrs = (x for x in self.__attributes__ if x not in exclude)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("asa." + attr + " = self." + attr)
-        asa._tdata = np.asanyarray(at)
-        asa._time = asa._tdata
-        asa._ydata = yvals
-
-        return asa
-
     def interp(self, event, *,store_interp=True):
         """Creates interpolate object if not created already via
         scipy.interpolate.interp1d
@@ -2085,30 +1868,20 @@ class AnalogSignalArray:
         --------
         >>> print("I will make examples soon :P")
         """
-        warnings.warn("AnalogSignalArray.interp is deprecated.", DeprecationWarning)
-
         try:
             if(self._interp is not None):
                 interp_vals = [interpObjectt(event) for interpObjectt in self._interp]
         except AttributeError:
             if(store_interp):
                 self._interp = []
-                try:
-                    if(self._ydata.shape[1] > 0):
-                        for ydata in np.transpose(self._ydata):
-                            self._interp.append(interpolate.interp1d(self._time, ydata))
-                except IndexError:
-                    self._interp.append(interpolate.interp1d(self._time,self._ydata))
+                for ydata in self._ydata:
+                    self._interp.append(interpolate.interp1d(self._time, ydata))
 
                 interp_vals = [interpObjectt(event) for interpObjectt in self._interp]
             else:
                 tempInterpObj = []
-                try:
-                    if(self._ydata.shape[1] > 0):
-                        for ydata in np.transpose(self._ydata):
-                            tempInterpObj.append(interpolate.interp1d(self._time, ydata))
-                except IndexError:
-                    tempInterpObj.append(interpolate.interp1d(self._time,self._ydata))
+                for ydata in self._ydata:
+                    tempInterpObj.append(interpolate.interp1d(self._time, ydata))
 
                 interp_vals = [interpObjectt(event) for interpObjectt in tempInterpObj]
 
