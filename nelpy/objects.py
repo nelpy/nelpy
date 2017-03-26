@@ -1494,9 +1494,9 @@ class AnalogSignalArray:
         # TODO: This will have to change when Shay changes horizontal to vertical data storage
         print("Fix me in the future!")
         if self._ydata.ndim==1:
-            self._ydata = np.hstack([np.array(self._ydata, ndmin=2).T, np.array(signal, ndmin=2).T])
+            self._ydata = np.vstack([np.array(self._ydata, ndmin=2), np.array(signal, ndmin=2)])
         else:
-            self._ydata = np.hstack([self._ydata, np.array(signal, ndmin=2).T])
+            self._ydata = np.vstack([self._ydata, np.array(signal, ndmin=2)])
         print('labels not supported yet!')
         #TODO: add label support
         return self
@@ -1552,7 +1552,7 @@ class AnalogSignalArray:
     def n_signals(self):
         """(int) The number of signals."""
         try:
-            return self._ydata.shape[1]
+            return self._ydata.shape[0]
         except AttributeError:
             return 0
 
@@ -1862,12 +1862,12 @@ class AnalogSignalArray:
     @property
     def _ydata_rowsig(self):
         """returns wide-format ydata s.t. each row is a signal."""
-        return self._ydata.T
+        return self._ydata
 
     @property
     def _ydata_colsig(self):
         """returns skinny-format ydata s.t. each column is a signal."""
-        return self._ydata
+        return self._ydata.T
 
     def _get_interp1d(self,* , kind='linear', copy=True, bounds_error=False,
                       fill_value=np.nan, assume_sorted=None):
