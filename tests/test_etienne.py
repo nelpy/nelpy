@@ -38,10 +38,15 @@ class TestEvenMore:
         asa.add_signal([3, 4, 5])
         assert np.array(asa._ydata == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
 
-    def test_AnalogSignalArray_ydata_format(self):
+    def test_AnalogSignalArray_ydata_format1(self):
         asa = AnalogSignalArray([[1, 2, 4], [7, 8, 9]])
         asa.add_signal([3, 4, 5])
-        assert np.array(asa._ydata_colsig == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
+        assert np.array(asa._ydata_rowsig == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
+
+    def test_AnalogSignalArray_ydata_format2(self):
+        asa = AnalogSignalArray([[1, 2, 4], [7, 8, 9]])
+        asa.add_signal([3, 4, 5])
+        assert np.array(asa._ydata_colsig == np.array([[1, 7, 3], [2, 8, 4], [4, 9, 5]])).all()
 
     def test_AnalogSignal_n_signals(self):
         asa = AnalogSignalArray([[1, 2, 4, 5], [7, 8, 9, 10]])
