@@ -39,7 +39,7 @@ setup(
     license='MIT License',
     author='Etienne Ackermann, Emily Irvine',
     install_requires=['numpy>=1.9.0',
-                    'scipy>=0.16.0',
+                    'scipy>=0.17.0', # 0.17.0 introduced functionality we use for interp1d
                     'matplotlib>=1.5.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
                     # 'shapely>=1.6'
                     ],

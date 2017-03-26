@@ -38,6 +38,26 @@ class TestEvenMore:
         asa.add_signal([3, 4, 5])
         assert np.array(asa._ydata == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
 
+    def test_AnalogSignalArray_ydata_format(self):
+        asa = AnalogSignalArray([[1, 2, 4], [7, 8, 9]])
+        asa.add_signal([3, 4, 5])
+        assert np.array(asa._ydata_colsig == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
+
+    def test_AnalogSignal_n_signals(self):
+        asa = AnalogSignalArray([[1, 2, 4, 5], [7, 8, 9, 10]])
+        asa.add_signal([3, 4, 5, 6])
+        assert asa.n_signals == 3
+
+    def test_AnalogSignal_n_samples(self):
+        asa = AnalogSignalArray([[1, 2, 4, 5], [7, 8, 9, 10]])
+        asa.add_signal([3, 4, 5, 6])
+        assert asa.n_samples == 4
+
+    def test_AnalogSignalArray_asarray(self):
+        asa = AnalogSignalArray([[1, 2, 4], [7, 8, 9]])
+        asa.add_signal([3, 4, 5])
+        assert np.array(asa.asarray().yvals == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
+
     def test_PrettyTimePrint1(self):
         """make sure that PrettyTimePrint prints correctly"""
         assert str(PrettyDuration(62.3)) == '1:02:300 minutes'
@@ -68,7 +88,7 @@ class TestEvenMore:
 
     def test_PrettyTimePrint7(self):
         assert str(PrettyDuration(2586.3)) == "43:06:300 minutes"
-    
+
     def test_PrettyTimePrint8(self):
         assert str(PrettyDuration(2580)) == "43:00 minutes"
 
@@ -80,7 +100,7 @@ class TestEvenMore:
 
     def test_PrettyTimePrint11(self):
         assert str(PrettyDuration(.340)) == "340 milliseconds"
-    
+
     def test_PrettyTimePrint12(self):
         assert str(PrettyDuration(0.027)) == "27 milliseconds"
 

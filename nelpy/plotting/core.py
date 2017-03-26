@@ -145,7 +145,7 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
             warnings.simplefilter("ignore")
             for segment in npl_obj:
                 ax.plot(segment._time,
-                        segment.ydata,
+                        segment._ydata_colsig,
                         # color=color,
                         mec=mec,
                         markerfacecolor='w',

@@ -24,6 +24,7 @@ import matplotlib as mpl
 from matplotlib import cm
 from matplotlib import colors as mplcolors
 import matplotlib.pyplot as plt
+import os
 
 __all__ = ['align_xlabels',
            'align_ylabels',
@@ -144,7 +145,7 @@ def savefig(name, fig=None, formats=None, dpi=300, verbose=True, overwrite=False
     elif formats is None and ext is not None:
         formats = [ext]
     else:
-        print('WARNING! Unhandled format.')
+        pass
 
     if fig is None:
         fig = plt.gcf()
