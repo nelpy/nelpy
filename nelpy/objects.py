@@ -1358,14 +1358,16 @@ class AnalogSignalArray:
                 exec("self." + attr + " = None")
             self._support = EpochArray(empty=True)
             return
+        #check if single AnalogSignal or multiple AnalogSignals in array
+        #and standardize ydata to 2D
+        ydata = np.squeeze(ydata).astype(float)
         try:
-            if(np.asarray(ydata).shape[0] != np.asarray(ydata).size):
-                ydata = np.squeeze(ydata).astype(float)
-            else:
-                ydata = np.array(ydata).astype(float)
+            if(ydata.shape[0] == ydata.size):
+                ydata = np.array(ydata,ndmin=2).astype(float)
+
         except ValueError:
             raise TypeError("Unsupported type! integer or floating point expected")
-        ydata = np.transpose(ydata)
+        # ydata = np.transpose(ydata)
         self._step = step
         self._fs_meta = fs_meta
 
@@ -1390,12 +1392,11 @@ class AnalogSignalArray:
         # match, then TypeError!
         if(tdata is not None):
             tdata = np.squeeze(tdata).astype(float)
-            if(tdata.shape[0] != ydata.shape[0]):
+            if(tdata.shape[0] != ydata.shape[1]):
                 self.__init__([],empty=True)
                 raise TypeError("tdata and ydata size mismatch!")
 
         self._ydata = ydata
-
         # Note: time will be None if this is not a time series and fs isn't
         # specified set xtime to None.
         self._time = None
@@ -1451,7 +1452,7 @@ class AnalogSignalArray:
                     self._support = EpochArray(get_contiguous_segments(self._time,
                         step=self._time[1]-self._time[0]))
         else:
-            tdata = np.arange(0, ydata.shape[0], 1)
+            tdata = np.arange(0, ydata.shape[1], 1)
             if fs is not None:
                 time = tdata / fs
                 # fs and support
@@ -1522,10 +1523,7 @@ class AnalogSignalArray:
                 warnings.simplefilter("ignore")
                 for attr in attrs:
                     exec("self." + attr + " = None")
-            try:
-                self._ydata = np.zeros([0,self._ydata.shape[1]])
-            except IndexError:
-                self._ydata = np.zeros(0)
+            self._ydata = np.zeros([0,self._ydata.shape[0]])
             self._support = epocharray
             return
 
@@ -1538,22 +1536,10 @@ class AnalogSignalArray:
         if np.count_nonzero(indices) < len(self._time):
             warnings.warn(
                 'ignoring signal outside of support')
-        try:
-            if(self._ydata[indices,:] != None):
-                self._ydata = self._ydata[indices,:]
-            else:
-                try:
-                    self._ydata = np.zeros([0,self._ydata.shape[0]])
-                except IndexError:
-                    self._ydata = np.zeros(0)
-        except IndexError:
-            if(self._ydata[indices] != None):
-                self._ydata = self._ydata[indices]
-            else:
-                try:
-                    self._ydata = np.zeros([0,self._ydata.shape[0]])
-                except IndexError:
-                    self._ydata = np.zeros(0)
+        if(self._ydata[:,indices] != None):
+            self._ydata = self._ydata[:,indices]
+        else:
+            self._ydata = np.zeros([0,self._ydata.shape[0]])
         self._time = self._time[indices]
         self._tdata = self._tdata[indices]
         if update:
@@ -1564,8 +1550,6 @@ class AnalogSignalArray:
         """(int) The number of signals."""
         try:
             return self._ydata.shape[1]
-        except IndexError:
-            return 1
         except AttributeError:
             return 0
 
@@ -1726,7 +1710,7 @@ class AnalogSignalArray:
 
     def _subset(self, idx):
         asa = self.copy()
-        asa._ydata = self._ydata[:,idx]
+        asa._ydata = self._ydata[idx,:]
         return asa
 
     def copy(self):
@@ -1743,28 +1727,28 @@ class AnalogSignalArray:
             pass
         return asa
 
-    def mean(self,*,axis=0):
+    def mean(self,*,axis=1):
         """Returns the mean of each signal in AnalogSignalArray."""
         try:
             return np.mean(self._ydata,axis=axis)
         except IndexError:
             return np.mean(self._ydata)
 
-    def std(self,*,axis=0):
+    def std(self,*,axis=1):
         """Returns the standard deviation of each signal in AnalogSignalArray."""
         try:
             return np.std(self._ydata,axis=axis)
         except IndexError:
             return np.std(self._ydata)
 
-    def max(self,*,axis=0):
+    def max(self,*,axis=1):
         """Returns the maximum of each signal in AnalogSignalArray"""
         try:
             return np.amax(self._ydata,axis=axis)
         except IndexError:
             return np.amax(self._ydata)
 
-    def min(self,*,axis=0):
+    def min(self,*,axis=1):
         """Returns the minimum of each signal in AnalogSignalArray"""
         try:
             return np.amin(self._ydata,axis=axis)
@@ -1825,7 +1809,7 @@ class AnalogSignalArray:
         >>> as.trim([0, 3])
         >>> as.trim(np.array([0, 3]))
         """
-
+        warnings.warn("AnalogSignalArray: Trim may not work!")
         # TODO: do comprehensive input validation
         if stop is not None:
             try:
@@ -1890,22 +1874,14 @@ class AnalogSignalArray:
         except AttributeError:
             if(store_interp):
                 self._interp = []
-                try:
-                    if(self._ydata.shape[1] > 0):
-                        for ydata in np.transpose(self._ydata):
-                            self._interp.append(interpolate.interp1d(self._time, ydata))
-                except IndexError:
-                    self._interp.append(interpolate.interp1d(self._time,self._ydata))
+                for ydata in self._ydata:
+                    self._interp.append(interpolate.interp1d(self._time, ydata))
 
                 interp_vals = [interpObjectt(event) for interpObjectt in self._interp]
             else:
                 tempInterpObj = []
-                try:
-                    if(self._ydata.shape[1] > 0):
-                        for ydata in np.transpose(self._ydata):
-                            tempInterpObj.append(interpolate.interp1d(self._time, ydata))
-                except IndexError:
-                    tempInterpObj.append(interpolate.interp1d(self._time,self._ydata))
+                for ydata in self._ydata:
+                    tempInterpObj.append(interpolate.interp1d(self._time, ydata))
 
                 interp_vals = [interpObjectt(event) for interpObjectt in tempInterpObj]
 
