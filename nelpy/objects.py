@@ -1491,8 +1491,6 @@ class AnalogSignalArray:
         signal = np.squeeze(signal)
         if signal.ndim > 1:
             raise TypeError("Can only add one signal at a time!")
-        # TODO: This will have to change when Shay changes horizontal to vertical data storage
-        print("Fix me in the future!")
         if self._ydata.ndim==1:
             self._ydata = np.vstack([np.array(self._ydata, ndmin=2), np.array(signal, ndmin=2)])
         else:
