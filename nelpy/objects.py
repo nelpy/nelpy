@@ -1894,8 +1894,6 @@ class AnalogSignalArray:
                 recalculate=False, store_interp=True, n_points=None,
                 split_by_epoch=False):
         """returns a ydata_like array at requested points.
-        x, y, kind='linear', axis=-1, copy=True, bounds_error=None, fill_value=nan, assume_sorted=False
-        https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
 
         Parameters
         ----------
@@ -1947,28 +1945,22 @@ class AnalogSignalArray:
 
         # if we made it this far, either at or where has been specified, and at is now well defined.
 
+        kwargs = {'kind':kind,
+                  'copy':copy,
+                  'bounds_error':bounds_error,
+                  'fill_value':fill_value,
+                  'assume_sorted':assume_sorted}
+
         # retrieve an existing, or construct a new interpolation object
         if recalculate:
-            interpobj = self._get_interp1d(kind=kind,
-                                           copy=copy,
-                                           bounds_error=bounds_error,
-                                           fill_value=fill_value,
-                                           assume_sorted=assume_sorted)
+            interpobj = self._get_interp1d(**kwargs)
         else:
             try:
                 interpobj = self._interp
                 if interpobj is None:
-                    interpobj = self._get_interp1d(kind=kind,
-                                                   copy=copy,
-                                                   bounds_error=bounds_error,
-                                                   fill_value=fill_value,
-                                                   assume_sorted=assume_sorted)
+                    interpobj = self._get_interp1d(**kwargs)
             except AttributeError: # does not exist yet
-                interpobj = self._get_interp1d(kind=kind,
-                                               copy=copy,
-                                               bounds_error=bounds_error,
-                                               fill_value=fill_value,
-                                               assume_sorted=assume_sorted)
+                interpobj = self._get_interp1d(**kwargs)
 
         # store interpolation object, if desired
         if store_interp:
