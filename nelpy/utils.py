@@ -176,6 +176,15 @@ def get_contiguous_segments(data,step=None, sort=False):
 
     return np.asarray(bdries)
 
+class PrettyInt(int):
+    """Prints integers in a more readable format"""
+
+    def __init__(self, val):
+        self.val = val
+
+    def __repr__(self):
+        return '{:,}'.format(self.val)
+
 class PrettyDuration(float):
     """Time duration with pretty print"""
 
@@ -183,6 +192,9 @@ class PrettyDuration(float):
         self.duration = seconds
 
     def __str__(self):
+        return self.time_string(self.duration)
+
+    def __repr__(self):
         return self.time_string(self.duration)
 
     @staticmethod

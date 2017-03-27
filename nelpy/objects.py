@@ -27,7 +27,8 @@ from abc import ABC, abstractmethod
 from .utils import is_sorted, \
                    get_contiguous_segments, \
                    linear_merge, \
-                   PrettyDuration
+                   PrettyDuration, \
+                   PrettyInt
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -423,9 +424,17 @@ class SpikeTrain(ABC):
 
     @property
     def n_sequences(self):
+        warnings.warn("n_sequences is deprecated---use n_epochs instead", DeprecationWarning)
         if self.isempty:
             return 0
         """(int) The number of sequences."""
+        return self.support.n_epochs
+
+    @property
+    def n_epochs(self):
+        if self.isempty:
+            return 0
+        """(int) The number of underlying epochs."""
         return self.support.n_epochs
 
     @property
@@ -481,11 +490,6 @@ class SpikeTrain(ABC):
         (in seconds).
          """
         return self._support
-
-    @property
-    def n_epochs(self):
-        """Number of underlying epochs."""
-        return self.support.n_epochs
 
     @property
     def fs(self):
@@ -934,7 +938,7 @@ class EpochArray:
         """(int) The number of epochs."""
         if self.isempty:
             return 0
-        return len(self.time[:, 0])
+        return PrettyInt(len(self.time[:, 0]))
 
     @property
     def issorted(self):
@@ -1550,13 +1554,9 @@ class AnalogSignalArray:
     def n_signals(self):
         """(int) The number of signals."""
         try:
-            return self._ydata.shape[0]
+            return PrettyInt(self._ydata.shape[0])
         except AttributeError:
             return 0
-
-    @property
-    def length(self):
-        """(int) The number of signals."""
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
@@ -1642,7 +1642,7 @@ class AnalogSignalArray:
         """(int) number of time samples where signal is defined."""
         if self.isempty:
             return 0
-        return len(self.time)
+        return PrettyInt(len(self.time))
 
     def __iter__(self):
         """AnalogSignal iterator initialization"""
@@ -2419,7 +2419,7 @@ class SpikeTrainArray(SpikeTrain):
     def n_units(self):
         """(int) The number of units."""
         try:
-            return len(self.time)
+            return PrettyInt(len(self.time))
         except TypeError:
             return 0
 
@@ -2431,7 +2431,7 @@ class SpikeTrainArray(SpikeTrain):
         """
         if self.isempty:
             return 0
-        return np.count_nonzero(self.n_spikes)
+        return PrettyInt(np.count_nonzero(self.n_spikes))
 
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
@@ -2688,7 +2688,7 @@ class SpikeTrainArray(SpikeTrain):
         """(np.array) The number of spikes in each unit."""
         if self.isempty:
             return 0
-        return np.array([len(unit) for unit in self.time])
+        return PrettyInt(np.array([len(unit) for unit in self.time]))
 
     @property
     def issorted(self):
@@ -2917,7 +2917,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     def n_units(self):
         """(int) The number of units."""
         try:
-            return self.data.shape[0]
+            return PrettyInt(self.data.shape[0])
         except AttributeError:
             return 0
 
@@ -2993,7 +2993,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def n_bins(self):
         """(int) The number of bins."""
-        return len(self.centers)
+        return PrettyInt(len(self.centers))
 
     @property
     def ds(self):
@@ -3073,7 +3073,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         """
         if self.isempty:
             return 0
-        return np.count_nonzero(self.n_spikes)
+        return PrettyInt(np.count_nonzero(self.n_spikes))
 
     @property
     def n_active_per_bin(self):
