@@ -1737,30 +1737,30 @@ class AnalogSignalArray:
     def mean(self,*,axis=1):
         """Returns the mean of each signal in AnalogSignalArray."""
         try:
-            return np.mean(self._ydata,axis=axis)
+            return np.mean(self._ydata, axis=axis).squeeze()
         except IndexError:
-            return np.mean(self._ydata)
+            return np.mean(self._ydata).squeeze()
 
     def std(self,*,axis=1):
         """Returns the standard deviation of each signal in AnalogSignalArray."""
         try:
-            return np.std(self._ydata,axis=axis)
+            return np.std(self._ydata,axis=axis).squeeze()
         except IndexError:
-            return np.std(self._ydata)
+            return np.std(self._ydata).squeeze()
 
     def max(self,*,axis=1):
         """Returns the maximum of each signal in AnalogSignalArray"""
         try:
-            return np.amax(self._ydata,axis=axis)
+            return np.amax(self._ydata,axis=axis).squeeze()
         except IndexError:
-            return np.amax(self._ydata)
+            return np.amax(self._ydata).squeeze()
 
     def min(self,*,axis=1):
         """Returns the minimum of each signal in AnalogSignalArray"""
         try:
-            return np.amin(self._ydata,axis=axis)
+            return np.amin(self._ydata,axis=axis).squeeze()
         except IndexError:
-            return np.amin(self._ydata)
+            return np.amin(self._ydata).squeeze()
 
     def clip(self, min, max):
         """Clip (limit) the values of each signal to min and max as specified.
