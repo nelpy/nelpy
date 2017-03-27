@@ -16,7 +16,7 @@ __all__ = ['plot',
            'rasterplot',
            'rastercountplot']
 
-def imagesc(x=None, y=None, data=None, *, ax=None, **kwargs):
+def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
     """Plots a 2D matrix / image similar to Matlab's imagesc.
 
     Parameters
@@ -29,6 +29,9 @@ def imagesc(x=None, y=None, data=None, *, ax=None, **kwargs):
         matrix to visualize
     ax : matplotlib axis, optional
         Plot in given axis; if None creates a new figure
+    large : bool
+        If True, use ModestImage instead of mpl.AxesImage that supports
+        much larger images, but the 'extent' does not work properly yet.
     kwargs :
         Other keyword arguments are passed to main imagesc() call
 
@@ -78,8 +81,14 @@ def imagesc(x=None, y=None, data=None, *, ax=None, **kwargs):
     if data.ndim != 2:
         raise TypeError("data must be 2 dimensional")
 
-    image = ax.imshow(data, aspect='auto', interpolation='none',
-           extent=extents(x) + extents(y), origin='lower', **kwargs)
+    if not large:
+        # Matplotlib imshow
+        image = ax.imshow(data, aspect='auto', interpolation='none',
+            extent=extents(x) + extents(y), origin='lower', **kwargs)
+    else:
+        # ModestImage imshow for large images, but 'extent' is still not working well
+        image = utils.imshow(axes=ax, X=data, aspect='auto', interpolation='none',
+            extent=extents(x) + extents(y), origin='lower', **kwargs)
 
     return ax, image
 
