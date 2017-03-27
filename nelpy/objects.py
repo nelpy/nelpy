@@ -1924,18 +1924,18 @@ class AnalogSignalArray:
         XYArray = namedtuple('XYArray', ['xvals', 'yvals'])
 
         if at is None and where is None and split_by_epoch is False and n_points is None:
-            xyarray = XYArray(self.time, self._ydata_rowsig)
+            xyarray = XYArray(self.time, self._ydata_rowsig.squeeze())
             return xyarray
 
         if where is not None:
             assert at is None and n_points is None, "'where', 'at', and 'n_points' cannot be used at the same time"
             if isinstance(where, tuple):
-                y = np.array(where[1])
+                y = np.array(where[1]).squeeze()
                 x = where[0]
                 assert len(x) == len(y), "'where' condition and array must have same number of elements"
                 at = y[x]
             else:
-                x = where
+                x = np.asanyarray(where).squeeze()
                 assert len(x) == len(self.time), "'where' condition must have same number of elements as self.time"
                 at = self.time[x]
         elif at is not None:
@@ -1971,7 +1971,7 @@ class AnalogSignalArray:
 
         # TODO: set all values outside of self.support to fill_value
 
-        xyarray = XYArray(xvals=np.asanyarray(at), yvals=np.asanyarray(out))
+        xyarray = XYArray(xvals=np.asanyarray(at), yvals=np.asanyarray(out).squeeze())
         return xyarray
 
     def simplify(self, *, ds=None, n_points=None):
@@ -2026,6 +2026,7 @@ class AnalogSignalArray:
             at.extend(newxvals)
 
         _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
+        yvals = np.array(yvals, ndmin=2)
 
         # now make a new simplified ASA:
         asa = AnalogSignalArray([], empty=True)
