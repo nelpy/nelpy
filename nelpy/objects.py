@@ -28,7 +28,8 @@ from .utils import is_sorted, \
                    get_contiguous_segments, \
                    linear_merge, \
                    PrettyDuration, \
-                   PrettyInt
+                   PrettyInt, \
+                   swap_rows
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -2693,6 +2694,22 @@ class SpikeTrainArray(SpikeTrain):
         return np.array(
             [is_sorted(spiketrain) for spiketrain in self.tdata]
             ).all()
+
+    def reorder_units(self, neworder):
+        """Reorder units according to a specified order.
+
+        neworder must be list-like, of size (n_units,)
+        """
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            swap_rows(self._time, frm, to)
+            swap_rows(self._tdata, frm, to)
+            self._unit_ids[frm], self._unit_ids[to] = self._unit_ids[to], self._unit_ids[frm]
+            self._unit_labels[frm], self._unit_labels[to] = self._unit_labels[to], self._unit_labels[frm]
+            # TODO: re-build unit tags (tag system not yet implemented)
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 #----------------------------------------------------------------------#
 #======================================================================#
 
