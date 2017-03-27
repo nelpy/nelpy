@@ -2016,8 +2016,10 @@ class AnalogSignalArray:
 
         if ds is None:
             # neither n_points nor ds was specified, so assume defaults:
-            n_points = 5000
-            ds = self.support.duration / n_points
+            n_points = np.min(5000, self.n_samples//2)
+            if n_points < 2:
+                n_points = 2
+            ds = self.support.duration / (n_points-1)
 
         # build list of points at which to evaluate the AnalogSignalArray
         at = []
