@@ -2683,7 +2683,7 @@ class SpikeTrainArray(SpikeTrain):
         """(np.array) The number of spikes in each unit."""
         if self.isempty:
             return 0
-        return PrettyInt(np.array([len(unit) for unit in self.time]))
+        return np.array([len(unit) for unit in self.time])
 
     @property
     def issorted(self):
