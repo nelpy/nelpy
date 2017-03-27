@@ -321,6 +321,10 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
               events <==> PrimaryThreshold to PrimaryThreshold
     """
 
+    x = x.squeeze()
+    if x.ndim > 1:
+        raise TypeError("multidimensional arrays not supported!")
+
     if PrimaryThreshold is None: # by default, threshold is 3 SDs above mean of x
         PrimaryThreshold = np.mean(x) + 3*np.std(x)
 
