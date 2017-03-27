@@ -2009,8 +2009,10 @@ class AnalogSignalArray:
             raise ValueError("ds and n_points cannot be used together")
 
         if n_points is not None:
+            assert float(n_points).is_integer(), "n_points must be a positive integer!"
+            assert n_points > 1, "n_points must be a positive integer > 1"
             # determine ds from number of desired points:
-            ds = self.support.duration / n_points
+            ds = self.support.duration / (n_points-1)
 
         if ds is None:
             # neither n_points nor ds was specified, so assume defaults:
