@@ -67,29 +67,45 @@ Also, be sure to thoroughly check out https://python-packaging.readthedocs.io/en
 Nelpy package organization (preliminary)
 ========================================
 
-    nelpy/                      Top-level package
-        __init__.py             Initialize the nelpy package
-        objects.py
-        io.py
+    nelpy/                          Top-level package
+        __init__.py                 Initialize the nelpy package
+        version.py
         utils.py
+        filtering.py
+        decoding.py
+        ...
 
-        plotting/               Subpackage for data visualization
+        core/                       Core nelpy objects as a subpackage
+            __init__.py
+            AnalogSignalArray.py
+            EpochArray.py
+            SpikeTrain.py
+            Trajectory.py
+            ...
+        io/                         Subpackage for loading external data
+            __init__.py
+            hc3.py
+            neuralynx.py
+            trodes.py
+            matlab.py
+            ...
+        plotting/                   Subpackage for data visualization
             __init__.py
             core.py
             scalebar.py
             aiffread.py
             utils.py
             ...
-        dbs/                    Subpackage for deep brain stimulation
+        dbs/                        Subpackage for deep brain stimulation
             __init__.py
             ...
-        imaging/                Subpackage for imaging and miniscope
+        imaging/                    Subpackage for imaging and miniscope
             __init__.py
             ...
-        hmm/                    Subpackage for hidden Markov models
+        hmm/                        Subpackage for hidden Markov models
             __init__.py
             ...
-        neuropipes/             Subpackage for pipelines
+        neuropipes/                 Subpackage for pipelines
             __init__.py
             ...
 
