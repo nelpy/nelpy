@@ -1749,28 +1749,28 @@ class AnalogSignalArray:
         try:
             return np.mean(self._ydata, axis=axis).squeeze()
         except IndexError:
-            return np.mean(self._ydata).squeeze()
+            raise IndexError("Empty AnalogSignalArray cannot calculate mean")
 
     def std(self,*,axis=1):
         """Returns the standard deviation of each signal in AnalogSignalArray."""
         try:
             return np.std(self._ydata,axis=axis).squeeze()
         except IndexError:
-            return np.std(self._ydata).squeeze()
+            raise IndexError("Empty AnalogSignalArray cannot calculate standard deviation")
 
     def max(self,*,axis=1):
         """Returns the maximum of each signal in AnalogSignalArray"""
         try:
             return np.amax(self._ydata,axis=axis).squeeze()
-        except IndexError:
-            return np.amax(self._ydata).squeeze()
+        except ValueError:
+            raise ValueError("Empty AnalogSignalArray cannot calculate maximum")
 
     def min(self,*,axis=1):
         """Returns the minimum of each signal in AnalogSignalArray"""
         try:
             return np.amin(self._ydata,axis=axis).squeeze()
-        except IndexError:
-            return np.amin(self._ydata).squeeze()
+        except ValueError:
+            raise ValueError("Empty AnalogSignalArray cannot calculate minimum")
 
     def clip(self, min, max):
         """Clip (limit) the values of each signal to min and max as specified.
