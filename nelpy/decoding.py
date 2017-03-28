@@ -1,6 +1,6 @@
 """Bayesian encoding and decoding"""
 
-def decode1D(bst, ratemap, xmin=0, xmax=70, w=1):
+def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
     """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
 
     TODO: complete docstring
@@ -167,6 +167,9 @@ def cumulative_dist_decoding_error_using_xval(bst, ratemap, k=5):
         Neural Population Decoding", Fabian Kloosterman, 2012)
 
     """
+
+    # NOTE to @Sibog: ratemap should not necessarily be an argument; it
+    # should probably be recomputed each fold.
 
     # NOTE! Indexing into BinnedSpikeTrainArrays is not yet supported,
     # but will be supported very soon, so the code below can be assumed
