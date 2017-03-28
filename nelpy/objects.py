@@ -1529,18 +1529,21 @@ class AnalogSignalArray:
             epocharray = self._support
             update = False # support did not change; no need to update
 
-        if epocharray.isempty:
-            warnings.warn("Support specified is empty")
-            # self.__init__([],empty=True)
-            exclude = ['_support','_ydata']
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("self." + attr + " = None")
-            self._ydata = np.zeros([0,self._ydata.shape[0]])
-            self._support = epocharray
-            return
+        try:
+            if epocharray.isempty:
+                warnings.warn("Support specified is empty")
+                # self.__init__([],empty=True)
+                exclude = ['_support','_ydata']
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    for attr in attrs:
+                        exec("self." + attr + " = None")
+                self._ydata = np.zeros([0,self._ydata.shape[0]])
+                self._support = epocharray
+                return
+        except AttributeError:
+            raise AttributeError("EpochArray expected")
 
         indices = []
         for eptime in epocharray.time:
@@ -1551,9 +1554,9 @@ class AnalogSignalArray:
         if np.count_nonzero(indices) < len(self._time):
             warnings.warn(
                 'ignoring signal outside of support')
-        if(self._ydata[:,indices] != None):
+        try:
             self._ydata = self._ydata[:,indices]
-        else:
+        except IndexError:
             self._ydata = np.zeros([0,self._ydata.shape[0]])
         self._time = self._time[indices]
         self._tdata = self._tdata[indices]
@@ -1719,7 +1722,8 @@ class AnalogSignalArray:
                 warnings.simplefilter("ignore")
                 for attr in attrs:
                     exec("asa." + attr + " = self." + attr)
-            asa._restrict_to_epoch_array(epocharray=epoch)
+            if(not asa.isempty):
+                asa._restrict_to_epoch_array(epocharray=epoch)
             if(asa.support.isempty):
                         warnings.warn("Support is empty. Empty AnalogSignalArray returned")
                         asa = AnalogSignalArray([],empty=True)
