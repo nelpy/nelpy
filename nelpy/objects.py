@@ -1358,8 +1358,8 @@ class AnalogSignalArray:
     """
     __attributes__ = ['_ydata', '_tdata', '_time', '_fs', '_support', \
                       '_interp', '_fs_meta']
-    def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=1,
-                 fs_meta = None, empty=False):
+    def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=None,
+                 fs_meta = None, merge_sample_gap=0, empty=False):
 
         if(empty):
             for attr in self.__attributes__:
@@ -1375,7 +1375,6 @@ class AnalogSignalArray:
 
         except ValueError:
             raise TypeError("Unsupported type! integer or floating point expected")
-        # ydata = np.transpose(ydata)
         self._step = step
         self._fs_meta = fs_meta
 
@@ -1433,8 +1432,11 @@ class AnalogSignalArray:
                 else:
                     warnings.warn("support created with given tdata and sampling rate, fs!")
                     self._time = time
+                    if self._step is None:
+                        self._step = np.min(np.diff(tdata))
                     self._support = EpochArray(get_contiguous_segments(tdata,
-                        step=step), fs=fs)
+                        step=self._step), fs=fs)
+                    self._support = self._support.merge(gap=merge_sample_gap)
             else:
                 time = tdata
                 self._tdata = tdata
@@ -1455,10 +1457,17 @@ class AnalogSignalArray:
                                 exec("self." + attr + " = None")
                 # tdata
                 else:
-                    warnings.warn("support created with just tdata! no sampling rate specified so support is entire range of signal")
+                    warnings.warn("support created with just tdata! no sampling rate specified so "\
+                                    + " support is entire range of signal with Epochs separted by" \
+                                    + " time step difference from first time to second time")
                     self._time = time
-                    self._support = EpochArray(get_contiguous_segments(self._time,
-                        step=self._time[1]-self._time[0]))
+                    #infer step size if not given as minimum difference in samples passed
+                    if self._step is None:
+                        self._step = np.min(np.diff(tdata))
+                    self._support = EpochArray(get_contiguous_segments(tdata,
+                        step=self._step), fs=fs)
+                    #merge gaps in Epochs if requested
+                    self._support = self._support.merge(gap=merge_sample_gap)
         else:
             tdata = np.arange(0, ydata.shape[1], 1)
             if fs is not None:
