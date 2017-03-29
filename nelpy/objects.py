@@ -29,7 +29,8 @@ from .utils import is_sorted, \
                    linear_merge, \
                    PrettyDuration, \
                    PrettyInt, \
-                   swap_rows
+                   swap_rows, \
+                   smooth_AnalogSignalArray
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -1562,6 +1563,38 @@ class AnalogSignalArray:
         self._tdata = self._tdata[indices]
         if update:
             self._support = epocharray
+
+    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False):
+        """Smooths the regularly sampled AnalogSignalArray with a Gaussian kernel.
+
+        Smoothing is applied in time, and the same smoothing is applied to each
+        signal in the AnalogSignalArray.
+
+        Smoothing is applied within each epoch.
+
+        Parameters
+        ----------
+        fs : float, optional
+            Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+            be obtained from asa.fs
+        sigma : float, optional
+            Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+        bw : float, optional
+            Bandwidth outside of which the filter value will be zero. Default is 4.0
+        inplace : bool
+            If True the data will be replaced with the smoothed data.
+            Default is False.
+
+        Returns
+        -------
+        out : AnalogSignalArray
+            An AnalogSignalArray with smoothed data is returned.
+        """
+    kwargs = {'inplace' : inplace,
+              'fs' : fs,
+              'sigma' : sigma,
+              'bw' : bw}
+    smooth_AnalogSignalArray(self, **kwargs)
 
     @property
     def lengths(self):

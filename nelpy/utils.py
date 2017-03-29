@@ -488,7 +488,7 @@ def nextfastpower(n):
     n2 = nextpower (n / n35)
     return int (min (n2 * n35))
 
-def smooth_AnalogSignalArray(asa, *, fs=None, sigma=None, bw=None):
+def smooth_AnalogSignalArray(asa, *, fs=None, sigma=None, bw=None, in_place=False):
     """Smooths a regularly sampled AnalogSignalArray with a Gaussian kernel.
 
     Smoothing is applied in time, and the same smoothing is applied to each
@@ -506,6 +506,9 @@ def smooth_AnalogSignalArray(asa, *, fs=None, sigma=None, bw=None):
         Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
     bw : float, optional
         Bandwidth outside of which the filter value will be zero. Default is 4.0
+    inplace : bool
+        If True the data will be replaced with the smoothed data.
+        Default is False.
 
     Returns
     -------
@@ -523,7 +526,10 @@ def smooth_AnalogSignalArray(asa, *, fs=None, sigma=None, bw=None):
     sigma = sigma * fs
     bw = 4 # bandwidth of filter (outside of this bandwidth, the filter is zero)
 
-    out = copy.deepcopy(asa)
+    if not inplace:
+        out = copy.deepcopy(asa)
+    else:
+        out = asa
 
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
 
