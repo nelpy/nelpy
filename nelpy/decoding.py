@@ -1,5 +1,7 @@
 """Bayesian encoding and decoding"""
 
+import numpy as np
+
 def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
     """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
 
