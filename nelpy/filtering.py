@@ -189,17 +189,16 @@ def approx_number_of_taps(fs, delta_f, delta1=None, delta2=None):
     numtaps = ceil(2*log10(1/(10*delta1*delta2))*fs/delta_f/3)
     return numtaps
 
-
-def theta_band_filter(data, lowcut=None, highcut=None, *, numtaps=None,
+def delta_band_filter(data, lowcut=None, highcut=None, *, numtaps=None,
                        fs=None, verbose=False):
-    """Filter data to the rodent theta band (default 7--9 Hz).
+    """Filter data to the rodent delta band (default 1--4 Hz).
 
     Parameters
     ----------
     data : AnalogSignalArray, ndarray, or list
-    lowcut : float, optional (default 7 Hz)
+    lowcut : float, optional (default 1 Hz)
         Lower cut-off frequency
-    highcut : float, optional (default 9 Hz)
+    highcut : float, optional (default 4 Hz)
         Upper cut-off frequency
     numtaps : int, optional (default determined automatically)
         Number of filter taps
@@ -226,14 +225,115 @@ def theta_band_filter(data, lowcut=None, highcut=None, *, numtaps=None,
             print("Filtering with {} taps.".format(numtaps))
 
     if lowcut is None:
-        lowcut = 7
+        lowcut = 1
     if highcut is None:
-        highcut = 9
+        highcut = 4
     return bandpass_filter(data,
                            lowcut=lowcut,
                            highcut=highcut,
                            numtaps=numtaps,
                            fs=fs)
+
+def theta_band_filter(data, lowcut=None, highcut=None, *, numtaps=None,
+                       fs=None, verbose=False):
+    """Filter data to the rodent theta band (default 6--12 Hz).
+
+    Parameters
+    ----------
+    data : AnalogSignalArray, ndarray, or list
+    lowcut : float, optional (default 6 Hz)
+        Lower cut-off frequency
+    highcut : float, optional (default 12 Hz)
+        Upper cut-off frequency
+    numtaps : int, optional (default determined automatically)
+        Number of filter taps
+    fs : float, optional if AnalogSignalArray is passed
+        Sampling frequency (Hz)
+
+    Returns
+    -------
+    filtered : same type as data
+    """
+
+    if numtaps is None:
+        if isinstance(data, (np.ndarray, list)):
+            if fs is None:
+                raise ValueError("sampling frequency must be specified!")
+        elif isinstance(data, AnalogSignalArray):
+            if fs is None:
+                fs = data.fs
+        numtaps = approx_number_of_taps(fs=fs,
+                                        delta_f=1,
+                                        delta1=10e-3,
+                                        delta2=10e-3)
+        if verbose:
+            print("Filtering with {} taps.".format(numtaps))
+
+    if lowcut is None:
+        lowcut = 6
+    if highcut is None:
+        highcut = 12
+    return bandpass_filter(data,
+                           lowcut=lowcut,
+                           highcut=highcut,
+                           numtaps=numtaps,
+                           fs=fs)
+
+def filter_lfp(data, band=None, *, lowcut=None, highcut=None,
+               numtaps=None, fs=None, verbose=False):
+    """Filter data with a zero phase FIR filtfilt filter.
+
+    This is a convenience wrapper function for
+        ripple_band_filter()
+        theta_band_filter()
+        delta_band_filter()
+        ...
+
+    Parameters
+    ----------
+    data : AnalogSignalArray, ndarray, or list
+    band : string, optional
+        One of ['ripple', 'theta', 'delta', ...]
+        Defaults to 'ripple'.
+    lowcut : float, optional (default 6 Hz)
+        Lower cut-off frequency
+    highcut : float, optional (default 12 Hz)
+        Upper cut-off frequency
+    numtaps : int, optional (default determined automatically)
+        Number of filter taps
+    fs : float, optional if AnalogSignalArray is passed
+        Sampling frequency (Hz)
+    verbose : bool, optional
+
+    Returns
+    -------
+    filtered : same type as data.
+    """
+    supported_bands = ['ripple', 'delta', 'theta']
+
+    if band is None:
+        band = 'ripple'
+    else:
+        band = band.strip().lower()
+
+    if band not in supported_bands:
+        raise NotImplementedError("filter_lfp not supported or not yet implemented for band '{}'".format(str(band)))
+
+    kwargs = {'data' : data,
+              'lowcut' : lowcut,
+              'highcut' : highcut,
+              'numtaps' : numtaps,
+              'fs' : fs,
+              'verbose' : verbose}
+
+    if band == 'ripple':
+        return ripple_band_filter(**kwargs)
+    if band == 'theta':
+        return theta_band_filter(**kwargs)
+    if band == 'delta':
+        return delta_band_filter(**kwargs)
+
+    return 0
 
 ########################################################################
 # uncurated below this line!
