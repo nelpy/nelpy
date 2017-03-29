@@ -596,6 +596,69 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
 
     return out
 
+def get_run_epochs(speed, v1=10, v2=8):
+    """Return epochs where animal is running at least as fast as
+    specified by v1 and v2.
+
+    Parameters
+    ----------
+    speed : AnalogSignalArray
+        AnalogSignalArray containing single channel speed, in units/sec
+    v1 : float, optional
+        Minimum speed (in same units as speed) that has to be reached /
+        exceeded during an event. Default is 10 [units/sec]
+    v2 : float, optional
+        Speed that defines the event boundaries. Default is 8 [units/sec]
+    Returns
+    -------
+    out : EpochArray
+        EpochArray with all the epochs where speed satisfied the criteria.
+    """
+    # compute periods of activity (sustained running of > 10 cm /s and peak velocity of at least 15 cm/s)
+    RUN_bounds, _, _ = get_events_boundaries(
+        x=speed.ydata,
+        PrimaryThreshold=v1,   # cm/s
+        SecondaryThreshold=v2  # cm/s
+    )
+
+    # convert bounds to time in seconds
+    RUN_bounds = speed.tdata[RUN_bounds]
+    # create EpochArray with running bounds
+    run_epochs = objects.EpochArray(RUN_bounds, fs=1)
+    return run_epochs
+
+def get_inactive_epochs(speed, v1=5, v2=7):
+    """Return epochs where animal is running no faster than specified by
+    v1 and v2.
+
+    Parameters
+    ----------
+    speed : AnalogSignalArray
+        AnalogSignalArray containing single channel speed, in units/sec
+    v1 : float, optional
+        Minimum speed (in same units as speed) that has to be reached /
+        exceeded during an event. Default is 10 [units/sec]
+    v2 : float, optional
+        Speed that defines the event boundaries. Default is 8 [units/sec]
+    Returns
+    -------
+    out : EpochArray
+        EpochArray with all the epochs where speed satisfied the criteria.
+    """
+    # compute periods of inactivity (< 5 cm/s)
+    INACTIVE_bounds, _, _ = get_events_boundaries(
+        x=speed.ydata,
+        PrimaryThreshold=v1,   # cm/s
+        SecondaryThreshold=v2, # cm/s
+        mode='below'
+    )
+
+    # convert bounds to time in seconds
+    INACTIVE_bounds = speed.tdata[INACTIVE_bounds]
+    # create EpochArray with inactive bounds
+    inactive_epochs = objects.EpochArray(INACTIVE_bounds, fs=1)
+    return inactive_epochs
+
 def spiketrain_union(st1, st2):
     """Join two spiketrains together.
 
