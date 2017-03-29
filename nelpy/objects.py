@@ -1564,6 +1564,13 @@ class AnalogSignalArray:
             self._support = epocharray
 
     @property
+    def lengths(self):
+        """(list) The number of samples in each epoch."""
+        # TODO: make this faster and better!
+        lengths = [segment.n_samples for segment in self]
+        return np.asanyarray(lengths).squeeze()
+
+    @property
     def n_signals(self):
         """(int) The number of signals."""
         try:
@@ -1751,7 +1758,10 @@ class AnalogSignalArray:
     def mean(self,*,axis=1):
         """Returns the mean of each signal in AnalogSignalArray."""
         try:
-            return np.mean(self._ydata, axis=axis).squeeze()
+            means = np.mean(self._ydata, axis=axis).squeeze()
+            if means.size == 1:
+                return np.asscalar(means)
+            return means
         except IndexError:
             raise IndexError("Empty AnalogSignalArray cannot calculate mean")
 
@@ -3006,7 +3016,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def lengths(self):
         """Lenghts of contiguous segments, in number of bins."""
-        return self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1
+        return (self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1).squeeze()
 
     @property
     def spiketrainarray(self):

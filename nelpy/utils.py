@@ -15,8 +15,9 @@ from itertools import tee
 from collections import namedtuple
 from math import floor
 from scipy.signal import hilbert
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage.filters import gaussian_filter1d, gaussian_filter
 from numpy import log, ceil
+import copy
 
 from . import objects # so that objects.AnalogSignalArray is exposed
 
@@ -486,6 +487,122 @@ def nextfastpower(n):
     # Lump the powers of 3 and 5 together and solve for the powers of 2.
     n2 = nextpower (n / n35)
     return int (min (n2 * n35))
+
+def smooth_AnalogSignalArray(asa, *, fs=None, sigma=None, bw=None):
+    """Smooths a regularly sampled AnalogSignalArray with a Gaussian kernel.
+
+    Smoothing is applied in time, and the same smoothing is applied to each
+    signal in the AnalogSignalArray.
+
+    Smoothing is applied within each epoch.
+
+    Parameters
+    ----------
+    asa : AnalogSignalArray
+    fs : float, optional
+        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+        be obtained from asa.fs
+    sigma : float, optional
+        Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+    bw : float, optional
+        Bandwidth outside of which the filter value will be zero. Default is 4.0
+
+    Returns
+    -------
+    out : AnalogSignalArray
+        An AnalogSignalArray with smoothed data is returned.
+    """
+
+    if fs is None:
+        fs = asa.fs
+    if fs is None:
+        raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    if sigma is None:
+        sigma = 0.05 # 50 ms default
+
+    sigma = sigma * fs
+    bw = 4 # bandwidth of filter (outside of this bandwidth, the filter is zero)
+
+    out = copy.deepcopy(asa)
+
+    cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
+
+    # now smooth each epoch separately
+    for idx in range(asa.n_epochs):
+        out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = gaussian_filter(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+
+    return out
+
+def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
+    """Numerical differentiation of a regularly sampled AnalogSignalArray.
+
+    Optionally also smooths result with a Gaussian kernel.
+
+    Smoothing is applied in time, and the same smoothing is applied to each
+    signal in the AnalogSignalArray.
+
+    Differentiation, (and if requested, smoothing) is applied within each epoch.
+
+    Parameters
+    ----------
+    asa : AnalogSignalArray
+    fs : float, optional
+        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+        be obtained from asa.fs
+    smooth : bool, optional
+        If true, result will be smoothed. Default is False
+    rectify : bool, optional
+        If True, absolute value of derivative is computed. Default is True.
+    sigma : float, optional
+        Standard deviation of Gaussian kernel, in seconds. Default is 0.05
+        (50 ms).
+    bw : float, optional
+        Bandwidth outside of which the filter value will be zero. Default is 4.0
+
+    Returns
+    -------
+    out : AnalogSignalArray
+        An AnalogSignalArray with derivative data (in units per second) is returned.
+    """
+
+    if fs is None:
+        fs = asa.fs
+    if fs is None:
+        raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    if sigma is None:
+        sigma = 0.05 # 50 ms default
+
+    out = copy.deepcopy(asa)
+
+    cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
+
+    # now obtain the derivative for each epoch separately
+    for idx in range(asa.n_epochs):
+        out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+
+    out._ydata = out._ydata * fs
+
+    if rectify:
+        out._ydata = np.abs(out._ydata)
+
+    if smooth:
+        out = smooth_AnalogSignalArray(out, fs=fs, sigma=sigma, bw=bw)
+
+    return out
+
+def spiketrain_union(st1, st2):
+    """Join two spiketrains together.
+
+    WARNING! This function should be improved a lot!
+    """
+    assert st1.n_units == st2.n_units
+    support = st1.support.join(st2.support)
+
+    newdata = []
+    for unit in range(st1.n_units):
+        newdata.append(np.append(st1.time[unit], st2.time[unit]))
+
+    return objects.SpikeTrainArray(newdata, support=support, fs=1)
 
 ########################################################################
 # uncurated below this line!
