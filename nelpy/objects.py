@@ -1594,7 +1594,8 @@ class AnalogSignalArray:
                 'fs' : fs,
                 'sigma' : sigma,
                 'bw' : bw}
-        smooth_AnalogSignalArray(self, **kwargs)
+
+        return smooth_AnalogSignalArray(self, **kwargs)
 
     @property
     def lengths(self):
