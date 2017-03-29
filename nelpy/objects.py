@@ -1590,11 +1590,11 @@ class AnalogSignalArray:
         out : AnalogSignalArray
             An AnalogSignalArray with smoothed data is returned.
         """
-    kwargs = {'inplace' : inplace,
-              'fs' : fs,
-              'sigma' : sigma,
-              'bw' : bw}
-    smooth_AnalogSignalArray(self, **kwargs)
+        kwargs = {'inplace' : inplace,
+                'fs' : fs,
+                'sigma' : sigma,
+                'bw' : bw}
+        smooth_AnalogSignalArray(self, **kwargs)
 
     @property
     def lengths(self):

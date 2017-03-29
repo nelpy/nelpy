@@ -488,7 +488,7 @@ def nextfastpower(n):
     n2 = nextpower (n / n35)
     return int (min (n2 * n35))
 
-def smooth_AnalogSignalArray(asa, *, fs=None, sigma=None, bw=None, in_place=False):
+def smooth_AnalogSignalArray(asa, *, fs=None, sigma=None, bw=None, inplace=False):
     """Smooths a regularly sampled AnalogSignalArray with a Gaussian kernel.
 
     Smoothing is applied in time, and the same smoothing is applied to each
