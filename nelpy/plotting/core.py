@@ -5,16 +5,105 @@ import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import warnings
 
+from scipy import signal
 
 from .helpers import RasterLabelData
 from ..objects import *
 from . import utils  # import plotting/utils
 
 __all__ = ['plot',
+           'psdplot',
+           'overviewstrip',
            'imagesc',
+           'matshow',
            'epochplot',
            'rasterplot',
            'rastercountplot']
+
+def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
+            return_onesided=True, scaling='density', ax=None):
+
+    """Plot the power spectrum of a regularly-sampled time-domain signal.
+
+    TODO: Here we have to be careful: AnalogSignalArray is not guaranteed
+          to have a working / accurate asa.fs parameter :/
+
+          Also, we should probably collapse all the samples, (as ydata
+          should be already) and then assume a fixed sampling rate.
+
+    TODO: Should we speed up FFTs by zero padding, or is this done
+          automatically by numpy?
+
+    TODO: implement uneven temporal sampling:
+    https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.signal.lombscargle.html#scipy.signal.lombscargle
+
+    Parameters
+    ----------
+    fs : float, optional
+        Sampling frequency of the x time series in units of Hz.
+        Defaults to data.fs if available.
+    window : str or tuple or array_like, optional
+        Desired window to use. See get_window for a list of windows and
+        required parameters. If window is an array it will be used
+        directly as the window. Defaults to None; equivalent to 'boxcar’.
+    nfft : int, optional
+        Length of the FFT used. If None the length of data will be used.
+    detrend : str or function, optional
+        Specifies how to detrend x prior to computing the spectrum. If
+        detrend is a string, it is passed as the type argument to detrend.
+        If it is a function, it should return a detrended array.
+        Defaults to 'constant’.
+    return_onesided : bool, optional
+        If True, return a one-sided spectrum for real data. If False
+        return a two-sided spectrum. Note that for complex data, a
+        two-sided spectrum is always returned.
+    scaling : { 'density’, 'spectrum’ }, optional
+        Selects between computing the power spectral density ('density’)
+        where Pxx has units of V**2/Hz if x is measured in V and
+        computing the power spectrum ('spectrum’) where Pxx has units of
+        V**2 if x is measured in V. Defaults to 'density’
+    ax : matplotlib axis, optional
+        Plot in given axis; if None creates a new figure
+
+    Returns
+    -------
+    ax : matplotlib axis
+    """
+
+    if ax is None:
+        ax = plt.gca()
+
+    if(isinstance(data, AnalogSignalArray)):
+        if fs is None:
+            fs = data.fs
+        if fs is None:
+            raise ValueError("The sampling rate fs cannot be inferred, and must be specified manually!")
+        if data.n_signals > 1:
+            raise NotImplementedError("more than one signal is not yet supported for psdplot!")
+        else:
+            data = data.ydata.squeeze()
+    else:
+        raise NotImplementedError("datatype {} not yet supported by psdplot!".format(str(type(data))))
+
+    kwargs = {'x' : data,
+              'fs' : fs,
+              'window' : window,
+              'nfft' : nfft,
+              'detrend' : detrend,
+              'return_onesided' : return_onesided,
+              'scaling' : scaling}
+
+    f, Pxx_den = signal.periodogram(**kwargs)
+
+    if scaling == 'density':
+        ax.semilogy(f, np.sqrt(Pxx_den))
+        ax.set_ylabel('PSD [V**2/Hz]')
+    elif scaling == 'spectrum':
+        ax.semilogy(f, np.sqrt(Pxx_den))
+        ax.set_ylabel('Linear spectrum [V RMS]')
+    ax.set_xlabel('frequency [Hz]')
+
+    return ax
 
 def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
     """Plots a 2D matrix / image similar to Matlab's imagesc.
@@ -250,6 +339,10 @@ def occupancy():
 def overviewstrip():
     """Plot an epoch array similar to vscode scrollbar, to show gaps in e.g.
     matshow plots. TODO: complete me.
+
+    This can also be nice, for example, to implement the Kloosterman 2012
+    online vs offline strips above several of the plots.
+
     """
     raise NotImplementedError("overviewstripplot() not implemented yet")
 
