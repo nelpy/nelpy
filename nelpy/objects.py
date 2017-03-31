@@ -16,10 +16,12 @@ __all__ = ['EventArray',
 
 import warnings
 import numpy as np
+import copy
 
 from scipy import interpolate
 from sys import float_info
 from collections import namedtuple
+from scipy.ndimage.filters import gaussian_filter1d, gaussian_filter
 
 # from shapely.geometry import Point
 from abc import ABC, abstractmethod
@@ -3051,6 +3053,47 @@ class BinnedSpikeTrainArray(SpikeTrain):
         supportdata = np.vstack([support_starts, support_stops]).T
         self._support = EpochArray(supportdata, fs=1) # set support to TRUE bin support
 
+    def _smooth(self, inplace=False, sigma=None, bw=None):
+        """Smooth BinnedSpikeTrainArray by convolving with a Gaussian kernel.
+
+        NOTE: smoothing is epoch-aware.
+
+        Parameters
+        ----------
+        sigma :
+        bw :
+        inplace : bool
+            If True the data will be replaced with the smoothed data.
+            Default is False.
+
+        Returns
+        -------
+        out : BinnedSpikeTrainArray
+            New BinnedSpikeTrainArray with smoothed data.
+        """
+
+        if not inplace:
+            out = copy.deepcopy(self)
+        else:
+            out = self
+
+        if bw is None:
+            bw=4
+        if sigma is None:
+            sigma = 0.05 # 50 ms default
+
+        cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
+
+        sigma = sigma / self.ds
+        out._data = out._data.astype(float)
+
+        # now smooth each epoch separately
+        for idx in range(out.n_epochs):
+            out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+            # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
+
+        return out
+
     @staticmethod
     def _smooth_array(arr, w=None):
         """Smooth an array by convolving a boxcar, row-wise.
@@ -3072,12 +3115,17 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if w==1: # perform no smoothing
             return arr
 
+        w = np.min((w, arr.shape[1]))
+
         smoothed = arr.astype(float) # copy array and cast to float
         window = np.ones((w,))/w
 
         # smooth per row
         for rowi, row in enumerate(smoothed):
             smoothed[rowi,:] = np.convolve(row, window, mode='same')
+
+        if arr.shape[1] != smoothed.shape[1]:
+            raise TypeError("Incompatible shape returned!")
 
         return smoothed
 
@@ -3180,13 +3228,13 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 if newdata is None:
                     newdata = rebinned
                     newbins = bins
-                    newcenters = bins[:-1] + np.diff(bins) / 2 # TODO: revisit this
-                    newsupport = np.array([bins[0], bins[-1]]) # TODO: revisit this: should it be np.array([bins[0], bins[-2]]) instead?
+                    newcenters = bins[:-1] + np.diff(bins) / 2
+                    newsupport = np.array([bins[0], bins[-1]])
                 else:
                     newdata = np.hstack((newdata, rebinned))
                     newbins = np.hstack((newbins, bins))
-                    newcenters = np.hstack((newcenters, bins[:-1] + np.diff(bins) / 2)) # TODO: revisit this
-                    newsupport = np.vstack((newsupport, np.array([bins[0], bins[-1]]))) # TODO: revisit this
+                    newcenters = np.hstack((newcenters, bins[:-1] + np.diff(bins) / 2))
+                    newsupport = np.vstack((newsupport, np.array([bins[0], bins[-1]])))
             else:
                 pass
 
