@@ -21,6 +21,12 @@ import copy
 
 from . import objects # so that objects.AnalogSignalArray is exposed
 
+def is_odd(n):
+    """Returns True if n is odd, and False if n is even.
+    Assumes integer.
+    """
+    return bool(n & 1)
+
 def swap_cols(arr, frm, to):
     """swap columns of a 2D np.array"""
     if arr.ndim > 1:
