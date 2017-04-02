@@ -3064,7 +3064,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         Parameters
         ----------
         sigma : float, optional
-            Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+            Standard deviation of Gaussian kernel, in seconds. Default is 0.01 (10 ms)
         bw : float, optional
             Bandwidth outside of which the filter value will be zero. Default is 4.0
         inplace : bool
@@ -3080,7 +3080,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if bw is None:
             bw=4
         if sigma is None:
-            sigma = 0.05 # 50 ms default
+            sigma = 0.01 # 10 ms default
 
         fs = 1 / self.ds
 
