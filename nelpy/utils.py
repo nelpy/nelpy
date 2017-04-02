@@ -15,7 +15,7 @@ from itertools import tee
 from collections import namedtuple
 from math import floor
 from scipy.signal import hilbert
-from scipy.ndimage.filters import gaussian_filter1d, gaussian_filter
+import scipy.ndimage.filters #import gaussian_filter1d, gaussian_filter
 from numpy import log, ceil
 import copy
 
@@ -433,7 +433,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
         if sigma:
             # Smooth envelope with a gaussian (sigma = 4 ms default)
             EnvelopeSmoothingSD = sigma*fs
-            smoothed_envelope = gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
+            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
     elif isinstance(data, objects.AnalogSignalArray):
         # Compute number of samples to compute fast FFTs:
@@ -447,7 +447,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
         if sigma:
             # Smooth envelope with a gaussian (sigma = 4 ms default)
             EnvelopeSmoothingSD = sigma*fs
-            smoothed_envelope = gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
+            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
         newasa = data.copy()
         newasa._ydata = envelope
@@ -494,17 +494,17 @@ def nextfastpower(n):
     n2 = nextpower (n / n35)
     return int (min (n2 * n35))
 
-def smooth_AnalogSignalArray(asa, *, fs=None, sigma=None, bw=None, inplace=False):
-    """Smooths a regularly sampled AnalogSignalArray with a Gaussian kernel.
+def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
+    """Smooths with a Gaussian kernel.
 
     Smoothing is applied in time, and the same smoothing is applied to each
-    signal in the AnalogSignalArray.
+    signal in the AnalogSignalArray, or each unit in a BinnedSpikeTrainArray.
 
     Smoothing is applied within each epoch.
 
     Parameters
     ----------
-    asa : AnalogSignalArray
+    obj : AnalogSignalArray or BinnedSpikeTrainArray
     fs : float, optional
         Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
         be obtained from asa.fs
@@ -518,30 +518,49 @@ def smooth_AnalogSignalArray(asa, *, fs=None, sigma=None, bw=None, inplace=False
 
     Returns
     -------
-    out : AnalogSignalArray
-        An AnalogSignalArray with smoothed data is returned.
+    out : AnalogSignalArray or BinnedSpikeTrainArray
+        An object with smoothed data is returned.
     """
 
-    if fs is None:
-        fs = asa.fs
-    if fs is None:
-        raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    if not inplace:
+        out = copy.deepcopy(obj)
+    else:
+        out = obj
+
+    if isinstance(out, objects.AnalogSignalArray):
+        asa = out
+        if fs is None:
+            fs = asa.fs
+        if fs is None:
+            raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    elif isinstance(out, objects.BinnedSpikeTrainArray):
+        bst = out
+        if fs is None:
+            fs = 1/bst.ds
+        if fs is None:
+            raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    else:
+        raise NotImplementedError("gaussian_filter for {} is not yet supported!".format(str(type(out))))
+
     if sigma is None:
         sigma = 0.05 # 50 ms default
+    if bw is None:
+        bw = 4 # bandwidth of filter (outside of this bandwidth, the filter is zero)
 
     sigma = sigma * fs
-    bw = 4 # bandwidth of filter (outside of this bandwidth, the filter is zero)
 
-    if not inplace:
-        out = copy.deepcopy(asa)
-    else:
-        out = asa
+    cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
 
-    cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
-
-    # now smooth each epoch separately
-    for idx in range(asa.n_epochs):
-        out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = gaussian_filter(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+    if isinstance(out, objects.AnalogSignalArray):
+        # now smooth each epoch separately
+        for idx in range(asa.n_epochs):
+            out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+    elif isinstance(out, objects.BinnedSpikeTrainArray):
+        out._data = out._data.astype(float)
+        # now smooth each epoch separately
+        for idx in range(out.n_epochs):
+            out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+            # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
 
     return out
 
@@ -598,7 +617,7 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
         out._ydata = np.abs(out._ydata)
 
     if smooth:
-        out = smooth_AnalogSignalArray(out, fs=fs, sigma=sigma, bw=bw)
+        out = gaussian_filter(out, fs=fs, sigma=sigma, bw=bw)
 
     return out
 

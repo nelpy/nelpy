@@ -32,7 +32,7 @@ from .utils import is_sorted, \
                    PrettyDuration, \
                    PrettyInt, \
                    swap_rows, \
-                   smooth_AnalogSignalArray
+                   gaussian_filter
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -1597,7 +1597,7 @@ class AnalogSignalArray:
                 'sigma' : sigma,
                 'bw' : bw}
 
-        return smooth_AnalogSignalArray(self, **kwargs)
+        return gaussian_filter(self, **kwargs)
 
     @property
     def lengths(self):
@@ -2742,7 +2742,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             bstr = " {} bin of width {}".format(self.n_bins, PrettyDuration(self.ds))
             dstr = ""
         else:
-            bstr = " {} bins of width {} ms".format(self.n_bins, PrettyDuration(self.ds))
+            bstr = " {} bins of width {}".format(self.n_bins, PrettyDuration(self.ds))
             dstr = " for a total of {}".format(PrettyDuration(self.n_bins*self.ds))
         return "<BinnedSpikeTrainArray%s:%s%s%s>%s" % (address_str, ustr, epstr, bstr, dstr)
 
@@ -3053,15 +3053,20 @@ class BinnedSpikeTrainArray(SpikeTrain):
         supportdata = np.vstack([support_starts, support_stops]).T
         self._support = EpochArray(supportdata, fs=1) # set support to TRUE bin support
 
-    def _smooth(self, inplace=False, sigma=None, bw=None):
+    def smooth(self, *, sigma=None, inplace=False,  bw=None):
         """Smooth BinnedSpikeTrainArray by convolving with a Gaussian kernel.
 
-        NOTE: smoothing is epoch-aware.
+        Smoothing is applied in time, and the same smoothing is applied
+        to each unit in a BinnedSpikeTrainArray.
+
+        Smoothing is applied within each epoch.
 
         Parameters
         ----------
-        sigma :
-        bw :
+        sigma : float, optional
+            Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+        bw : float, optional
+            Bandwidth outside of which the filter value will be zero. Default is 4.0
         inplace : bool
             If True the data will be replaced with the smoothed data.
             Default is False.
@@ -3072,27 +3077,14 @@ class BinnedSpikeTrainArray(SpikeTrain):
             New BinnedSpikeTrainArray with smoothed data.
         """
 
-        if not inplace:
-            out = copy.deepcopy(self)
-        else:
-            out = self
-
         if bw is None:
             bw=4
         if sigma is None:
             sigma = 0.05 # 50 ms default
 
-        cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
+        fs = 1 / self.ds
 
-        sigma = sigma / self.ds
-        out._data = out._data.astype(float)
-
-        # now smooth each epoch separately
-        for idx in range(out.n_epochs):
-            out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
-            # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
-
-        return out
+        return gaussian_filter(self, fs=fs, sigma=sigma, inplace=inplace)
 
     @staticmethod
     def _smooth_array(arr, w=None):
@@ -3157,7 +3149,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         # bins = bins[np.insert(binidx+1, 0, 0)]
         return rebinned, binidx
 
-    def rebin_binnedspiketrain(self, w=None):
+    def rebin(self, w=None):
         """Rebin the BinnedSpikeTrainArray into a coarser bin size.
 
         Parameters
@@ -3174,6 +3166,11 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         if w is None:
             w = 1
+
+        if not float(w).is_integer:
+            raise ValueError("w has to be an integer!")
+
+        w = int(w)
 
         bst = self
         return self._rebin_binnedspiketrain(bst, w=w)
