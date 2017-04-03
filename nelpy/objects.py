@@ -77,11 +77,9 @@ def fssetter(self, val):
         return
     try:
         if val <= 0:
-            pass
+            raise ValueError("sampling rate must be positive")
     except:
         raise TypeError("sampling rate must be a scalar")
-    if val <= 0:
-        raise ValueError("sampling rate must be positive")
 
     # if it is the first time that a sampling rate is set, do not
     # modify anything except for self._fs:
