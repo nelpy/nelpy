@@ -2871,8 +2871,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
                 lengths = self.lengths[[idx]]
                 # lengths = bsupport[:,1] - bsupport[:,0]
-                bsstarts = np.insert(np.cumsum(lengths+1),0,0)[:-1]
-                bsends = np.cumsum(lengths+1) - 1
+                bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
+                bsends = np.cumsum(lengths) - 1
                 binnedspiketrain._binnedSupport = np.vstack((bsstarts, bsends)).T
 
                 binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
@@ -2886,7 +2886,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 return binnedspiketrain
             except Exception:
                 raise TypeError(
-                    'unsupported subsctipting type {}'.format(type(idx)))
+                    'unsupported indexing type {}'.format(type(idx)))
 
     @property
     def isempty(self):
