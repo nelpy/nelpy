@@ -1,5 +1,7 @@
 """Bayesian encoding and decoding"""
 
+import numpy as np
+
 def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
     """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
 
@@ -29,6 +31,11 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
     mode_pth :
 
     mean_pth :
+
+    Examples
+    --------
+
+
     """
 
     if w is None:
@@ -84,7 +91,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
     # normalize posterior:
     posterior = np.exp(posterior) / np.tile(np.exp(posterior).sum(axis=0),(n_xbins,1))
 
-    _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax));
+    _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
     xbins = (bins + xmax/n_xbins)[:-1]
 
     mode_pth = posterior.argmax(axis=0)*xmax/n_xbins

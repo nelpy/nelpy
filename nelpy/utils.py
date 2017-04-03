@@ -15,10 +15,17 @@ from itertools import tee
 from collections import namedtuple
 from math import floor
 from scipy.signal import hilbert
-from scipy.ndimage.filters import gaussian_filter1d
+import scipy.ndimage.filters #import gaussian_filter1d, gaussian_filter
 from numpy import log, ceil
+import copy
 
 from . import objects # so that objects.AnalogSignalArray is exposed
+
+def is_odd(n):
+    """Returns True if n is odd, and False if n is even.
+    Assumes integer.
+    """
+    return bool(n & 1)
 
 def swap_cols(arr, frm, to):
     """swap columns of a 2D np.array"""
@@ -426,7 +433,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
         if sigma:
             # Smooth envelope with a gaussian (sigma = 4 ms default)
             EnvelopeSmoothingSD = sigma*fs
-            smoothed_envelope = gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
+            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
     elif isinstance(data, objects.AnalogSignalArray):
         # Compute number of samples to compute fast FFTs:
@@ -440,7 +447,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
         if sigma:
             # Smooth envelope with a gaussian (sigma = 4 ms default)
             EnvelopeSmoothingSD = sigma*fs
-            smoothed_envelope = gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
+            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
         newasa = data.copy()
         newasa._ydata = envelope
@@ -486,6 +493,210 @@ def nextfastpower(n):
     # Lump the powers of 3 and 5 together and solve for the powers of 2.
     n2 = nextpower (n / n35)
     return int (min (n2 * n35))
+
+def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
+    """Smooths with a Gaussian kernel.
+
+    Smoothing is applied in time, and the same smoothing is applied to each
+    signal in the AnalogSignalArray, or each unit in a BinnedSpikeTrainArray.
+
+    Smoothing is applied within each epoch.
+
+    Parameters
+    ----------
+    obj : AnalogSignalArray or BinnedSpikeTrainArray
+    fs : float, optional
+        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+        be obtained from asa.fs
+    sigma : float, optional
+        Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+    bw : float, optional
+        Bandwidth outside of which the filter value will be zero. Default is 4.0
+    inplace : bool
+        If True the data will be replaced with the smoothed data.
+        Default is False.
+
+    Returns
+    -------
+    out : AnalogSignalArray or BinnedSpikeTrainArray
+        An object with smoothed data is returned.
+    """
+
+    if not inplace:
+        out = copy.deepcopy(obj)
+    else:
+        out = obj
+
+    if isinstance(out, objects.AnalogSignalArray):
+        asa = out
+        if fs is None:
+            fs = asa.fs
+        if fs is None:
+            raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    elif isinstance(out, objects.BinnedSpikeTrainArray):
+        bst = out
+        if fs is None:
+            fs = 1/bst.ds
+        if fs is None:
+            raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    else:
+        raise NotImplementedError("gaussian_filter for {} is not yet supported!".format(str(type(out))))
+
+    if sigma is None:
+        sigma = 0.05 # 50 ms default
+    if bw is None:
+        bw = 4 # bandwidth of filter (outside of this bandwidth, the filter is zero)
+
+    sigma = sigma * fs
+
+    cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
+
+    if isinstance(out, objects.AnalogSignalArray):
+        # now smooth each epoch separately
+        for idx in range(asa.n_epochs):
+            out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+    elif isinstance(out, objects.BinnedSpikeTrainArray):
+        out._data = out._data.astype(float)
+        # now smooth each epoch separately
+        for idx in range(out.n_epochs):
+            out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+            # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
+
+    return out
+
+def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
+    """Numerical differentiation of a regularly sampled AnalogSignalArray.
+
+    Optionally also smooths result with a Gaussian kernel.
+
+    Smoothing is applied in time, and the same smoothing is applied to each
+    signal in the AnalogSignalArray.
+
+    Differentiation, (and if requested, smoothing) is applied within each epoch.
+
+    Parameters
+    ----------
+    asa : AnalogSignalArray
+    fs : float, optional
+        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+        be obtained from asa.fs
+    smooth : bool, optional
+        If true, result will be smoothed. Default is False
+    rectify : bool, optional
+        If True, absolute value of derivative is computed. Default is True.
+    sigma : float, optional
+        Standard deviation of Gaussian kernel, in seconds. Default is 0.05
+        (50 ms).
+    bw : float, optional
+        Bandwidth outside of which the filter value will be zero. Default is 4.0
+
+    Returns
+    -------
+    out : AnalogSignalArray
+        An AnalogSignalArray with derivative data (in units per second) is returned.
+    """
+
+    if fs is None:
+        fs = asa.fs
+    if fs is None:
+        raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    if sigma is None:
+        sigma = 0.05 # 50 ms default
+
+    out = copy.deepcopy(asa)
+
+    cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
+
+    # now obtain the derivative for each epoch separately
+    for idx in range(asa.n_epochs):
+        out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+
+    out._ydata = out._ydata * fs
+
+    if rectify:
+        out._ydata = np.abs(out._ydata)
+
+    if smooth:
+        out = gaussian_filter(out, fs=fs, sigma=sigma, bw=bw)
+
+    return out
+
+def get_run_epochs(speed, v1=10, v2=8):
+    """Return epochs where animal is running at least as fast as
+    specified by v1 and v2.
+
+    Parameters
+    ----------
+    speed : AnalogSignalArray
+        AnalogSignalArray containing single channel speed, in units/sec
+    v1 : float, optional
+        Minimum speed (in same units as speed) that has to be reached /
+        exceeded during an event. Default is 10 [units/sec]
+    v2 : float, optional
+        Speed that defines the event boundaries. Default is 8 [units/sec]
+    Returns
+    -------
+    out : EpochArray
+        EpochArray with all the epochs where speed satisfied the criteria.
+    """
+    # compute periods of activity (sustained running of > 10 cm /s and peak velocity of at least 15 cm/s)
+    RUN_bounds, _, _ = get_events_boundaries(
+        x=speed.ydata,
+        PrimaryThreshold=v1,   # cm/s
+        SecondaryThreshold=v2  # cm/s
+    )
+
+    # convert bounds to time in seconds
+    RUN_bounds = speed.tdata[RUN_bounds]
+    # create EpochArray with running bounds
+    run_epochs = objects.EpochArray(RUN_bounds, fs=1)
+    return run_epochs
+
+def get_inactive_epochs(speed, v1=5, v2=7):
+    """Return epochs where animal is running no faster than specified by
+    v1 and v2.
+
+    Parameters
+    ----------
+    speed : AnalogSignalArray
+        AnalogSignalArray containing single channel speed, in units/sec
+    v1 : float, optional
+        Minimum speed (in same units as speed) that has to be reached /
+        exceeded during an event. Default is 10 [units/sec]
+    v2 : float, optional
+        Speed that defines the event boundaries. Default is 8 [units/sec]
+    Returns
+    -------
+    out : EpochArray
+        EpochArray with all the epochs where speed satisfied the criteria.
+    """
+    # compute periods of inactivity (< 5 cm/s)
+    INACTIVE_bounds, _, _ = get_events_boundaries(
+        x=speed.ydata,
+        PrimaryThreshold=v1,   # cm/s
+        SecondaryThreshold=v2, # cm/s
+        mode='below'
+    )
+
+    # convert bounds to time in seconds
+    INACTIVE_bounds = speed.tdata[INACTIVE_bounds]
+    # create EpochArray with inactive bounds
+    inactive_epochs = objects.EpochArray(INACTIVE_bounds, fs=1)
+    return inactive_epochs
+
+def spiketrain_union(st1, st2):
+    """Join two spiketrains together.
+
+    WARNING! This function should be improved a lot!
+    """
+    assert st1.n_units == st2.n_units
+    support = st1.support.join(st2.support)
+
+    newdata = []
+    for unit in range(st1.n_units):
+        newdata.append(np.append(st1.time[unit], st2.time[unit]))
+
+    return objects.SpikeTrainArray(newdata, support=support, fs=1)
 
 ########################################################################
 # uncurated below this line!

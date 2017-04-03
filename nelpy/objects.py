@@ -16,10 +16,12 @@ __all__ = ['EventArray',
 
 import warnings
 import numpy as np
+import copy
 
 from scipy import interpolate
 from sys import float_info
 from collections import namedtuple
+from scipy.ndimage.filters import gaussian_filter1d, gaussian_filter
 
 # from shapely.geometry import Point
 from abc import ABC, abstractmethod
@@ -29,7 +31,8 @@ from .utils import is_sorted, \
                    linear_merge, \
                    PrettyDuration, \
                    PrettyInt, \
-                   swap_rows
+                   swap_rows, \
+                   gaussian_filter
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -74,11 +77,9 @@ def fssetter(self, val):
         return
     try:
         if val <= 0:
-            pass
+            raise ValueError("sampling rate must be positive")
     except:
         raise TypeError("sampling rate must be a scalar")
-    if val <= 0:
-        raise ValueError("sampling rate must be positive")
 
     # if it is the first time that a sampling rate is set, do not
     # modify anything except for self._fs:
@@ -1600,6 +1601,46 @@ class AnalogSignalArray:
         if update:
             self._support = epocharray
 
+    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False):
+        """Smooths the regularly sampled AnalogSignalArray with a Gaussian kernel.
+
+        Smoothing is applied in time, and the same smoothing is applied to each
+        signal in the AnalogSignalArray.
+
+        Smoothing is applied within each epoch.
+
+        Parameters
+        ----------
+        fs : float, optional
+            Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+            be obtained from asa.fs
+        sigma : float, optional
+            Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+        bw : float, optional
+            Bandwidth outside of which the filter value will be zero. Default is 4.0
+        inplace : bool
+            If True the data will be replaced with the smoothed data.
+            Default is False.
+
+        Returns
+        -------
+        out : AnalogSignalArray
+            An AnalogSignalArray with smoothed data is returned.
+        """
+        kwargs = {'inplace' : inplace,
+                'fs' : fs,
+                'sigma' : sigma,
+                'bw' : bw}
+
+        return gaussian_filter(self, **kwargs)
+
+    @property
+    def lengths(self):
+        """(list) The number of samples in each epoch."""
+        # TODO: make this faster and better!
+        lengths = [segment.n_samples for segment in self]
+        return np.asanyarray(lengths).squeeze()
+
     @property
     def n_signals(self):
         """(int) The number of signals."""
@@ -1788,28 +1829,40 @@ class AnalogSignalArray:
     def mean(self,*,axis=1):
         """Returns the mean of each signal in AnalogSignalArray."""
         try:
-            return np.mean(self._ydata, axis=axis).squeeze()
+            means = np.mean(self._ydata, axis=axis).squeeze()
+            if means.size == 1:
+                return np.asscalar(means)
+            return means
         except IndexError:
             raise IndexError("Empty AnalogSignalArray cannot calculate mean")
 
     def std(self,*,axis=1):
         """Returns the standard deviation of each signal in AnalogSignalArray."""
         try:
-            return np.std(self._ydata,axis=axis).squeeze()
+            stds = np.std(self._ydata,axis=axis).squeeze()
+            if stds.size == 1:
+                return np.asscalar(stds)
+            return stds
         except IndexError:
             raise IndexError("Empty AnalogSignalArray cannot calculate standard deviation")
 
     def max(self,*,axis=1):
         """Returns the maximum of each signal in AnalogSignalArray"""
         try:
-            return np.amax(self._ydata,axis=axis).squeeze()
+            maxes = np.amax(self._ydata,axis=axis).squeeze()
+            if maxes.size == 1:
+                return np.asscalar(maxes)
+            return maxes
         except ValueError:
             raise ValueError("Empty AnalogSignalArray cannot calculate maximum")
 
     def min(self,*,axis=1):
         """Returns the minimum of each signal in AnalogSignalArray"""
         try:
-            return np.amin(self._ydata,axis=axis).squeeze()
+            mins = np.amin(self._ydata,axis=axis).squeeze()
+            if mins.size == 1:
+                return np.asscalar(mins)
+            return mins
         except ValueError:
             raise ValueError("Empty AnalogSignalArray cannot calculate minimum")
 
@@ -2593,131 +2646,8 @@ class SpikeTrainArray(SpikeTrain):
         return "<SpikeTrainArray%s:%s%s>%s%s" % (address_str, numstr, epstr, fsstr, labelstr)
 
     def bin(self, *, ds=None):
-        """Bin spiketrain array."""
-        # return BinnedSpikeTrainArray(self, ds=ds, empty=self.isempty)
+        """Return a binned spiketrain array."""
         return BinnedSpikeTrainArray(self, ds=ds)
-
-    def _bin(self, *, ds_prime=None, ds=None, w=None, _bst=None):
-        """Bin spiketrain array, with optional smoothing and arbitrary offsets
-
-        ds is the bin width in seconds,
-        ds_prime is the number of finer resolution bins per ds bin that
-            are used for smoothing. If None, then no smoothing is applied
-
-        w number of fine bins to smooth over; default is 1
-        w == 1 means no smoothing, but arbitrary offsets
-
-        NOTE: with the original .bin(), the support is left the same as the
-            support of the underlying SpikeTrainArray, so that no support information
-            is lost. If we bin with arbitrary offsets, the support is recomputed,
-            so that it is the TRUE support of the binned spiketrain. It is unclear
-            which approach is better? Probably the latter.
-        """
-        def smooth_binned_array(arr, w=10):
-            """w : int
-                number of bins to include in window
-            """
-            if w==1: # perform no smoothing
-                return arr
-
-            smoothed = arr.astype(float) # copy array and cast to float
-            window = np.ones((w,))/w
-
-            # smooth per row
-            for rowi, row in enumerate(smoothed):
-                smoothed[rowi,:] = np.convolve(row, window, mode='same')
-
-            return smoothed
-
-        def rebin(arr, n, bins):
-            """n : int
-                number of bins to bin into new bin"""
-            cs = np.cumsum(arr, axis=1)
-            binidx = np.arange(start=n, stop=cs.shape[1]+1, step=n) - 1
-
-            rebinned = np.hstack((np.array(cs[:,n-1], ndmin=2).T, cs[:,binidx[1:]] - cs[:,binidx[:-1]]))
-            bins = bins[np.insert(binidx+1, 0, 0)]
-            return rebinned, bins
-
-        def smooth_and_rebin(bst, w=None, n=10):
-            """smooths and rebins a binned spike train array
-
-            Takes in a BinnedSpikeTrainArray binned with small bin width, and optionally smooths and re-bins
-            into a BinnedSpikeTrainArray with bin size n times bst.ds
-
-            w : int
-                number of bins of width bst.ds to smooth over
-            n : int
-                number of bins of width bst.ds to bin into new bin of width bst.ds*n
-            NOTE: when re-binning, we now start at the true beginning (in bst.ds resolution) of the event and bin from there,
-                but we do not _exceed_ the right event boundary. That is, we fit in as many bins as possible, without exceeding
-                the right event boundary.
-            """
-            # TODO: it could be even more useful to take in Spiketrains, and to (optionally) smooth and rebin.
-            # FFB! TODO: if either w or n is longer than some event size, an exception will occur. Handle it!
-
-            edges = np.insert(np.cumsum(bst.lengths), 0, 0)
-            newlengths = [0]
-            binedges = np.insert(np.cumsum(bst.lengths+1), 0, 0)
-            n_events = bst.support.n_epochs
-            new_centers = []
-
-            newdata = None
-
-            for ii in range(n_events):
-                data = bst.data[:,edges[ii]:edges[ii+1]]
-                bins = bst.bins[binedges[ii]:binedges[ii+1]]
-
-                datalen = data.shape[1]
-                if w <= datalen and n <= datalen:
-                    smoothed = smooth_binned_array(data, w=w)
-                    rebinned, bins = rebin(smoothed, n=n, bins=bins)
-
-                    newlengths.append(rebinned.shape[1])
-
-                    if newdata is None:
-                        newdata = rebinned
-                        newbins = bins
-                        newcenters = bins[:-1] + np.diff(bins) / 2
-                        newsupport = np.array([bins[0], bins[-1]])
-                    else:
-                        newdata = np.hstack((newdata, rebinned))
-                        newbins = np.hstack((newbins, bins))
-                        newcenters = np.hstack((newcenters, bins[:-1] + np.diff(bins) / 2))
-                        newsupport = np.vstack((newsupport, np.array([bins[0], bins[-1]])))
-                else:
-                    pass
-
-            # assemble new binned spike train array:
-            newedges = np.cumsum(newlengths)
-            newbst = BinnedSpikeTrainArray(empty=True)
-            if newdata is not None:
-                newbst._data = newdata
-                newbst._support = EpochArray(newsupport, fs=1)
-                newbst._bins = newbins
-                newbst._bin_centers = newcenters
-                newbst._ds = bst.ds*n
-                newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
-            else:
-                warnings.warn("No events are long enough to contain any bins of width {}".format(PrettyDuration(ds)))
-
-            return newbst
-
-
-        if ds_prime is None:
-            return BinnedSpikeTrainArray(self, ds=ds)
-
-        if w is None:
-            w = 1
-        else:
-            assert(float(w).is_integer())
-            w = int(w)
-        assert float(ds_prime).is_integer()
-        assert ds_prime > 0
-        if _bst is None:
-            _bst = BinnedSpikeTrainArray(self, ds=ds/ds_prime) # fine resolution bins
-
-        return smooth_and_rebin(_bst, w=w, n=int(ds_prime))
 
     @property
     def tdata(self):
@@ -2825,12 +2755,12 @@ class BinnedSpikeTrainArray(SpikeTrain):
             ds = 0.0625
 
         self._spiketrainarray = spiketrainarray # TODO: remove this if we don't need it, or decide that it's too wasteful
-        self._support = spiketrainarray.support
+        # self._support = spiketrainarray.support
         self.ds = ds
 
         self._bin_spikes(
             spiketrainarray=spiketrainarray,
-            epochArray=self.support,
+            epochArray=spiketrainarray.support,
             ds=ds
             )
 
@@ -2853,10 +2783,10 @@ class BinnedSpikeTrainArray(SpikeTrain):
         else:
             epstr = " in"
         if self.n_bins == 1:
-            bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
+            bstr = " {} bin of width {}".format(self.n_bins, PrettyDuration(self.ds))
             dstr = ""
         else:
-            bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
+            bstr = " {} bins of width {}".format(self.n_bins, PrettyDuration(self.ds))
             dstr = " for a total of {}".format(PrettyDuration(self.n_bins*self.ds))
         return "<BinnedSpikeTrainArray%s:%s%s%s>%s" % (address_str, ustr, epstr, bstr, dstr)
 
@@ -2899,6 +2829,9 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if self.isempty:
             return self
         if isinstance(idx, EpochArray):
+            # need to determine if there is any proper subset in self.support intersect EpochArray
+            # next, we need to identify all the bins that would fall within the EpochArray
+
             if idx.isempty:
                 return BinnedSpikeTrainArray(empty=True)
             if idx.fs != self.support.fs:
@@ -2950,7 +2883,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 return binnedspiketrain
             else:
                 bsupport = self.binnedSupport[[idx],:]
-                centers = self.centers[bsupport[0,0]:bsupport[0,1]+1]
+                centers = self._bin_centers[bsupport[0,0]:bsupport[0,1]+1]
                 binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
                 binstart = binindices[idx]
                 binstop = binindices[idx+1]
@@ -2962,10 +2895,42 @@ class BinnedSpikeTrainArray(SpikeTrain):
         else:  # most likely a slice
             try:
                 # have to be careful about re-indexing binnedSupport
-                raise NotImplementedError("slice indexing for BinnedSpikeTrainArrays not supported yet")
+                binnedspiketrain = BinnedSpikeTrainArray(empty=True)
+                exclude = ["_data", "_bins", "_support", "_bin_centers", "_spiketrainarray", "_binnedSupport"]
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    attrs = (x for x in self.__attributes__ if x not in exclude)
+                    for attr in attrs:
+                        exec("binnedspiketrain." + attr + " = self." + attr)
+                support = self.support[idx]
+                binnedspiketrain._support = support
+
+                bsupport = self.binnedSupport[idx,:] # need to re-index!
+                # now build a list of all elements in bsupport:
+                ll = []
+                for bs in bsupport:
+                    ll.extend(np.arange(bs[0],bs[1]+1, step=1))
+                binnedspiketrain._bin_centers = self._bin_centers[ll]
+                binnedspiketrain._data = self._data[:,ll]
+
+                lengths = self.lengths[[idx]]
+                # lengths = bsupport[:,1] - bsupport[:,0]
+                bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
+                bsends = np.cumsum(lengths) - 1
+                binnedspiketrain._binnedSupport = np.vstack((bsstarts, bsends)).T
+
+                binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+                binstarts = binindices[idx]
+                binstops = binindices[1:][idx]  # equivalent to binindices[idx + 1], but if idx is a slice, we can't add 1 to it
+                ll = []
+                for start, stop in zip(binstarts, binstops):
+                    ll.extend(np.arange(start,stop,step=1))
+                binnedspiketrain._bins = self._bins[ll]
+
+                return binnedspiketrain
             except Exception:
                 raise TypeError(
-                    'unsupported subsctipting type {}'.format(type(idx)))
+                    'unsupported indexing type {}'.format(type(idx)))
 
     @property
     def isempty(self):
@@ -3043,7 +3008,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def lengths(self):
         """Lenghts of contiguous segments, in number of bins."""
-        return self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1
+        return (self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1).squeeze()
 
     @property
     def spiketrainarray(self):
@@ -3077,23 +3042,294 @@ class BinnedSpikeTrainArray(SpikeTrain):
             self._ds = val
 
     @staticmethod
-    def _get_bins_to_cover_epoch(epoch, ds):
-        """(np.array) Return bin edges to cover an epoch."""
-        # warnings.warn("WARNING! Using _get_bins_to_cover_epoch assumes " \
-        #     "a starting time of 0 seconds. This is not always approapriate," \
-        #     " but more flexibility is not yet supported.")
-        # TODO: add flexibility to start at aritrary time
-        # start = ep.start - (ep.start % ds)
-        # start = ep.start - (ep.start / ds - floor(ep.start / ds))
-        # because e.g., 1 % 0.1 is messed up (precision error)
-        start = ds * np.floor(epoch.start / ds)
-        num = np.ceil((epoch.stop - start) / ds)
-        stop = start + ds * num
-        bins = np.linspace(start, stop, num+1)
-        centers = bins[:-1] + np.diff(bins) / 2
+    def _get_bins_inside_epoch(epoch, ds):
+        """(np.array) Return bin edges entirely contained inside an epoch.
+
+        Bin edges always start at epoch.start, and continue for as many
+        bins as would fit entirely inside the epoch.
+
+        NOTE 1: there are (n+1) bin edges associated with n bins.
+
+        WARNING: if an epoch is smaller than ds, then no bin will be
+                associated with the particular epoch.
+
+        NOTE 2: nelpy uses half-open intervals [a,b), but if the bin
+                width divides b-a, then the bins will cover the entire
+                range. For example, if epoch = [0,2) and ds = 1, then
+                bins = [0,1,2], even though [0,2] is not contained in
+                [0,2).
+
+        Parameters
+        ----------
+        epoch : EpochArray
+            EpochArray containing a single epoch with a start, and stop
+        ds : float
+            Time bin width, in seconds.
+
+        Returns
+        -------
+        bins : array
+            Bin edges in an array of shape (n+1,) where n is the number
+            of bins
+        centers : array
+            Bin centers in an array of shape (n,) where n is the number
+            of bins
+        """
+
+        if epoch.duration < ds:
+            warnings.warn(
+                "epoch duration is less than bin size: ignoring...")
+            return None, None
+
+        n = int(np.floor(epoch.duration / ds)) # number of bins
+
+        # linspace is better than arange for non-integral steps
+        bins = np.linspace(epoch.start, epoch.start + n*ds, n+1)
+        centers = bins[:-1] + (ds / 2)
         return bins, centers
 
     def _bin_spikes(self, spiketrainarray, epochArray, ds):
+        """
+        Docstring goes here. TBD. For use with bins that are contained
+        wholly inside the epochs.
+
+        """
+        b = []  # bin list
+        c = []  # centers list
+        s = []  # data list
+        for nn in range(spiketrainarray.n_units):
+            s.append([])
+        left_edges = []
+        right_edges = []
+        counter = 0
+        for epoch in epochArray:
+            bins, centers = self._get_bins_inside_epoch(epoch, ds)
+            if bins is not None:
+                for uu, spiketraintimes in enumerate(spiketrainarray.time):
+                    spike_counts, _ = np.histogram(
+                        spiketraintimes,
+                        bins=bins,
+                        density=False,
+                        range=(epoch.start,epoch.stop)
+                        ) # TODO: is it faster to limit range, or to cut out spikes?
+                    s[uu].extend(spike_counts.tolist())
+                left_edges.append(counter)
+                counter += len(centers) - 1
+                right_edges.append(counter)
+                counter += 1
+                b.extend(bins.tolist())
+                c.extend(centers.tolist())
+        self._bins = np.array(b)
+        self._bin_centers = np.array(c)
+        self._data = np.array(s)
+        le = np.array(left_edges)
+        le = le[:, np.newaxis]
+        re = np.array(right_edges)
+        re = re[:, np.newaxis]
+        self._binnedSupport = np.hstack((le, re))
+        support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
+        support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
+        supportdata = np.vstack([support_starts, support_stops]).T
+        self._support = EpochArray(supportdata, fs=1) # set support to TRUE bin support
+
+    def smooth(self, *, sigma=None, inplace=False,  bw=None):
+        """Smooth BinnedSpikeTrainArray by convolving with a Gaussian kernel.
+
+        Smoothing is applied in time, and the same smoothing is applied
+        to each unit in a BinnedSpikeTrainArray.
+
+        Smoothing is applied within each epoch.
+
+        Parameters
+        ----------
+        sigma : float, optional
+            Standard deviation of Gaussian kernel, in seconds. Default is 0.01 (10 ms)
+        bw : float, optional
+            Bandwidth outside of which the filter value will be zero. Default is 4.0
+        inplace : bool
+            If True the data will be replaced with the smoothed data.
+            Default is False.
+
+        Returns
+        -------
+        out : BinnedSpikeTrainArray
+            New BinnedSpikeTrainArray with smoothed data.
+        """
+
+        if bw is None:
+            bw=4
+        if sigma is None:
+            sigma = 0.01 # 10 ms default
+
+        fs = 1 / self.ds
+
+        return gaussian_filter(self, fs=fs, sigma=sigma, inplace=inplace)
+
+    @staticmethod
+    def _smooth_array(arr, w=None):
+        """Smooth an array by convolving a boxcar, row-wise.
+
+        Parameters
+        ----------
+        w : int, optional
+            Number of bins to include in boxcar window. Default is 10.
+
+        Returns
+        -------
+        smoothed: array
+            Smoothed array with same shape as arr.
+        """
+
+        if w is None:
+            w = 10
+
+        if w==1: # perform no smoothing
+            return arr
+
+        w = np.min((w, arr.shape[1]))
+
+        smoothed = arr.astype(float) # copy array and cast to float
+        window = np.ones((w,))/w
+
+        # smooth per row
+        for rowi, row in enumerate(smoothed):
+            smoothed[rowi,:] = np.convolve(row, window, mode='same')
+
+        if arr.shape[1] != smoothed.shape[1]:
+            raise TypeError("Incompatible shape returned!")
+
+        return smoothed
+
+    @staticmethod
+    def _rebin_array(arr, w):
+        """Rebin an array of shape (n_signals, n_bins) into a
+        coarser bin size.
+
+        Parameters
+        ----------
+        arr : array
+            Array with shape (n_signals, n_bins) to re-bin. A copy
+            is returned.
+        w : int
+            Number of original bins to combine into each new bin.ABC
+
+        Returns
+        -------
+        out : array
+            Bnned array with shape (n_signals, n_new_bins)
+        bin_idx : array
+            Array of shape (n_new_bins,) with the indices of the new
+            binned array, relative to the original array.
+        """
+        cs = np.cumsum(arr, axis=1)
+        binidx = np.arange(start=w, stop=cs.shape[1]+1, step=w) - 1
+
+        rebinned = np.hstack((np.array(cs[:,w-1], ndmin=2).T, cs[:,binidx[1:]] - cs[:,binidx[:-1]]))
+        # bins = bins[np.insert(binidx+1, 0, 0)]
+        return rebinned, binidx
+
+    def rebin(self, w=None):
+        """Rebin the BinnedSpikeTrainArray into a coarser bin size.
+
+        Parameters
+        ----------
+        w : int, optional
+            number of bins of width bst.ds to bin into new bin of
+            width bst.ds*w. Default is w=1 (no re-binning).
+
+        Returns
+        -------
+        out : BinnedSpikeTrainArray
+            New BinnedSpikeTrainArray with coarser resolution.
+        """
+
+        if w is None:
+            w = 1
+
+        if not float(w).is_integer:
+            raise ValueError("w has to be an integer!")
+
+        w = int(w)
+
+        bst = self
+        return self._rebin_binnedspiketrain(bst, w=w)
+
+    @staticmethod
+    def _rebin_binnedspiketrain(bst, w=None):
+        """Rebin a BinnedSpikeTrainArray into a coarser bin size.
+
+        Parameters
+        ----------
+        bst : BinnedSpikeTrainArray
+            BinnedSpikeTrainArray to re-bin into a coarser resolution.
+        w : int, optional
+            number of bins of width bst.ds to bin into new bin of
+            width bst.ds*w. Default is w=1 (no re-binning).
+
+        Returns
+        -------
+        out : BinnedSpikeTrainArray
+            New BinnedSpikeTrainArray with coarser resolution.
+
+        # FFB! TODO: if w is longer than some event size,
+        # an exception will occur. Handle it! Although I may already
+        # implicitly do that.
+        """
+
+        if w is None:
+            w = 1
+
+        if w == 1:
+            return bst
+
+        edges = np.insert(np.cumsum(bst.lengths), 0, 0)
+        newlengths = [0]
+        binedges = np.insert(np.cumsum(bst.lengths+1), 0, 0)
+        n_events = bst.support.n_epochs
+        new_centers = []
+
+        newdata = None
+
+        for ii in range(n_events):
+            data = bst.data[:,edges[ii]:edges[ii+1]]
+            bins = bst.bins[binedges[ii]:binedges[ii+1]]
+
+            datalen = data.shape[1]
+            if w <= datalen:
+                rebinned, binidx = bst._rebin_array(data, w=w)
+                bins = bins[np.insert(binidx+1, 0, 0)]
+
+                newlengths.append(rebinned.shape[1])
+
+                if newdata is None:
+                    newdata = rebinned
+                    newbins = bins
+                    newcenters = bins[:-1] + np.diff(bins) / 2
+                    newsupport = np.array([bins[0], bins[-1]])
+                else:
+                    newdata = np.hstack((newdata, rebinned))
+                    newbins = np.hstack((newbins, bins))
+                    newcenters = np.hstack((newcenters, bins[:-1] + np.diff(bins) / 2))
+                    newsupport = np.vstack((newsupport, np.array([bins[0], bins[-1]])))
+            else:
+                pass
+
+        # assemble new binned spike train array:
+        newedges = np.cumsum(newlengths)
+        newbst = BinnedSpikeTrainArray(empty=True)
+        if newdata is not None:
+            newbst._data = newdata
+            newbst._support = EpochArray(newsupport, fs=1)
+            newbst._bins = newbins
+            newbst._bin_centers = newcenters
+            newbst._ds = bst.ds*w
+            newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
+        else:
+            warnings.warn("No events are long enough to contain any bins of width {}".format(PrettyDuration(ds)))
+
+        return newbst
+
+    def _bin_spikes_old(self, spiketrainarray, epochArray, ds):
         b = []  # bin list
         c = []  # centers list
         s = []  # data list
