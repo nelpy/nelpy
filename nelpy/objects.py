@@ -1318,20 +1318,39 @@ class AnalogSignalArray:
         Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time. See
         fs_meta parameter below if sampling rate is to be stored as
-        metadata and not used for calculations.
-    support : EpochArray, optional
-        EpochArray array on which LFP is defined.
-        Default is [0, last spike] inclusive.
-    step : int
-        specifies step size of samples passed as tdata if fs is given,
-        default set to 1. e.g. decimated data would have sample numbers
-        every ten samples so step=10
-    fs_meta: float, optional
+        metadata and not used for calculations. See fs_acquisition if 
+        timestamps are stored at a different rate than what was sampled
+        and marked by the system.
+    fs_acquisition : float, optional
+        Optional to store sampling rate in Hz of the acquisition system.
+        This should be used when tdata is passed in timestamps associated
+        with the acquisition system but is stored in step sizes that are
+        of a different sampling rate. E.g. times could be stamped at 
+        30kHz but stored in a decimated fashion at 3kHz so instead of 
+        1,2,3,4,5,6,7,8,9,10,11,...,20,21,22... it would be 1,10,20,30... 
+        In cases like this fs_acquisiton would be 10 times higher than fs. 
+        Additionally, fs_acquisition as opposed to fs will be used to 
+        calculate time if it is changed from the default None. See 
+        notebook of AnalogSignalArray uses. 
+    fs_meta : float, optional
         Optional sampling rate storage. The true sampling rate if tdata
         is time can be stored here. The above parameter, fs, must be left
         blank if tdata is time and not sample numbers. This will not be
         used for any calculations. Just to store in AnalogSignalArray as
         a value.
+    support : EpochArray, optional
+        EpochArray array on which LFP is defined.
+        Default is [0, last spike] inclusive.
+    step : int
+        specifies step size of samples passed as tdata if fs is given,
+        default is None. If not passed it is inferred by the minimum
+        difference in between samples of tdata passed in (based on if FS
+        is passed). e.g. decimated data would have sample numbers every
+        ten samples so step=10
+    merge_sample_gap : float, optional
+        Optional merging of gaps between support epochs. If epochs are within
+        a certain amount of time, gap, they will be merged as one epoch. Example
+        use case is when there is a dropped sample
     empty : bool
         Return an empty AnalogSignalArray if true else false. Default
         set to false.
@@ -1346,20 +1365,21 @@ class AnalogSignalArray:
         With shape (n_tdata,N).
     fs : float, scalar, optional
         See Parameters
-    support : EpochArray, optional
-        See Parameters
+    fs_acquisition : float, scalar, optional
     fs_meta : float, scalar, optional
         See Paramters
     step : int
+        See Parameters
+    support : EpochArray, optional
         See Parameters
     interp : array of interpolation objects from scipy.interpolate
 
         See Parameters
     """
     __attributes__ = ['_ydata', '_tdata', '_time', '_fs', '_support', \
-                      '_interp', '_fs_meta']
-    def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=None,
-                 fs_meta = None, merge_sample_gap=0, empty=False):
+                      '_interp', '_fs_meta', '_step', '_fs_acquisition']
+    def __init__(self, ydata, *, tdata=None, fs=None, fs_acquisition=None, fs_meta = None,
+                 step=None, merge_sample_gap=0, support=None, empty=False):
 
         if(empty):
             for attr in self.__attributes__:
@@ -1382,6 +1402,17 @@ class AnalogSignalArray:
         self._fs = None
         # then attempt to update the fs; this does input validation:
         self.fs = fs
+
+        #set fs_acquisition
+        self._fs_acquisition = None
+        if(fs_acquisition is not None):
+            try:
+                if(fs_acquisition > 0):
+                    self._fs_acquisition = fs_acquisition
+                else:
+                    raise ValueError("fs_acquisition must be positive")
+            except TypeError:
+                raise TypeError("fs_acquisition expected to be a scalar")
 
         # Note; if we have an empty array of ydata with no dimension,
         # then calling len(ydata) will return a TypeError
@@ -1411,7 +1442,10 @@ class AnalogSignalArray:
         # Alright, let's handle all the possible parameter cases!
         if tdata is not None:
             if fs is not None:
-                time = tdata / fs
+                if(self._fs_acquisition is not None):
+                    time = tdata / self._fs_acquisition
+                else:
+                    time = tdata / self._fs
                 self._tdata = tdata
                 if support is not None:
                     # tdata, fs, support passed properly
@@ -1430,12 +1464,12 @@ class AnalogSignalArray:
 
                 # tdata, fs and no support
                 else:
-                    warnings.warn("support created with given tdata and sampling rate, fs!")
+                    warnings.warn("creating support with given tdata and sampling rate, fs!")
                     self._time = time
                     if self._step is None:
                         self._step = np.min(np.diff(tdata))
-                    self._support = EpochArray(get_contiguous_segments(tdata,
-                        step=self._step), fs=fs)
+                    self._support = EpochArray(get_contiguous_segments(self._tdata,
+                        step=self._step), fs=self._fs_acquisition)
                     self._support = self._support.merge(gap=merge_sample_gap)
             else:
                 time = tdata
@@ -1465,13 +1499,16 @@ class AnalogSignalArray:
                     if self._step is None:
                         self._step = np.min(np.diff(tdata))
                     self._support = EpochArray(get_contiguous_segments(tdata,
-                        step=self._step), fs=fs)
+                        step=self._step), fs=self._fs_acquisition)
                     #merge gaps in Epochs if requested
                     self._support = self._support.merge(gap=merge_sample_gap)
         else:
             tdata = np.arange(0, ydata.shape[1], 1)
             if fs is not None:
-                time = tdata / fs
+                if(self._fs_acquisition is not None):
+                    time = tdata / self._fs_acquisition
+                else:
+                    time = tdata / self._fs
                 # fs and support
                 if support is not None:
                     self.__init__([],empty=True)
