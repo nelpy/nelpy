@@ -2785,6 +2785,9 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if self.isempty:
             return self
         if isinstance(idx, EpochArray):
+            # need to determine if there is any proper subset in self.support intersect EpochArray
+            # next, we need to identify all the bins that would fall within the EpochArray
+
             if idx.isempty:
                 return BinnedSpikeTrainArray(empty=True)
             if idx.fs != self.support.fs:
@@ -2836,7 +2839,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 return binnedspiketrain
             else:
                 bsupport = self.binnedSupport[[idx],:]
-                centers = self.centers[bsupport[0,0]:bsupport[0,1]+1]
+                centers = self._bin_centers[bsupport[0,0]:bsupport[0,1]+1]
                 binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
                 binstart = binindices[idx]
                 binstop = binindices[idx+1]
@@ -2846,12 +2849,44 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 binnedspiketrain._bin_centers = centers
                 return binnedspiketrain
         else:  # most likely a slice
-            try:
-                # have to be careful about re-indexing binnedSupport
-                raise NotImplementedError("slice indexing for BinnedSpikeTrainArrays not supported yet")
-            except Exception:
-                raise TypeError(
-                    'unsupported subsctipting type {}'.format(type(idx)))
+            # try:
+            # have to be careful about re-indexing binnedSupport
+            binnedspiketrain = BinnedSpikeTrainArray(empty=True)
+            exclude = ["_data", "_bins", "_support", "_bin_centers", "_spiketrainarray", "_binnedSupport"]
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                for attr in attrs:
+                    exec("binnedspiketrain." + attr + " = self." + attr)
+            support = self.support[idx]
+            binnedspiketrain._support = support
+
+            bsupport = self.binnedSupport[idx,:] # need to re-index!
+            # now build a list of all elements in bsupport:
+            ll = []
+            for bs in bsupport:
+                ll.extend(np.arange(bs[0],bs[1]+1, step=1))
+            binnedspiketrain._bin_centers = self._bin_centers[ll]
+            binnedspiketrain._data = self._data[:,ll]
+
+            lengths = self.lengths[[idx]]
+            # lengths = bsupport[:,1] - bsupport[:,0]
+            bsstarts = np.insert(np.cumsum(lengths+1),0,0)[:-1]
+            bsends = np.cumsum(lengths+1) - 1
+            binnedspiketrain._binnedSupport = np.vstack((bsstarts, bsends)).T
+
+            binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+            binstarts = binindices[idx]
+            binstops = binindices[1:][idx]  # equivalent to binindices[idx + 1], but if idx is a slice, we can't add 1 to it
+            ll = []
+            for start, stop in zip(binstarts, binstops):
+                ll.extend(np.arange(start,stop,step=1))
+            binnedspiketrain._bins = self._bins[ll]
+
+            return binnedspiketrain
+            # except Exception:
+            #     raise TypeError(
+            #         'unsupported subsctipting type {}'.format(type(idx)))
 
     @property
     def isempty(self):
