@@ -1,4 +1,4 @@
-"""This module contains data extraction functions for 
+"""This module contains data extraction functions for
 Trodes (http://spikegadgets.com/software/trodes.html)
 
 In development see issue #164 (https://github.com/eackermann/nelpy/issues/164)
@@ -6,15 +6,15 @@ In development see issue #164 (https://github.com/eackermann/nelpy/issues/164)
 
 import warnings
 import numpy as np
-from .objects import AnalogSignalArray
+from ..objects import AnalogSignalArray
 
 
 def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, step=None\
                  , decimation_factor=-1):
-    """Loads lfp and timestamps from .dat files into AnalogSignalArray after 
-    exportLFP function generates .LFP folder. This function assumes the names of 
+    """Loads lfp and timestamps from .dat files into AnalogSignalArray after
+    exportLFP function generates .LFP folder. This function assumes the names of
     the .LFP folder and within the .LFP folder have not been changed from defaults
-    (i.e. they should be the same prior to tetrode and channel number and 
+    (i.e. they should be the same prior to tetrode and channel number and
     extentions).
 
     Parameters
@@ -23,32 +23,32 @@ def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, st
         filepath to .LFP file nothing further is required. See examples.
     tetrode : np.array(dtype=uint, dimension=N)
         Tetrode(s) to extract from. A singular tetrode can be listed more than once
-        if more than one channel from that tetrode is requested. Size of tetrodes 
+        if more than one channel from that tetrode is requested. Size of tetrodes
         requested and size of channels requested must match.
     channel : np.array(dtype=uint, dimension=N)
-        Channel(s) to extract data from. For each tetrode, given in the input the 
+        Channel(s) to extract data from. For each tetrode, given in the input the
         same number of channels must be given. See examples.
     fs : np.uint() (optional)
-        optional sampling rate. timestamps are divided by this unless fs_acquisition 
+        optional sampling rate. timestamps are divided by this unless fs_acquisition
         is provided then this is used for other purposes such as filtering
     fs_acquisition : np.uint() (optional)
         optional sampling rate of the system. In general, this should be used if the
         timestamps are decimated. This should represent the original sampling rate
         of the data acquisition unit so timestamps will be divided by this but fs
-        will be used for filter calculations and other things. 
+        will be used for filter calculations and other things.
     step : np.uint() (optional)
-        Step size used in making AnalogSignalArray. If not passed it is inferred. 
+        Step size used in making AnalogSignalArray. If not passed it is inferred.
         See AnalogSignalArray for details.
     decimate : int (optional)
         Factor by which data is decimated. Data will match what is sent to modules.
         This is initialized to -1 and not used by default. Intelligent decimation or
-        interpolation is not done here. Load up AnalogSignalArray then do that if it 
+        interpolation is not done here. Load up AnalogSignalArray then do that if it
         is of importance.
 
     Returns
     ----------
     asa : AnalogSignalArray
-        AnalogSignalArray containing timestamps and particular tetrode and channels 
+        AnalogSignalArray containing timestamps and particular tetrode and channels
         requested
 
     Examples
@@ -95,10 +95,10 @@ def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, st
     if(filepath[-4:len(filepath)] == ".LFP"):
         #get file name
         temp = filepath[0:-4].split('/')[-1]
-        
+
         #load up timestamp data
         timestamps = load_timestamps(filepath + "/" + temp + ".timestamps.dat")
-        
+
         #if we're decimating start from the first index that's divisible by zero
         #this is done to match the data sent out to the modules
         if(decimation_factor > 0):
@@ -116,7 +116,7 @@ def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, st
                 lfp = load_lfp(filepath + "/" + temp + ".LFP_nt" + str(t[1]) + "ch" + str(channel[t[0]]) + ".dat")
                 if(decimation_factor > 0):
                     lfp = lfp[start::decimation_factor*10]
-                data.append(lfp)            
+                data.append(lfp)
         else:
             raise TypeError("Tetrode and Channel dimensionality mismatch!")
 
@@ -124,7 +124,5 @@ def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, st
         asa = AnalogSignalArray(data,tdata=timestamps,fs=fs, fs_acquisition=fs_acquisition,step=step)
     else:
         raise FileNotFoundError(".LFP extension expected")
-        
-    return asa
 
-    
+    return asa
