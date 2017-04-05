@@ -679,7 +679,29 @@ class EpochArray:
 
     def __invert__(self):
         """complement within self.domain"""
-        raise NotImplementedError("~ not yet implemented :(")
+        # make sure EpochArray is sorted:
+        if not self.issorted:
+            self._sort()
+        # check that EpochArray is entirely contained within domain
+        if (self.start < self.domain.start) or (self.stop > self.domain.stop):
+            raise ValueError("EpochArray must be entirely contained within domain")
+        # check that EpochArray is fully merged, or merge it if necessary
+        merged = self.merge()
+        # build complement intervals
+        starts = np.insert(merged.stops,0 , merged.domain.start)
+        stops = np.append(merged.starts, merged.domain.stop)
+        newtimes = np.vstack([starts, stops]).T
+        # remove intervals with zero duration
+        durations = newtimes[:,1] - newtimes[:,0]
+        newtimes = newtimes[durations>0]
+        complement = copy.copy(self)
+        complement._time = newtimes
+        if self._fs is None:
+            fs = 1
+        else:
+            fs = self._fs
+        complement._tdata = newtimes * fs
+        return complement
 
     def __bool__(self):
         """(bool) Empty EventArray"""
@@ -689,7 +711,6 @@ class EpochArray:
     def domain(self):
         """domain (in seconds) within which support is defined"""
         if self._domain is None:
-            print(self.start)
             return EpochArray([np.min((0,self.start)), self.stop], fs=1)
         return self._domain
 
