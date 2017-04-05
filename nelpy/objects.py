@@ -495,6 +495,9 @@ class EpochArray:
         self._fs = fs
         self._meta = meta
 
+        if not self.issorted:
+            self._sort()
+
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
@@ -666,7 +669,7 @@ class EpochArray:
         """join and merge epoch arrays"""
         if isinstance(other, EpochArray):
             new = copy.copy(self)
-            return (new.join(other)).merge().merge()
+            return (new.join(other)).merge()
         else:
             raise TypeError("unsupported operand type(s) for |: 'EpochArray' and {}".format(str(type(other))))
 
@@ -920,6 +923,9 @@ class EpochArray:
 
     def merge(self, *, gap=0.0):
         """Merges epochs that are close or overlapping.
+
+        WARNING! Algorithm only works on SORTED epochs.
+
         Parameters
         ----------
         gap : float, optional
@@ -939,6 +945,9 @@ class EpochArray:
 
         if self.fs is not None:
             gap = gap * self.fs
+
+        if not self.issorted:
+            self._sort()
 
         stops = epoch._tdatastops[:-1] + gap
         starts = epoch._tdatastarts[1:]
@@ -1101,6 +1110,12 @@ class EpochArray:
             if start <= value <= stop:
                 return True
         return False
+
+    def _sort(self):
+        """Sort epochs by epoch starts"""
+        sort_idx = np.argsort(self.time[:, 0])
+        self._time = self._time[sort_idx]
+        self._tdata = self._tdata[sort_idx]
 #----------------------------------------------------------------------#
 #======================================================================#
 
