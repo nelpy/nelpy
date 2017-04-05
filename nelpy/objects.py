@@ -17,6 +17,7 @@ __all__ = ['EventArray',
 import warnings
 import numpy as np
 import copy
+import numbers
 
 from scipy import interpolate
 from sys import float_info
@@ -597,6 +598,102 @@ class EpochArray:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
 
+    def __add__(self, other):
+        """add duration to start and stop of each epoch, or join two epoch arrays without merging"""
+        if isinstance(other, numbers.Number):
+            new = copy.copy(self)
+            return new.expand(other, direction='both')
+        elif isinstance(other, EpochArray):
+            return self.join(other)
+        else:
+            raise TypeError("unsupported operand type(s) for +: 'EpochArray' and {}".format(str(type(other))))
+
+    def __sub__(self, other):
+        """subtract duration from start and stop of each epoch"""
+        if isinstance(other, numbers.Number):
+            new = copy.copy(self)
+            return new.shrink(other, direction='both')
+        elif isinstance(other, EpochArray):
+            raise NotImplementedError("EpochArray subtraction not implemented yet :(")
+        else:
+            raise TypeError("unsupported operand type(s) for +: 'EpochArray' and {}".format(str(type(other))))
+
+    def __mul__(self, other):
+        """expand (>1) or shrink (<1) epoch durations"""
+        raise NotImplementedError("operator * not yet implemented")
+
+    def __truediv__(self, other):
+        """expand (>1) or shrink (>1) epoch durations"""
+        raise NotImplementedError("operator / not yet implemented")
+
+    def __lshift__(self, other):
+        """shift time to left"""
+        if isinstance(other, numbers.Number):
+            if self._fs is None:
+                fs = 1
+            else:
+                fs = self._fs
+            new = copy.copy(self)
+            new._time = new._time - other
+            new._tdata = new._tdata - other*fs
+            return new
+        else:
+            raise TypeError("unsupported operand type(s) for <<: 'EpochArray' and {}".format(str(type(other))))
+
+    def __rshift__(self, other):
+        """shift time to right"""
+        if isinstance(other, numbers.Number):
+            if self._fs is None:
+                fs = 1
+            else:
+                fs = self._fs
+            new = copy.copy(self)
+            new._time = new._time + other
+            new._tdata = new._tdata + other*fs
+            return new
+        else:
+            raise TypeError("unsupported operand type(s) for >>: 'EpochArray' and {}".format(str(type(other))))
+
+    def __and__(self, other):
+        """intersection of epoch arrays"""
+        if isinstance(other, EpochArray):
+            new = copy.copy(self)
+            return new.intersect(other, boundaries=True)
+        else:
+            raise TypeError("unsupported operand type(s) for &: 'EpochArray' and {}".format(str(type(other))))
+
+    def __or__(self, other):
+        """join and merge epoch arrays"""
+        if isinstance(other, EpochArray):
+            new = copy.copy(self)
+            return (new.join(other)).merge().merge()
+        else:
+            raise TypeError("unsupported operand type(s) for |: 'EpochArray' and {}".format(str(type(other))))
+
+    def __invert__(self):
+        """complement within self.domain"""
+        raise NotImplementedError("~ not yet implemented :(")
+
+    def __bool__(self):
+        """(bool) Empty EventArray"""
+        return not self.isempty
+
+    @property
+    def domain(self):
+        """domain (in seconds) within which support is defined"""
+        if self._domain is None:
+            return EpochArray([np.min(0,self.start), self.stop], fs=1)
+        return self._domain
+
+    @domain.setter
+    def domain(self, val):
+        """domain (in seconds) within which support is defined"""
+        #TODO: add  input validation
+        if isinstance(val, EpochArray):
+            self._domain = val
+        elif isinstance(val, (tuple, list)):
+            self._domain = EpochArray([val[0], val[1]], fs=1)
+
     @property
     def meta(self):
         """Meta data associated with EpochArray."""
@@ -925,11 +1022,6 @@ class EpochArray:
             raise ValueError("shrink amount too large")
 
         return self.expand(-amount, direction)
-
-    def __add__(self, other):
-        """Overloaded + operator: join two EpochArrays"""
-
-        return self.join(other)
 
     def join(self, epoch, meta=None):
         """Combines [and merges] two sets of epochs. Epochs can have
@@ -1307,7 +1399,6 @@ class AnalogSignalArray:
 
     def __mul__(self, other):
         """overloaded * operator."""
-        import numbers
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._ydata = self._ydata * other
@@ -1320,7 +1411,6 @@ class AnalogSignalArray:
 
     def __truediv__(self, other):
         """overloaded / operator."""
-        import numbers
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._ydata = self._ydata / other
