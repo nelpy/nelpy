@@ -679,17 +679,41 @@ class EpochArray:
 
     def __invert__(self):
         """complement within self.domain"""
+        return self.complement()
+
+    def __bool__(self):
+        """(bool) Empty EventArray"""
+        return not self.isempty
+
+    def complement(self, domain=None):
+        """Complement within domain.
+
+        Parameters
+        ----------
+        domain : EpochArray, optional
+            EpochArray specifying entire domain. Default is self.domain.
+
+        Returns
+        -------
+        complement : EpochArray
+            EpochArray containing all the nonzero intervals in the
+            complement set.
+        """
+
+        if domain is None:
+            domain = self.domain
+
         # make sure EpochArray is sorted:
         if not self.issorted:
             self._sort()
         # check that EpochArray is entirely contained within domain
-        if (self.start < self.domain.start) or (self.stop > self.domain.stop):
+        if (self.start < domain.start) or (self.stop > domain.stop):
             raise ValueError("EpochArray must be entirely contained within domain")
         # check that EpochArray is fully merged, or merge it if necessary
         merged = self.merge()
         # build complement intervals
-        starts = np.insert(merged.stops,0 , merged.domain.start)
-        stops = np.append(merged.starts, merged.domain.stop)
+        starts = np.insert(merged.stops,0 , domain.start)
+        stops = np.append(merged.starts, domain.stop)
         newtimes = np.vstack([starts, stops]).T
         # remove intervals with zero duration
         durations = newtimes[:,1] - newtimes[:,0]
@@ -702,10 +726,6 @@ class EpochArray:
             fs = self._fs
         complement._tdata = newtimes * fs
         return complement
-
-    def __bool__(self):
-        """(bool) Empty EventArray"""
-        return not self.isempty
 
     @property
     def domain(self):
