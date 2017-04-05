@@ -8,7 +8,7 @@ import scipy.io
 #     '''Inject into the *real global namespace*, i.e. "builtins" namespace or "__builtin__" for python2.
 #     Assigning to variables declared global in a function, injects them only into the module's global namespace.
 #     >>> Global= sys.modules['__builtin__'].__dict__
-#     >>> #would need 
+#     >>> #would need
 #     >>> Global['aname'] = 'avalue'
 #     >>> #With
 #     >>> Global = global_injector()
@@ -37,7 +37,10 @@ def insert_into_namespace(name, value, name_space=globals()):
 def load_all_from_mat(filename, name_space):
     """Load all variables from .mat file.
 
-    NOTE: must be called with name_Space=globals()
+    NOTE: You will need an HDF5 python library to read matlab 7.3 or
+        later format mat files.
+    NOTE: To inject into global namespace, must be called with
+        name_Space=globals()
     """
 
     mat = scipy.io.loadmat(filename, squeeze_me=True)

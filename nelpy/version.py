@@ -1,3 +1,3 @@
 """Nelpy version info."""
 
-__version__ = '0.0.96'
+__version__ = '0.0.97'
