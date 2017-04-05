@@ -765,6 +765,67 @@ def get_sort_idx(tuning_curves):
 
     return sorted_idx
 
+def collapse_time(obj, gap=0):
+    """Collapse all epochs in a SpikeTrainArray and collapse them into a single, contiguous SpikeTrainArray"""
+
+    # TODO: redo SpikeTrainArray so as to keep the epochs separate!, and to support gaps!
+
+    # We'll have to ajust all the spikes per epoch... and we'll have to compute a new support. Also set a flag!
+
+    # If it's a SpikeTrainArray, then we left-shift the spike times. If it's an AnalogSignalArray, then we
+    # left-shift the time and tdata.
+
+    # Also set a new attribute, with the boundaries in seconds.
+
+    if isinstance(obj, objects.AnalogSignalArray):
+        new_obj = objects.AnalogSignalArray([], empty=True)
+        new_obj._ydata = obj._ydata
+
+        durations = obj.support.durations
+        starts = np.insert(np.cumsum(durations + gap),0,0)[:-1]
+        stops = starts + durations
+        newsupport = objects.EpochArray(np.vstack((starts, stops)).T, fs=1)
+        new_obj._support = newsupport
+
+        new_time = obj.time.astype(float) # fast copy
+        time_idx = np.insert(np.cumsum(obj.lengths),0,0)
+
+        new_offset = 0
+        for epidx in range(obj.n_epochs):
+            if epidx > 0:
+                new_time[time_idx[epidx]:time_idx[epidx+1]] = new_time[time_idx[epidx]:time_idx[epidx+1]] - obj.time[time_idx[epidx]] + new_offset + gap
+                new_offset += durations[epidx] + gap
+            else:
+                new_time[time_idx[epidx]:time_idx[epidx+1]] = new_time[time_idx[epidx]:time_idx[epidx+1]] - obj.time[time_idx[epidx]] + new_offset
+                new_offset += durations[epidx]
+        new_obj._time = new_time
+        new_obj._tdata = new_obj._time
+
+        new_obj._fs = obj._fs
+
+    elif isinstance(obj, objects.SpikeTrainArray):
+        if gap > 0:
+            raise ValueError("gaps not supported for SpikeTrainArrays yet!")
+        new_obj = objects.SpikeTrainArray(empty=True)
+        new_time = lists = [[] for _ in range(obj.n_units)]
+        duration = 0
+        for st_ in obj:
+            le = st_.support.start
+            for unit_ in range(obj.n_units):
+                new_time[unit_].extend(st_._time[unit_] - le + duration)
+            duration += st_.support.duration
+        new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time])
+        new_obj._time = new_time
+        new_obj._support = objects.EpochArray([0, duration], fs=1)
+        new_obj._unit_ids = obj._unit_ids
+        new_obj._unit_labels = obj._unit_labels
+    elif isinstance(obj, objects.BinnedSpikeTrainArray):
+        raise NotImplementedError("BinnedSpikeTrains are not yet supported, but bst.data is essentially already collapsed!")
+    else:
+        raise TypeError("unsupported type for collapse_time")
+
+    return new_obj
+
 def cartesian(xcenters, ycenters):
     """Finds every combination of elements in two arrays.
 
