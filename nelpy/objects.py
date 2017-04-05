@@ -94,238 +94,6 @@ def fssetter(self, val):
     self._fs = val
 
 
-# class AnalogSignalEmily:
-#     """A continuous analog timestamped signal.
-
-#     Parameters
-#     ----------
-#     data : np.array
-#     time : np.array
-
-#     Attributes
-#     ----------
-#     data : np.array
-#         With shape (n_samples, dimensionality).
-#     time : np.array
-#         With shape (n_samples,).
-#     """
-
-#     def __init__(self, data, time):
-#         data = np.squeeze(data).astype(float)
-#         time = np.squeeze(time).astype(float)
-
-#         if time.ndim == 0:
-#             time = time[..., np.newaxis]
-#             data = data[np.newaxis, ...]
-
-#         if time.ndim != 1:
-#             raise ValueError("time must be a vector")
-
-#         if data.ndim == 1:
-#             data = data[..., np.newaxis]
-
-#         if data.ndim > 2:
-#             raise ValueError("data must be vector or 2D array")
-#         if data.shape[0] != data.shape[1] and time.shape[0] == data.shape[1]:
-#             warnings.warn("data should be shape (timesteps, dimensionality); "
-#                           "got (dimensionality, timesteps). Correcting...")
-#             data = data.T
-#         if time.shape[0] != data.shape[0]:
-#             raise ValueError("must have same number of time and data samples")
-
-#         self.data = data
-#         self.time = time
-
-#     def __getitem__(self, idx):
-#         return AnalogSignalEmily(self.data[idx], self.time[idx])
-
-#     @property
-#     def dimensions(self):
-#         """(int) Dimensionality of data attribute."""
-#         return self.data.shape[1]
-
-#     @property
-#     def n_samples(self):
-#         """(int) Number of samples."""
-#         return self.time.size
-
-#     @property
-#     def isempty(self):
-#         """(bool) Empty AnalogSignalEmily."""
-#         if len(self.time) == 0:
-#             empty = True
-#         else:
-#             empty = False
-#         return empty
-
-#     def time_slice(self, t_start, t_stop):
-#         """Creates a new object corresponding to the time slice of
-#         the original between (and including) times t_start and t_stop. Setting
-#         either parameter to None uses infinite endpoints for the time interval.
-
-#         Parameters
-#         ----------
-#         AnalogSignalEmily : vdmlab.AnalogSignalEmily
-#         t_start : float
-#         t_stop : float
-
-#         Returns
-#         -------
-#         sliced_AnalogSignalEmily : vdmlab.AnalogSignalEmily
-#         """
-#         if t_start is None:
-#             t_start = -np.inf
-#         if t_stop is None:
-#             t_stop = np.inf
-
-#         indices = (self.time >= t_start) & (self.time <= t_stop)
-
-#         return self[indices]
-
-
-#     def time_slices(self, t_starts, t_stops):
-#         """Creates a new object corresponding to the time slice of
-#         the original between (and including) times t_start and t_stop. Setting
-#         either parameter to None uses infinite endpoints for the time interval.
-
-#         Parameters
-#         ----------
-#         AnalogSignalEmily : vdmlab.AnalogSignalEmily
-#         t_starts : list of floats
-#         t_stops : list of floats
-
-#         Returns
-#         -------
-#         sliced_AnalogSignalEmily : vdmlab.AnalogSignalEmily
-#         """
-#         if len(t_starts) != len(t_stops):
-#             raise ValueError("must have same number of start and stop times")
-
-#         indices = []
-#         for t_start, t_stop in zip(t_starts, t_stops):
-#             indices.append((self.time >= t_start) & (self.time <= t_stop))
-#         indices = np.any(np.column_stack(indices), axis=1)
-
-#         return self[indices]
-
-# class TrajectoryEmily(AnalogSignalEmily):
-#     """Subclass of AnalogSignalEmily. Handles both 1D and 2d TrajectoryEmilys.
-
-#     Parameters
-#     ----------
-#     data : np.array
-#     time : np.array
-
-#     Attributes
-#     ----------
-#     data : np.array
-#         With shape (n_samples, dimensionality).
-#     time : np.array
-#         With shape (n_samples,).
-#     """
-#     def __getitem__(self, idx):
-#         if type(idx) == vdm.objects.Epoch:
-#             return self.time_slices(idx.starts, idx.stops)
-#         else:
-#             return TrajectoryEmily(self.data[idx], self.time[idx])
-
-#     @property
-#     def x(self):
-#         """(np.array) The 'x' TrajectoryEmily attribute."""
-#         return self.data[:, 0]
-
-#     @x.setter
-#     def x(self, val):
-#         self.data[:, 0] = val
-
-#     @property
-#     def y(self):
-#         """(np.array) The 'y' TrajectoryEmily attribute for 2D TrajectoryEmily data."""
-#         if self.dimensions < 2:
-#             raise ValueError("can't get 'y' of one-dimensional TrajectoryEmily")
-#         return self.data[:, 1]
-
-#     @y.setter
-#     def y(self, val):
-#         if self.dimensions < 2:
-#             raise ValueError("can't set 'y' of one-dimensional TrajectoryEmily")
-#         self.data[:, 1] = val
-
-#     def distance(self, pos):
-#         """ Return the euclidean distance from this TrajectoryEmily to the given 'pos'.
-
-#         Parameters
-#         ----------
-#         pos : vdmlab.TrajectoryEmily
-
-#         Returns
-#         -------
-#         dist : np.array
-#         """
-
-#         if pos.n_samples != self.n_samples:
-#             raise ValueError("'pos' must have %d samples" % self.n_samples)
-
-#         if self.dimensions != pos.dimensions:
-#             raise ValueError("'pos' must be %d dimensions" % self.dimensions)
-
-#         dist = np.zeros(self.n_samples)
-#         for idx in range(self.data.shape[1]):
-#             dist += (self.data[:, idx] - pos.data[:, idx]) ** 2
-#         return np.sqrt(dist)
-
-#     def linearize(self, ideal_path, zone):
-#         """ Projects 2D TrajectoryEmilys into an 'ideal' linear trajectory.
-
-#         Parameters
-#         ----------
-#         ideal_path : shapely.LineString
-#         zone : shapely.Polygon
-
-#         Returns
-#         -------
-#         pos : vdmlab.TrajectoryEmily
-#             1D TrajectoryEmily.
-
-#         """
-#         zpos = []
-#         for point_x, point_y in zip(self.x, self.y):
-#             point = Point([point_x, point_y])
-#             if zone.contains(point):
-#                 zpos.append(ideal_path.project(Point(point_x, point_y)))
-#         zpos = np.array(zpos)
-
-#         return TrajectoryEmily(zpos, self.time)
-
-#     def speed(self, t_smooth=None):
-#         """Finds the speed of the animal from TrajectoryEmily.
-
-#         Parameters
-#         ----------
-#         pos : vdmlab.TrajectoryEmily
-#         t_smooth : float or None
-#             Range over which smoothing occurs in seconds.
-#             Default is None (no smoothing).
-
-#         Returns
-#         -------
-#         speed : vdmlab.AnalogSignalEmily
-#         """
-#         speed = self[1:].distance(self[:-1])
-#         speed /= np.diff(self.time)
-#         speed = np.hstack(([0], speed))
-
-#         dt = np.median(np.diff(self.time))
-
-#         if t_smooth is not None:
-#             filter_length = np.ceil(t_smooth / dt)
-#             speed = np.convolve(speed, np.ones(int(filter_length))/filter_length, 'same')
-
-#         speed = speed * dt
-
-#         return AnalogSignalEmily(speed, self.time)
-
-
 ########################################################################
 # class SpikeTrain
 ########################################################################
@@ -1536,6 +1304,32 @@ class AnalogSignalArray:
                     warnings.warn("support created with given ydata! support is entire signal")
                     self._support = EpochArray(np.array([0, tdata[-1]]))
             self._tdata = tdata
+
+    def __mul__(self, other):
+        """overloaded * operator."""
+        import numbers
+        if isinstance(other, numbers.Number):
+            newasa = copy.copy(self)
+            newasa._ydata = self._ydata * other
+            return newasa
+        else:
+            raise TypeError("unsupported operand type(s) for *: 'AnalogSignalArray' and '{}'".format(str(type(other))))
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        """overloaded / operator."""
+        import numbers
+        if isinstance(other, numbers.Number):
+            newasa = copy.copy(self)
+            newasa._ydata = self._ydata / other
+            return newasa
+        else:
+            raise TypeError("unsupported operand type(s) for /: 'AnalogSignalArray' and '{}'".format(str(type(other))))
+
+    def __len__(self):
+        return self.n_epochs
 
     def add_signal(self, signal, label=None):
         """Docstring goes here.
