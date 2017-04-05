@@ -222,6 +222,8 @@ class PrettyDuration(float):
     @staticmethod
     def time_string(seconds):
         """returns a formatted time string."""
+        if np.isinf(seconds):
+            return 'inf'
         dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
         if s > 0:
             if mm == 0:
