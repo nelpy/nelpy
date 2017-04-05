@@ -539,8 +539,8 @@ class SpikeTrain(ABC):
             else:
                 unit_subset_ids.append(id)
 
-        new_unit_ids = np.asarray(self.unit_ids)[unit_subset_ids]
-        new_unit_labels = np.asarray(self.unit_labels)[unit_subset_ids]
+        new_unit_ids = (np.asarray(self.unit_ids)[unit_subset_ids]).tolist()
+        new_unit_labels = (np.asarray(self.unit_labels)[unit_subset_ids]).tolist()
 
         if isinstance(self, SpikeTrainArray):
             if len(unit_subset_ids) == 0:
@@ -1157,6 +1157,11 @@ class EpochArray:
             raise ValueError("shrink amount too large")
 
         return self.expand(-amount, direction)
+
+    def __add__(self, other):
+        """Overloaded + operator: join two EpochArrays"""
+
+        return self.join(other)
 
     def join(self, epoch, meta=None):
         """Combines [and merges] two sets of epochs. Epochs can have
@@ -2386,6 +2391,19 @@ class SpikeTrainArray(SpikeTrain):
             for attr in self.__attributes__:
                 exec("newcopy." + attr + " = self." + attr)
         return newcopy
+
+    def __add__(self, other):
+        """Overloaded + operator"""
+
+        #TODO: additional checks need to be done, e.g., same unit ids...
+        assert self.n_units == other.n_units
+        support = self.support + other.support
+
+        newdata = []
+        for unit in range(self.n_units):
+            newdata.append(np.append(self.time[unit], other.time[unit]))
+
+        return SpikeTrainArray(newdata, support=support, fs=1)
 
     def __iter__(self):
         """SpikeTrainArray iterator initialization."""
