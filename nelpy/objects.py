@@ -374,6 +374,7 @@ class EpochArray:
         assumed for every epoch.
     meta : dict, optional
         Metadata associated with spiketrain.
+    domain : EpochArray ??? This is pretty meta @-@
 
     Attributes
     ----------
@@ -387,10 +388,10 @@ class EpochArray:
         Metadata associated with spiketrain.
     """
 
-    __attributes__ = ["_tdata", "_time", "_fs", "_meta"]
+    __attributes__ = ["_tdata", "_time", "_fs", "_meta", "_domain"]
 
     def __init__(self, tdata=None, *, fs=None, duration=None,
-                 meta=None, empty=False):
+                 meta=None, empty=False, domain=None):
 
         # if an empty object is requested, return it:
         if empty:
@@ -489,6 +490,9 @@ class EpochArray:
             time = tdata / fs
         else:
             time = tdata
+
+        # potentially assign domain
+        self._domain = domain
 
         self._time = time
         self._tdata = tdata
@@ -685,7 +689,8 @@ class EpochArray:
     def domain(self):
         """domain (in seconds) within which support is defined"""
         if self._domain is None:
-            return EpochArray([np.min(0,self.start), self.stop], fs=1)
+            print(self.start)
+            return EpochArray([np.min((0,self.start)), self.stop], fs=1)
         return self._domain
 
     @domain.setter
@@ -809,6 +814,22 @@ class EpochArray:
         if self.isempty:
             return 0
         return PrettyInt(len(self.time[:, 0]))
+
+    def __len__(self):
+        """(int) The number of epochs."""
+        return self.n_epochs
+
+    @property
+    def ismerged(self):
+        """(bool) No overlapping epochs exist."""
+        if self.isempty:
+            return True
+        if not self.issorted:
+            self._sort()
+        if not is_sorted(self.stops):
+            return False
+
+        return np.all(self.time[1:,0] - self.time[:-1,1] >= 0)
 
     @property
     def issorted(self):
@@ -935,46 +956,49 @@ class EpochArray:
         -------
         merged_epochs : nelpy.EpochArray
         """
-        if self.isempty:
+        if self.ismerged:
             return self
 
-        if gap < 0:
-            raise ValueError("gap cannot be negative")
+        while not self.ismerged:
 
-        epoch = self.copy()
+            if gap < 0:
+                raise ValueError("gap cannot be negative")
 
-        if self.fs is not None:
-            gap = gap * self.fs
+            epoch = self.copy()
 
-        if not self.issorted:
-            self._sort()
+            if self.fs is not None:
+                gap = gap * self.fs
 
-        stops = epoch._tdatastops[:-1] + gap
-        starts = epoch._tdatastarts[1:]
-        to_merge = (stops - starts) >= 0
+            if not self.issorted:
+                self._sort()
 
-        new_starts = [epoch._tdatastarts[0]]
-        new_stops = []
+            stops = epoch._tdatastops[:-1] + gap
+            starts = epoch._tdatastarts[1:]
+            to_merge = (stops - starts) >= 0
 
-        next_stop = epoch._tdatastops[0]
-        for i in range(epoch.time.shape[0] - 1):
-            this_stop = epoch._tdatastops[i]
-            next_stop = max(next_stop, this_stop)
-            if not to_merge[i]:
-                new_stops.append(next_stop)
-                new_starts.append(epoch._tdatastarts[i + 1])
+            new_starts = [epoch._tdatastarts[0]]
+            new_stops = []
 
-        new_stops.append(epoch._tdatastops[-1])
+            next_stop = epoch._tdatastops[0]
+            for i in range(epoch.time.shape[0] - 1):
+                this_stop = epoch._tdatastops[i]
+                next_stop = max(next_stop, this_stop)
+                if not to_merge[i]:
+                    new_stops.append(next_stop)
+                    new_starts.append(epoch._tdatastarts[i + 1])
 
-        new_starts = np.array(new_starts)
-        new_stops = np.array(new_stops)
+            new_stops.append(epoch._tdatastops[-1])
 
-        return EpochArray(
-            new_starts,
-            duration=new_stops - new_starts,
-            fs=self.fs,
-            meta=self.meta
-            )
+            new_starts = np.array(new_starts)
+            new_stops = np.array(new_stops)
+
+            self._time = np.vstack([new_starts, new_stops]).T
+            fs = self.fs
+            if fs is None:
+                fs = 1
+            self._tdata = self._time * fs
+
+        return self
 
     def expand(self, amount, direction='both'):
         """Expands epoch by the given amount.
