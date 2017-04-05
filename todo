@@ -1,0 +1,13 @@
+* integrate mua into nelpy
+* integrate unimodal into nelpy
+
+* restrict minimum firing rate
+* restrict to minimum number of cells
+* remove empty bins
+* linregress
+* shuffle
+* prior when we have too few spikes?
+
+* decoding error cum prob plot
+
+* psth, isi, fano-factor, ... (easy and not important)

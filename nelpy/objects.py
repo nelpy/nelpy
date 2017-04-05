@@ -5,9 +5,7 @@ __all__ = ['EventArray',
            'EpochArray',
            'AnalogSignalArray',
            'SpikeTrainArray',
-           'BinnedSpikeTrainArray',
-           'AnalogSignalEmily',
-           'TrajectoryEmily']
+           'BinnedSpikeTrainArray']
 
 # TODO: how should we organize our modules so that nelpy.objects.np does
 # not shpw up, for example? If I type nelpy.object.<tab> I only want the
@@ -18,15 +16,24 @@ __all__ = ['EventArray',
 
 import warnings
 import numpy as np
-from scipy import interpolate
+import copy
+import numbers
 
-from shapely.geometry import Point
+from scipy import interpolate
+from sys import float_info
+from collections import namedtuple
+from scipy.ndimage.filters import gaussian_filter1d, gaussian_filter
+
+# from shapely.geometry import Point
 from abc import ABC, abstractmethod
 
 from .utils import is_sorted, \
                    get_contiguous_segments, \
                    linear_merge, \
-                   PrettyDuration
+                   PrettyDuration, \
+                   PrettyInt, \
+                   swap_rows, \
+                   gaussian_filter
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -71,11 +78,9 @@ def fssetter(self, val):
         return
     try:
         if val <= 0:
-            pass
+            raise ValueError("sampling rate must be positive")
     except:
         raise TypeError("sampling rate must be a scalar")
-    if val <= 0:
-        raise ValueError("sampling rate must be positive")
 
     # if it is the first time that a sampling rate is set, do not
     # modify anything except for self._fs:
@@ -88,238 +93,6 @@ def fssetter(self, val):
             )
         self._time = self.tdata / val
     self._fs = val
-
-
-class AnalogSignalEmily:
-    """A continuous analog timestamped signal.
-
-    Parameters
-    ----------
-    data : np.array
-    time : np.array
-
-    Attributes
-    ----------
-    data : np.array
-        With shape (n_samples, dimensionality).
-    time : np.array
-        With shape (n_samples,).
-    """
-
-    def __init__(self, data, time):
-        data = np.squeeze(data).astype(float)
-        time = np.squeeze(time).astype(float)
-
-        if time.ndim == 0:
-            time = time[..., np.newaxis]
-            data = data[np.newaxis, ...]
-
-        if time.ndim != 1:
-            raise ValueError("time must be a vector")
-
-        if data.ndim == 1:
-            data = data[..., np.newaxis]
-
-        if data.ndim > 2:
-            raise ValueError("data must be vector or 2D array")
-        if data.shape[0] != data.shape[1] and time.shape[0] == data.shape[1]:
-            warnings.warn("data should be shape (timesteps, dimensionality); "
-                          "got (dimensionality, timesteps). Correcting...")
-            data = data.T
-        if time.shape[0] != data.shape[0]:
-            raise ValueError("must have same number of time and data samples")
-
-        self.data = data
-        self.time = time
-
-    def __getitem__(self, idx):
-        return AnalogSignalEmily(self.data[idx], self.time[idx])
-
-    @property
-    def dimensions(self):
-        """(int) Dimensionality of data attribute."""
-        return self.data.shape[1]
-
-    @property
-    def n_samples(self):
-        """(int) Number of samples."""
-        return self.time.size
-
-    @property
-    def isempty(self):
-        """(bool) Empty AnalogSignalEmily."""
-        if len(self.time) == 0:
-            empty = True
-        else:
-            empty = False
-        return empty
-
-    def time_slice(self, t_start, t_stop):
-        """Creates a new object corresponding to the time slice of
-        the original between (and including) times t_start and t_stop. Setting
-        either parameter to None uses infinite endpoints for the time interval.
-
-        Parameters
-        ----------
-        AnalogSignalEmily : vdmlab.AnalogSignalEmily
-        t_start : float
-        t_stop : float
-
-        Returns
-        -------
-        sliced_AnalogSignalEmily : vdmlab.AnalogSignalEmily
-        """
-        if t_start is None:
-            t_start = -np.inf
-        if t_stop is None:
-            t_stop = np.inf
-
-        indices = (self.time >= t_start) & (self.time <= t_stop)
-
-        return self[indices]
-
-
-    def time_slices(self, t_starts, t_stops):
-        """Creates a new object corresponding to the time slice of
-        the original between (and including) times t_start and t_stop. Setting
-        either parameter to None uses infinite endpoints for the time interval.
-
-        Parameters
-        ----------
-        AnalogSignalEmily : vdmlab.AnalogSignalEmily
-        t_starts : list of floats
-        t_stops : list of floats
-
-        Returns
-        -------
-        sliced_AnalogSignalEmily : vdmlab.AnalogSignalEmily
-        """
-        if len(t_starts) != len(t_stops):
-            raise ValueError("must have same number of start and stop times")
-
-        indices = []
-        for t_start, t_stop in zip(t_starts, t_stops):
-            indices.append((self.time >= t_start) & (self.time <= t_stop))
-        indices = np.any(np.column_stack(indices), axis=1)
-
-        return self[indices]
-
-class TrajectoryEmily(AnalogSignalEmily):
-    """Subclass of AnalogSignalEmily. Handles both 1D and 2d TrajectoryEmilys.
-
-    Parameters
-    ----------
-    data : np.array
-    time : np.array
-
-    Attributes
-    ----------
-    data : np.array
-        With shape (n_samples, dimensionality).
-    time : np.array
-        With shape (n_samples,).
-    """
-    def __getitem__(self, idx):
-        if type(idx) == vdm.objects.Epoch:
-            return self.time_slices(idx.starts, idx.stops)
-        else:
-            return TrajectoryEmily(self.data[idx], self.time[idx])
-
-    @property
-    def x(self):
-        """(np.array) The 'x' TrajectoryEmily attribute."""
-        return self.data[:, 0]
-
-    @x.setter
-    def x(self, val):
-        self.data[:, 0] = val
-
-    @property
-    def y(self):
-        """(np.array) The 'y' TrajectoryEmily attribute for 2D TrajectoryEmily data."""
-        if self.dimensions < 2:
-            raise ValueError("can't get 'y' of one-dimensional TrajectoryEmily")
-        return self.data[:, 1]
-
-    @y.setter
-    def y(self, val):
-        if self.dimensions < 2:
-            raise ValueError("can't set 'y' of one-dimensional TrajectoryEmily")
-        self.data[:, 1] = val
-
-    def distance(self, pos):
-        """ Return the euclidean distance from this TrajectoryEmily to the given 'pos'.
-
-        Parameters
-        ----------
-        pos : vdmlab.TrajectoryEmily
-
-        Returns
-        -------
-        dist : np.array
-        """
-
-        if pos.n_samples != self.n_samples:
-            raise ValueError("'pos' must have %d samples" % self.n_samples)
-
-        if self.dimensions != pos.dimensions:
-            raise ValueError("'pos' must be %d dimensions" % self.dimensions)
-
-        dist = np.zeros(self.n_samples)
-        for idx in range(self.data.shape[1]):
-            dist += (self.data[:, idx] - pos.data[:, idx]) ** 2
-        return np.sqrt(dist)
-
-    def linearize(self, ideal_path, zone):
-        """ Projects 2D TrajectoryEmilys into an 'ideal' linear trajectory.
-
-        Parameters
-        ----------
-        ideal_path : shapely.LineString
-        zone : shapely.Polygon
-
-        Returns
-        -------
-        pos : vdmlab.TrajectoryEmily
-            1D TrajectoryEmily.
-
-        """
-        zpos = []
-        for point_x, point_y in zip(self.x, self.y):
-            point = Point([point_x, point_y])
-            if zone.contains(point):
-                zpos.append(ideal_path.project(Point(point_x, point_y)))
-        zpos = np.array(zpos)
-
-        return TrajectoryEmily(zpos, self.time)
-
-    def speed(self, t_smooth=None):
-        """Finds the speed of the animal from TrajectoryEmily.
-
-        Parameters
-        ----------
-        pos : vdmlab.TrajectoryEmily
-        t_smooth : float or None
-            Range over which smoothing occurs in seconds.
-            Default is None (no smoothing).
-
-        Returns
-        -------
-        speed : vdmlab.AnalogSignalEmily
-        """
-        speed = self[1:].distance(self[:-1])
-        speed /= np.diff(self.time)
-        speed = np.hstack(([0], speed))
-
-        dt = np.median(np.diff(self.time))
-
-        if t_smooth is not None:
-            filter_length = np.ceil(t_smooth / dt)
-            speed = np.convolve(speed, np.ones(int(filter_length))/filter_length, 'same')
-
-        speed = speed * dt
-
-        return AnalogSignalEmily(speed, self.time)
 
 
 ########################################################################
@@ -422,9 +195,17 @@ class SpikeTrain(ABC):
 
     @property
     def n_sequences(self):
+        warnings.warn("n_sequences is deprecated---use n_epochs instead", DeprecationWarning)
         if self.isempty:
             return 0
         """(int) The number of sequences."""
+        return self.support.n_epochs
+
+    @property
+    def n_epochs(self):
+        if self.isempty:
+            return 0
+        """(int) The number of underlying epochs."""
         return self.support.n_epochs
 
     @property
@@ -527,8 +308,8 @@ class SpikeTrain(ABC):
             else:
                 unit_subset_ids.append(id)
 
-        new_unit_ids = np.asarray(self.unit_ids)[unit_subset_ids]
-        new_unit_labels = np.asarray(self.unit_labels)[unit_subset_ids]
+        new_unit_ids = (np.asarray(self.unit_ids)[unit_subset_ids]).tolist()
+        new_unit_labels = (np.asarray(self.unit_labels)[unit_subset_ids]).tolist()
 
         if isinstance(self, SpikeTrainArray):
             if len(unit_subset_ids) == 0:
@@ -593,6 +374,7 @@ class EpochArray:
         assumed for every epoch.
     meta : dict, optional
         Metadata associated with spiketrain.
+    domain : EpochArray ??? This is pretty meta @-@
 
     Attributes
     ----------
@@ -606,10 +388,10 @@ class EpochArray:
         Metadata associated with spiketrain.
     """
 
-    __attributes__ = ["_tdata", "_time", "_fs", "_meta"]
+    __attributes__ = ["_tdata", "_time", "_fs", "_meta", "_domain"]
 
     def __init__(self, tdata=None, *, fs=None, duration=None,
-                 meta=None, empty=False):
+                 meta=None, empty=False, domain=None):
 
         # if an empty object is requested, return it:
         if empty:
@@ -709,10 +491,16 @@ class EpochArray:
         else:
             time = tdata
 
+        # potentially assign domain
+        self._domain = domain
+
         self._time = time
         self._tdata = tdata
         self._fs = fs
         self._meta = meta
+
+        if not self.issorted:
+            self._sort()
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
@@ -816,6 +604,144 @@ class EpochArray:
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
+
+    def __add__(self, other):
+        """add duration to start and stop of each epoch, or join two epoch arrays without merging"""
+        if isinstance(other, numbers.Number):
+            new = copy.copy(self)
+            return new.expand(other, direction='both')
+        elif isinstance(other, EpochArray):
+            return self.join(other)
+        else:
+            raise TypeError("unsupported operand type(s) for +: 'EpochArray' and {}".format(str(type(other))))
+
+    def __sub__(self, other):
+        """subtract duration from start and stop of each epoch"""
+        if isinstance(other, numbers.Number):
+            new = copy.copy(self)
+            return new.shrink(other, direction='both')
+        elif isinstance(other, EpochArray):
+            raise NotImplementedError("EpochArray subtraction not implemented yet :(")
+        else:
+            raise TypeError("unsupported operand type(s) for +: 'EpochArray' and {}".format(str(type(other))))
+
+    def __mul__(self, other):
+        """expand (>1) or shrink (<1) epoch durations"""
+        raise NotImplementedError("operator * not yet implemented")
+
+    def __truediv__(self, other):
+        """expand (>1) or shrink (>1) epoch durations"""
+        raise NotImplementedError("operator / not yet implemented")
+
+    def __lshift__(self, other):
+        """shift time to left"""
+        if isinstance(other, numbers.Number):
+            if self._fs is None:
+                fs = 1
+            else:
+                fs = self._fs
+            new = copy.copy(self)
+            new._time = new._time - other
+            new._tdata = new._tdata - other*fs
+            return new
+        else:
+            raise TypeError("unsupported operand type(s) for <<: 'EpochArray' and {}".format(str(type(other))))
+
+    def __rshift__(self, other):
+        """shift time to right"""
+        if isinstance(other, numbers.Number):
+            if self._fs is None:
+                fs = 1
+            else:
+                fs = self._fs
+            new = copy.copy(self)
+            new._time = new._time + other
+            new._tdata = new._tdata + other*fs
+            return new
+        else:
+            raise TypeError("unsupported operand type(s) for >>: 'EpochArray' and {}".format(str(type(other))))
+
+    def __and__(self, other):
+        """intersection of epoch arrays"""
+        if isinstance(other, EpochArray):
+            new = copy.copy(self)
+            return new.intersect(other, boundaries=True)
+        else:
+            raise TypeError("unsupported operand type(s) for &: 'EpochArray' and {}".format(str(type(other))))
+
+    def __or__(self, other):
+        """join and merge epoch arrays"""
+        if isinstance(other, EpochArray):
+            new = copy.copy(self)
+            return (new.join(other)).merge()
+        else:
+            raise TypeError("unsupported operand type(s) for |: 'EpochArray' and {}".format(str(type(other))))
+
+    def __invert__(self):
+        """complement within self.domain"""
+        return self.complement()
+
+    def __bool__(self):
+        """(bool) Empty EventArray"""
+        return not self.isempty
+
+    def complement(self, domain=None):
+        """Complement within domain.
+
+        Parameters
+        ----------
+        domain : EpochArray, optional
+            EpochArray specifying entire domain. Default is self.domain.
+
+        Returns
+        -------
+        complement : EpochArray
+            EpochArray containing all the nonzero intervals in the
+            complement set.
+        """
+
+        if domain is None:
+            domain = self.domain
+
+        # make sure EpochArray is sorted:
+        if not self.issorted:
+            self._sort()
+        # check that EpochArray is entirely contained within domain
+        if (self.start < domain.start) or (self.stop > domain.stop):
+            raise ValueError("EpochArray must be entirely contained within domain")
+        # check that EpochArray is fully merged, or merge it if necessary
+        merged = self.merge()
+        # build complement intervals
+        starts = np.insert(merged.stops,0 , domain.start)
+        stops = np.append(merged.starts, domain.stop)
+        newtimes = np.vstack([starts, stops]).T
+        # remove intervals with zero duration
+        durations = newtimes[:,1] - newtimes[:,0]
+        newtimes = newtimes[durations>0]
+        complement = copy.copy(self)
+        complement._time = newtimes
+        if self._fs is None:
+            fs = 1
+        else:
+            fs = self._fs
+        complement._tdata = newtimes * fs
+        return complement
+
+    @property
+    def domain(self):
+        """domain (in seconds) within which support is defined"""
+        if self._domain is None:
+            return EpochArray([np.min((0,self.start)), self.stop], fs=1)
+        return self._domain
+
+    @domain.setter
+    def domain(self, val):
+        """domain (in seconds) within which support is defined"""
+        #TODO: add  input validation
+        if isinstance(val, EpochArray):
+            self._domain = val
+        elif isinstance(val, (tuple, list)):
+            self._domain = EpochArray([val[0], val[1]], fs=1)
 
     @property
     def meta(self):
@@ -928,7 +854,23 @@ class EpochArray:
         """(int) The number of epochs."""
         if self.isempty:
             return 0
-        return len(self.time[:, 0])
+        return PrettyInt(len(self.time[:, 0]))
+
+    def __len__(self):
+        """(int) The number of epochs."""
+        return self.n_epochs
+
+    @property
+    def ismerged(self):
+        """(bool) No overlapping epochs exist."""
+        if self.isempty:
+            return True
+        if not self.issorted:
+            self._sort()
+        if not is_sorted(self.stops):
+            return False
+
+        return np.all(self.time[1:,0] - self.time[:-1,1] >= 0)
 
     @property
     def issorted(self):
@@ -1043,6 +985,9 @@ class EpochArray:
 
     def merge(self, *, gap=0.0):
         """Merges epochs that are close or overlapping.
+
+        WARNING! Algorithm only works on SORTED epochs.
+
         Parameters
         ----------
         gap : float, optional
@@ -1052,43 +997,55 @@ class EpochArray:
         -------
         merged_epochs : nelpy.EpochArray
         """
-        if self.isempty:
+        if (self.ismerged) and (gap==0.0):
+            "yeah, not gonna merge..."
             return self
 
         if gap < 0:
             raise ValueError("gap cannot be negative")
 
-        epoch = self.copy()
+        newepocharray = copy.copy(self)
 
-        if self.fs is not None:
-            gap = gap * self.fs
+        fs = newepocharray.fs
+        if fs is None:
+            fs = 1
 
-        stops = epoch._tdatastops[:-1] + gap
-        starts = epoch._tdatastarts[1:]
-        to_merge = (stops - starts) >= 0
+        gap = gap * fs
 
-        new_starts = [epoch._tdatastarts[0]]
-        new_stops = []
+        if not newepocharray.issorted:
+            newepocharray._sort()
 
-        next_stop = epoch._tdatastops[0]
-        for i in range(epoch.time.shape[0] - 1):
-            this_stop = epoch._tdatastops[i]
-            next_stop = max(next_stop, this_stop)
-            if not to_merge[i]:
-                new_stops.append(next_stop)
-                new_starts.append(epoch._tdatastarts[i + 1])
+        while not newepocharray.ismerged or gap>0:
+            print("merging...")
 
-        new_stops.append(epoch._tdatastops[-1])
+            stops = newepocharray._tdatastops[:-1] + gap
+            starts = newepocharray._tdatastarts[1:]
+            to_merge = (stops - starts) >= 0
 
-        new_starts = np.array(new_starts)
-        new_stops = np.array(new_stops)
+            new_starts = [newepocharray._tdatastarts[0]]
+            new_stops = []
 
-        return EpochArray(
-            new_starts,
-            duration=new_stops - new_starts,
-            fs=self.fs,
-            meta=self.meta
-            )
+            next_stop = newepocharray._tdatastops[0]
+            for i in range(newepocharray.time.shape[0] - 1):
+                this_stop = newepocharray._tdatastops[i]
+                next_stop = max(next_stop, this_stop)
+                if not to_merge[i]:
+                    new_stops.append(next_stop)
+                    new_starts.append(newepocharray._tdatastarts[i + 1])
+
+            new_stops.append(newepocharray._tdatastops[-1])
+
+            new_starts = np.array(new_starts)
+            new_stops = np.array(new_stops)
+
+            newepocharray._time = np.vstack([new_starts, new_stops]).T
+            newepocharray._tdata = newepocharray._time * fs
+
+            # after one pass, all the gap offsets have been added, and
+            # then we just need to keep merging...
+            gap = 0.0
+
+        return newepocharray
 
     def expand(self, amount, direction='both'):
         """Expands epoch by the given amount.
@@ -1224,6 +1181,12 @@ class EpochArray:
             if start <= value <= stop:
                 return True
         return False
+
+    def _sort(self):
+        """Sort epochs by epoch starts"""
+        sort_idx = np.argsort(self.time[:, 0])
+        self._time = self._time[sort_idx]
+        self._tdata = self._tdata[sort_idx]
 #----------------------------------------------------------------------#
 #======================================================================#
 
@@ -1307,20 +1270,39 @@ class AnalogSignalArray:
         Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time. See
         fs_meta parameter below if sampling rate is to be stored as
-        metadata and not used for calculations.
-    support : EpochArray, optional
-        EpochArray array on which LFP is defined.
-        Default is [0, last spike] inclusive.
-    step : int
-        specifies step size of samples passed as tdata if fs is given,
-        default set to 1. e.g. decimated data would have sample numbers
-        every ten samples so step=10
-    fs_meta: float, optional
+        metadata and not used for calculations. See fs_acquisition if 
+        timestamps are stored at a different rate than what was sampled
+        and marked by the system.
+    fs_acquisition : float, optional
+        Optional to store sampling rate in Hz of the acquisition system.
+        This should be used when tdata is passed in timestamps associated
+        with the acquisition system but is stored in step sizes that are
+        of a different sampling rate. E.g. times could be stamped at 
+        30kHz but stored in a decimated fashion at 3kHz so instead of 
+        1,2,3,4,5,6,7,8,9,10,11,...,20,21,22... it would be 1,10,20,30... 
+        In cases like this fs_acquisiton would be 10 times higher than fs. 
+        Additionally, fs_acquisition as opposed to fs will be used to 
+        calculate time if it is changed from the default None. See 
+        notebook of AnalogSignalArray uses. 
+    fs_meta : float, optional
         Optional sampling rate storage. The true sampling rate if tdata
         is time can be stored here. The above parameter, fs, must be left
         blank if tdata is time and not sample numbers. This will not be
         used for any calculations. Just to store in AnalogSignalArray as
         a value.
+    support : EpochArray, optional
+        EpochArray array on which LFP is defined.
+        Default is [0, last spike] inclusive.
+    step : int
+        specifies step size of samples passed as tdata if fs is given,
+        default is None. If not passed it is inferred by the minimum
+        difference in between samples of tdata passed in (based on if FS
+        is passed). e.g. decimated data would have sample numbers every
+        ten samples so step=10
+    merge_sample_gap : float, optional
+        Optional merging of gaps between support epochs. If epochs are within
+        a certain amount of time, gap, they will be merged as one epoch. Example
+        use case is when there is a dropped sample
     empty : bool
         Return an empty AnalogSignalArray if true else false. Default
         set to false.
@@ -1335,34 +1317,36 @@ class AnalogSignalArray:
         With shape (n_tdata,N).
     fs : float, scalar, optional
         See Parameters
-    support : EpochArray, optional
-        See Parameters
+    fs_acquisition : float, scalar, optional
     fs_meta : float, scalar, optional
         See Paramters
     step : int
+        See Parameters
+    support : EpochArray, optional
         See Parameters
     interp : array of interpolation objects from scipy.interpolate
 
         See Parameters
     """
     __attributes__ = ['_ydata', '_tdata', '_time', '_fs', '_support', \
-                      '_interp', '_fs_meta']
-    def __init__(self, ydata, *, tdata=None, fs=None, support=None, step=1,
-                 fs_meta = None, empty=False):
+                      '_interp', '_fs_meta', '_step', '_fs_acquisition']
+    def __init__(self, ydata, *, tdata=None, fs=None, fs_acquisition=None, fs_meta = None,
+                 step=None, merge_sample_gap=0, support=None, empty=False):
 
         if(empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._support = EpochArray(empty=True)
             return
+        #check if single AnalogSignal or multiple AnalogSignals in array
+        #and standardize ydata to 2D
+        ydata = np.squeeze(ydata).astype(float)
         try:
-            if(np.asarray(ydata).shape[0] != np.asarray(ydata).size):
-                ydata = np.squeeze(ydata).astype(float)
-            else:
-                ydata = np.array(ydata).astype(float)
+            if(ydata.shape[0] == ydata.size):
+                ydata = np.array(ydata,ndmin=2).astype(float)
+
         except ValueError:
             raise TypeError("Unsupported type! integer or floating point expected")
-        ydata = np.transpose(ydata)
         self._step = step
         self._fs_meta = fs_meta
 
@@ -1370,6 +1354,17 @@ class AnalogSignalArray:
         self._fs = None
         # then attempt to update the fs; this does input validation:
         self.fs = fs
+
+        #set fs_acquisition
+        self._fs_acquisition = None
+        if(fs_acquisition is not None):
+            try:
+                if(fs_acquisition > 0):
+                    self._fs_acquisition = fs_acquisition
+                else:
+                    raise ValueError("fs_acquisition must be positive")
+            except TypeError:
+                raise TypeError("fs_acquisition expected to be a scalar")
 
         # Note; if we have an empty array of ydata with no dimension,
         # then calling len(ydata) will return a TypeError
@@ -1387,12 +1382,11 @@ class AnalogSignalArray:
         # match, then TypeError!
         if(tdata is not None):
             tdata = np.squeeze(tdata).astype(float)
-            if(tdata.shape[0] != ydata.shape[0]):
+            if(tdata.shape[0] != ydata.shape[1]):
                 self.__init__([],empty=True)
                 raise TypeError("tdata and ydata size mismatch!")
 
         self._ydata = ydata
-
         # Note: time will be None if this is not a time series and fs isn't
         # specified set xtime to None.
         self._time = None
@@ -1400,7 +1394,10 @@ class AnalogSignalArray:
         # Alright, let's handle all the possible parameter cases!
         if tdata is not None:
             if fs is not None:
-                time = tdata / fs
+                if(self._fs_acquisition is not None):
+                    time = tdata / self._fs_acquisition
+                else:
+                    time = tdata / self._fs
                 self._tdata = tdata
                 if support is not None:
                     # tdata, fs, support passed properly
@@ -1419,10 +1416,13 @@ class AnalogSignalArray:
 
                 # tdata, fs and no support
                 else:
-                    warnings.warn("support created with given tdata and sampling rate, fs!")
+                    warnings.warn("creating support with given tdata and sampling rate, fs!")
                     self._time = time
-                    self._support = EpochArray(get_contiguous_segments(tdata,
-                        step=step), fs=fs)
+                    if self._step is None:
+                        self._step = np.min(np.diff(tdata))
+                    self._support = EpochArray(get_contiguous_segments(self._tdata,
+                        step=self._step), fs=self._fs_acquisition)
+                    self._support = self._support.merge(gap=merge_sample_gap)
             else:
                 time = tdata
                 self._tdata = tdata
@@ -1443,14 +1443,24 @@ class AnalogSignalArray:
                                 exec("self." + attr + " = None")
                 # tdata
                 else:
-                    warnings.warn("support created with just tdata! no sampling rate specified so support is entire range of signal")
+                    warnings.warn("support created with just tdata! no sampling rate specified so "\
+                                    + " support is entire range of signal with Epochs separted by" \
+                                    + " time step difference from first time to second time")
                     self._time = time
-                    self._support = EpochArray(get_contiguous_segments(self._time,
-                        step=self._time[1]-self._time[0]))
+                    #infer step size if not given as minimum difference in samples passed
+                    if self._step is None:
+                        self._step = np.min(np.diff(tdata))
+                    self._support = EpochArray(get_contiguous_segments(tdata,
+                        step=self._step), fs=self._fs_acquisition)
+                    #merge gaps in Epochs if requested
+                    self._support = self._support.merge(gap=merge_sample_gap)
         else:
-            tdata = np.arange(0, ydata.shape[0], 1)
+            tdata = np.arange(0, ydata.shape[1], 1)
             if fs is not None:
-                time = tdata / fs
+                if(self._fs_acquisition is not None):
+                    time = tdata / self._fs_acquisition
+                else:
+                    time = tdata / self._fs
                 # fs and support
                 if support is not None:
                     self.__init__([],empty=True)
@@ -1473,6 +1483,49 @@ class AnalogSignalArray:
                     self._support = EpochArray(np.array([0, tdata[-1]]))
             self._tdata = tdata
 
+    def __mul__(self, other):
+        """overloaded * operator."""
+        if isinstance(other, numbers.Number):
+            newasa = copy.copy(self)
+            newasa._ydata = self._ydata * other
+            return newasa
+        else:
+            raise TypeError("unsupported operand type(s) for *: 'AnalogSignalArray' and '{}'".format(str(type(other))))
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        """overloaded / operator."""
+        if isinstance(other, numbers.Number):
+            newasa = copy.copy(self)
+            newasa._ydata = self._ydata / other
+            return newasa
+        else:
+            raise TypeError("unsupported operand type(s) for /: 'AnalogSignalArray' and '{}'".format(str(type(other))))
+
+    def __len__(self):
+        return self.n_epochs
+
+    def add_signal(self, signal, label=None):
+        """Docstring goes here.
+        Basically we add a signal, and we add a label
+        """
+        # TODO: add functionality to check that supports are the same, etc.
+        if isinstance(signal, AnalogSignalArray):
+            signal = signal.ydata
+
+        signal = np.squeeze(signal)
+        if signal.ndim > 1:
+            raise TypeError("Can only add one signal at a time!")
+        if self._ydata.ndim==1:
+            self._ydata = np.vstack([np.array(self._ydata, ndmin=2), np.array(signal, ndmin=2)])
+        else:
+            self._ydata = np.vstack([self._ydata, np.array(signal, ndmin=2)])
+        print('labels not supported yet!')
+        #TODO: add label support
+        return self
+
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
         """Restrict self._time and self._ydata to an EpochArray. If no
         EpochArray is specified, self._support is used.
@@ -1489,21 +1542,21 @@ class AnalogSignalArray:
             epocharray = self._support
             update = False # support did not change; no need to update
 
-        if epocharray.isempty:
-            warnings.warn("Support specified is empty")
-            # self.__init__([],empty=True)
-            exclude = ['_support','_ydata']
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("self." + attr + " = None")
-            try:
-                self._ydata = np.zeros([0,self._ydata.shape[1]])
-            except IndexError:
-                self._ydata = np.zeros(0)
-            self._support = epocharray
-            return
+        try:
+            if epocharray.isempty:
+                warnings.warn("Support specified is empty")
+                # self.__init__([],empty=True)
+                exclude = ['_support','_ydata']
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    for attr in attrs:
+                        exec("self." + attr + " = None")
+                self._ydata = np.zeros([0,self._ydata.shape[0]])
+                self._support = epocharray
+                return
+        except AttributeError:
+            raise AttributeError("EpochArray expected")
 
         indices = []
         for eptime in epocharray.time:
@@ -1515,33 +1568,59 @@ class AnalogSignalArray:
             warnings.warn(
                 'ignoring signal outside of support')
         try:
-            if(self._ydata[indices,:] != None):
-                self._ydata = self._ydata[indices,:]
-            else:
-                try:
-                    self._ydata = np.zeros([0,self._ydata.shape[0]])
-                except IndexError:
-                    self._ydata = np.zeros(0)
+            self._ydata = self._ydata[:,indices]
         except IndexError:
-            if(self._ydata[indices] != None):
-                self._ydata = self._ydata[indices]
-            else:
-                try:
-                    self._ydata = np.zeros([0,self._ydata.shape[0]])
-                except IndexError:
-                    self._ydata = np.zeros(0)
+            self._ydata = np.zeros([0,self._ydata.shape[0]])
         self._time = self._time[indices]
         self._tdata = self._tdata[indices]
         if update:
             self._support = epocharray
 
+    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False):
+        """Smooths the regularly sampled AnalogSignalArray with a Gaussian kernel.
+
+        Smoothing is applied in time, and the same smoothing is applied to each
+        signal in the AnalogSignalArray.
+
+        Smoothing is applied within each epoch.
+
+        Parameters
+        ----------
+        fs : float, optional
+            Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+            be obtained from asa.fs
+        sigma : float, optional
+            Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+        bw : float, optional
+            Bandwidth outside of which the filter value will be zero. Default is 4.0
+        inplace : bool
+            If True the data will be replaced with the smoothed data.
+            Default is False.
+
+        Returns
+        -------
+        out : AnalogSignalArray
+            An AnalogSignalArray with smoothed data is returned.
+        """
+        kwargs = {'inplace' : inplace,
+                'fs' : fs,
+                'sigma' : sigma,
+                'bw' : bw}
+
+        return gaussian_filter(self, **kwargs)
+
+    @property
+    def lengths(self):
+        """(list) The number of samples in each epoch."""
+        # TODO: make this faster and better!
+        lengths = [segment.n_samples for segment in self]
+        return np.asanyarray(lengths).squeeze()
+
     @property
     def n_signals(self):
         """(int) The number of signals."""
         try:
-            return self._ydata.shape[1]
-        except IndexError:
-            return 1
+            return PrettyInt(self._ydata.shape[0])
         except AttributeError:
             return 0
 
@@ -1624,6 +1703,12 @@ class AnalogSignalArray:
         """(int) number of epochs in AnalogSignalArray"""
         return self._support.n_epochs
 
+    @property
+    def n_samples(self):
+        """(int) number of time samples where signal is defined."""
+        if self.isempty:
+            return 0
+        return PrettyInt(len(self.time))
 
     def __iter__(self):
         """AnalogSignal iterator initialization"""
@@ -1690,7 +1775,8 @@ class AnalogSignalArray:
                 warnings.simplefilter("ignore")
                 for attr in attrs:
                     exec("asa." + attr + " = self." + attr)
-            asa._restrict_to_epoch_array(epocharray=epoch)
+            if(not asa.isempty):
+                asa._restrict_to_epoch_array(epocharray=epoch)
             if(asa.support.isempty):
                         warnings.warn("Support is empty. Empty AnalogSignalArray returned")
                         asa = AnalogSignalArray([],empty=True)
@@ -1698,11 +1784,11 @@ class AnalogSignalArray:
 
     def _subset(self, idx):
         asa = self.copy()
-        asa._ydata = self._ydata[:,idx]
+        asa._ydata = self._ydata[idx,:]
         return asa
 
     def copy(self):
-        asa = AnalogSignalArray([],empty=True)
+        asa = AnalogSignalArray([], empty=True)
         exclude = ['_interp']
         attrs = (x for x in self.__attributes__ if x not in exclude)
         with warnings.catch_warnings():
@@ -1715,33 +1801,45 @@ class AnalogSignalArray:
             pass
         return asa
 
-    def mean(self,*,axis=0):
+    def mean(self,*,axis=1):
         """Returns the mean of each signal in AnalogSignalArray."""
         try:
-            return np.mean(self._ydata,axis=axis)
+            means = np.mean(self._ydata, axis=axis).squeeze()
+            if means.size == 1:
+                return np.asscalar(means)
+            return means
         except IndexError:
-            return np.mean(self._ydata)
+            raise IndexError("Empty AnalogSignalArray cannot calculate mean")
 
-    def std(self,*,axis=0):
+    def std(self,*,axis=1):
         """Returns the standard deviation of each signal in AnalogSignalArray."""
         try:
-            return np.std(self._ydata,axis=axis)
+            stds = np.std(self._ydata,axis=axis).squeeze()
+            if stds.size == 1:
+                return np.asscalar(stds)
+            return stds
         except IndexError:
-            return np.std(self._ydata)
+            raise IndexError("Empty AnalogSignalArray cannot calculate standard deviation")
 
-    def max(self,*,axis=0):
+    def max(self,*,axis=1):
         """Returns the maximum of each signal in AnalogSignalArray"""
         try:
-            return np.amax(self._ydata,axis=axis)
-        except IndexError:
-            return np.amax(self._ydata)
+            maxes = np.amax(self._ydata,axis=axis).squeeze()
+            if maxes.size == 1:
+                return np.asscalar(maxes)
+            return maxes
+        except ValueError:
+            raise ValueError("Empty AnalogSignalArray cannot calculate maximum")
 
-    def min(self,*,axis=0):
+    def min(self,*,axis=1):
         """Returns the minimum of each signal in AnalogSignalArray"""
         try:
-            return np.amin(self._ydata,axis=axis)
-        except IndexError:
-            return np.amin(self._ydata)
+            mins = np.amin(self._ydata,axis=axis).squeeze()
+            if mins.size == 1:
+                return np.asscalar(mins)
+            return mins
+        except ValueError:
+            raise ValueError("Empty AnalogSignalArray cannot calculate minimum")
 
     def clip(self, min, max):
         """Clip (limit) the values of each signal to min and max as specified.
@@ -1797,7 +1895,7 @@ class AnalogSignalArray:
         >>> as.trim([0, 3])
         >>> as.trim(np.array([0, 3]))
         """
-
+        warnings.warn("AnalogSignalArray: Trim may not work!")
         # TODO: do comprehensive input validation
         if stop is not None:
             try:
@@ -1838,6 +1936,193 @@ class AnalogSignalArray:
                 analogsignalarray = AnalogSignalArray([],empty=True)
         return analogsignalarray
 
+    @property
+    def _ydata_rowsig(self):
+        """returns wide-format ydata s.t. each row is a signal."""
+        return self._ydata
+
+    @property
+    def _ydata_colsig(self):
+        """returns skinny-format ydata s.t. each column is a signal."""
+        return self._ydata.T
+
+    def _get_interp1d(self,* , kind='linear', copy=True, bounds_error=False,
+                      fill_value=np.nan, assume_sorted=None):
+        """returns a scipy interp1d object"""
+
+        if assume_sorted is None:
+            assume_sorted = is_sorted(self.time)
+
+        if self.n_signals > 1:
+            axis = 1
+        else:
+            axis = -1
+
+        f = interpolate.interp1d(x=self.time,
+                                 y=self._ydata_rowsig,
+                                 kind=kind,
+                                 axis=axis,
+                                 copy=copy,
+                                 bounds_error=bounds_error,
+                                 fill_value=fill_value,
+                                 assume_sorted=assume_sorted)
+        return f
+
+    def asarray(self,*, where=None, at=None, kind='linear', copy=True,
+                bounds_error=False, fill_value=np.nan, assume_sorted=None,
+                recalculate=False, store_interp=True, n_points=None,
+                split_by_epoch=False):
+        """returns a ydata_like array at requested points.
+
+        Parameters
+        ----------
+        where : array_like or tuple, optional
+            array corresponding to np where condition
+            e.g., where=(ydata[1,:]>5) or tuple where=(speed>5,tspeed)
+        at : array_like, optional
+            Array of oints to evaluate array at. If none given, use
+            self.tdata together with 'where' if applicable.
+        n_points: int, optional
+            Number of points to interplate at. These points will be
+            distributed uniformly from self.support.start to stop.
+        split_by_epoch: bool
+            If True, separate arrays by epochs and return in a list.
+        Returns
+        -------
+        out : (array, array)
+            namedtuple tuple (xvals, yvals) of arrays, where xvals is an
+            array of time points for which (interpolated) ydata are
+            returned.
+        """
+
+        # TODO: implement splitting by epoch
+
+        if split_by_epoch:
+            raise NotImplementedError("split_by_epoch not yet implemented...")
+
+        XYArray = namedtuple('XYArray', ['xvals', 'yvals'])
+
+        if at is None and where is None and split_by_epoch is False and n_points is None:
+            xyarray = XYArray(self.time, self._ydata_rowsig.squeeze())
+            return xyarray
+
+        if where is not None:
+            assert at is None and n_points is None, "'where', 'at', and 'n_points' cannot be used at the same time"
+            if isinstance(where, tuple):
+                y = np.array(where[1]).squeeze()
+                x = where[0]
+                assert len(x) == len(y), "'where' condition and array must have same number of elements"
+                at = y[x]
+            else:
+                x = np.asanyarray(where).squeeze()
+                assert len(x) == len(self.time), "'where' condition must have same number of elements as self.time"
+                at = self.time[x]
+        elif at is not None:
+            assert n_points is None, "'at' and 'n_points' cannot be used at the same time"
+        else:
+            at = np.linspace(self.support.start, self.support.stop, n_points)
+
+        # if we made it this far, either at or where has been specified, and at is now well defined.
+
+        kwargs = {'kind':kind,
+                  'copy':copy,
+                  'bounds_error':bounds_error,
+                  'fill_value':fill_value,
+                  'assume_sorted':assume_sorted}
+
+        # retrieve an existing, or construct a new interpolation object
+        if recalculate:
+            interpobj = self._get_interp1d(**kwargs)
+        else:
+            try:
+                interpobj = self._interp
+                if interpobj is None:
+                    interpobj = self._get_interp1d(**kwargs)
+            except AttributeError: # does not exist yet
+                interpobj = self._get_interp1d(**kwargs)
+
+        # store interpolation object, if desired
+        if store_interp:
+            self._interp = interpobj
+
+        # do the actual interpolation
+        out = interpobj(at)
+
+        # TODO: set all values outside of self.support to fill_value
+
+        xyarray = XYArray(xvals=np.asanyarray(at), yvals=np.asanyarray(out).squeeze())
+        return xyarray
+
+    def simplify(self, *, ds=None, n_points=None):
+        """Returns an AnalogSignalArray where the ydata has been
+        simplified / subsampled.
+
+        This function is primarily intended to be used for plotting and
+        saving vector graphics without having too large file sizes as
+        a result of too many points.
+
+        Irrespective of whether 'ds' or 'n_points' are used, the exact
+        underlying support is propagated, and the first and last points
+        of the supports are always included, even if this would cause
+        n_points or ds to be violated.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Time (in seconds), in which to step points.
+        n_points : int, optional
+            Number of points at which to intepolate ydata. If ds is None
+            and n_points is None, then default is to use n_points=5,000
+
+        Returns
+        -------
+        out : AnalogSignalArray
+            Copy of AnalogSignalArray where ydata is only stored at the
+            new subset of points.
+        """
+
+        if self.isempty:
+            return self
+
+        if ds is not None and n_points is not None:
+            raise ValueError("ds and n_points cannot be used together")
+
+        if n_points is not None:
+            assert float(n_points).is_integer(), "n_points must be a positive integer!"
+            assert n_points > 1, "n_points must be a positive integer > 1"
+            # determine ds from number of desired points:
+            ds = self.support.duration / (n_points-1)
+
+        if ds is None:
+            # neither n_points nor ds was specified, so assume defaults:
+            n_points = np.min((5000, 250+self.n_samples//2, self.n_samples))
+            ds = self.support.duration / (n_points-1)
+
+        # build list of points at which to evaluate the AnalogSignalArray
+        at = []
+        for start, stop in self.support.time:
+            newxvals = np.arange(start, stop, step=ds).tolist()
+            if newxvals[-1] + float_info.epsilon < stop:
+                newxvals.append(stop)
+            at.extend(newxvals)
+
+        _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
+        yvals = np.array(yvals, ndmin=2)
+
+        # now make a new simplified ASA:
+        asa = AnalogSignalArray([], empty=True)
+        exclude = ['_interp', '_ydata', '_tdata', '_time']
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("asa." + attr + " = self." + attr)
+        asa._tdata = np.asanyarray(at)
+        asa._time = asa._tdata
+        asa._ydata = yvals
+
+        return asa
+
     def interp(self, event, *,store_interp=True):
         """Creates interpolate object if not created already via
         scipy.interpolate.interp1d
@@ -1856,28 +2141,22 @@ class AnalogSignalArray:
         --------
         >>> print("I will make examples soon :P")
         """
+        warnings.warn("AnalogSignalArray.interp is deprecated.", DeprecationWarning)
+
         try:
             if(self._interp is not None):
                 interp_vals = [interpObjectt(event) for interpObjectt in self._interp]
         except AttributeError:
             if(store_interp):
                 self._interp = []
-                try:
-                    if(self._ydata.shape[1] > 0):
-                        for ydata in np.transpose(self._ydata):
-                            self._interp.append(interpolate.interp1d(self._time, ydata))
-                except IndexError:
-                    self._interp.append(interpolate.interp1d(self._time,self._ydata))
+                for ydata in self._ydata:
+                    self._interp.append(interpolate.interp1d(self._time, ydata))
 
                 interp_vals = [interpObjectt(event) for interpObjectt in self._interp]
             else:
                 tempInterpObj = []
-                try:
-                    if(self._ydata.shape[1] > 0):
-                        for ydata in np.transpose(self._ydata):
-                            tempInterpObj.append(interpolate.interp1d(self._time, ydata))
-                except IndexError:
-                    tempInterpObj.append(interpolate.interp1d(self._time,self._ydata))
+                for ydata in self._ydata:
+                    tempInterpObj.append(interpolate.interp1d(self._time, ydata))
 
                 interp_vals = [interpObjectt(event) for interpObjectt in tempInterpObj]
 
@@ -2083,6 +2362,19 @@ class SpikeTrainArray(SpikeTrain):
                 exec("newcopy." + attr + " = self." + attr)
         return newcopy
 
+    def __add__(self, other):
+        """Overloaded + operator"""
+
+        #TODO: additional checks need to be done, e.g., same unit ids...
+        assert self.n_units == other.n_units
+        support = self.support + other.support
+
+        newdata = []
+        for unit in range(self.n_units):
+            newdata.append(np.append(self.time[unit], other.time[unit]))
+
+        return SpikeTrainArray(newdata, support=support, fs=1)
+
     def __iter__(self):
         """SpikeTrainArray iterator initialization."""
         # initialize the internal index to zero when used as iterator
@@ -2214,9 +2506,19 @@ class SpikeTrainArray(SpikeTrain):
     def n_units(self):
         """(int) The number of units."""
         try:
-            return len(self.time)
+            return PrettyInt(len(self.time))
         except TypeError:
             return 0
+
+    @property
+    def n_active(self):
+        """(int) The number of active units.
+
+        A unit is considered active if it fired at least one spike.
+        """
+        if self.isempty:
+            return 0
+        return PrettyInt(np.count_nonzero(self.n_spikes))
 
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
@@ -2332,8 +2634,7 @@ class SpikeTrainArray(SpikeTrain):
         return "<SpikeTrainArray%s:%s%s>%s%s" % (address_str, numstr, epstr, fsstr, labelstr)
 
     def bin(self, *, ds=None):
-        """Bin spiketrain array."""
-        # return BinnedSpikeTrainArray(self, ds=ds, empty=self.isempty)
+        """Return a binned spiketrain array."""
         return BinnedSpikeTrainArray(self, ds=ds)
 
     @property
@@ -2354,12 +2655,6 @@ class SpikeTrainArray(SpikeTrain):
         return np.array([len(unit) for unit in self.time])
 
     @property
-    def n_active(self):
-        """Number of active units per epoch with shape (n_epochs,)."""
-        raise NotImplementedError(
-            'SpikeTrainArray.n_active not implemented yet')
-
-    @property
     def issorted(self):
         """(bool) Sorted SpikeTrainArray."""
         if self.isempty:
@@ -2367,6 +2662,22 @@ class SpikeTrainArray(SpikeTrain):
         return np.array(
             [is_sorted(spiketrain) for spiketrain in self.tdata]
             ).all()
+
+    def reorder_units(self, neworder):
+        """Reorder units according to a specified order.
+
+        neworder must be list-like, of size (n_units,)
+        """
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            swap_rows(self._time, frm, to)
+            swap_rows(self._tdata, frm, to)
+            self._unit_ids[frm], self._unit_ids[to] = self._unit_ids[to], self._unit_ids[frm]
+            self._unit_labels[frm], self._unit_labels[to] = self._unit_labels[to], self._unit_labels[frm]
+            # TODO: re-build unit tags (tag system not yet implemented)
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 #----------------------------------------------------------------------#
 #======================================================================#
 
@@ -2389,7 +2700,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         The start and stop times for each epoch. With shape (n_epochs, 2).
     """
 
-    __attributes__ = ["_ds", "_bins", "_data", "_centers", "_support",
+    __attributes__ = ["_ds", "_bins", "_data", "_bin_centers", "_support",
                       "_binnedSupport", "_spiketrainarray"]
     __attributes__.extend(SpikeTrain.__attributes__)
 
@@ -2401,6 +2712,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._support = EpochArray(empty=True)
+            self._event_centers = None
             return
 
         if not isinstance(spiketrainarray, SpikeTrainArray):
@@ -2408,7 +2720,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 'spiketrainarray must be a nelpy.SpikeTrainArray object.')
 
         self._ds = None
-        self._centers = np.array([])
+        self._bin_centers = np.array([])
+        self._event_centers = None
 
         with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -2430,12 +2743,12 @@ class BinnedSpikeTrainArray(SpikeTrain):
             ds = 0.0625
 
         self._spiketrainarray = spiketrainarray # TODO: remove this if we don't need it, or decide that it's too wasteful
-        self._support = spiketrainarray.support
+        # self._support = spiketrainarray.support
         self.ds = ds
 
         self._bin_spikes(
             spiketrainarray=spiketrainarray,
-            epochArray=self.support,
+            epochArray=spiketrainarray.support,
             ds=ds
             )
 
@@ -2458,10 +2771,10 @@ class BinnedSpikeTrainArray(SpikeTrain):
         else:
             epstr = " in"
         if self.n_bins == 1:
-            bstr = " {} bin of width {} ms".format(self.n_bins, self.ds*1000)
+            bstr = " {} bin of width {}".format(self.n_bins, PrettyDuration(self.ds))
             dstr = ""
         else:
-            bstr = " {} bins of width {} ms".format(self.n_bins, self.ds*1000)
+            bstr = " {} bins of width {}".format(self.n_bins, PrettyDuration(self.ds))
             dstr = " for a total of {}".format(PrettyDuration(self.n_bins*self.ds))
         return "<BinnedSpikeTrainArray%s:%s%s%s>%s" % (address_str, ustr, epstr, bstr, dstr)
 
@@ -2484,7 +2797,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             bsupport = self.binnedSupport[[index],:]
 
             binnedspiketrain = BinnedSpikeTrainArray(empty=True)
-            exclude = ["_bins", "_data", "_support", "_centers", "_binnedSupport"]
+            exclude = ["_bins", "_data", "_support", "_bin_centers", "_binnedSupport"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
             for attr in attrs:
                 exec("binnedspiketrain." + attr + " = self." + attr)
@@ -2494,7 +2807,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             binnedspiketrain._bins = self._bins[binstart:binstop]
             binnedspiketrain._data = self._data[:,bsupport[0][0]:bsupport[0][1]+1]
             binnedspiketrain._support = support
-            binnedspiketrain._centers = self._centers[bsupport[0][0]:bsupport[0][1]+1]
+            binnedspiketrain._bin_centers = self._bin_centers[bsupport[0][0]:bsupport[0][1]+1]
             binnedspiketrain._binnedSupport = bsupport - bsupport[0,0]
         self._index += 1
         return binnedspiketrain
@@ -2504,6 +2817,9 @@ class BinnedSpikeTrainArray(SpikeTrain):
         if self.isempty:
             return self
         if isinstance(idx, EpochArray):
+            # need to determine if there is any proper subset in self.support intersect EpochArray
+            # next, we need to identify all the bins that would fall within the EpochArray
+
             if idx.isempty:
                 return BinnedSpikeTrainArray(empty=True)
             if idx.fs != self.support.fs:
@@ -2543,7 +2859,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         elif isinstance(idx, int):
             binnedspiketrain = BinnedSpikeTrainArray(empty=True)
-            exclude = ["_data", "_bins", "_support", "_centers", "_spiketrainarray", "_binnedSupport"]
+            exclude = ["_data", "_bins", "_support", "_bin_centers", "_spiketrainarray", "_binnedSupport"]
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 attrs = (x for x in self.__attributes__ if x not in exclude)
@@ -2555,22 +2871,54 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 return binnedspiketrain
             else:
                 bsupport = self.binnedSupport[[idx],:]
-                centers = self.centers[bsupport[0,0]:bsupport[0,1]+1]
+                centers = self._bin_centers[bsupport[0,0]:bsupport[0,1]+1]
                 binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
                 binstart = binindices[idx]
                 binstop = binindices[idx+1]
                 binnedspiketrain._data = self._data[:,bsupport[0,0]:bsupport[0,1]+1]
                 binnedspiketrain._bins = self._bins[binstart:binstop]
                 binnedspiketrain._binnedSupport = bsupport - bsupport[0,0]
-                binnedspiketrain._centers = centers
+                binnedspiketrain._bin_centers = centers
                 return binnedspiketrain
         else:  # most likely a slice
             try:
                 # have to be careful about re-indexing binnedSupport
-                raise NotImplementedError("slice indexing for BinnedSpikeTrainArrays not supported yet")
+                binnedspiketrain = BinnedSpikeTrainArray(empty=True)
+                exclude = ["_data", "_bins", "_support", "_bin_centers", "_spiketrainarray", "_binnedSupport"]
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    attrs = (x for x in self.__attributes__ if x not in exclude)
+                    for attr in attrs:
+                        exec("binnedspiketrain." + attr + " = self." + attr)
+                support = self.support[idx]
+                binnedspiketrain._support = support
+
+                bsupport = self.binnedSupport[idx,:] # need to re-index!
+                # now build a list of all elements in bsupport:
+                ll = []
+                for bs in bsupport:
+                    ll.extend(np.arange(bs[0],bs[1]+1, step=1))
+                binnedspiketrain._bin_centers = self._bin_centers[ll]
+                binnedspiketrain._data = self._data[:,ll]
+
+                lengths = self.lengths[[idx]]
+                # lengths = bsupport[:,1] - bsupport[:,0]
+                bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
+                bsends = np.cumsum(lengths) - 1
+                binnedspiketrain._binnedSupport = np.vstack((bsstarts, bsends)).T
+
+                binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+                binstarts = binindices[idx]
+                binstops = binindices[1:][idx]  # equivalent to binindices[idx + 1], but if idx is a slice, we can't add 1 to it
+                ll = []
+                for start, stop in zip(binstarts, binstops):
+                    ll.extend(np.arange(start,stop,step=1))
+                binnedspiketrain._bins = self._bins[ll]
+
+                return binnedspiketrain
             except Exception:
                 raise TypeError(
-                    'unsupported subsctipting type {}'.format(type(idx)))
+                    'unsupported indexing type {}'.format(type(idx)))
 
     @property
     def isempty(self):
@@ -2584,14 +2932,47 @@ class BinnedSpikeTrainArray(SpikeTrain):
     def n_units(self):
         """(int) The number of units."""
         try:
-            return self.data.shape[0]
+            return PrettyInt(self.data.shape[0])
         except AttributeError:
             return 0
 
     @property
     def centers(self):
         """(np.array) The bin centers (in seconds)."""
-        return self._centers
+        warnings.warn("centers is deprecated. Use bin_centers instead.", DeprecationWarning)
+        return self.bin_centers
+
+    @property
+    def bin_centers(self):
+        """(np.array) The bin centers (in seconds)."""
+        return self._bin_centers
+
+    @property
+    def event_centers(self):
+        """(np.array) The centers (in seconds) of each event."""
+        if self._event_centers is None:
+            raise NotImplementedError("event_centers not yet implemented")
+            # self._event_centers = midpoints
+        return self._event_centers
+
+    @property
+    def _midpoints(self):
+        """(np.array) The centers (in index space) of all events.
+
+        Example
+        -------
+        ax, img = npl.imagesc(bst.data) # data is of shape (n_units, n_bins)
+        # then _midpoints correspond to the xvals at the center of
+        # each event.
+        ax.plot(bst.event_centers, np.repeat(1, self.n_epochs), marker='o', color='w')
+
+        """
+        if self._event_centers is None:
+            midpoints = np.zeros(len(self.lengths))
+            for idx, l in enumerate(self.lengths):
+                midpoints[idx] = np.sum(self.lengths[:idx]) + l/2
+            self._event_centers = midpoints
+        return self._event_centers
 
     @property
     def data(self):
@@ -2615,7 +2996,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def lengths(self):
         """Lenghts of contiguous segments, in number of bins."""
-        return self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1
+        return (self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1).squeeze()
 
     @property
     def spiketrainarray(self):
@@ -2627,7 +3008,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def n_bins(self):
         """(int) The number of bins."""
-        return len(self.centers)
+        return PrettyInt(len(self.centers))
 
     @property
     def ds(self):
@@ -2649,23 +3030,294 @@ class BinnedSpikeTrainArray(SpikeTrain):
             self._ds = val
 
     @staticmethod
-    def _get_bins_to_cover_epoch(epoch, ds):
-        """(np.array) Return bin edges to cover an epoch."""
-        # warnings.warn("WARNING! Using _get_bins_to_cover_epoch assumes " \
-        #     "a starting time of 0 seconds. This is not always approapriate," \
-        #     " but more flexibility is not yet supported.")
-        # TODO: add flexibility to start at aritrary time
-        # start = ep.start - (ep.start % ds)
-        # start = ep.start - (ep.start / ds - floor(ep.start / ds))
-        # because e.g., 1 % 0.1 is messed up (precision error)
-        start = ds * np.floor(epoch.start / ds)
-        num = np.ceil((epoch.stop - start) / ds)
-        stop = start + ds * num
-        bins = np.linspace(start, stop, num+1)
-        centers = bins[:-1] + np.diff(bins) / 2
+    def _get_bins_inside_epoch(epoch, ds):
+        """(np.array) Return bin edges entirely contained inside an epoch.
+
+        Bin edges always start at epoch.start, and continue for as many
+        bins as would fit entirely inside the epoch.
+
+        NOTE 1: there are (n+1) bin edges associated with n bins.
+
+        WARNING: if an epoch is smaller than ds, then no bin will be
+                associated with the particular epoch.
+
+        NOTE 2: nelpy uses half-open intervals [a,b), but if the bin
+                width divides b-a, then the bins will cover the entire
+                range. For example, if epoch = [0,2) and ds = 1, then
+                bins = [0,1,2], even though [0,2] is not contained in
+                [0,2).
+
+        Parameters
+        ----------
+        epoch : EpochArray
+            EpochArray containing a single epoch with a start, and stop
+        ds : float
+            Time bin width, in seconds.
+
+        Returns
+        -------
+        bins : array
+            Bin edges in an array of shape (n+1,) where n is the number
+            of bins
+        centers : array
+            Bin centers in an array of shape (n,) where n is the number
+            of bins
+        """
+
+        if epoch.duration < ds:
+            warnings.warn(
+                "epoch duration is less than bin size: ignoring...")
+            return None, None
+
+        n = int(np.floor(epoch.duration / ds)) # number of bins
+
+        # linspace is better than arange for non-integral steps
+        bins = np.linspace(epoch.start, epoch.start + n*ds, n+1)
+        centers = bins[:-1] + (ds / 2)
         return bins, centers
 
     def _bin_spikes(self, spiketrainarray, epochArray, ds):
+        """
+        Docstring goes here. TBD. For use with bins that are contained
+        wholly inside the epochs.
+
+        """
+        b = []  # bin list
+        c = []  # centers list
+        s = []  # data list
+        for nn in range(spiketrainarray.n_units):
+            s.append([])
+        left_edges = []
+        right_edges = []
+        counter = 0
+        for epoch in epochArray:
+            bins, centers = self._get_bins_inside_epoch(epoch, ds)
+            if bins is not None:
+                for uu, spiketraintimes in enumerate(spiketrainarray.time):
+                    spike_counts, _ = np.histogram(
+                        spiketraintimes,
+                        bins=bins,
+                        density=False,
+                        range=(epoch.start,epoch.stop)
+                        ) # TODO: is it faster to limit range, or to cut out spikes?
+                    s[uu].extend(spike_counts.tolist())
+                left_edges.append(counter)
+                counter += len(centers) - 1
+                right_edges.append(counter)
+                counter += 1
+                b.extend(bins.tolist())
+                c.extend(centers.tolist())
+        self._bins = np.array(b)
+        self._bin_centers = np.array(c)
+        self._data = np.array(s)
+        le = np.array(left_edges)
+        le = le[:, np.newaxis]
+        re = np.array(right_edges)
+        re = re[:, np.newaxis]
+        self._binnedSupport = np.hstack((le, re))
+        support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
+        support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
+        supportdata = np.vstack([support_starts, support_stops]).T
+        self._support = EpochArray(supportdata, fs=1) # set support to TRUE bin support
+
+    def smooth(self, *, sigma=None, inplace=False,  bw=None):
+        """Smooth BinnedSpikeTrainArray by convolving with a Gaussian kernel.
+
+        Smoothing is applied in time, and the same smoothing is applied
+        to each unit in a BinnedSpikeTrainArray.
+
+        Smoothing is applied within each epoch.
+
+        Parameters
+        ----------
+        sigma : float, optional
+            Standard deviation of Gaussian kernel, in seconds. Default is 0.01 (10 ms)
+        bw : float, optional
+            Bandwidth outside of which the filter value will be zero. Default is 4.0
+        inplace : bool
+            If True the data will be replaced with the smoothed data.
+            Default is False.
+
+        Returns
+        -------
+        out : BinnedSpikeTrainArray
+            New BinnedSpikeTrainArray with smoothed data.
+        """
+
+        if bw is None:
+            bw=4
+        if sigma is None:
+            sigma = 0.01 # 10 ms default
+
+        fs = 1 / self.ds
+
+        return gaussian_filter(self, fs=fs, sigma=sigma, inplace=inplace)
+
+    @staticmethod
+    def _smooth_array(arr, w=None):
+        """Smooth an array by convolving a boxcar, row-wise.
+
+        Parameters
+        ----------
+        w : int, optional
+            Number of bins to include in boxcar window. Default is 10.
+
+        Returns
+        -------
+        smoothed: array
+            Smoothed array with same shape as arr.
+        """
+
+        if w is None:
+            w = 10
+
+        if w==1: # perform no smoothing
+            return arr
+
+        w = np.min((w, arr.shape[1]))
+
+        smoothed = arr.astype(float) # copy array and cast to float
+        window = np.ones((w,))/w
+
+        # smooth per row
+        for rowi, row in enumerate(smoothed):
+            smoothed[rowi,:] = np.convolve(row, window, mode='same')
+
+        if arr.shape[1] != smoothed.shape[1]:
+            raise TypeError("Incompatible shape returned!")
+
+        return smoothed
+
+    @staticmethod
+    def _rebin_array(arr, w):
+        """Rebin an array of shape (n_signals, n_bins) into a
+        coarser bin size.
+
+        Parameters
+        ----------
+        arr : array
+            Array with shape (n_signals, n_bins) to re-bin. A copy
+            is returned.
+        w : int
+            Number of original bins to combine into each new bin.ABC
+
+        Returns
+        -------
+        out : array
+            Bnned array with shape (n_signals, n_new_bins)
+        bin_idx : array
+            Array of shape (n_new_bins,) with the indices of the new
+            binned array, relative to the original array.
+        """
+        cs = np.cumsum(arr, axis=1)
+        binidx = np.arange(start=w, stop=cs.shape[1]+1, step=w) - 1
+
+        rebinned = np.hstack((np.array(cs[:,w-1], ndmin=2).T, cs[:,binidx[1:]] - cs[:,binidx[:-1]]))
+        # bins = bins[np.insert(binidx+1, 0, 0)]
+        return rebinned, binidx
+
+    def rebin(self, w=None):
+        """Rebin the BinnedSpikeTrainArray into a coarser bin size.
+
+        Parameters
+        ----------
+        w : int, optional
+            number of bins of width bst.ds to bin into new bin of
+            width bst.ds*w. Default is w=1 (no re-binning).
+
+        Returns
+        -------
+        out : BinnedSpikeTrainArray
+            New BinnedSpikeTrainArray with coarser resolution.
+        """
+
+        if w is None:
+            w = 1
+
+        if not float(w).is_integer:
+            raise ValueError("w has to be an integer!")
+
+        w = int(w)
+
+        bst = self
+        return self._rebin_binnedspiketrain(bst, w=w)
+
+    @staticmethod
+    def _rebin_binnedspiketrain(bst, w=None):
+        """Rebin a BinnedSpikeTrainArray into a coarser bin size.
+
+        Parameters
+        ----------
+        bst : BinnedSpikeTrainArray
+            BinnedSpikeTrainArray to re-bin into a coarser resolution.
+        w : int, optional
+            number of bins of width bst.ds to bin into new bin of
+            width bst.ds*w. Default is w=1 (no re-binning).
+
+        Returns
+        -------
+        out : BinnedSpikeTrainArray
+            New BinnedSpikeTrainArray with coarser resolution.
+
+        # FFB! TODO: if w is longer than some event size,
+        # an exception will occur. Handle it! Although I may already
+        # implicitly do that.
+        """
+
+        if w is None:
+            w = 1
+
+        if w == 1:
+            return bst
+
+        edges = np.insert(np.cumsum(bst.lengths), 0, 0)
+        newlengths = [0]
+        binedges = np.insert(np.cumsum(bst.lengths+1), 0, 0)
+        n_events = bst.support.n_epochs
+        new_centers = []
+
+        newdata = None
+
+        for ii in range(n_events):
+            data = bst.data[:,edges[ii]:edges[ii+1]]
+            bins = bst.bins[binedges[ii]:binedges[ii+1]]
+
+            datalen = data.shape[1]
+            if w <= datalen:
+                rebinned, binidx = bst._rebin_array(data, w=w)
+                bins = bins[np.insert(binidx+1, 0, 0)]
+
+                newlengths.append(rebinned.shape[1])
+
+                if newdata is None:
+                    newdata = rebinned
+                    newbins = bins
+                    newcenters = bins[:-1] + np.diff(bins) / 2
+                    newsupport = np.array([bins[0], bins[-1]])
+                else:
+                    newdata = np.hstack((newdata, rebinned))
+                    newbins = np.hstack((newbins, bins))
+                    newcenters = np.hstack((newcenters, bins[:-1] + np.diff(bins) / 2))
+                    newsupport = np.vstack((newsupport, np.array([bins[0], bins[-1]])))
+            else:
+                pass
+
+        # assemble new binned spike train array:
+        newedges = np.cumsum(newlengths)
+        newbst = BinnedSpikeTrainArray(empty=True)
+        if newdata is not None:
+            newbst._data = newdata
+            newbst._support = EpochArray(newsupport, fs=1)
+            newbst._bins = newbins
+            newbst._bin_centers = newcenters
+            newbst._ds = bst.ds*w
+            newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
+        else:
+            warnings.warn("No events are long enough to contain any bins of width {}".format(PrettyDuration(ds)))
+
+        return newbst
+
+    def _bin_spikes_old(self, spiketrainarray, epochArray, ds):
         b = []  # bin list
         c = []  # centers list
         s = []  # data list
@@ -2691,7 +3343,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             b.extend(bins.tolist())
             c.extend(centers.tolist())
         self._bins = np.array(b)
-        self._centers = np.array(c)
+        self._bin_centers = np.array(c)
         self._data = np.array(s)
         le = np.array(left_edges)
         le = le[:, np.newaxis]
@@ -2701,6 +3353,16 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
     @property
     def n_active(self):
+        """Number of active units.
+
+        An active unit is any unit that fired at least one spike.
+        """
+        if self.isempty:
+            return 0
+        return PrettyInt(np.count_nonzero(self.n_spikes))
+
+    @property
+    def n_active_per_bin(self):
         """Number of active units per time bin with shape (n_bins,)."""
         if self.isempty:
             return 0

@@ -14,6 +14,8 @@ from .utils import swap_cols, swap_rows
 from warnings import warn
 import numpy as np
 from pandas import unique
+from . import plotting
+from matplotlib.pyplot import subplots
 
 __all__ = ['PoissonHMM']
 
@@ -96,7 +98,7 @@ class PoissonHMM(PHMM):
                       '_unit_tags']
 
     def __init__(self, *, n_components, n_iter=None, init_params=None,
-                 params=None, verbose=False):
+                 params=None, random_state=None, verbose=False):
 
         # assign default parameter values
         if n_iter is None:
@@ -112,6 +114,7 @@ class PoissonHMM(PHMM):
                       n_iter=n_iter,
                       init_params=init_params,
                       params=params,
+                      random_state=random_state,
                       verbose=verbose)
 
         # initialize BinnedSpikeTrain attributes
@@ -163,8 +166,24 @@ class PoissonHMM(PHMM):
             warn("no state <--> external mapping has been learnt yet!")
             return None
 
-    def get_order_from_transmat(self, start_state=None):
-        """Docstring goes here"""
+    def _get_order_from_transmat(self, start_state=None):
+        """Determine a state ordering based on the transition matrix.
+
+        This is a greedy approach, starting at the a priori most probable
+        state, and moving to the next most probable state according to
+        the transition matrix, and so on.
+
+        Parameters
+        ----------
+        start_state : int, optional
+            Initial state to begin from. Defaults to the most probable
+            a priori state.
+
+        Returns
+        -------
+        new_order : list
+            List of states in transmat order.
+        """
 
         if start_state is None:
             start_state = np.argmax(self.startprob_)
@@ -192,7 +211,7 @@ class PoissonHMM(PHMM):
         If 'mode' or 'mean' is selected, self._extern_ must exist
 
         NOTE: both 'mode' and 'mean' assume that _extern_ is in sorted
-        order; this is not tested explicitly.
+        order; this is not verified explicitly.
         """
         if method is None:
             method = 'transmat'
@@ -200,7 +219,7 @@ class PoissonHMM(PHMM):
         neworder = []
 
         if method == 'transmat':
-            return self.get_order_from_transmat()
+            return self._get_order_from_transmat()
         elif method == 'mode':
             if self._extern_ is not None:
                 neworder = self._extern_.argmax(axis=1).argsort()
@@ -232,7 +251,6 @@ class PoissonHMM(PHMM):
             swap_rows(self.means_, frm, to)
             if self._extern_ is not None:
                 swap_rows(self._extern_, frm, to)
-                # swap_rows(self._extern_map, frm, to)
             self.startprob_[frm], self.startprob_[to] = self.startprob_[to], self.startprob_[frm]
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -269,10 +287,11 @@ class PoissonHMM(PHMM):
         -------
         logprob : float
             Log probability of the produced state sequence.
-
         state_sequence : array, shape (n_samples, )
             Labels for each sample from ``X`` obtained via a given
             decoder ``algorithm``.
+        centers : array, shape (n_samples, )
+            time-centers of all bins contained in ``X``
 
         See Also
         --------
@@ -284,14 +303,14 @@ class PoissonHMM(PHMM):
 
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
-            return self._decode(self, X, lengths=lengths)
+            return self._decode(self, X, lengths=lengths), None
         else:
             # we have a BinnedSpikeTrainArray
             logprobs = []
             state_sequences = []
             centers = []
             for seq in X:
-                logprob, state_sequence = self._decode(self, seq.data.T, lengths=seq.lengths)
+                logprob, state_sequence = self._decode(self, seq.data.T, lengths=seq.lengths, algorithm=algorithm)
                 logprobs.append(logprob)
                 state_sequences.append(state_sequence)
                 centers.append(seq.centers)
@@ -396,10 +415,11 @@ class PoissonHMM(PHMM):
         Returns
         -------
         logprob : float
-            Log likelihood of ``X``.
+            Log likelihood of ``X``; one scalar for each sequence in X.
 
         posteriors : array, shape (n_components, n_samples)
-            State-membership probabilities for each sample in ``X``.
+            State-membership probabilities for each sample in ``X``;
+            one array for each sequence in X.
 
         See Also
         --------
@@ -438,7 +458,7 @@ class PoissonHMM(PHMM):
         Returns
         -------
         logprob : float
-            Log likelihood of ``X``.
+            Log likelihood of ``X``; one scalar for each sequence in X.
 
         See Also
         --------
@@ -452,7 +472,11 @@ class PoissonHMM(PHMM):
             return self._score(self, X, lengths=lengths)
         else:
             # we have a BinnedSpikeTrainArray
-            return self._score(self, X.data.T, lengths=X.lengths)
+            logprobs = []
+            for seq in X:
+                logprob = self._score(self, seq.data.T)
+                logprobs.append(logprob)
+        return logprobs
 
     def fit(self, X, lengths=None):
         """Estimate model parameters using nelpy objects.
@@ -602,6 +626,48 @@ class PoissonHMM(PHMM):
                 posterior = np.dot(self._extern_.T, posterior)
                 posteriors.append(posterior)
             return logprobs, external_sequences, posteriors
+
+    def _plot_external(self, *, figsize=(3,5), sharey=True,
+                       labelstates=None, ec=None, fillcolor=None,
+                       lw=None):
+        """plot the externally associated state<-->extern mapping
+
+        WARNING! This function is not complete, and hence 'private',
+        and may be moved somewhere else later on.
+        """
+
+        if labelstates is None:
+            labelstates = [1, self.n_components]
+        if ec is None:
+            ec = 'k'
+        if fillcolor is None:
+            fillcolor = 'gray'
+        if lw is None:
+            lw = 1.5
+
+        fig, axes = subplots(self.n_components, 1, figsize=figsize, sharey=sharey)
+
+        xvals = np.arange(len(self._extern_.T[:,0]))
+
+        for state, ax in enumerate(axes):
+            ax.fill_between(xvals, 0, self._extern_.T[:,state], color=fillcolor)
+            ax.plot(xvals, self._extern_.T[:,state], color=ec, lw=lw)
+            if state + 1 in labelstates:
+                ax.set_ylabel(str(state+1), rotation=0, y=-0.1)
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            plotting.utils.no_yticks(ax)
+            plotting.utils.no_xticks(ax)
+        # fig.suptitle('normalized place fields sorted by peak location (left) and mean location (right)', y=0.92, fontsize=14)
+        # ax.set_xticklabels(['0','20', '40', '60', '80', '100'])
+        ax.set_xlabel('external variable')
+        fig.text(0.02, 0.5, 'normalized state distribution', va='center', rotation='vertical')
+
+        return fig, ax
 
 # def score_samples_ext(self, X, lengths=None):
 #         """Compute the log probability under the model and compute posteriors.

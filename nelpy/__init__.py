@@ -12,6 +12,7 @@ from .objects import *  # NOTE: control exported symbols in objects.py
 from . import filtering
 from . import plotting
 from . import utils
+# from . import io
 
 from . version import __version__
 

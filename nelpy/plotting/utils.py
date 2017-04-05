@@ -23,7 +23,10 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib import cm
 from matplotlib import colors as mplcolors
+from matplotlib import cbook
+from matplotlib.image import AxesImage
 import matplotlib.pyplot as plt
+import os
 
 __all__ = ['align_xlabels',
            'align_ylabels',
@@ -144,7 +147,7 @@ def savefig(name, fig=None, formats=None, dpi=300, verbose=True, overwrite=False
     elif formats is None and ext is not None:
         formats = [ext]
     else:
-        print('WARNING! Unhandled format.')
+        pass
 
     if fig is None:
         fig = plt.gcf()
@@ -450,6 +453,38 @@ def no_yticks(*axes):
     for ax in axes:
         ax.tick_params(axis=u'y', which=u'both',length=0)
 
+def no_ticks(*axes, where=None):
+    """Remove the tick marks on the desired axes (but leave the labels).
+
+    Parameters
+    ----------
+    ax : axis object (default=pyplot.gca())
+    where : string, optional (default 'all') or list
+        Where to remove ticks ['left', 'right', 'top', 'bottom', 'all']
+
+    """
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    if where is None:
+        where = ['all']
+
+    if isinstance(where, str):
+        where = [where]
+    for ax in axes:
+        if 'left' in where:
+            ax.tick_params(axis=u'y', which=u'both', left=False)
+        if 'right' in where:
+            ax.tick_params(axis=u'y', which=u'both', right=False)
+        if 'top' in where:
+            ax.tick_params(axis=u'x', which=u'both', top=False)
+        if 'bottom' in where:
+            ax.tick_params(axis=u'x', which=u'both', bottom=False)
+        if 'all' in where:
+            ax.tick_params(axis=u'y', which=u'both', left=False)
+            ax.tick_params(axis=u'y', which=u'both', right=False)
+            ax.tick_params(axis=u'x', which=u'both', top=False)
+            ax.tick_params(axis=u'x', which=u'both', bottom=False)
+
 def no_xticklabels(*axes):
     """Remove the tick labels on the x-axis (but leave the tick marks).
 
@@ -569,3 +604,204 @@ def sync_xlims(*axes):
     for ax in axes:
         ax.set_xlim(xmin, xmax)
     return xmin, xmax
+
+def set_xlim(xlims, *axes):
+    """Sets the xlims for all axes.
+
+    Parameters
+    ----------
+    xlims : tuple? list?
+    *axes : axis objects
+        List of matplotlib axis objects to format
+
+    Returns
+    -------
+
+
+    """
+    for ax in axes:
+        ax.set_xlim(xlims[0], xlims[1])
+
+class ModestImage(AxesImage):
+    """Computationally modest image class.
+
+    Customization of https://github.com/ChrisBeaumont/ModestImage to allow
+    extent support.
+
+    ModestImage is an extension of the Matplotlib AxesImage class
+    better suited for the interactive display of larger images. Before
+    drawing, ModestImage resamples the data array based on the screen
+    resolution and view window. This has very little affect on the
+    appearance of the image, but can substantially cut down on
+    computation since calculations of unresolved or clipped pixels
+    are skipped.
+
+    The interface of ModestImage is the same as AxesImage. However, it
+    does not currently support setting the 'extent' property. There
+    may also be weird coordinate warping operations for images that
+    I'm not aware of. Don't expect those to work either.
+    """
+    def __init__(self, *args, **kwargs):
+        self._full_res = None
+        self._sx, self._sy = None, None
+        self._bounds = (None, None, None, None)
+        self._origExtent = None
+        super(ModestImage, self).__init__(*args, **kwargs)
+        if 'extent' in kwargs and kwargs['extent'] is not None:
+            self.set_extent(kwargs['extent'])
+
+    def set_extent(self, extent):
+            super(ModestImage, self).set_extent(extent)
+            if self._origExtent is None:
+                self._origExtent = self.get_extent()
+
+    def get_image_extent(self):
+        """Returns the extent of the whole image.
+
+        get_extent returns the extent of the drawn area and not of the full
+        image.
+
+        :return: Bounds of the image (x0, x1, y0, y1).
+        :rtype: Tuple of 4 floats.
+        """
+        if self._origExtent is not None:
+            return self._origExtent
+        else:
+            return self.get_extent()
+
+    def set_data(self, A):
+        """
+        Set the image array
+
+        ACCEPTS: numpy/PIL Image A
+        """
+
+        self._full_res = A
+        self._A = A
+
+        if (self._A.dtype != np.uint8 and
+                not np.can_cast(self._A.dtype, np.float)):
+            raise TypeError("Image data can not convert to float")
+
+        if (self._A.ndim not in (2, 3) or
+                (self._A.ndim == 3 and self._A.shape[-1] not in (3, 4))):
+            raise TypeError("Invalid dimensions for image data")
+
+        self._imcache = None
+        self._rgbacache = None
+        self._oldxslice = None
+        self._oldyslice = None
+        self._sx, self._sy = None, None
+
+    def get_array(self):
+        """Override to return the full-resolution array"""
+        return self._full_res
+
+    def _scale_to_res(self):
+        """ Change self._A and _extent to render an image whose
+        resolution is matched to the eventual rendering."""
+        # extent has to be set BEFORE set_data
+        if self._origExtent is None:
+            if self.origin == "upper":
+                self._origExtent = (0, self._full_res.shape[1],
+                                    self._full_res.shape[0], 0)
+            else:
+                self._origExtent = (0, self._full_res.shape[1],
+                                    0, self._full_res.shape[0])
+
+        if self.origin == "upper":
+            origXMin, origXMax, origYMax, origYMin = self._origExtent[0:4]
+        else:
+            origXMin, origXMax, origYMin, origYMax = self._origExtent[0:4]
+        ax = self.axes
+        ext = ax.transAxes.transform([1, 1]) - ax.transAxes.transform([0, 0])
+        xlim, ylim = ax.get_xlim(), ax.get_ylim()
+        xlim = max(xlim[0], origXMin), min(xlim[1], origXMax)
+        if ylim[0] > ylim[1]:
+            ylim = max(ylim[1], origYMin), min(ylim[0], origYMax)
+        else:
+            ylim = max(ylim[0], origYMin), min(ylim[1], origYMax)
+        # print("THOSE LIMITS ARE TO BE COMPARED WITH THE EXTENT")
+        # print("IN ORDER TO KNOW WHAT IT IS LIMITING THE DISPLAY")
+        # print("IF THE AXES OR THE EXTENT")
+        dx, dy = xlim[1] - xlim[0], ylim[1] - ylim[0]
+
+        y0 = max(0, ylim[0] - 5)
+        y1 = min(self._full_res.shape[0], ylim[1] + 5)
+        x0 = max(0, xlim[0] - 5)
+        x1 = min(self._full_res.shape[1], xlim[1] + 5)
+        y0, y1, x0, x1 = [int(a) for a in [y0, y1, x0, x1]]
+
+        sy = int(max(1, min((y1 - y0) / 5., np.ceil(dy / ext[1]))))
+        sx = int(max(1, min((x1 - x0) / 5., np.ceil(dx / ext[0]))))
+
+        # have we already calculated what we need?
+        if (self._sx is not None) and (self._sy is not None):
+            if (sx >= self._sx and sy >= self._sy and
+                    x0 >= self._bounds[0] and x1 <= self._bounds[1] and
+                    y0 >= self._bounds[2] and y1 <= self._bounds[3]):
+                return
+
+        self._A = self._full_res[y0:y1:sy, x0:x1:sx]
+        self._A = cbook.safe_masked_invalid(self._A)
+        x1 = x0 + self._A.shape[1] * sx
+        y1 = y0 + self._A.shape[0] * sy
+
+        if self.origin == "upper":
+            self.set_extent([x0, x1, y1, y0])
+        else:
+            self.set_extent([x0, x1, y0, y1])
+        self._sx = sx
+        self._sy = sy
+        self._bounds = (x0, x1, y0, y1)
+        self.changed()
+
+    def draw(self, renderer, *args, **kwargs):
+        self._scale_to_res()
+        super(ModestImage, self).draw(renderer, *args, **kwargs)
+
+def imshow(axes, X, cmap=None, norm=None, aspect=None,
+           interpolation=None, alpha=None, vmin=None, vmax=None,
+           origin=None, extent=None, shape=None, filternorm=1,
+           filterrad=4.0, imlim=None, resample=None, url=None, **kwargs):
+    """Similar to matplotlib's imshow command, but produces a ModestImage
+
+    Unlike matplotlib version, must explicitly specify axes
+    """
+
+    if not axes._hold:
+        axes.cla()
+    if norm is not None:
+        assert(isinstance(norm, mcolors.Normalize))
+    if aspect is None:
+        aspect = rcParams['image.aspect']
+    axes.set_aspect(aspect)
+    im = ModestImage(axes, cmap, norm, interpolation, origin, extent,
+                     filternorm=filternorm,
+                     filterrad=filterrad, resample=resample, **kwargs)
+
+    im.set_data(X)
+    im.set_alpha(alpha)
+    axes._set_artist_props(im)
+
+    if im.get_clip_path() is None:
+        # image does not already have clipping set, clip to axes patch
+        im.set_clip_path(axes.patch)
+
+    # if norm is None and shape is None:
+    #    im.set_clim(vmin, vmax)
+    if vmin is not None or vmax is not None:
+        im.set_clim(vmin, vmax)
+    elif norm is None:
+        im.autoscale_None()
+
+    im.set_url(url)
+
+    # update ax.dataLim, and, if autoscaling, set viewLim
+    # to tightly fit the image, regardless of dataLim.
+    im.set_extent(im.get_extent())
+
+    axes.images.append(im)
+    im._remove_method = lambda h: axes.images.remove(h)
+
+    return im
