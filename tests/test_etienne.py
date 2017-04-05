@@ -4,6 +4,21 @@ import numpy as np
 
 class TestEvenMore:
 
+    def test_EpochArray_merge(self):
+        times = np.array([[1.0, 3.0],
+                  [4.0, 8.0],
+                  [12.0, 13.0],
+                  [20.0, 25.0],
+                  [1.0, 5.0],
+                  [6.0, 7.0],
+                  [15.0, 18.0],
+                  [30.0, 35.0]])
+
+        epoch = EpochArray(times)
+        merged = epoch.merge()
+        assert np.allclose(merged.starts, np.array([1.0, 12.0, 15.0, 20.0, 30.0]))
+        assert np.allclose(merged.stops, np.array([8.0, 13.0, 18.0, 25.0, 35.0]))
+
     def test_add_signal1D_1(self):
         """Add a signal to an 1D AnalogSignalArray"""
         asa = AnalogSignalArray([1,2,4])
