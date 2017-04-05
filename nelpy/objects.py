@@ -997,49 +997,55 @@ class EpochArray:
         -------
         merged_epochs : nelpy.EpochArray
         """
-        if self.ismerged:
+        if (self.ismerged) and (gap==0.0):
+            "yeah, not gonna merge..."
             return self
 
-        while not self.ismerged:
+        if gap < 0:
+            raise ValueError("gap cannot be negative")
 
-            if gap < 0:
-                raise ValueError("gap cannot be negative")
+        newepocharray = copy.copy(self)
 
-            epoch = self.copy()
+        fs = newepocharray.fs
+        if fs is None:
+            fs = 1
 
-            if self.fs is not None:
-                gap = gap * self.fs
+        gap = gap * fs
 
-            if not self.issorted:
-                self._sort()
+        if not newepocharray.issorted:
+            newepocharray._sort()
 
-            stops = epoch._tdatastops[:-1] + gap
-            starts = epoch._tdatastarts[1:]
+        while not newepocharray.ismerged or gap>0:
+            print("merging...")
+
+            stops = newepocharray._tdatastops[:-1] + gap
+            starts = newepocharray._tdatastarts[1:]
             to_merge = (stops - starts) >= 0
 
-            new_starts = [epoch._tdatastarts[0]]
+            new_starts = [newepocharray._tdatastarts[0]]
             new_stops = []
 
-            next_stop = epoch._tdatastops[0]
-            for i in range(epoch.time.shape[0] - 1):
-                this_stop = epoch._tdatastops[i]
+            next_stop = newepocharray._tdatastops[0]
+            for i in range(newepocharray.time.shape[0] - 1):
+                this_stop = newepocharray._tdatastops[i]
                 next_stop = max(next_stop, this_stop)
                 if not to_merge[i]:
                     new_stops.append(next_stop)
-                    new_starts.append(epoch._tdatastarts[i + 1])
+                    new_starts.append(newepocharray._tdatastarts[i + 1])
 
-            new_stops.append(epoch._tdatastops[-1])
+            new_stops.append(newepocharray._tdatastops[-1])
 
             new_starts = np.array(new_starts)
             new_stops = np.array(new_stops)
 
-            self._time = np.vstack([new_starts, new_stops]).T
-            fs = self.fs
-            if fs is None:
-                fs = 1
-            self._tdata = self._time * fs
+            newepocharray._time = np.vstack([new_starts, new_stops]).T
+            newepocharray._tdata = newepocharray._time * fs
 
-        return self
+            # after one pass, all the gap offsets have been added, and
+            # then we just need to keep merging...
+            gap = 0.0
+
+        return newepocharray
 
     def expand(self, amount, direction='both'):
         """Expands epoch by the given amount.
