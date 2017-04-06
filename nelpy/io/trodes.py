@@ -6,7 +6,7 @@ In development see issue #164 (https://github.com/eackermann/nelpy/issues/164)
 
 import warnings
 import numpy as np
-from ..objects import AnalogSignalArray
+from ..core import AnalogSignalArray
 
 
 def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, step=None\

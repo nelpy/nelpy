@@ -49,6 +49,7 @@ dist
 .cache/
 .playground/
 setup-old.py
+__pycache__
 
 # Etienne custom
 temp

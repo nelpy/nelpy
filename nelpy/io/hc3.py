@@ -59,7 +59,7 @@ import os.path
 import pandas as pd
 import numpy as np
 import re
-from ..objects import *
+from ..core import *
 
 # from mymap import Map
 

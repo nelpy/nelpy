@@ -26,7 +26,7 @@ import warnings
 from scipy.signal import butter, lfilter, filtfilt, firwin
 from math import log10, ceil
 
-from .objects import AnalogSignalArray
+from .core import AnalogSignalArray
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     """Returns a bandpass butterworth filter."""

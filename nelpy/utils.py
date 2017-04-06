@@ -19,7 +19,7 @@ import scipy.ndimage.filters #import gaussian_filter1d, gaussian_filter
 from numpy import log, ceil
 import copy
 
-from . import objects # so that objects.AnalogSignalArray is exposed
+from . import core # so that core.AnalogSignalArray is exposed
 
 def is_odd(n):
     """Returns True if n is odd, and False if n is even.
@@ -420,7 +420,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
     if fs is None:
         if isinstance(data, (np.ndarray, list)):
             raise ValueError("sampling frequency must be specified!")
-        elif isinstance(data, objects.AnalogSignalArray):
+        elif isinstance(data, core.AnalogSignalArray):
             fs = data.fs
 
     if isinstance(data, (np.ndarray, list)):
@@ -437,7 +437,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             EnvelopeSmoothingSD = sigma*fs
             smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
-    elif isinstance(data, objects.AnalogSignalArray):
+    elif isinstance(data, core.AnalogSignalArray):
         # Compute number of samples to compute fast FFTs:
         padlen = nextfastpower(len(data.ydata)) - len(data.ydata)
         # Pad data
@@ -529,13 +529,13 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
     else:
         out = obj
 
-    if isinstance(out, objects.AnalogSignalArray):
+    if isinstance(out, core.AnalogSignalArray):
         asa = out
         if fs is None:
             fs = asa.fs
         if fs is None:
             raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
-    elif isinstance(out, objects.BinnedSpikeTrainArray):
+    elif isinstance(out, core.BinnedSpikeTrainArray):
         bst = out
         if fs is None:
             fs = 1/bst.ds
@@ -553,11 +553,11 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
 
     cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
 
-    if isinstance(out, objects.AnalogSignalArray):
+    if isinstance(out, core.AnalogSignalArray):
         # now smooth each epoch separately
         for idx in range(asa.n_epochs):
             out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
-    elif isinstance(out, objects.BinnedSpikeTrainArray):
+    elif isinstance(out, core.BinnedSpikeTrainArray):
         out._data = out._data.astype(float)
         # now smooth each epoch separately
         for idx in range(out.n_epochs):
@@ -651,7 +651,7 @@ def get_run_epochs(speed, v1=10, v2=8):
     # convert bounds to time in seconds
     RUN_bounds = speed.tdata[RUN_bounds]
     # create EpochArray with running bounds
-    run_epochs = objects.EpochArray(RUN_bounds, fs=1)
+    run_epochs = core.EpochArray(RUN_bounds, fs=1)
     return run_epochs
 
 def get_inactive_epochs(speed, v1=5, v2=7):
@@ -683,7 +683,7 @@ def get_inactive_epochs(speed, v1=5, v2=7):
     # convert bounds to time in seconds
     INACTIVE_bounds = speed.tdata[INACTIVE_bounds]
     # create EpochArray with inactive bounds
-    inactive_epochs = objects.EpochArray(INACTIVE_bounds, fs=1)
+    inactive_epochs = core.EpochArray(INACTIVE_bounds, fs=1)
     return inactive_epochs
 
 def spiketrain_union(st1, st2):
@@ -698,7 +698,7 @@ def spiketrain_union(st1, st2):
     for unit in range(st1.n_units):
         newdata.append(np.append(st1.time[unit], st2.time[unit]))
 
-    return objects.SpikeTrainArray(newdata, support=support, fs=1)
+    return core.SpikeTrainArray(newdata, support=support, fs=1)
 
 ########################################################################
 # uncurated below this line!
@@ -779,14 +779,14 @@ def collapse_time(obj, gap=0):
 
     # Also set a new attribute, with the boundaries in seconds.
 
-    if isinstance(obj, objects.AnalogSignalArray):
-        new_obj = objects.AnalogSignalArray([], empty=True)
+    if isinstance(obj, core.AnalogSignalArray):
+        new_obj = core.AnalogSignalArray([], empty=True)
         new_obj._ydata = obj._ydata
 
         durations = obj.support.durations
         starts = np.insert(np.cumsum(durations + gap),0,0)[:-1]
         stops = starts + durations
-        newsupport = objects.EpochArray(np.vstack((starts, stops)).T, fs=1)
+        newsupport = core.EpochArray(np.vstack((starts, stops)).T, fs=1)
         new_obj._support = newsupport
 
         new_time = obj.time.astype(float) # fast copy
@@ -805,10 +805,10 @@ def collapse_time(obj, gap=0):
 
         new_obj._fs = obj._fs
 
-    elif isinstance(obj, objects.SpikeTrainArray):
+    elif isinstance(obj, core.SpikeTrainArray):
         if gap > 0:
             raise ValueError("gaps not supported for SpikeTrainArrays yet!")
-        new_obj = objects.SpikeTrainArray(empty=True)
+        new_obj = core.SpikeTrainArray(empty=True)
         new_time = lists = [[] for _ in range(obj.n_units)]
         duration = 0
         for st_ in obj:
@@ -818,10 +818,10 @@ def collapse_time(obj, gap=0):
             duration += st_.support.duration
         new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time])
         new_obj._time = new_time
-        new_obj._support = objects.EpochArray([0, duration], fs=1)
+        new_obj._support = core.EpochArray([0, duration], fs=1)
         new_obj._unit_ids = obj._unit_ids
         new_obj._unit_labels = obj._unit_labels
-    elif isinstance(obj, objects.BinnedSpikeTrainArray):
+    elif isinstance(obj, core.BinnedSpikeTrainArray):
         raise NotImplementedError("BinnedSpikeTrains are not yet supported, but bst.data is essentially already collapsed!")
     else:
         raise TypeError("unsupported type for collapse_time")

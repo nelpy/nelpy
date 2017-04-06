@@ -9,7 +9,7 @@ with hmmlearn.
 
 # see https://github.com/ckemere/hmmlearn
 from hmmlearn.hmm import PoissonHMM as PHMM
-from .objects import BinnedSpikeTrainArray
+from .core import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
 from .utils import swap_cols, swap_rows
 from warnings import warn
 import numpy as np

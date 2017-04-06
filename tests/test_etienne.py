@@ -1,5 +1,5 @@
 from nelpy.utils import *
-from nelpy.objects import *
+from nelpy.core import *
 import numpy as np
 
 class TestEvenMore:

@@ -8,7 +8,7 @@ import warnings
 from scipy import signal
 
 from .helpers import RasterLabelData
-from ..objects import *
+from ..core import *
 from . import utils  # import plotting/utils
 
 __all__ = ['plot',
