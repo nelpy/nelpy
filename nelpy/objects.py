@@ -731,7 +731,7 @@ class EpochArray:
     def domain(self):
         """domain (in seconds) within which support is defined"""
         if self._domain is None:
-            return EpochArray([np.min((0,self.start)), self.stop], fs=1)
+            return EpochArray([-np.inf, np.inf], fs=1)
         return self._domain
 
     @domain.setter
@@ -1016,8 +1016,6 @@ class EpochArray:
             newepocharray._sort()
 
         while not newepocharray.ismerged or gap>0:
-            print("merging...")
-
             stops = newepocharray._tdatastops[:-1] + gap
             starts = newepocharray._tdatastarts[1:]
             to_merge = (stops - starts) >= 0
@@ -1073,12 +1071,17 @@ class EpochArray:
             raise ValueError(
                 "direction must be 'both', 'start', or 'stop'")
 
-        return EpochArray(
-            np.hstack((
+        newepocharray = copy.copy(self)
+        fs = newepocharray.fs
+        if fs is None:
+            fs = 1
+        newepocharray._time = np.hstack((
                 resize_starts[..., np.newaxis],
                 resize_stops[..., np.newaxis]
                 ))
-            )
+        newepocharray._tdata = newepocharray._time * fs
+
+        return newepocharray
 
     def shrink(self, amount, direction='both'):
         """Shrinks epoch by the given amount.
