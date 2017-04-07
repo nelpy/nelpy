@@ -2,30 +2,37 @@
 
 import numpy as np
 
-def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
+def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
     """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
 
     TODO: complete docstring
-    TODO: what if we have higher dimensional external correlates? This function
-    assumes a 1D correlate. Even if we linearize a 2D environment, for example,
-    then mean_pth decoding no longer works as expected, so this function should
-    probably be refactored.
+    TODO: what if we have higher dimensional external correlates? This
+    function assumes a 1D correlate. Even if we linearize a 2D
+    environment, for example, then mean_pth decoding no longer works as
+    expected, so this function should probably be refactored.
 
     Parameters
     ----------
     bst :
     ratemap: array_like
-        Firing rate map with shape (n_units, n_ext), where n_ext is the number of
-        external correlates, e.g., position bins. The rate map is in spks/second.
+        Firing rate map with shape (n_units, n_ext), where n_ext is the
+        number of external correlates, e.g., position bins. The rate map
+        is in spks/second.
     xmin : float
     xmax : float
     w : int
+    nospk_prior : array_like
+        Prior distribution over external correlates with shape (n_ext,)
+        that will be used if no spikes are observed in a decoding window
+        Default is np.nan.
+        If nospk_prior is any scalar, then a uniform prior is assumed.
 
     Returns
     -------
     posteriors : array
-        Posterior distribution with shape (n_ext, n_posterior_bins), where
-        n_posterior bins <= bst.n_bins, but depends on w and the event lengths.
+        Posterior distribution with shape (n_ext, n_posterior_bins),
+        where n_posterior bins <= bst.n_bins, but depends on w and the
+        event lengths.
     cum_posterior_lengths : array
 
     mode_pth :
@@ -34,7 +41,6 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
 
     Examples
     --------
-
 
     """
 
@@ -46,6 +52,13 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
     n_units, t_bins = bst.data.shape
     _, n_xbins = ratemap.shape
 
+    if nospk_prior is None:
+        nospk_prior = np.full(n_xbins, np.nan)
+    elif isinstance(nospk_priors, numbers.Number):
+        nospk_prior = np.full(n_xbins, 1.0)
+
+    assert nospk_prior.shape[0] == n_xbins, "prior must have length {}".format(n_xbins)
+    assert nospk_prior.size == n_xbins, "prior must be a 1D array with length {}".format(n_xbins)
 
     lfx = np.log(ratemap)
 
@@ -81,12 +94,20 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
                 obs = datacum[:, re] - datacum[:, re-w] # spikes in window of size w
                 re+=1
                 post_idx = cum_posterior_lengths[ii] + tt
-                posterior[:,post_idx] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
+                if obs.sum() == 0:
+                    # no spikes to decode in window!
+                    posterior[:,post_idx] = nospk_prior
+                else:
+                    posterior[:,post_idx] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
         else: # only one window can fit in, and perhaps only partially. We just take all the data we can get,
               # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
             post_idx = cum_posterior_lengths[ii]
             obs = datacum[:, -1] # spikes in window of size at most w
-            posterior[:,post_idx] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
+            if obs.sum() == 0:
+                # no spikes to decode in window!
+                posterior[:,post_idx] = nospk_prior
+            else:
+                posterior[:,post_idx] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
 
     # normalize posterior:
     posterior = np.exp(posterior) / np.tile(np.exp(posterior).sum(axis=0),(n_xbins,1))
@@ -94,7 +115,8 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1):
     _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
     xbins = (bins + xmax/n_xbins)[:-1]
 
-    mode_pth = posterior.argmax(axis=0)*xmax/n_xbins
+    mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
+    mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
     mean_pth = (xbins * posterior.T).sum(axis=1)
     return posterior, cum_posterior_lengths, mode_pth, mean_pth
 
@@ -221,3 +243,23 @@ def plot_cum_dist_decoding_error(error, cumprob, *, ax=None, lw=None, **kwargs):
     # TODO: optionally plot the inset, with 0.5 and 0.7 marked
 
     return ax
+
+def rmse(predictions, targets):
+    """Calculate the root mean squared error of an array of predictions.
+
+    Parameters
+    ----------
+    predictions : array_like
+        Array of predicted values.
+    targets : array_like
+        Array of target values.
+
+    Returns
+    -------
+    rmse: float
+        Root mean squared error of the predictions wrt the targets.
+    """
+    predictions = np.asanyarray(predictions)
+    targets = np.asanyarray(targets)
+    rmse = np.sqrt(np.nanmean((predictions - targets) ** 2))
+    return rmse

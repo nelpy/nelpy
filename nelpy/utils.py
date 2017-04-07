@@ -106,26 +106,6 @@ def pairwise(iterable):
     next(b, None)
     return zip(a, b)
 
-def rmse(predictions, targets):
-    """Calculate the root mean squared error of an array of predictions.
-
-    Parameters
-    ----------
-    predictions : array_like
-        Array of predicted values.
-    targets : array_like
-        Array of target values.
-
-    Returns
-    -------
-    rmse: float
-        Root mean squared error of the predictions wrt the targets.
-    """
-    predictions = np.asanyarray(predictions)
-    targets = np.asanyarray(targets)
-    rmse = np.sqrt(((predictions - targets) ** 2).mean())
-    return rmse
-
 def argsort(seq):
     # http://stackoverflow.com/questions/3071415/efficient-method-to-calculate-the-rank-vector-of-a-list-in-python
     return sorted(range(len(seq)), key=seq.__getitem__)
