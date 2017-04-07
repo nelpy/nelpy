@@ -295,6 +295,13 @@ class AnalogSignalArray:
                     self._support = EpochArray(np.array([0, tdata[-1]]))
             self._tdata = tdata
 
+        # finally, if still no fs has been set, estimate it:
+        if self.fs is None:
+            self._fs = self._estimate_fs()
+        else:
+            if np.abs(self.fs - self._estimate_fs()/self.fs) > 0.01:
+                warnings.warn("estimated fs and provided fs differ by more than 1%")
+
     def __mul__(self, other):
         """overloaded * operator."""
         if isinstance(other, numbers.Number):
@@ -318,6 +325,12 @@ class AnalogSignalArray:
 
     def __len__(self):
         return self.n_epochs
+
+    def _estimate_fs(self, data=None):
+        """Estimate the sampling rate of the data."""
+        if data is None:
+            data = self.time
+        return 1.0/np.median(np.diff(data))
 
     def add_signal(self, signal, label=None):
         """Docstring goes here.
