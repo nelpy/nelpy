@@ -77,20 +77,20 @@ class AnalogSignalArray:
         Sampling rate in Hz. If fs is passed as a parameter, then time
         is assumed to be in sample numbers instead of actual time. See
         fs_meta parameter below if sampling rate is to be stored as
-        metadata and not used for calculations. See fs_acquisition if 
+        metadata and not used for calculations. See fs_acquisition if
         timestamps are stored at a different rate than what was sampled
         and marked by the system.
     fs_acquisition : float, optional
         Optional to store sampling rate in Hz of the acquisition system.
         This should be used when tdata is passed in timestamps associated
         with the acquisition system but is stored in step sizes that are
-        of a different sampling rate. E.g. times could be stamped at 
-        30kHz but stored in a decimated fashion at 3kHz so instead of 
-        1,2,3,4,5,6,7,8,9,10,11,...,20,21,22... it would be 1,10,20,30... 
-        In cases like this fs_acquisiton would be 10 times higher than fs. 
-        Additionally, fs_acquisition as opposed to fs will be used to 
-        calculate time if it is changed from the default None. See 
-        notebook of AnalogSignalArray uses. 
+        of a different sampling rate. E.g. times could be stamped at
+        30kHz but stored in a decimated fashion at 3kHz so instead of
+        1,2,3,4,5,6,7,8,9,10,11,...,20,21,22... it would be 1,10,20,30...
+        In cases like this fs_acquisiton would be 10 times higher than fs.
+        Additionally, fs_acquisition as opposed to fs will be used to
+        calculate time if it is changed from the default None. See
+        notebook of AnalogSignalArray uses.
     fs_meta : float, optional
         Optional sampling rate storage. The true sampling rate if tdata
         is time can be stored here. The above parameter, fs, must be left
@@ -227,7 +227,7 @@ class AnalogSignalArray:
                     self._time = time
                     self._support = EpochArray(
                         get_contiguous_segments(
-                            self._tdata,
+                            self._time,
                             step=self._step,
                             in_memory=in_memory),
                         fs=self._fs_acquisition)
@@ -259,7 +259,7 @@ class AnalogSignalArray:
                     self._time = time
                     self._support = EpochArray(
                         get_contiguous_segments(
-                            tdata,
+                            self._time,
                             step=self._step,
                             in_memory=in_memory),
                         fs=self._fs_acquisition)
@@ -281,7 +281,7 @@ class AnalogSignalArray:
                 else:
                     self._time = time
                     warnings.warn("support created with given sampling rate, fs")
-                    self._support = EpochArray(np.array([0, time[-1]]))
+                    self._support = EpochArray(np.array([0, self._time[-1]]))
             else:
                 # just support
                 if support is not None:
@@ -292,7 +292,7 @@ class AnalogSignalArray:
                 else:
                     self._time = tdata
                     warnings.warn("support created with given ydata! support is entire signal")
-                    self._support = EpochArray(np.array([0, tdata[-1]]))
+                    self._support = EpochArray(np.array([0, self._time[-1]]))
             self._tdata = tdata
 
         # finally, if still no fs has been set, estimate it:

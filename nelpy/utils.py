@@ -181,6 +181,66 @@ def linear_merge(list1, list2):
                 while True:
                     yield next(list1)
 
+def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshold=None, minThresholdLength=None, SecondaryThreshold=None):
+    """Determine MUA/PBEs from multiunit activity.
+
+    MUA : multiunit activity
+    PBE : population burst event
+
+    Parameters
+    ----------
+    mua : AnalogSignalArray
+        AnalogSignalArray with one signal, namely the multiunit firing rate [in Hz].
+    fs : float, optional
+        Sampling frequency of mua, in Hz. If not specified, it will be inferred from
+        mua.fs
+    minLength : float, optional
+    maxLength : float, optional
+    PrimaryThreshold : float, optional
+    SecondaryThreshold : float, optional
+    minThresholdLength : float, optional
+
+    Returns
+    -------
+    mua_epochs : EpochArray
+        EpochArray containing all the MUA events / PBEs.
+    """
+
+    if fs is None:
+        fs = mua.fs
+    if fs is None:
+        raise ValueError("fs must either be specified, or must be contained in mua!")
+
+    if PrimaryThreshold is None:
+        PrimaryThreshold =  mua.mean() + 3*mua.std()
+    if SecondaryThreshold is None:
+        SecondaryThreshold = mua.mean()
+    if minLength is None:
+        minLength = 0.050 # 50 ms minimum event duration
+    if maxLength is None:
+        maxLength = 0.750 # 750 ms maximum event duration
+    if minThresholdLength is None:
+        minThresholdLength = 0.0
+
+    # determine MUA event bounds:
+    mua_bounds_idx, maxes, _ = get_events_boundaries(
+        x = mua.ydata,
+        PrimaryThreshold = PrimaryThreshold,
+        SecondaryThreshold = mua.mean(),
+        minThresholdLength = minThresholdLength,
+        minLength = minLength,
+        maxLength = maxLength,
+        ds = 1/fs
+    )
+
+    if len(mua_bounds_idx) == 0:
+        raise ValueError("no mua events detected")
+
+    # store MUA bounds in an EpochArray
+    mua_epochs = core.EpochArray(mua.time[mua_bounds_idx], fs=1)
+
+    return mua_epochs
+
 def get_contiguous_segments(data, step=None, sort=False, in_memory=True):
     """Compute contiguous segments (seperated by step) in a list.
 
@@ -207,7 +267,7 @@ def get_contiguous_segments(data, step=None, sort=False, in_memory=True):
             step = np.median(np.diff(data))
 
         # assuming that data(t1) is sampled somewhere on [t, t+1/fs) we have a 'continuous' signal as long as
-        # data(t2 = t1+1/fs) is sampled somewhere on [t+1/fs, t+2/fs). In the most extreme case, it could happen 
+        # data(t2 = t1+1/fs) is sampled somewhere on [t+1/fs, t+2/fs). In the most extreme case, it could happen
         # that t1 = t and t2 = t + 2/fs, i.e. a difference of 2 steps.
 
         breaks = np.argwhere(np.diff(data)>=2*step)
