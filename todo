@@ -1,4 +1,3 @@
-* integrate mua into nelpy
 * integrate unimodal into nelpy
 
 * restrict minimum firing rate
@@ -6,14 +5,12 @@
 * remove empty bins
 * linregress
 * shuffle
-* prior when we have too few spikes?
 
 * decoding error cum prob plot
 
 * psth, isi, fano-factor, ... (easy and not important)
 
-* [DONE!] prior for no-spike bins
 * rename decoding to ML
 * singletons in EpochArray
 * remove empty bins during regression, but not from the decoding itself
-* 
+*

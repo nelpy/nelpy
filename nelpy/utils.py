@@ -181,7 +181,7 @@ def linear_merge(list1, list2):
                 while True:
                     yield next(list1)
 
-def get_contiguous_segments(data,step=None, sort=False):
+def get_contiguous_segments(data, step=None, sort=False, in_memory=True):
     """Compute contiguous segments (seperated by step) in a list.
 
     WARNING! This function assumes that a sorted list is passed.
@@ -190,27 +190,51 @@ def get_contiguous_segments(data,step=None, sort=False):
 
     Returns an array of size (n_segments, 2), with each row
     being of the form ([start, stop]) inclusive.
+
+    WARNING! Step is robustly computed in-core (i.e., when in-memory is
+        True), but is assumed to be 1 when out-of-core.
+
+    Parameters
+    ----------
+    in_memory : bool, optional
+        If True, then we use np.diff which requires all the data to fit
+        into memory simultaneously, otherwise we use groupby, which uses
+        a generator to process potentially much larger chunks of data,
+        but also much slower.
     """
-    from itertools import groupby
-    from operator import itemgetter
+    if in_memory:
+        if step is None:
+            step = np.median(np.diff(data))
 
-    if step is None:
-        step = 1
-    if sort:
-        data = np.sort(data)  # below groupby algorithm assumes sorted list
-    if np.any(np.diff(data) < step):
-        warnings.warn("some steps in the data are smaller than the requested step size.")
+        # assuming that data(t1) is sampled somewhere on [t, t+1/fs) we have a 'continuous' signal as long as
+        # data(t2 = t1+1/fs) is sampled somewhere on [t+1/fs, t+2/fs). In the most extreme case, it could happen 
+        # that t1 = t and t2 = t + 2/fs, i.e. a difference of 2 steps.
 
-    bdries = []
+        breaks = np.argwhere(np.diff(data)>=2*step)
+        starts = np.insert(breaks+1, 0, 0)
+        stops = np.append(breaks, len(data)-1)
+        bdries = np.vstack((data[starts], data[stops])).T
+    else:
+        from itertools import groupby
+        from operator import itemgetter
 
-    for k, g in groupby(enumerate(data), lambda ix: (round(100*step*ix[0] - 100*ix[1])//10)):
-        f = itemgetter(1)
-        gen = (f(x) for x in g)
-        start = next(gen)
-        stop = start
-        for stop in gen:
-            pass
-        bdries.append([start, stop])
+        if step is None:
+            step = 1
+        if sort:
+            data = np.sort(data)  # below groupby algorithm assumes sorted list
+        if np.any(np.diff(data) < step):
+            warnings.warn("some steps in the data are smaller than the requested step size.")
+
+        bdries = []
+
+        for k, g in groupby(enumerate(data), lambda ix: (round(100*step*ix[0] - 100*ix[1])//10)):
+            f = itemgetter(1)
+            gen = (f(x) for x in g)
+            start = next(gen)
+            stop = start
+            for stop in gen:
+                pass
+            bdries.append([start, stop])
 
     return np.asarray(bdries)
 
