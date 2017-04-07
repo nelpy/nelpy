@@ -21,6 +21,57 @@ import copy
 
 from . import core # so that core.AnalogSignalArray is exposed
 
+def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
+    """Compute the multiunit activity (MUA) from a spike train.
+
+    Parameters
+    ----------
+    st : SpikeTrainArray
+        SpikeTrainArray containing one or more units.
+    ds : float, optional
+        Time step in which to bin spikes. Default is 1 ms.
+    sigma : float, optional
+        Standard deviation (in seconds) of Gaussian smoothing kernel.
+        Default is 10 ms. If sigma==0 then no smoothing is applied.
+    bw : float, optional
+        Bandwidth of the Gaussian filter. Default is 6.
+
+    Returns
+    -------
+    mua : AnalogSignalArray
+        AnalogSignalArray with MUA.
+    """
+
+    if ds is None:
+        ds = 0.001 # 1 ms bin size
+    if sigma is None:
+        sigma = 0.01 # 10 ms standard deviation
+    if bw is None:
+        bw = 6
+
+    # bin spikes, so that we can count the spikes
+    mua_binned = st.bin(ds=ds).flatten()
+
+    # make sure data type is float, so that smoothing works, and convert to rate
+    mua_binned._data = mua_binned._data.astype(float) / ds
+
+    # put mua rate inside an AnalogSignalArray
+    if _fast:
+        mua = core.AnalogSignalArray([], empty=True)
+        mua._support = mua_binned.support
+        mua._tdata = mua_binned.bin_centers
+        mua._ydata = mua_binned.data
+        mua._time = mua._tdata
+    else:
+        mua = core.AnalogSignalArray(mua_binned.data, tdata=mua_binned.bin_centers, step=ds)
+
+    mua._fs = 1/ds
+
+    if (sigma != 0) and (bw > 0):
+        mua = gaussian_filter(mua, sigma=sigma, bw=bw)
+
+    return mua
+
 def is_odd(n):
     """Returns True if n is odd, and False if n is even.
     Assumes integer.
