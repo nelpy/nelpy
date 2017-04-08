@@ -312,7 +312,8 @@ class EpochArray:
             new = copy.copy(self)
             return new.shrink(other, direction='both')
         elif isinstance(other, EpochArray):
-            raise NotImplementedError("EpochArray subtraction not implemented yet :(")
+            # A - B = A intersect ~B
+            return self.intersect(~other)
         else:
             raise TypeError("unsupported operand type(s) for +: 'EpochArray' and {}".format(str(type(other))))
 
@@ -361,7 +362,7 @@ class EpochArray:
             raise TypeError("unsupported operand type(s) for &: 'EpochArray' and {}".format(str(type(other))))
 
     def __or__(self, other):
-        """join and merge epoch arrays"""
+        """join and merge epoch array; set union"""
         if isinstance(other, EpochArray):
             new = copy.copy(self)
             return (new.join(other)).merge()
@@ -590,6 +591,9 @@ class EpochArray:
     def intersect(self, epoch, *, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of epoch arrays.
         Sampling rates can be different.
+
+        TODO: verify if this requires a merged EpochArray to work properly?
+
         Parameters
         ----------
         epoch : nelpy.EpochArray
@@ -597,6 +601,7 @@ class EpochArray:
             If True, limits start, stop to epoch start and stop.
         meta : dict, optional
             New dictionary of meta data for epoch ontersection.
+
         Returns
         -------
         intersect_epochs : nelpy.EpochArray
@@ -817,6 +822,8 @@ class EpochArray:
         if epoch.isempty:
             return self
 
+        newepocharray = copy.copy(self)
+
         if self.fs != epoch.fs:
             warnings.warn(
                 "sampling rates are different; joining along time "
@@ -833,12 +840,13 @@ class EpochArray:
             # return EpochArray(join_starts, fs=None,
             # duration=join_stops - join_starts, meta=meta).merge()
             # .merge()
-            return EpochArray(
-                join_starts,
-                fs=None,
-                duration=join_stops - join_starts,
-                meta=meta
-                )
+            newepocharray._time = np.hstack((
+                join_starts[..., np.newaxis],
+                join_stops[..., np.newaxis]
+                ))
+            newepocharray._tdata = newepocharray._time
+            newepocharray._fs = None
+            return newepocharray
         else:
             join_starts = np.concatenate(
                 (self.tdata[:, 0], epoch.tdata[:, 0]))
@@ -847,12 +855,13 @@ class EpochArray:
 
         # return EpochArray(join_starts, fs=self.fs, duration=
         # join_stops - join_starts, meta=meta).merge().merge()
-        return EpochArray(
-            join_starts,
-            fs=self.fs,
-            duration=join_stops - join_starts,
-            meta=meta
-            )
+        newepocharray._tdata = np.hstack((
+            join_starts[..., np.newaxis],
+            join_stops[..., np.newaxis]
+            ))
+        newepocharray._fs = self.fs
+        newepocharray._time = newepocharray._tdata / self.fs
+        return newepocharray
 
     def contains(self, value):
         """Checks whether value is in any epoch.
