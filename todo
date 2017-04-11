@@ -17,9 +17,6 @@
 
 
 tuning curve
-* iterator
-* indexer (incl subset)
-* smoother
 * plots
 * reorder
 * DECODE

@@ -207,17 +207,30 @@ class TuningCurve1D:
             label = val
         self._label = label
 
+    def __add__(self, other):
+        out = copy.copy(self)
+        out._ratemap = out.ratemap + other
+        return out
+
+    def __sub__(self, other):
+        out = copy.copy(self)
+        out._ratemap = out.ratemap - other
+        return out
 
     def __mul__(self, other):
         """overloaded * operator."""
-        raise NotImplementedError
+        out = copy.copy(self)
+        out._ratemap = out.ratemap * other
+        return out
 
     def __rmul__(self, other):
-        raise NotImplementedError
+        return self * other
 
     def __truediv__(self, other):
         """overloaded / operator."""
-        raise NotImplementedError
+        out = copy.copy(self)
+        out._ratemap = out.ratemap / other
+        return out
 
     def __len__(self):
         return self.n_units
