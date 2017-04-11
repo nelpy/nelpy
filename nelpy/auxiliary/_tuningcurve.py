@@ -32,11 +32,12 @@ class TuningCurve1D:
     ----------
 
     """
-    # __attributes__ = ['_ydata', '_tdata', '_time', '_fs', '_support', \
-    #                   '_interp', '_fs_meta', '_step', '_fs_acquisition']
 
-    def __init__(self, bst, extern, *, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None):
+    def __init__(self, bst, extern, *, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None):
         """
+
+        If sigma is nonzero, then smoothing is applied.
+
         We always require bst and extern, and then some combination of
             (1) bin edges, transform_func*
             (2) n_extern, transform_func*
@@ -76,6 +77,10 @@ class TuningCurve1D:
         self._ratemap = self._normalize_firing_rate_by_occupancy()
         # enforce minimum background firing rate
         self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
+
+        if sigma is not None:
+            if sigma > 0:
+                self._ratemap = self.smooth(sigma, bw)
 
     @property
     def ratemap(self):
@@ -235,7 +240,7 @@ class TuningCurve1D:
     def __len__(self):
         return self.n_units
 
-    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False):
+    def smooth(self, *, sigma=None, bw=None, inplace=False):
         """Smooths the tuning curve
         """
         if sigma is None:
@@ -322,23 +327,6 @@ class TuningCurve1D:
         except Exception:
             raise TypeError(
                 'unsupported subsctipting type {}'.format(type(idx)))
-
-        # if isinstance(idx, int):
-        #     out = copy.copy(self)
-        #     out._ratemap = self.ratemap[[idx],:]
-        #     return out
-        # elif isinstance(idx, list):
-        #     out = copy.copy(self)
-        #     out._ratemap = self.ratemap[idx,:]
-        #     return out
-        # else:
-        #     try:
-        #         out = copy.copy(self)
-        #         out._ratemap = self.ratemap[idx,:]
-        #         return out
-        #     except Exception:
-        #         raise TypeError(
-        #             'unsupported subsctipting type {}'.format(type(idx)))
 
 #----------------------------------------------------------------------#
 #======================================================================#
