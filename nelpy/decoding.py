@@ -1,6 +1,7 @@
 """Bayesian encoding and decoding"""
 
 import numpy as np
+from . import auxiliary
 
 def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
     """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
@@ -50,6 +51,13 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
     assert w > 0, "w bust be a positive integer!"
 
     n_units, t_bins = bst.data.shape
+
+    # if we pass a TuningCurve1D object, extract the ratemap and re-order
+    # units if necessary
+    if isinstance(ratemap, auxiliary.TuningCurve1D):
+        ratemap = ratemap.ratemap
+        # TODO: re-order units if necessary
+
     _, n_xbins = ratemap.shape
 
     if nospk_prior is None:
@@ -212,6 +220,7 @@ def cumulative_dist_decoding_error_using_xval(bst, ratemap, k=5):
         # indexing BinnedSpikeTrainArray using EpochArrays:
         print(bst[bst.support[training]], bst[bst.support[validation]])
         # estimate place fields using bst[training]
+        tc = nel.TuningCurve1D(bst, pos, n_extern=70, extmin=0, extmax=225)
         # decode position using bst[validation]
         # calculate validation error (for current fold) by comapring
         # decoded pos v pos[bst[validation].support] or pos[bst.support][validation]

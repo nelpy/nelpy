@@ -14,3 +14,12 @@
 * singletons in EpochArray
 * remove empty bins during regression, but not from the decoding itself
 *
+
+
+tuning curve
+* iterator
+* indexer (incl subset)
+* smoother
+* plots
+* reorder
+* DECODE

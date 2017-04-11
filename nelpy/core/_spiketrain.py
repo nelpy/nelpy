@@ -1450,7 +1450,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         # assemble new binned spike train array:
         newedges = np.cumsum(newlengths)
-        newbst = BinnedSpikeTrainArray(empty=True)
+        newbst = copy.copy(bst)
         if newdata is not None:
             newbst._data = newdata
             newbst._support = EpochArray(newsupport, fs=1)
@@ -1460,6 +1460,11 @@ class BinnedSpikeTrainArray(SpikeTrain):
             newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
         else:
             warnings.warn("No events are long enough to contain any bins of width {}".format(PrettyDuration(ds)))
+            newbst._data = None
+            newbst._support = None
+            newbst._binnedSupport = None
+            newbst._bin_centers = None
+            newbst._bins = None
 
         return newbst
 

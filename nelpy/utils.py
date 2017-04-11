@@ -20,6 +20,7 @@ from numpy import log, ceil
 import copy
 
 from . import core # so that core.AnalogSignalArray is exposed
+from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 
 def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     """Compute the multiunit activity (MUA) from a spike train.
