@@ -326,6 +326,8 @@ class TuningCurve1D:
         idx = [ii for ii in idx]
         if len(idx) == 1 and not isinstance(idx[0], int):
             idx = idx[0]
+        if isinstance(idx, tuple):
+            idx = [ii for ii in idx]
 
         if self.isempty:
             return self

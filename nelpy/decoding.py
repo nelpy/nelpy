@@ -55,6 +55,8 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
     # if we pass a TuningCurve1D object, extract the ratemap and re-order
     # units if necessary
     if isinstance(ratemap, auxiliary.TuningCurve1D):
+        xmin = ratemap.bins[0]
+        xmax = ratemap.bins[-1]
         ratemap = ratemap.ratemap
         # TODO: re-order units if necessary
 
@@ -178,7 +180,7 @@ def k_fold_cross_validation(X, k=None, randomize=False):
         validation = [x for i, x in enumerate(X) if i % k == _k_]
         yield training, validation
 
-def cumulative_dist_decoding_error_using_xval(bst, ratemap, k=5):
+def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, tuningcurve=None, k=5, transfunc=None, n_extern=70, extmin=0, extmax=225, sigma=6.2, n_bins = 200):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
     procedure.
@@ -189,12 +191,13 @@ def cumulative_dist_decoding_error_using_xval(bst, ratemap, k=5):
         BinnedSpikeTrainArray containing all the epochs to be decoded.
         Should typically have the same type of epochs as the ratemap
         (e.g., online epochs), but this is not a requirement.
+    tuningcurve : TuningCurve1D
+    extern : query-able object of external correlates (e.g. pos AnalogSignalArray)
     ratemap : array_like
         The ratemap (in Hz) with shape (n_units, n_ext) where n_ext are
         the external correlates, e.g., position bins.
     k : int, optional
         Number of fold for k-fold cross-validation. Default is k=5.
-
 
     Returns
     -------
@@ -203,27 +206,41 @@ def cumulative_dist_decoding_error_using_xval(bst, ratemap, k=5):
         (see Fig 3.(b) of "Analysis of Hippocampal Memory Replay Using
         Neural Population Decoding", Fabian Kloosterman, 2012)
 
+    NOTE: should we allow for an optional tuning curve to be specified,
+          or should we always recompute it ourselves?
     """
 
-    # NOTE to @Sibog: ratemap should not necessarily be an argument; it
-    # should probably be recomputed each fold.
+    def _trans_func(extern, at):
+        """Default transform function to map extern into numerical bins"""
 
-    # NOTE! Indexing into BinnedSpikeTrainArrays is not yet supported,
-    # but will be supported very soon, so the code below can be assumed
-    # to work...
+        _, ext = extern.asarray(at=at)
+
+        return ext
+
+    if transfunc is None:
+        transfunc = _trans_func
 
     # indices of training and validation epochs / events
 
-    for training, validation in k_fold_cross_validation(bst.n_epochs, k=5):
-        # indexing directly into BinnedSpikeTrainArray:
-        print(bst[training], bst[validation])
-        # indexing BinnedSpikeTrainArray using EpochArrays:
-        print(bst[bst.support[training]], bst[bst.support[validation]])
+    n_bins = n_bins # number of bins for error histogram
+    hist = np.zeros(n_bins)
+    for training, validation in k_fold_cross_validation(bst.n_epochs, k=k):
         # estimate place fields using bst[training]
-        tc = nel.TuningCurve1D(bst, pos, n_extern=70, extmin=0, extmax=225)
+        tc = auxiliary.TuningCurve1D(bst[training], extern=extern, n_extern=n_extern, extmin=extmin, extmax=extmax, sigma=sigma)
         # decode position using bst[validation]
+        posterior, _, mode_pth, mean_pth = decodefunc(bst[validation], tc)
         # calculate validation error (for current fold) by comapring
-        # decoded pos v pos[bst[validation].support] or pos[bst.support][validation]
+        # decoded pos v target pos
+        target = transfunc(extern, at=bst[validation].bin_centers)
+        histnew, bins = np.histogram(np.abs(target - mean_pth), bins=n_bins, range=(extmin, extmax))
+        hist = hist + histnew
+
+    # build cumulative error distribution
+    cumhist = np.cumsum(hist)
+    cumhist = cumhist / cumhist[-1]
+    bincenters = (bins + (bins[1] - bins[0])/2)[:-1]
+
+    return cumhist, bincenters
 
 def plot_cum_dist_decoding_error(error, cumprob, *, ax=None, lw=None, **kwargs):
     """Plots the cumulative distribution of decoding errors.
