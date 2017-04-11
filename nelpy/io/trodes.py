@@ -157,7 +157,7 @@ def load_dio_dat(filepath):
     
     #DIO pin 11 is detection pulse
     print("*****************Loading DIO Data*****************")
-    f = open(filePath,'rb')
+    f = open(filepath,'rb')
     instr = f.readline()
     while (instr != b'<End settings>\n') :
         print(instr)
