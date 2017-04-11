@@ -80,7 +80,7 @@ class TuningCurve1D:
 
         if sigma is not None:
             if sigma > 0:
-                self._ratemap = self.smooth(sigma, bw)
+                self.smooth(sigma=sigma, bw=bw, inplace=True)
 
     @property
     def ratemap(self):
@@ -135,9 +135,12 @@ class TuningCurve1D:
             out = copy.deepcopy(self)
         else:
             out = self
-
-        per_unit_max = np.max(out.ratemap, axis=1)[..., np.newaxis]
-        out._ratemap = self.ratemap / np.tile(per_unit_max, (1, out.n_bins))
+        if self.n_units > 1:
+            per_unit_max = np.max(out.ratemap, axis=1)[..., np.newaxis]
+            out._ratemap = self.ratemap / np.tile(per_unit_max, (1, out.n_bins))
+        else:
+            per_unit_max = np.max(out.ratemap)
+            out._ratemap = self.ratemap / np.tile(per_unit_max, out.n_bins)
         return out
 
     def _normalize_firing_rate_by_occupancy(self):
@@ -256,7 +259,10 @@ class TuningCurve1D:
         else:
             out = self
 
-        out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma), truncate=bw)
+        if self.n_units > 1:
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma), truncate=bw)
+        else:
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=sigma, truncate=bw)
 
         return out
 
@@ -265,6 +271,8 @@ class TuningCurve1D:
         """(int) The number of units."""
         try:
             return len(self._unit_ids)
+        except TypeError: # when unit_ids is an integer
+            return 1
         except AttributeError:
             return 0
 
@@ -305,6 +313,8 @@ class TuningCurve1D:
             raise StopIteration
         out = copy.copy(self)
         out._ratemap = self.ratemap[index,:]
+        out._unit_ids = self.unit_ids[index]
+        out._unit_labels = self.unit_labels[index]
         self._index += 1
         return out
 
@@ -319,10 +329,11 @@ class TuningCurve1D:
 
         if self.isempty:
             return self
-
         try:
             out = copy.copy(self)
             out._ratemap = self.ratemap[idx,:]
+            out._unit_ids = (np.asanyarray(out._unit_ids)[idx]).tolist()
+            out._unit_labels = (np.asanyarray(out._unit_labels)[idx]).tolist()
             return out
         except Exception:
             raise TypeError(
