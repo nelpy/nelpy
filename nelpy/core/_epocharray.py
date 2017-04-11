@@ -231,13 +231,17 @@ class EpochArray:
         self._index += 1
         return epocharray
 
-    def __getitem__(self, idx):
+    def __getitem__(self, *idx):
         """EpochArray index access.
 
         Accepts integers, slices, and EpochArrays.
         """
         if self.isempty:
             return self
+
+        idx = [ii for ii in idx]
+        if len(idx) == 1 and not isinstance(idx[0], int):
+            idx = idx[0]
 
         if isinstance(idx, EpochArray):
             # case #: (self, idx):
@@ -262,39 +266,53 @@ class EpochArray:
             if epoch.isempty:
                 return EpochArray(empty=True)
             return epoch
-        elif isinstance(idx, int):
-            epocharray = EpochArray(empty=True)
-            exclude = ["_tdata", "_time"]
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("epocharray." + attr + " = self." + attr)
-            try:
-                epocharray._time = self.time[[idx], :]  # use np integer indexing! Cool!
-                epocharray._tdata = self.tdata[[idx], :]
-            except IndexError:
-                # index is out of bounds, so return an empty EpochArray
-                pass
-            finally:
-                return epocharray
         else:
-            try:
-                epocharray = EpochArray(empty=True)
-                exclude = ["_tdata", "_time"]
-                attrs = (x for x in self.__attributes__ if x not in exclude)
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    for attr in attrs:
-                        exec("epocharray." + attr + " = self." + attr)
-                epocharray._time = np.array([self.starts[idx],
-                                             self.stops[idx]]).T
-                epocharray._tdata = np.array([self._tdatastarts[idx],
-                                              self._tdatastops[idx]]).T
-                return epocharray
+            try: # works for ints, lists, and slices
+                out = copy.copy(self)
+                out._time = None
+                out._tdata = None
+                out._time = self.time[idx,:]
+                out._tdata = self.tdata[idx,:]
+            except IndexError:
+                pass
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
+            finally:
+                return out
+        # elif isinstance(idx, int):
+        #     epocharray = EpochArray(empty=True)
+        #     exclude = ["_tdata", "_time"]
+        #     attrs = (x for x in self.__attributes__ if x not in exclude)
+        #     with warnings.catch_warnings():
+        #         warnings.simplefilter("ignore")
+        #         for attr in attrs:
+        #             exec("epocharray." + attr + " = self." + attr)
+        #     try:
+        #         epocharray._time = self.time[[idx], :]  # use np integer indexing! Cool!
+        #         epocharray._tdata = self.tdata[[idx], :]
+        #     except IndexError:
+        #         # index is out of bounds, so return an empty EpochArray
+        #         pass
+        #     finally:
+        #         return epocharray
+        # else:
+        #     try:
+        #         epocharray = EpochArray(empty=True)
+        #         exclude = ["_tdata", "_time"]
+        #         attrs = (x for x in self.__attributes__ if x not in exclude)
+        #         with warnings.catch_warnings():
+        #             warnings.simplefilter("ignore")
+        #             for attr in attrs:
+        #                 exec("epocharray." + attr + " = self." + attr)
+        #         epocharray._time = np.array([self.starts[idx],
+        #                                      self.stops[idx]]).T
+        #         epocharray._tdata = np.array([self._tdatastarts[idx],
+        #                                       self._tdatastops[idx]]).T
+        #         return epocharray
+        #     except Exception:
+        #         raise TypeError(
+        #             'unsupported subsctipting type {}'.format(type(idx)))
 
     def __add__(self, other):
         """add duration to start and stop of each epoch, or join two epoch arrays without merging"""

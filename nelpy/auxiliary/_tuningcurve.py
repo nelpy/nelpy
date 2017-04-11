@@ -290,10 +290,42 @@ class TuningCurve1D:
         self._index += 1
         return out
 
-    def __getitem__(self, idx):
-        """TuningCurve1D index access."""
+    def __getitem__(self, *idx):
+        """TuningCurve1D index access.
 
-        raise NotImplementedError
+        Accepts integers, slices, and lists"""
+
+        idx = [ii for ii in idx]
+        if len(idx) == 1 and not isinstance(idx[0], int):
+            idx = idx[0]
+
+        if self.isempty:
+            return self
+
+        try:
+            out = copy.copy(self)
+            out._ratemap = self.ratemap[idx,:]
+            return out
+        except Exception:
+            raise TypeError(
+                'unsupported subsctipting type {}'.format(type(idx)))
+
+        # if isinstance(idx, int):
+        #     out = copy.copy(self)
+        #     out._ratemap = self.ratemap[[idx],:]
+        #     return out
+        # elif isinstance(idx, list):
+        #     out = copy.copy(self)
+        #     out._ratemap = self.ratemap[idx,:]
+        #     return out
+        # else:
+        #     try:
+        #         out = copy.copy(self)
+        #         out._ratemap = self.ratemap[idx,:]
+        #         return out
+        #     except Exception:
+        #         raise TypeError(
+        #             'unsupported subsctipting type {}'.format(type(idx)))
 
 #----------------------------------------------------------------------#
 #======================================================================#
