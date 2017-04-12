@@ -11,21 +11,14 @@
 * rename decoding to ML
 * singletons in EpochArray
 * remove empty bins during regression, but not from the decoding itself
-*
 
-tuning curve
-* plots
-* reorder
-* DECODE
-
-
-[1] sns plot
-[2] reorder
+[2] reorder TCs
 [3] decode w unit ids
 [4] filter cells for decoding
 [5] filter events n_active
 [6] HMM error decoding comparison
 [7] regression shuffle aggregation
+[8] TC plots
 
 [8] Xilinx
 [9] Fbright

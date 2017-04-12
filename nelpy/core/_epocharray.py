@@ -82,7 +82,7 @@ class EpochArray:
     __attributes__ = ["_tdata", "_time", "_fs", "_meta", "_domain"]
 
     def __init__(self, tdata=None, *, fs=None, duration=None,
-                 meta=None, empty=False, domain=None):
+                 meta=None, empty=False, domain=None, label=None):
 
         # if an empty object is requested, return it:
         if empty:
@@ -189,6 +189,7 @@ class EpochArray:
         self._tdata = tdata
         self._fs = fs
         self._meta = meta
+        self.label = label
 
         if not self.issorted:
             self._sort()
@@ -396,6 +397,24 @@ class EpochArray:
     def __bool__(self):
         """(bool) Empty EventArray"""
         return not self.isempty
+
+    @property
+    def label(self):
+        """Label describing the epoch array."""
+        if self._label is None:
+            warnings.warn("label has not yet been specified")
+        return self._label
+
+    @label.setter
+    def label(self, val):
+        if val is not None:
+            try:  # cast to str:
+                label = str(val)
+            except TypeError:
+                raise TypeError("cannot convert label to string")
+        else:
+            label = val
+        self._label = label
 
     def complement(self, domain=None):
         """Complement within domain.

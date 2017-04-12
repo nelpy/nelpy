@@ -86,8 +86,6 @@ def plot_cum_error_dist(*, cumhist=None, bincenters=None,
                                   height="50%",
                                   loc=4,
                                   borderpad=2)
-        
-
 
         inset_ax.plot(bincenters, cumhist, lw=lw, color=color, **kwargs)
 
