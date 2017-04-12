@@ -121,7 +121,12 @@ class TuningCurve1D:
 
         ext = self.trans_func(self._extern, at=self._bst.bin_centers)
 
-        ext_bin_idx = np.digitize(ext, self.bins)
+        ext_bin_idx = np.digitize(ext, self.bins, True)
+        # make sure that all the events fit between extmin and extmax:
+        # TODO: this might rather be a warning, but it's a pretty serious warning...
+        if len(ext_bin_idx[ext_bin_idx>=self.n_bins]) > 0:
+            raise ValueError("decoded values outside of [extmin, extmax]")
+        ext_bin_idx = ext_bin_idx[ext_bin_idx<self.n_bins]
         ratemap = np.zeros((self.n_units, self.n_bins))
 
         for tt, bidx in enumerate(ext_bin_idx):

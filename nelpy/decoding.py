@@ -180,7 +180,7 @@ def k_fold_cross_validation(X, k=None, randomize=False):
         validation = [x for i, x in enumerate(X) if i % k == _k_]
         yield training, validation
 
-def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, tuningcurve=None, k=5, transfunc=None, n_extern=70, extmin=0, extmax=225, sigma=6.2, n_bins = 200):
+def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, tuningcurve=None, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins = 200):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
     procedure.
@@ -241,34 +241,6 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
     bincenters = (bins + (bins[1] - bins[0])/2)[:-1]
 
     return cumhist, bincenters
-
-def plot_cum_dist_decoding_error(error, cumprob, *, ax=None, lw=None, **kwargs):
-    """Plots the cumulative distribution of decoding errors.
-
-    See Fig 3.(b) of "Analysis of Hippocampal Memory Replay Using Neural
-        Population Decoding", Fabian Kloosterman, 2012.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
-    """
-
-    if ax is None:
-        ax = plt.gca()
-    if lw is None:
-        lw=1.5
-
-    ax.plt(error, cumprob, lw=lw, **kwargs)
-    ax.set_ylim(0,1)
-    ax.set_ylabel('cumulative probability')
-    ax.set_xlabel('error (cm)')
-
-    # TODO: optionally plot the inset, with 0.5 and 0.7 marked
-
-    return ax
 
 def rmse(predictions, targets):
     """Calculate the root mean squared error of an array of predictions.

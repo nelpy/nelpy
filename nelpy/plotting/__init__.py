@@ -16,6 +16,8 @@ This is the nelpy plotting module.
 
 from .core import *
 
+from .decoding import *
+
 from .utils import *
 
 from .scalebar import add_scalebar
