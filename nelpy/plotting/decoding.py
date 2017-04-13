@@ -69,13 +69,9 @@ def plot_cum_error_dist(*, cumhist=None, bincenters=None,
             sigma=sigma,
             n_bins=n_bins)
 
-    # modify to start at (0,0):
-    cumhist = np.insert(cumhist, 0, 0)
-    bincenters = np.insert(bincenters, 0, 0)
-
     # now plot results
     ax.plot(bincenters, cumhist, lw=lw, color=color, **kwargs)
-    ax.set_xlim(extmin, extmax)
+    ax.set_xlim(bincenters[0], bincenters[-1])
     ax.set_xlabel('error (cm)')
     ax.set_ylabel('cumulative probability')
 

@@ -100,6 +100,11 @@ class TuningCurve1D:
         """External correlate bins."""
         return self._bins
 
+    @property
+    def bin_centers(self):
+        """External correlate bin centers."""
+        return (self.bins + (self.bins[1] - self.bins[0])/2)[:-1]
+
     def _trans_func(self, extern, at):
         """Default transform function to map extern into numerical bins"""
 
