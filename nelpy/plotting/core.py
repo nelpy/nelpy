@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import warnings
+import itertools
 
 from scipy import signal
 
@@ -11,7 +12,8 @@ from .helpers import RasterLabelData
 from ..core import *
 from . import utils  # import plotting/utils
 
-__all__ = ['plot',
+__all__ = ['setup',
+           'plot',
            '_plot_tuning_curves1D',
            'psdplot',
            'overviewstrip',
@@ -21,6 +23,18 @@ __all__ = ['plot',
            'rasterplot',
            'rastercountplot']
 
+def setup(palette="sweet"):
+    """Set aesthetic figure parameters.
+
+    Parameters
+    ----------
+    palette : string or sequence
+        Color palette, see :func:`color_palette`
+
+    TODO: this can greatly be extended, similar to sns.set()
+    """
+
+    utils.set_palette(palette=palette)
 
 def _plot_tuning_curves1D(ratemap, figsize=(3,5), sharey=True,
                        labelstates=None, ec=None, fillcolor=None,
@@ -310,7 +324,7 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
     mew : float, optional
         Marker edge width, default is equal to lw.
     color : matplotlib color, optional
-        Plot color; default is '0.5' (gray).
+        Trace color.
     mec : matplotlib color, optional
         Marker edge color, default is equal to color.
     kwargs :
@@ -351,29 +365,30 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
     if(isinstance(npl_obj, AnalogSignalArray)):
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for segment in npl_obj:
-                ax.plot(segment._time,
-                        segment._ydata_colsig,
-                        # color=color,
-                        mec=mec,
-                        markerfacecolor='w',
-                        lw=lw,
-                        mew=mew,
-                        **kwargs
-                        )
-        # pos = np.where(np.diff(npl_obj._time) > npl_obj.step)[0]+1
-        # try:
-        #     if(npl_obj.ydata.shape[1] > 0):
-        #         for ydata in np.transpose(npl_obj.ydata):
-        #             ax.plot(np.insert(npl_obj._time, pos, np.nan),
-        #                     np.insert(ydata,pos, np.nan),
-        #                     **kwargs)
-        # except IndexError:
-        #     ax.plot(np.insert(npl_obj._time, pos, np.nan),
-        #             np.insert(npl_obj.ydata,pos, np.nan),
-        #             **kwargs)
+                if color is not None:
+                    ax.plot(segment._time,
+                            segment._ydata_colsig,
+                            color=color,
+                            mec=mec,
+                            markerfacecolor='w',
+                            lw=lw,
+                            mew=mew,
+                            **kwargs
+                            )
+                else:
+                    ax.plot(segment._time,
+                            segment._ydata_colsig,
+                            # color=color,
+                            mec=mec,
+                            markerfacecolor='w',
+                            lw=lw,
+                            mew=mew,
+                            **kwargs
+                            )
 
     if isinstance(npl_obj, EpochArray):
         epocharray = npl_obj

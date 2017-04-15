@@ -1062,6 +1062,9 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 binnedspiketrain._bins = self._bins[ll]
 
                 return binnedspiketrain
+            except IndexError:
+                raise TypeError(
+                    'index out of range')
             except Exception:
                 raise TypeError(
                     'unsupported indexing type {}'.format(type(idx)))

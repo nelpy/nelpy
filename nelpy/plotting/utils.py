@@ -3,6 +3,7 @@
 
 Some functions Copyright (c) 2016, Etienne R. Ackermann
 Some functions are modified from Jessica B. Hamrick, Copyright (c) 2013
+'get_color_cycle', 'set_palette', and 'desaturate' are Copyright (c) 2012-2016, Michael L. Waskom
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -26,7 +27,12 @@ from matplotlib import colors as mplcolors
 from matplotlib import cbook
 from matplotlib.image import AxesImage
 import matplotlib.pyplot as plt
+import colorsys
 import os
+from . import palettes
+
+from distutils.version import LooseVersion
+mpl_ge_150 = LooseVersion(mpl.__version__) >= "1.5.0"
 
 __all__ = ['align_xlabels',
            'align_ylabels',
@@ -50,7 +56,9 @@ __all__ = ['align_xlabels',
            'set_xlabel_coords',
            'set_ylabel_coords',
            'sync_xlims',
-           'sync_ylims']
+           'sync_ylims',
+           'set_palette',
+           'get_color_cycle']
 
 def annotate(text, ax=None, xy=None, rotation=None, va=None, **kwargs):
     """Docstring goes here."""
@@ -639,6 +647,83 @@ def set_ylim(ylims, *axes):
     for ax in axes:
         ax.set_ylim(ylims[0], ylims[1])
 
+def get_color_cycle():
+    if mpl_ge_150:
+        cyl = mpl.rcParams['axes.prop_cycle']
+        # matplotlib 1.5 verifies that axes.prop_cycle *is* a cycler
+        # but no garuantee that there's a `color` key.
+        # so users could have a custom rcParmas w/ no color...
+        try:
+            return [x['color'] for x in cyl]
+        except KeyError:
+            pass  # just return axes.color style below
+    return mpl.rcParams['axes.color_cycle']
+
+def set_palette(palette, n_colors=None, desat=None):
+    """Set the matplotlib color cycle using a seaborn palette.
+    Parameters
+    ----------
+    palette : hls | husl | matplotlib colormap | seaborn color palette
+        Palette definition. Should be something that :func:`color_palette`
+        can process.
+    n_colors : int
+        Number of colors in the cycle. The default number of colors will depend
+        on the format of ``palette``, see the :func:`color_palette`
+        documentation for more information.
+    desat : float
+        Proportion to desaturate each color by.
+
+    Examples
+    --------
+    >>> set_palette("Reds")
+    >>> set_palette("Set1", 8, .75)
+    See Also
+    --------
+    color_palette : build a color palette or set the color cycle temporarily
+                    in a ``with`` statement.
+    set_context : set parameters to scale plot elements
+    set_style : set the default parameters for figure style
+    """
+    colors = palettes.color_palette(palette, n_colors, desat)
+    if mpl_ge_150:
+        from cycler import cycler
+        cyl = cycler('color', colors)
+        mpl.rcParams['axes.prop_cycle'] = cyl
+    else:
+        mpl.rcParams["axes.color_cycle"] = list(colors)
+    mpl.rcParams["patch.facecolor"] = colors[0]
+
+def desaturate(color, prop):
+    """Decrease the saturation channel of a color by some percent.
+    Parameters
+    ----------
+    color : matplotlib color
+        hex, rgb-tuple, or html color name
+    prop : float
+        saturation channel of color will be multiplied by this value
+    Returns
+    -------
+    new_color : rgb tuple
+        desaturated color code in RGB tuple representation
+    """
+    # Check inputs
+    if not 0 <= prop <= 1:
+        raise ValueError("prop must be between 0 and 1")
+
+    # Get rgb tuple rep
+    rgb = mplcolors.colorConverter.to_rgb(color)
+
+    # Convert to hls
+    h, l, s = colorsys.rgb_to_hls(*rgb)
+
+    # Desaturate the saturation channel
+    s *= prop
+
+    # Convert back to rgb
+    new_color = colorsys.hls_to_rgb(h, l, s)
+
+    return new_color
+
 class ModestImage(AxesImage):
     """Computationally modest image class.
 
@@ -822,3 +907,5 @@ def imshow(axes, X, cmap=None, norm=None, aspect=None,
     im._remove_method = lambda h: axes.images.remove(h)
 
     return im
+
+

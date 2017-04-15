@@ -5,6 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from mpl_toolkits.axes_grid.inset_locator import inset_axes
+import itertools
+from . import palettes
+# colors = itertools.cycle(npl.palettes.color_palette(palette="sweet", n_colors=15))
 
 # from ..core import *
 # from ..auxiliary import *
@@ -35,8 +38,6 @@ def plot_cum_error_dist(*, cumhist=None, bincenters=None,
         ax = plt.gca()
     if lw is None:
         lw=1.5
-    if color is None:
-        color = '0.2'
     if decodefunc is None:
         decodefunc = decoding.decode1D
     if k is None:
@@ -51,6 +52,12 @@ def plot_cum_error_dist(*, cumhist=None, bincenters=None,
         extmax=100
     if sigma is None:
         sigma = 3
+
+    # Get the color from the current color cycle
+    if color is None:
+        line, = ax.plot(0, 0.5)
+        color = line.get_color()
+        line.remove()
 
     # if cumhist or bincenters are NOT provided, then compute them
     if cumhist is None or bincenters is None:
@@ -75,6 +82,8 @@ def plot_cum_error_dist(*, cumhist=None, bincenters=None,
     ax.set_xlabel('error (cm)')
     ax.set_ylabel('cumulative probability')
 
+    ax.set_ylim(0)
+
     if inset:
         if inset_ax is None:
             inset_ax = inset_axes(parent_axes=ax,
@@ -88,26 +97,18 @@ def plot_cum_error_dist(*, cumhist=None, bincenters=None,
         # annotate inset
         thresh1 = 0.7
         bcidx = np.asscalar(np.argwhere(cumhist>thresh1)[0]-1)
-        inset_ax.add_patch(patches.Rectangle((0, 0),   # (x,y)
-                        width=bincenters[bcidx],          # width
-                        height=thresh1,          # height
-                        facecolor='none',
-                        edgecolor='blue',
-                        linestyle='--'
-                    ))
+        inset_ax.hlines(thresh1, 0, bincenters[bcidx], color=color, alpha=0.7, linestyle='--')
+        inset_ax.vlines(bincenters[bcidx], 0, thresh1, color=color, alpha=0.7, linestyle='--')
+
         inset_ax.set_xlim(0,12*np.ceil(bincenters[bcidx]/10))
 
         thresh2 = 0.5
         bcidx = np.asscalar(np.argwhere(cumhist>thresh2)[0]-1)
-        inset_ax.add_patch(patches.Rectangle((0, 0),   # (x,y)
-                        width=bincenters[bcidx],          # width
-                        height=thresh2,          # height
-                        facecolor='none',
-                        edgecolor='red',
-                        linestyle='--'
-                    ))
+        inset_ax.hlines(thresh2, 0, bincenters[bcidx], color=color, alpha=0.4, linestyle='--')
+        inset_ax.vlines(bincenters[bcidx], 0, thresh2, color=color, alpha=0.4, linestyle='--')
 
         inset_ax.set_yticks((0,thresh1, thresh2, 1))
+        inset_ax.set_ylim(0)
 
         return ax, inset_ax
 
