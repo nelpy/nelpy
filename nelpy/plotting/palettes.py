@@ -12,11 +12,27 @@ import matplotlib as mpl
 from . import utils# import get_color_cycle, desaturate
 
 NELPY_PALETTES = dict(
-    sweet=["#00CF97", "#F05340", "#0098A9",
-           "#6ACC65", "#4878CF", "#C44E52"],
-    old=["#4C72B0", "#55A868", "#C44E52",
-          "#8172B2", "#CCB974", "#64B5CD"]
+    sweet=["#00CF97", "#F05340", "#56B4E9",
+           "#D3AA65", "#B47CC7", "#C44E52"],
+    # sweet=["#00CF97", "#F05340", "#0098A9",
+    #        "#6ACC65", "#4878CF", "#C44E52"],
+    old=["#6bacd0", "#cfa255", "#58b0a6",
+          "#e48065", "#5f486f", "#9a91c4"],
+    new=["#6BACD0", "#D3AA65", "#00CF97",
+           "#F05340", "#B47CC7", "#C44E52"]
     )
+
+    # blue orange green red purple brown pink 
+
+    # color_light="#5f486f",
+    #              color_dark="#355d7a",
+    #              color_extra="0.5",
+    #              color_contr1="#67a9cf",
+    #              color_contr2="#d6604d", # "#ef8a62",
+    #              color_pastel_green="#58b0a6",
+    #              color_pastel_blue="#6bacd0",
+    #              color_pastel_orange="#cfa255",
+    #              color_pastel_red="#e48065",
 
 SEABORN_PALETTES = dict(
     deep=["#4C72B0", "#55A868", "#C44E52",
