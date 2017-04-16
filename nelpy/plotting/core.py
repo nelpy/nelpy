@@ -12,8 +12,7 @@ from .helpers import RasterLabelData
 from ..core import *
 from . import utils  # import plotting/utils
 
-__all__ = ['setup',
-           'plot',
+__all__ = ['plot',
            '_plot_tuning_curves1D',
            'psdplot',
            'overviewstrip',
@@ -22,19 +21,6 @@ __all__ = ['setup',
            'epochplot',
            'rasterplot',
            'rastercountplot']
-
-def setup(palette="sweet"):
-    """Set aesthetic figure parameters.
-
-    Parameters
-    ----------
-    palette : string or sequence
-        Color palette, see :func:`color_palette`
-
-    TODO: this can greatly be extended, similar to sns.set()
-    """
-
-    utils.set_palette(palette=palette)
 
 def _plot_tuning_curves1D(ratemap, figsize=(3,5), sharey=True,
                        labelstates=None, ec=None, fillcolor=None,
@@ -307,7 +293,7 @@ def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
 
     return ax, image
 
-def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
+def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
          mec=None, markerfacecolor=None, **kwargs):
     """Plot an array-like object on an EpochArray.
 
@@ -319,8 +305,6 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
         Data to plot on y axis; must be of size (epocharray.n_epochs,).
     ax : axis object, optional
         Plot in given axis; if None creates a new figure
-    lw : float, optional
-        Linewidth, default value of lw=1.5.
     mew : float, optional
         Marker edge width, default is equal to lw.
     color : matplotlib color, optional
@@ -352,10 +336,6 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
 
     if ax is None:
         ax = plt.gca()
-    if lw is None:
-        lw = 1.5
-    if mew is None:
-        mew = lw
     if mec is None:
         mec = color
     if markerfacecolor is None:
@@ -375,8 +355,6 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
                             color=color,
                             mec=mec,
                             markerfacecolor='w',
-                            lw=lw,
-                            mew=mew,
                             **kwargs
                             )
                 else:
@@ -385,8 +363,6 @@ def plot(npl_obj, data=None, *, ax=None, lw=None, mew=None, color=None,
                             # color=color,
                             mec=mec,
                             markerfacecolor='w',
-                            lw=lw,
-                            mew=mew,
                             **kwargs
                             )
 

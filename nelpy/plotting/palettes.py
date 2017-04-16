@@ -22,7 +22,7 @@ NELPY_PALETTES = dict(
            "#F05340", "#B47CC7", "#C44E52"]
     )
 
-    # blue orange green red purple brown pink 
+    # blue orange green red purple brown pink
 
     # color_light="#5f486f",
     #              color_dark="#355d7a",
@@ -53,14 +53,14 @@ class _ColorPalette(list):
     """Set the color palette in a with statement, otherwise be a list."""
     def __enter__(self):
         """Open the context."""
-        from .utils import set_palette
+        from .rcmod import set_palette
         self._orig_palette = color_palette()
         set_palette(self)
         return self
 
     def __exit__(self, *args):
         """Close the context."""
-        from .utils import set_palette
+        from .rcmod import set_palette
         set_palette(self._orig_palette)
 
     def as_hex(self):

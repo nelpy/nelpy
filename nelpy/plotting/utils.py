@@ -60,7 +60,6 @@ __all__ = ['align_xlabels',
            'set_ylabel_coords',
            'sync_xlims',
            'sync_ylims',
-           'set_palette',
            'get_color_cycle',
            'FigureManager']
 
@@ -69,6 +68,9 @@ class FigureManager(object):
 
     See http://stackoverflow.com/questions/12594148/skipping-execution-of-with-block
     but I was unable to get a solution so far...
+
+    See http://stackoverflow.com/questions/11195140/break-or-exit-out-of-with-statement
+    for additional inspiration for making nested context managers...
 
     Parameters
     ----------
@@ -760,40 +762,6 @@ def get_color_cycle():
         except KeyError:
             pass  # just return axes.color style below
     return mpl.rcParams['axes.color_cycle']
-
-def set_palette(palette, n_colors=None, desat=None):
-    """Set the matplotlib color cycle using a seaborn palette.
-    Parameters
-    ----------
-    palette : hls | husl | matplotlib colormap | seaborn color palette
-        Palette definition. Should be something that :func:`color_palette`
-        can process.
-    n_colors : int
-        Number of colors in the cycle. The default number of colors will depend
-        on the format of ``palette``, see the :func:`color_palette`
-        documentation for more information.
-    desat : float
-        Proportion to desaturate each color by.
-
-    Examples
-    --------
-    >>> set_palette("Reds")
-    >>> set_palette("Set1", 8, .75)
-    See Also
-    --------
-    color_palette : build a color palette or set the color cycle temporarily
-                    in a ``with`` statement.
-    set_context : set parameters to scale plot elements
-    set_style : set the default parameters for figure style
-    """
-    colors = palettes.color_palette(palette, n_colors, desat)
-    if mpl_ge_150:
-        from cycler import cycler
-        cyl = cycler('color', colors)
-        mpl.rcParams['axes.prop_cycle'] = cyl
-    else:
-        mpl.rcParams["axes.color_cycle"] = list(colors)
-    mpl.rcParams["patch.facecolor"] = colors[0]
 
 def desaturate(color, prop):
     """Decrease the saturation channel of a color by some percent.
