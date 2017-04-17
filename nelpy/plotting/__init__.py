@@ -2,7 +2,11 @@
 nelpy.plotting
 =====
 
-This is the nelpy plotting module.
+This is the nelpy plotting sub-package.
+
+nelpy.plotting provides many plot types that work directly on nelpy
+objects, as well as some convenience functions to make using matplotlib
+more convenient.
 """
 
 import matplotlib as mpl
@@ -10,13 +14,13 @@ import matplotlib as mpl
 _orig_rc_params = mpl.rcParams.copy()
 
 from .core import *
-from .rcmod import *
 from .decoding import *
-from .utils import *
-from .scalebar import add_scalebar
 from .miscplot import *
+from .rcmod import *
+from .scalebar import add_scalebar
+from .utils import *
 
 # Set default aesthetics
-setup()
+# setup()
 
 __version__ = '0.0.2'  # should I maintain a separate version for this?

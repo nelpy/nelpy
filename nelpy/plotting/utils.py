@@ -93,7 +93,7 @@ class FigureManager(object):
         pass
 
     def __init__(self, *, filename=None, save=False, show=False,
-                 nrows=1, ncols=1, figsize=(16,6), tight_layout=False,
+                 nrows=1, ncols=1, figsize=(8,3), tight_layout=False,
                  formats=None, dpi=None, verbose=True, overwrite=False,
                  **kwargs):
 

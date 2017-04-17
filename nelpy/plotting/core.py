@@ -341,6 +341,9 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
     if markerfacecolor is None:
         markerfacecolor = 'w'
 
+    if (isinstance(npl_obj, np.ndarray)):
+        ax.plot(npl_obj, mec=mec, markerfacecolor=markerfacecolor, **kwargs)
+
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
