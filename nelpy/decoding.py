@@ -57,8 +57,9 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
     if isinstance(ratemap, auxiliary.TuningCurve1D):
         xmin = ratemap.bins[0]
         xmax = ratemap.bins[-1]
+        # re-order units if necessary
+        ratemap = ratemap.reorder_units_by_ids(bst.unit_ids)
         ratemap = ratemap.ratemap
-        # TODO: re-order units if necessary
 
     _, n_xbins = ratemap.shape
 
