@@ -5,6 +5,8 @@ import numpy as np
 import scipy.ndimage.filters
 import warnings
 
+from .. import utils
+
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -33,7 +35,9 @@ class TuningCurve1D:
 
     """
 
-    def __init__(self, bst, extern, *, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None):
+    __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
+
+    def __init__(self, bst, extern, *, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False):
         """
 
         If sigma is nonzero, then smoothing is applied.
@@ -46,6 +50,12 @@ class TuningCurve1D:
             transform_func operates on extern and returns a value that TuninCurve1D can interpret. If no transform is specified, the identity operator is assumed.
         """
         # TODO: input validation
+
+        # if an empty object is requested, return it:
+        if empty:
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
 
         self._bst = bst
         self._extern = extern
@@ -81,6 +91,9 @@ class TuningCurve1D:
         if sigma is not None:
             if sigma > 0:
                 self.smooth(sigma=sigma, bw=bw, inplace=True)
+
+        # optionally detach _bst and _extern to save space when pickling, for example
+        self._detach()
 
     @property
     def ratemap(self):
@@ -350,6 +363,129 @@ class TuningCurve1D:
         except Exception:
             raise TypeError(
                 'unsupported subsctipting type {}'.format(type(idx)))
+
+    def _unit_subset(self, unit_list):
+        """Return a TuningCurve1D restricted to a subset of units.
+
+        Parameters
+        ----------
+        unit_list : array-like
+            Array or list of unit_ids.
+        """
+        unit_subset_ids = []
+        for unit in unit_list:
+            try:
+                id = self.unit_ids.index(unit)
+            except ValueError:
+                warnings.warn("unit_id " + str(unit) + " not found in TuningCurve1D; ignoring")
+                pass
+            else:
+                unit_subset_ids.append(id)
+
+        new_unit_ids = (np.asarray(self.unit_ids)[unit_subset_ids]).tolist()
+        new_unit_labels = (np.asarray(self.unit_labels)[unit_subset_ids]).tolist()
+
+        if len(unit_subset_ids) == 0:
+            warnings.warn("no units remaining in requested unit subset")
+            return TuningCurve1D(empty=True)
+
+        newtuningcurve = copy.copy(self)
+        newtuningcurve._unit_ids = new_unit_ids
+        newtuningcurve._unit_labels = new_unit_labels
+        # TODO: implement tags
+        # newtuningcurve._unit_tags =
+        newtuningcurve._ratemap = self.ratemap[unit_subset_ids,:]
+        # TODO: shall we restrict _bst as well? This will require a copy to be made...
+        # newtuningcurve._bst =
+
+        return newtuningcurve
+
+    def _get_peak_firing_order_idx(self):
+        """Docstring goes here
+
+        ratemap has shape (n_units, n_ext)
+        """
+        peakorder = np.argmax(self.ratemap, axis=1).argsort()
+
+        return peakorder.tolist()
+
+    def get_peak_firing_order_ids(self):
+        """Docstring goes here
+
+        ratemap has shape (n_units, n_ext)
+        """
+        peakorder = np.argmax(self.ratemap, axis=1).argsort()
+
+        return (np.asanyarray(self.unit_ids)[peakorder]).tolist()
+
+    def _reorder_units_by_idx(self, neworder=None, *, inplace=False):
+        """Reorder units according to a specified order.
+
+        neworder must be list-like, of size (n_units,) and in 0,..n_units
+        and not in terms of unit_ids
+
+        Return
+        ------
+        out : reordered TuningCurve1D
+        """
+        if neworder is None:
+            neworder = self._get_peak_firing_order_idx()
+        if inplace:
+            out = self
+        else:
+            out = copy.deepcopy(self)
+
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            utils.swap_rows(out._ratemap, frm, to)
+            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
+            out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
+            # TODO: re-build unit tags (tag system not yet implemented)
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
+
+        return out
+
+    def reorder_units_by_ids(self, neworder=None, *, inplace=False):
+        """Reorder units according to a specified order.
+
+        neworder must be list-like, of size (n_units,) and in terms of
+        unit_ids
+
+        Return
+        ------
+        out : reordered TuningCurve1D
+        """
+        if neworder is None:
+            neworder = self.get_peak_firing_order_ids()
+        if inplace:
+            out = self
+        else:
+            out = copy.deepcopy(self)
+
+        neworder = [self.unit_ids.index(x) for x in neworder]
+
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            utils.swap_rows(out._ratemap, frm, to)
+            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
+            out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
+            # TODO: re-build unit tags (tag system not yet implemented)
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
+
+        return out
+
+    def reorder_units(self, inplace=False):
+        """Convenience function to reorder units by peak firing location."""
+        return self.reorder_units_by_ids(inplace=inplace)
+
+    def _detach(self):
+        """Detach bst and extern from tuning curve."""
+        self._bst = None
+        self._extern = None
 
 #----------------------------------------------------------------------#
 #======================================================================#

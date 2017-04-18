@@ -809,21 +809,33 @@ class SpikeTrainArray(SpikeTrain):
             [is_sorted(spiketrain) for spiketrain in self.tdata]
             ).all()
 
-    def reorder_units(self, neworder):
+    def reorder_units(self, neworder, inplace=False):
         """Reorder units according to a specified order.
 
         neworder must be list-like, of size (n_units,)
+
+        Return
+        ------
+        out : reordered SpikeTrainArray
         """
+
+        if inplace:
+            out = self
+        else:
+            out = copy.deepcopy(self)
+
         oldorder = list(range(len(neworder)))
         for oi, ni in enumerate(neworder):
             frm = oldorder.index(ni)
             to = oi
-            swap_rows(self._time, frm, to)
-            swap_rows(self._tdata, frm, to)
-            self._unit_ids[frm], self._unit_ids[to] = self._unit_ids[to], self._unit_ids[frm]
-            self._unit_labels[frm], self._unit_labels[to] = self._unit_labels[to], self._unit_labels[frm]
+            swap_rows(out._time, frm, to)
+            swap_rows(out._tdata, frm, to)
+            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
+            out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
             # TODO: re-build unit tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
+
+        return out
 #----------------------------------------------------------------------#
 #======================================================================#
 
