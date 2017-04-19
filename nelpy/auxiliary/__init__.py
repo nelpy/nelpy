@@ -5,6 +5,8 @@ nelpy auxiliary objects
 suite.
 """
 
-__all__ = ['TuningCurve1D']
+__all__ = ['TuningCurve1D',
+           'Session']
 
 from ._tuningcurve import TuningCurve1D
+from ._session import Session

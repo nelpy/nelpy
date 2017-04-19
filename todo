@@ -12,13 +12,9 @@
 * singletons in EpochArray
 * remove empty bins during regression, but not from the decoding itself
 
-[1] filter events: n_active per event
-[2] reorder TCs
-[3] decode w unit ids
-[4] filter cells for decoding
-[5] HMM error decoding comparison
 [6] regression shuffle aggregation
-[7] TC plots
+[5] HMM error decoding comparison
 
 [8] Xilinx
 [9] Owls nest
+[10] CRCNS Berkeley

@@ -11,6 +11,7 @@ from scipy import signal
 from .helpers import RasterLabelData
 from ..core import *
 from . import utils  # import plotting/utils
+from .. import auxiliary
 
 __all__ = ['plot',
            '_plot_tuning_curves1D',
@@ -29,6 +30,9 @@ def _plot_tuning_curves1D(ratemap, figsize=(3,5), sharey=True,
     WARNING! This function is not complete, and hence 'private',
     and may be moved somewhere else later on.
     """
+
+    if isinstance(ratemap, auxiliary.TuningCurve1D):
+        ratemap = ratemap.ratemap
 
     n_units, n_ext = ratemap.shape
     if labelstates is None:
