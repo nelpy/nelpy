@@ -809,7 +809,7 @@ class SpikeTrainArray(SpikeTrain):
             [is_sorted(spiketrain) for spiketrain in self.tdata]
             ).all()
 
-    def reorder_units(self, neworder, inplace=False):
+    def _reorder_units_by_idx(self, neworder, inplace=False):
         """Reorder units according to a specified order.
 
         neworder must be list-like, of size (n_units,)
@@ -836,6 +836,49 @@ class SpikeTrainArray(SpikeTrain):
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
         return out
+
+    def reorder_units(self, neworder, *, inplace=False):
+        """Reorder units according to a specified order.
+
+        neworder must be list-like, of size (n_units,) and in terms of
+        unit_ids
+
+        Return
+        ------
+        out : reordered SpikeTrainArray
+        """
+        raise DeprecationWarning("reorder_units has been deprecated. Use reorder_units_by_id(x/s) instead!")
+
+    def reorder_units_by_ids(self, neworder, *, inplace=False):
+        """Reorder units according to a specified order.
+
+        neworder must be list-like, of size (n_units,) and in terms of
+        unit_ids
+
+        Return
+        ------
+        out : reordered SpikeTrainArray
+        """
+        if inplace:
+            out = self
+        else:
+            out = copy.deepcopy(self)
+
+        neworder = [self.unit_ids.index(x) for x in neworder]
+
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            swap_rows(out._time, frm, to)
+            swap_rows(out._tdata, frm, to)
+            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
+            out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
+            # TODO: re-build unit tags (tag system not yet implemented)
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
+
+        return out
+
 #----------------------------------------------------------------------#
 #======================================================================#
 
