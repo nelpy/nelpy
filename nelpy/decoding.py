@@ -1,7 +1,61 @@
 """Bayesian encoding and decoding"""
 
+__all__ = ['decode1D',
+           'k_fold_cross_validation',
+           'cumulative_dist_decoding_error_using_xval',
+           'cumulative_dist_decoding_error',
+           'get_mode_pth_from_array',
+           'get_mean_pth_from_array']
+
 import numpy as np
 from . import auxiliary
+
+def get_mode_pth_from_array(posterior, tuningcurve=None):
+    """If tuningcurve is provided, then we map it back to the external coordinates / units.
+    Otherwise, we stay in the bin space."""
+    n_xbins = posterior.shape[0]
+
+    if tuningcurve is None:
+        xmin = 0
+        xmax = n_xbins
+    else:
+        # TODO: this only works for TuningCurve1D currently
+        if isinstance(tuningcurve, auxiliary.TuningCurve1D):
+            xmin = tuningcurve.bins[0]
+            xmax = tuningcurve.bins[-1]
+        else:
+            raise TypeError("tuningcurve type not yet supported!")
+
+    _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
+    xbins = (bins + xmax/n_xbins)[:-1]
+
+    mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
+    mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
+
+    return mode_pth
+
+def get_mean_pth_from_array(posterior, tuningcurve=None):
+    """If tuningcurve is provided, then we map it back to the external coordinates / units.
+    Otherwise, we stay in the bin space."""
+    n_xbins = posterior.shape[0]
+
+    if tuningcurve is None:
+        xmin = 0
+        xmax = 1
+    else:
+        # TODO: this only works for TuningCurve1D currently
+        if isinstance(tuningcurve, auxiliary.TuningCurve1D):
+            xmin = tuningcurve.bins[0]
+            xmax = tuningcurve.bins[-1]
+        else:
+            raise TypeError("tuningcurve type not yet supported!")
+
+    _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
+    xbins = (bins + xmax/n_xbins)[:-1]
+
+    mean_pth = (xbins * posterior.T).sum(axis=1)
+
+    return mean_pth
 
 def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
     """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
