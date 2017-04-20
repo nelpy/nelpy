@@ -173,50 +173,68 @@ def trajectory_score_array(posterior, slope=None, intercept=None, w=None, weight
     return np.nansum(temp[:2*w+1,:])/num_non_nan_bins
 
 
-def trajectory_score_bst(bst, tuningcurve, w=None, n_shuffles=250, weights=None, normalize=False):
-    """Compute the trajectory scores from Davidson et al. for each event in the BinnedSpikeTrainArray.
+def trajectory_score_bst(bst, tuningcurve, w=None, n_shuffles=250,
+                         weights=None, normalize=False):
+    """Compute the trajectory scores from Davidson et al. for each event
+    in the BinnedSpikeTrainArray.
 
-    This function returns the trajectory scores by decoding all the events in the BinnedSpikeTrainArray,
-    and then calling an external function to determine the slope and intercept for each event, and then
-    finally computing the scores for those events.
+    This function returns the trajectory scores by decoding all the
+    events in the BinnedSpikeTrainArray, and then calling an external
+    function to determine the slope and intercept for each event, and
+    then finally computing the scores for those events.
 
-    If n_shuffles > 0, then in addition to the trajectory scores, shuffled scores will be returned for
-    both column cycle shuffling, as well as posterior time bin shuffling (time swap).
+    If n_shuffles > 0, then in addition to the trajectory scores,
+    shuffled scores will be returned for both column cycle shuffling, as
+    well as posterior time bin shuffling (time swap).
 
-    NOTE1: this function does NOT attempt to find the line that maximizes the trajectory score. Instead,
-    it delegates the determination of the line to an external function (which currently is called from
-    trajectory_score_array), and at the time of writing this documentation, is simply the best line fit
-    to the modes of the decoded posterior distribution.
+    NOTE1: this function does NOT attempt to find the line that
+    maximizes the trajectory score. Instead, it delegates the
+    determination of the line to an external function (which currently
+    is called from trajectory_score_array), and at the time of writing
+    this documentation, is simply the best line fit to the modes of the
+    decoded posterior distribution.
 
-    NOTE2: the score is then the sum of the probabilities in a band of w bins around the line, ignoring
-    bins that are NaNs. Even when w=0 (only the sum of peak probabilities) this is different from the
-    r^2 coefficient of determination, in that here more concentrated posterior probabilities contribute
-    heavily than weaker ones.
+    NOTE2: the score is then the sum of the probabilities in a band of
+    w bins around the line, ignoring bins that are NaNs. Even when w=0
+    (only the sum of peak probabilities) this is different from the r^2
+    coefficient of determination, in that here more concentrated
+    posterior probabilities contribute heavily than weaker ones.
 
-    NOTE3: the returned scores are NOT normalized, but if desired, they can be normalized by dividing by
-    the number of non-NaN bins in each event.
+    NOTE3: the returned scores are NOT normalized, but if desired, they
+    can be normalized by dividing by the number of non-NaN bins in each
+    event.
+
+    Reference(s)
+    ------------
+    Davidson TJ, Kloosterman F, Wilson MA (2009)
+        Hippocampal replay of extended experience. Neuron 63:497–507
 
     Parameters
     ----------
     bst : BinnedSpikeTrainArray
-        BinnedSpikeTrainArray containing all the candidate events to score.
+        BinnedSpikeTrainArray containing all the candidate events to
+        score.
     tuningcurve : TuningCurve1D
         Tuning curve to decode events in bst.
     w : int, optional (default is 0)
-        Half band width for calculating the trajectory score. If w=0, then only the probabilities
-        falling directly under the line is used. If w=1, then a total band of 2*w+1 = 3 will be used.
+        Half band width for calculating the trajectory score. If w=0,
+        then only the probabilities falling directly under the line are
+        used. If w=1, then a total band of 2*w+1 = 3 will be used.
     n_shuffles : int, optional (default is 250)
-        Number of times to perform both time_swap and column_cycle shuffles.
-    weights : not yet used, but idea is to assign weights to the bands surrounding the line
+        Number of times to perform both time_swap and column_cycle
+        shuffles.
+    weights : not yet used, but idea is to assign weights to the bands
+        surrounding the line
     normalize : bool, optional (default is False)
-        If True, the scores will be normalized by the number of non-NaN bins in each event.
+        If True, the scores will be normalized by the number of non-NaN
+        bins in each event.
 
     Returns
     -------
     scores, [scores_time_swap, scores_col_cycle]
         scores is of size (bst.n_epochs, )
-        scores_time_swap and scores_col_cycle are each of size (n_shuffles, bst.n_epochs)
-
+        scores_time_swap and scores_col_cycle are each of size
+            (n_shuffles, bst.n_epochs)
     """
 
     if w is None:
@@ -229,9 +247,11 @@ def trajectory_score_bst(bst, tuningcurve, w=None, n_shuffles=250, weights=None,
     else:
         raise ValueError("n_shuffles must be an integer!")
 
-    posterior, bdries, mode_pth, mean_pth = decode(bst=bst, ratemap=tuningcurve)
+    posterior, bdries, mode_pth, mean_pth = decode(bst=bst,
+                                                   ratemap=tuningcurve)
 
-    # idea: cycle each column so that the top w rows are the band surrounding the regression line
+    # idea: cycle each column so that the top w rows are the band
+    # surrounding the regression line
 
     scores = np.zeros(bst.n_epochs)
     if n_shuffles > 0:
@@ -240,14 +260,22 @@ def trajectory_score_bst(bst, tuningcurve, w=None, n_shuffles=250, weights=None,
 
     for idx in range(bst.n_epochs):
         posterior_array = posterior[:, bdries[idx]:bdries[idx+1]]
-        scores[idx] = trajectory_score_array(posterior=posterior_array, w=w, normalize=normalize)
+        scores[idx] = trajectory_score_array(posterior=posterior_array,
+                                             w=w,
+                                             normalize=normalize)
         for shflidx in range(n_shuffles):
             # time swap:
 
             posterior_ts = time_swap_array(posterior_array)
             posterior_cs = column_cycle_array(posterior_array)
-            scores_time_swap[shflidx, idx] = trajectory_score_array(posterior=posterior_ts, w=w, normalize=normalize)
-            scores_col_cycle[shflidx, idx] = trajectory_score_array(posterior=posterior_cs, w=w, normalize=normalize)
+            scores_time_swap[shflidx, idx] = trajectory_score_array(
+                posterior=posterior_ts,
+                w=w,
+                normalize=normalize)
+            scores_col_cycle[shflidx, idx] = trajectory_score_array(
+                posterior=posterior_cs,
+                w=w,
+                normalize=normalize)
 
     if n_shuffles > 0:
         return scores, scores_time_swap, scores_col_cycle
@@ -255,6 +283,12 @@ def trajectory_score_bst(bst, tuningcurve, w=None, n_shuffles=250, weights=None,
 
 def get_significant_events(scores, shuffled_scores, q=95):
     """Return the significant events based on percentiles.
+
+    NOTE: The score is compared to the distribution of scores obtained
+    using the randomized data and a Monte Carlo p-value can be computed
+    according to: p = (r+1)/(n+1), where r is the number of
+    randomizations resulting in a score higher than the real score and n
+    is the total number randomizations performed.
 
     Parameters
     ----------
@@ -267,8 +301,16 @@ def get_significant_events(scores, shuffled_scores, q=95):
     -------
     sig_event_idx : array of shape (n_sig_events,)
         Indices (from 0 to n_events-1) of significant events.
+    pvalues :
     """
 
-    sig_event_idx = np.argwhere(scores > np.percentile(shuffled_scores, axis=0, q=q)).squeeze()
+    n, _ = shuffled_scores.shape
+    r = np.sum(shuffled_scores > scores, axis=0)
+    pvalues = (r+1)/(n+1)
 
-    return sig_event_idx
+    sig_event_idx = np.argwhere(scores > np.percentile(
+        shuffled_scores,
+        axis=0,
+        q=q)).squeeze()
+
+    return sig_event_idx, pvalues
