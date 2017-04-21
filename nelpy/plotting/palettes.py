@@ -175,6 +175,8 @@ def color_palette(palette=None, n_colors=None, desat=None):
         if n_colors is None:
             n_colors = 6
 
+        # if isinstance(palette, list):
+        #     pass
         if palette in NELPY_PALETTES:
             palette = NELPY_PALETTES[palette]
         elif palette.lower() == "jet":

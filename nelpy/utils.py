@@ -1,6 +1,7 @@
 """This module contains helper functions and utilities for nelpy."""
 
-__all__ = ['swap_cols',
+__all__ = ['spatial_information',
+           'swap_cols',
            'swap_rows',
            'pairwise',
            'is_sorted',
@@ -21,6 +22,113 @@ import copy
 
 from . import core # so that core.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
+
+def spatial_information(occupancy, ratemap):
+        """Compute the spatial information and firing sparsity...
+
+        The specificity index examines the amount of information
+        (in bits) that a single spike conveys about the animal's
+        location (i.e., how well cell firing redicts the animals
+        location).The spatial information content of cell discharge was
+        calculated using the formula:
+            information content = \Sum P_i(R_i/R)log_2(R_i/R)
+        where i is the bin number, P, is the probability for occupancy
+        of bin i, R, is the mean firing rate for bin i, and R is the
+        overall mean firing rate.
+
+        In order to account for the effects of low firing rates (with
+        fewer spikes there is a tendency toward higher information
+        content) or random bursts of firing, the spike firing
+        time-series was randomly offset in time from the rat location
+        time-series, and the information content was calculated. A
+        distribution of the information content based on 100 such random
+        shifts was obtained and was used to compute a standardized score
+        (Zscore) of information content for that cell. While the
+        distribution is not composed of independent samples, it was
+        nominally normally distributed, and a Z value of 2.29 was chosen
+        as a cut-off for significance (the equivalent of a one-tailed
+        t-test with P = 0.01 under a normal distribution).
+
+        Reference(s)
+        ------------
+        Markus, E. J., Barnes, C. A., McNaughton, B. L., Gladden, V. L.,
+            and Skaggs, W. E. (1994). "Spatial information content and
+            reliability of hippocampal CA1 neurons: effects of visual
+            input", Hippocampus, 4(4), 410-421.
+
+        Parameters
+        ----------
+        occupancy : array of shape (n_bins,)
+            Occupancy of the animal.
+        ratemap : array of shape (n_units, n_bins)
+            Rate map in Hz.
+        Returns
+        -------
+        si : array of shape (n_units,)
+            spatial information (in bits) per unit
+        sparsity: array of shape (n_units,)
+            sparsity (in percent) for each unit
+        """
+
+        Pi = occupancy / np.sum(occupancy)
+        R = ratemap.mean(axis=1) # mean firing rate
+        Ri = ratemap.T
+        si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
+
+        return si
+
+def spatial_sparsity(occupancy, ratemap):
+        """Compute the firing sparsity...
+
+        The specificity index examines the amount of information
+        (in bits) that a single spike conveys about the animal's
+        location (i.e., how well cell firing redicts the animals
+        location).The spatial information content of cell discharge was
+        calculated using the formula:
+            information content = \Sum P_i(R_i/R)log_2(R_i/R)
+        where i is the bin number, P, is the probability for occupancy
+        of bin i, R, is the mean firing rate for bin i, and R is the
+        overall mean firing rate.
+
+        In order to account for the effects of low firing rates (with
+        fewer spikes there is a tendency toward higher information
+        content) or random bursts of firing, the spike firing
+        time-series was randomly offset in time from the rat location
+        time-series, and the information content was calculated. A
+        distribution of the information content based on 100 such random
+        shifts was obtained and was used to compute a standardized score
+        (Zscore) of information content for that cell. While the
+        distribution is not composed of independent samples, it was
+        nominally normally distributed, and a Z value of 2.29 was chosen
+        as a cut-off for significance (the equivalent of a one-tailed
+        t-test with P = 0.01 under a normal distribution).
+
+        Reference(s)
+        ------------
+        Markus, E. J., Barnes, C. A., McNaughton, B. L., Gladden, V. L.,
+            and Skaggs, W. E. (1994). "Spatial information content and
+            reliability of hippocampal CA1 neurons: effects of visual
+            input", Hippocampus, 4(4), 410-421.
+
+        Parameters
+        ----------
+        occupancy : array of shape (n_bins,)
+            Occupancy of the animal.
+        ratemap : array of shape (n_units, n_bins)
+            Rate map in Hz.
+        Returns
+        -------
+        si : array of shape (n_units,)
+            spatial information (in bits) per unit
+        sparsity: array of shape (n_units,)
+            sparsity (in percent) for each unit
+        """
+
+        Pi = occupancy / np.sum(occupancy)
+        R = ratemap.mean(axis=1) # mean firing rate
+        Ri = ratemap.T
+        sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
+        return sparsity
 
 def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     """Compute the multiunit activity (MUA) from a spike train.
@@ -288,7 +396,7 @@ def get_contiguous_segments(data, step=None, sort=False, in_memory=True):
 
         bdries = []
 
-        for k, g in groupby(enumerate(data), lambda ix: (round(100*step*ix[0] - 100*ix[1])//10)):
+        for k, g in groupby(enumerate(data), lambda ix: (ix[0] - ix[1])):
             f = itemgetter(1)
             gen = (f(x) for x in g)
             start = next(gen)

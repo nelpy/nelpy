@@ -287,8 +287,8 @@ def get_significant_events(scores, shuffled_scores, q=95):
     NOTE: The score is compared to the distribution of scores obtained
     using the randomized data and a Monte Carlo p-value can be computed
     according to: p = (r+1)/(n+1), where r is the number of
-    randomizations resulting in a score higher than the real score and n
-    is the total number randomizations performed.
+    randomizations resulting in a score higher than (ETIENNE EDIT: OR EQUAL TO?)
+    the real score and n is the total number of randomizations performed.
 
     Parameters
     ----------
@@ -305,7 +305,7 @@ def get_significant_events(scores, shuffled_scores, q=95):
     """
 
     n, _ = shuffled_scores.shape
-    r = np.sum(shuffled_scores > scores, axis=0)
+    r = np.sum(shuffled_scores >= scores, axis=0)
     pvalues = (r+1)/(n+1)
 
     sig_event_idx = np.argwhere(scores > np.percentile(

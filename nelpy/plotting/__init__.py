@@ -18,7 +18,9 @@ from .decoding import *
 from .miscplot import *
 from .rcmod import *
 from .scalebar import add_scalebar
-from .utils import *
+from .utils import FigureManager
+from . import colors
+from . import utils
 
 # Set default aesthetics
 # setup()
