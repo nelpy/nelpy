@@ -14,7 +14,7 @@ from . import utils  # import plotting/utils
 from .. import auxiliary
 
 __all__ = ['plot',
-           '_plot_tuning_curves1D',
+           'plot_tuning_curves1D',
            'psdplot',
            'overviewstrip',
            'imagesc',
@@ -23,50 +23,58 @@ __all__ = ['plot',
            'rasterplot',
            'rastercountplot']
 
-def _plot_tuning_curves1D(ratemap, figsize=(3,5), sharey=True,
-                       labelstates=None, ec=None, fillcolor=None,
-                       lw=None):
+def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True):
     """
     WARNING! This function is not complete, and hence 'private',
     and may be moved somewhere else later on.
     """
+    if ax is None:
+        ax = plt.gca()
 
     if isinstance(ratemap, auxiliary.TuningCurve1D):
+        xmin = ratemap.bins[0]
+        xmax = ratemap.bins[-1]
+        xvals = ratemap.bin_centers
+        if unit_labels is None:
+            unit_labels = ratemap.unit_labels
         ratemap = ratemap.ratemap
 
+    if pad is None:
+        pad = ratemap.mean()/2
+
     n_units, n_ext = ratemap.shape
-    if labelstates is None:
-        labelstates = [1, n_units]
-    if ec is None:
-        ec = 'k'
-    if fillcolor is None:
-        fillcolor = 'gray'
-    if lw is None:
-        lw = 1.5
 
-    fig, axes = plt.subplots(n_units, 1, figsize=figsize, sharey=sharey)
+    if normalize:
+        peak_firing_rates = ratemap.max(axis=1)
+        ratemap = (ratemap.T / peak_firing_rates).T
 
-    xvals = np.arange(n_ext)
+    # determine max firing rate
+    max_firing_rate = ratemap.max()
 
-    for unit, ax in enumerate(axes):
-        ax.fill_between(xvals, 0, ratemap.T[:,unit], color=fillcolor)
-        ax.plot(xvals, ratemap.T[:,unit], color=ec, lw=lw)
-        if unit + 1 in labelstates:
-            ax.set_ylabel(str(unit+1), rotation=0, y=-0.1)
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-        utils.no_yticks(ax)
-        utils.no_xticks(ax)
-    # fig.suptitle('normalized place fields sorted by peak location (left) and mean location (right)', y=0.92, fontsize=14)
-    # ax.set_xticklabels(['0','20', '40', '60', '80', '100'])
+    if xvals is None:
+        xvals = np.arange(n_ext)
+    if xmin is None:
+        xmin = xvals[0]
+    if xmax is None:
+        xmax = xvals[-1]
+
+    for unit, curve in enumerate(ratemap):
+        ax.plot(xvals, unit*pad + curve)
+        if fill:
+            ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=0.3)
+
+    yticks = np.arange(n_units)*pad + 0.5*pad
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(unit_labels)
     ax.set_xlabel('external variable')
-    fig.text(0.02, 0.5, 'normalized state distribution', va='center', rotation='vertical')
+    ax.set_ylabel('unit')
+    ax.set_xlim(xmin, xmax)
+    utils.no_yticks(ax)
+    utils.clear_top(ax)
+    utils.clear_left(ax)
+    utils.clear_right(ax)
 
-    return fig, axes
+    return ax
 
 def spectrogram(data, *, h):
     """

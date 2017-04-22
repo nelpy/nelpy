@@ -156,6 +156,39 @@ class AnchoredScaleBar(AnchoredOffsetbox):
             frameon=False,
             **kwargs)
 
+def add_simple_scalebar(text, ax=None, xy=None, length=None, orientation='v', rotation_text=None, xytext=None, **kwargs):
+    if rotation_text is None:
+        rotation_text = 0
+    if rotation_text == 'vert' or rotation_text == 'v':
+        rotation_text = 90
+    if rotation_text == 'horz' or rotation_text == 'h':
+        rotation_text = 0
+    if orientation is None:
+        orientation = 0
+    if orientation == 'vert' or orientation == 'v':
+        orientation = 90
+    if orientation == 'horz' or orientation == 'h':
+        orientation = 0
+
+    if length is None:
+        length = 10
+
+    if ax is None:
+        ax = plt.gca()
+
+#     if va is None:
+#         if rotation_text == 90:
+#             va = 'bottom'
+#         else:
+#             va = 'baseline'
+
+    if orientation == 0:
+        ax.hlines(xy[1], xy[0], xy[0] + length, lw=2 )
+    else:
+        ax.vlines(xy[0], xy[1], xy[1] + length, lw=2 )
+        xytext = (xy[0] + 3, xy[1] + length/2)
+        ax.annotate(text, xy=xytext, rotation=rotation_text, va='center', **kwargs)
+
 
 def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None,
                  sizey=None, labelx=None, labely=None, hidex=True,
