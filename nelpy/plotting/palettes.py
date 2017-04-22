@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib as mpl
 
 from . import utils# import get_color_cycle, desaturate
+from . import colors
 
 NELPY_PALETTES = dict(
     sweet=["#00CF97", "#F05340", "#56B4E9",
@@ -165,7 +166,10 @@ def color_palette(palette=None, n_colors=None, desat=None):
         palette = utils.get_color_cycle()
         if n_colors is None:
             n_colors = len(palette)
-
+    elif isinstance(palette, colors.ColorGroup):
+        palette = palette.colors
+        if n_colors is None:
+            n_colors = len(palette)
     elif not isinstance(palette, str):
         palette = palette
         if n_colors is None:

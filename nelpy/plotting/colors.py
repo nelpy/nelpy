@@ -106,7 +106,23 @@ _louise = {'tree_green': '#334433',
            'foliage_green': '#33aa66'
             }
 
+_rainbow = {"c0": "#fbb735",
+            "c1": "#e98931",
+            "c2": "#eb403b",
+            "c3": "#b32E37",
+            "c4": "#6c2a6a",
+            "c5": "#5c4399",
+            "c6": "#274389",
+            "c7": "#1f5ea8",
+            "c8": "#227FB0",
+            "c9": "#2ab0c5",
+            "c10": "#39c0b3",
+            "c11": "#33aa66",
+            "c12": '#00bbff'
+            }
+
 # instantiate ColorGroups
 sweet = ColorGroup(_sweet)
 riceuniv = ColorGroup(_riceuniv)
 lake_louise = ColorGroup(_louise)
+rainbow = ColorGroup(_rainbow)
