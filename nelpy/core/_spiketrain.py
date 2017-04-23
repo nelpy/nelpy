@@ -1200,7 +1200,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def lengths(self):
         """Lenghts of contiguous segments, in number of bins."""
-        return (self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1).squeeze()
+        return np.atleast_1d((self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1).squeeze())
 
     @property
     def spiketrainarray(self):

@@ -27,6 +27,8 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
     """
     WARNING! This function is not complete, and hence 'private',
     and may be moved somewhere else later on.
+
+    If pad=0 then the y-axis is assumed to be firing rate
     """
     if ax is None:
         ax = plt.gca()
@@ -63,15 +65,23 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
         if fill:
             ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=0.3)
 
-    yticks = np.arange(n_units)*pad + 0.5*pad
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(unit_labels)
-    ax.set_xlabel('external variable')
-    ax.set_ylabel('unit')
     ax.set_xlim(xmin, xmax)
-    utils.no_yticks(ax)
+    if pad != 0:
+        yticks = np.arange(n_units)*pad + 0.5*pad
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(unit_labels)
+        ax.set_xlabel('external variable')
+        ax.set_ylabel('unit')
+        utils.no_yticks(ax)
+        utils.clear_left(ax)
+    else:
+        if normalize:
+            ax.set_ylabel('normalized firing rate')
+        else:
+            ax.set_ylabel('firing rate [Hz]')
+        ax.set_ylim(0)
+
     utils.clear_top(ax)
-    utils.clear_left(ax)
     utils.clear_right(ax)
 
     return ax

@@ -60,6 +60,8 @@ __all__ = ['align_xlabels',
            'set_ylabel_coords',
            'sync_xlims',
            'sync_ylims',
+           'xticks_interval',
+           'yticks_interval',
            'get_color_cycle',
            'FigureManager']
 
@@ -330,6 +332,22 @@ or-specific-number
     def _set_orderOfMagnitude(self, range):
         """Override to prevent order_of_mag being reset elsewhere."""
         self.orderOfMagnitude = self._order_of_mag
+
+def xticks_interval(step=10, *axes):
+    """Set xticks interval."""
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    loc = mpl.ticker.MultipleLocator(base=step) # this locator puts ticks at regular intervals
+    for ax in axes:
+        ax.xaxis.set_major_locator(loc)
+
+def yticks_interval(step=10, *axes):
+    """Set yticks interval."""
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    loc = mpl.ticker.MultipleLocator(base=step) # this locator puts ticks at regular intervals
+    for ax in axes:
+        ax.yaxis.set_major_locator(loc)
 
 def clear_top(*axes):
     """Remove the top edge of the axis bounding box.
