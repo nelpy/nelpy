@@ -288,7 +288,7 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
     hist = np.zeros(n_bins)
     for training, validation in k_fold_cross_validation(bst.n_epochs, k=k):
         # estimate place fields using bst[training]
-        tc = auxiliary.TuningCurve1D(bst[training], extern=extern, n_extern=n_extern, extmin=extmin, extmax=extmax, sigma=sigma)
+        tc = auxiliary.TuningCurve1D(bst=bst[training], extern=extern, n_extern=n_extern, extmin=extmin, extmax=extmax, sigma=sigma)
         # decode position using bst[validation]
         posterior, _, mode_pth, mean_pth = decodefunc(bst[validation], tc)
         # calculate validation error (for current fold) by comapring

@@ -38,7 +38,7 @@ class TuningCurve1D:
 
     __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
 
-    def __init__(self, bst=None, extern=None, *, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False):
+    def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False):
         """
 
         If sigma is nonzero, then smoothing is applied.
@@ -52,13 +52,30 @@ class TuningCurve1D:
         """
         # TODO: input validation
         if not empty:
-            assert bst is not None, "bst must be specified, or empty=True"
-            assert extern is not None, "extern must be specified, or empty=True"
+            if ratemap is None:
+                assert bst is not None, "bst must be specified or ratemap must be specified!"
+                assert extern is not None, "extern must be specified or ratemap must be specified!"
+            else:
+                assert bst is None, "ratemap and bst cannot both be specified!"
+                assert extern is None, "ratemap and extern cannot both be specified!"
 
         # if an empty object is requested, return it:
         if empty:
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
+            return
+
+        if ratemap is not None:
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            self._init_from_ratemap(ratemap=ratemap,
+                                    extmin=extmin,
+                                    extmax=extmax,
+                                    extlabels=extlabels,
+                                    unit_ids=unit_ids,
+                                    unit_labels=unit_labels,
+                                    unit_tags=unit_tags,
+                                    label=label)
             return
 
         self._bst = bst
@@ -199,7 +216,7 @@ class TuningCurve1D:
         return utils.spatial_sparsity(occupancy=self.occupancy,
                                       ratemap=self.ratemap)
 
-    def _init_from_ratemap(self, ratemap, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None,):
+    def _init_from_ratemap(self, ratemap, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None):
         """Initialize a TuningCurve1D object from a ratemap.
 
         Parameters
