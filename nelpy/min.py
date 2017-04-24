@@ -8,6 +8,6 @@ and inspired by the neuralensemble.org NEO project
 (see http://neo.readthedocs.io/en/0.4.0/core.html).
 """
 
-from . import objects
+from .core import *
 
 from . version import __version__

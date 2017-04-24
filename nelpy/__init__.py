@@ -7,11 +7,15 @@ and inspired by the neuralensemble.org NEO project
 (see http://neo.readthedocs.io/en/0.4.0/core.html).
 """
 
-from .objects import *  # NOTE: control exported symbols in objects.py
+# from .objects import *  # NOTE: control exported symbols in objects.py
+
+from .core import *
+from .auxiliary import *
 
 from . import filtering
 from . import plotting
 from . import utils
+# from . import io
 
 from . version import __version__
 

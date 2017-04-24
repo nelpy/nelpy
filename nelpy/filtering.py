@@ -26,7 +26,7 @@ import warnings
 from scipy.signal import butter, lfilter, filtfilt, firwin
 from math import log10, ceil
 
-from .objects import AnalogSignalArray
+from .core import AnalogSignalArray
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     """Returns a bandpass butterworth filter."""
@@ -310,6 +310,20 @@ def filter_lfp(data, band=None, *, lowcut=None, highcut=None,
     filtered : same type as data.
     """
     supported_bands = ['ripple', 'delta', 'theta']
+
+
+    # Delta wave – (0.1 – 3 Hz)
+    # Theta wave – (4 – 7 Hz)
+    # Alpha wave – (8 – 15 Hz)
+    # Mu wave – (7.5 – 12.5 Hz)
+    # SMR wave – (12.5 – 15.5 Hz)
+    # Beta wave – (16 – 31 Hz)
+    # Gamma wave – (32 – 100 Hz)
+
+    # slow gamma : 10–50 Hz
+    # hippocampal theta : 6–10 Hz
+    # motionless but alert theta : 6–7 Hz
+    # cat & rabbit theta: 4-6 Hz
 
     if band is None:
         band = 'ripple'

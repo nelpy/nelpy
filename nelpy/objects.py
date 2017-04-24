@@ -1324,14 +1324,20 @@ class AnalogSignalArray:
         Default is [0, last spike] inclusive.
     step : int
         specifies step size of samples passed as tdata if fs is given,
-        default set to 1. e.g. decimated data would have sample numbers
-        every ten samples so step=10
-    fs_meta: float, optional
+        default is None. If not passed it is inferred by the minimum
+        difference in between samples of tdata passed in (based on if FS
+        is passed). e.g. decimated data would have sample numbers every
+        ten samples so step=10
+    fs_meta : float, optional
         Optional sampling rate storage. The true sampling rate if tdata
         is time can be stored here. The above parameter, fs, must be left
         blank if tdata is time and not sample numbers. This will not be
         used for any calculations. Just to store in AnalogSignalArray as
         a value.
+    merge_sample_gap : float, optional
+        Optional merging of gaps between support epochs. If epochs are within
+        a certain amount of time, gap, they will be merged as one epoch. Example
+        use case is when there is a dropped sample
     empty : bool
         Return an empty AnalogSignalArray if true else false. Default
         set to false.
@@ -1430,11 +1436,11 @@ class AnalogSignalArray:
 
                 # tdata, fs and no support
                 else:
-                    warnings.warn("support created with given tdata and sampling rate, fs!")
+                    warnings.warn("creating support with given tdata and sampling rate, fs!")
                     self._time = time
                     if self._step is None:
                         self._step = np.min(np.diff(tdata))
-                    self._support = EpochArray(get_contiguous_segments(tdata,
+                    self._support = EpochArray(get_contiguous_segments(self._tdata,
                         step=self._step), fs=fs)
                     self._support = self._support.merge(gap=merge_sample_gap)
             else:

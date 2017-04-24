@@ -8,10 +8,11 @@ import warnings
 from scipy import signal
 
 from .helpers import RasterLabelData
-from ..objects import *
+from ..core import *
 from . import utils  # import plotting/utils
 
 __all__ = ['plot',
+           '_plot_tuning_curves1D',
            'psdplot',
            'overviewstrip',
            'imagesc',
@@ -19,6 +20,115 @@ __all__ = ['plot',
            'epochplot',
            'rasterplot',
            'rastercountplot']
+
+
+def _plot_tuning_curves1D(ratemap, figsize=(3,5), sharey=True,
+                       labelstates=None, ec=None, fillcolor=None,
+                       lw=None):
+    """
+    WARNING! This function is not complete, and hence 'private',
+    and may be moved somewhere else later on.
+    """
+
+    n_units, n_ext = ratemap.shape
+    if labelstates is None:
+        labelstates = [1, n_units]
+    if ec is None:
+        ec = 'k'
+    if fillcolor is None:
+        fillcolor = 'gray'
+    if lw is None:
+        lw = 1.5
+
+    fig, axes = plt.subplots(n_units, 1, figsize=figsize, sharey=sharey)
+
+    xvals = np.arange(n_ext)
+
+    for unit, ax in enumerate(axes):
+        ax.fill_between(xvals, 0, ratemap.T[:,unit], color=fillcolor)
+        ax.plot(xvals, ratemap.T[:,unit], color=ec, lw=lw)
+        if unit + 1 in labelstates:
+            ax.set_ylabel(str(unit+1), rotation=0, y=-0.1)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        utils.no_yticks(ax)
+        utils.no_xticks(ax)
+    # fig.suptitle('normalized place fields sorted by peak location (left) and mean location (right)', y=0.92, fontsize=14)
+    # ax.set_xticklabels(['0','20', '40', '60', '80', '100'])
+    ax.set_xlabel('external variable')
+    fig.text(0.02, 0.5, 'normalized state distribution', va='center', rotation='vertical')
+
+    return fig, axes
+
+def spectrogram(data, *, h):
+    """
+    Compute a spectrogram with consecutive Fourier transforms.
+    Spectrograms can be used as a way of visualizing the change of a
+    nonstationary signal's frequency content over time.
+    Parameters
+    ----------
+    x : array_like
+        Time series of measurement values
+    fs : float, optional
+        Sampling frequency of the `x` time series. Defaults to 1.0.
+    window : str or tuple or array_like, optional
+        Desired window to use. See `get_window` for a list of windows
+        and required parameters. If `window` is array_like it will be
+        used directly as the window and its length must be nperseg.
+        Defaults to a Tukey window with shape parameter of 0.25.
+    nperseg : int, optional
+        Length of each segment. Defaults to None, but if window is str or
+        tuple, is set to 256, and if window is array_like, is set to the
+        length of the window.
+    noverlap : int, optional
+        Number of points to overlap between segments. If `None`,
+        ``noverlap = nperseg // 8``. Defaults to `None`.
+    nfft : int, optional
+        Length of the FFT used, if a zero padded FFT is desired. If
+        `None`, the FFT length is `nperseg`. Defaults to `None`.
+    detrend : str or function or `False`, optional
+        Specifies how to detrend each segment. If `detrend` is a
+        string, it is passed as the `type` argument to the `detrend`
+        function. If it is a function, it takes a segment and returns a
+        detrended segment. If `detrend` is `False`, no detrending is
+        done. Defaults to 'constant'.
+    return_onesided : bool, optional
+        If `True`, return a one-sided spectrum for real data. If
+        `False` return a two-sided spectrum. Note that for complex
+        data, a two-sided spectrum is always returned.
+    scaling : { 'density', 'spectrum' }, optional
+        Selects between computing the power spectral density ('density')
+        where `Sxx` has units of V**2/Hz and computing the power
+        spectrum ('spectrum') where `Sxx` has units of V**2, if `x`
+        is measured in V and `fs` is measured in Hz. Defaults to
+        'density'.
+    axis : int, optional
+        Axis along which the spectrogram is computed; the default is over
+        the last axis (i.e. ``axis=-1``).
+    mode : str, optional
+        Defines what kind of return values are expected. Options are
+        ['psd', 'complex', 'magnitude', 'angle', 'phase']. 'complex' is
+        equivalent to the output of `stft` with no padding or boundary
+        extension. 'magnitude' returns the absolute magnitude of the
+        STFT. 'angle' and 'phase' return the complex angle of the STFT,
+        with and without unwrapping, respectively.
+    Returns
+    -------
+    f : ndarray
+        Array of sample frequencies.
+    t : ndarray
+        Array of segment times.
+    Sxx : ndarray
+        Spectrogram of x. By default, the last axis of Sxx corresponds
+        to the segment times.
+
+    See https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.spectrogram.html
+    """
+    raise NotImplementedError("plotting.spectrogram() does not exist yet!")
 
 def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
             return_onesided=True, scaling='density', ax=None):
@@ -36,6 +146,8 @@ def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
 
     TODO: implement uneven temporal sampling:
     https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.signal.lombscargle.html#scipy.signal.lombscargle
+
+    TODO: implement https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html#scipy.signal.welch
 
     Parameters
     ----------

@@ -1,4 +1,4 @@
-from nelpy.objects import SpikeTrainArray
+from nelpy.core import SpikeTrainArray
 
 class TestSpikeTrainArrayEtienne:
 

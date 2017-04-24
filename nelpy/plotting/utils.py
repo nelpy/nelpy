@@ -622,6 +622,23 @@ def set_xlim(xlims, *axes):
     for ax in axes:
         ax.set_xlim(xlims[0], xlims[1])
 
+def set_ylim(ylims, *axes):
+    """Sets the ylims for all axes.
+
+    Parameters
+    ----------
+    ylims : tuple? list?
+    *axes : axis objects
+        List of matplotlib axis objects to format
+
+    Returns
+    -------
+
+
+    """
+    for ax in axes:
+        ax.set_ylim(ylims[0], ylims[1])
+
 class ModestImage(AxesImage):
     """Computationally modest image class.
 
