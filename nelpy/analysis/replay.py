@@ -110,6 +110,19 @@ def time_swap_array(posterior):
 
     return out
 
+def time_swap_bst(bst):
+    """Time swap on BinnedSpikeTrainArray, swapping only within each epoch."""
+    out = copy.copy(bst) # should this be deep?
+    shuffled = np.arange(bst.n_bins)
+    edges = np.insert(np.cumsum(bst.lengths),0,0)
+    for ii in range(bst.n_epochs):
+        segment = shuffled[edges[ii]:edges[ii+1]]
+        shuffled[edges[ii]:edges[ii+1]] = np.random.permutation(segment)
+
+    out._data = out._data[:,shuffled]
+
+    return out
+
 def column_cycle_array(posterior, amt=None):
     """Also called 'position cycle' by Kloosterman et al.
     If amt is an array of the same length as posterior, then
@@ -280,6 +293,133 @@ def trajectory_score_bst(bst, tuningcurve, w=None, n_shuffles=250,
     if n_shuffles > 0:
         return scores, scores_time_swap, scores_col_cycle
     return scores
+
+def shuffle_transmat(transmat):
+    """Shuffle transition probability matrix within each row, leaving self transitions in tact.
+
+    It is assumed that the transmat is stochastic-row-wise, meaning that A_{ij} = Pr(S_{t+1}=j|S_t=i).
+
+    Parameters
+    ----------
+    transmat : array of size (n_states, n_states)
+        Transition probability matrix, where A_{ij} = Pr(S_{t+1}=j|S_t=i).
+
+    Returns
+    -------
+    shuffled : array of size (n_states, n_states)
+        Shuffled transition probability matrix.
+    """
+    shuffled = transmat.copy()
+
+    nrows, ncols = transmat.shape
+    for rowidx in range(nrows):
+        all_but_diagonal = np.append(np.arange(rowidx), np.arange(rowidx+1, ncols))
+        shuffle_idx = np.random.permutation(all_but_diagonal)
+        shuffle_idx = np.insert(shuffle_idx, rowidx, rowidx)
+        shuffled[rowidx,:] = shuffled[rowidx, shuffle_idx]
+
+    return shuffled
+
+def score_hmm_logprob(bst, hmm, normalize=False):
+    """Score events in a BinnedSpikeTrainArray by computing the log
+    probability under the model.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+    hmm : PoissonHMM
+    normalize : bool, optional. Default is False.
+        If True, log probabilities will be normalized by their sequence
+        lengths.
+    Returns
+    -------
+    logprob : array of size (n_events,)
+        Log probabilities, one for each event in bst.
+    """
+
+    logprob = np.atleast_1d(hmm.score(bst))
+    if normalize:
+        logprob = (np.atleast_1d(logprob) / bst.lengths)
+
+    return logprob
+
+def score_hmm_transmat_shuffle(bst, hmm, n_shuffles=250, normalize=False):
+    """Score sequences using a hidden Markov model, and a model where
+    the transition probability matrix has been shuffled.BaseException
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing all the candidate events to
+        score.
+    hmm : PoissonHMM
+        Trained hidden markov model to score sequences.
+    n_shuffles : int, optional (default is 250)
+        Number of times to perform both time_swap and column_cycle
+        shuffles.
+    normalize : bool, optional (default is False)
+        If True, the scores will be normalized by event lengths.
+
+    Returns
+    -------
+    scores : array of size (n_events,)
+    shuffled : array of size (n_shuffles, n_events)
+    """
+
+    if float(n_shuffles).is_integer:
+        n_shuffles = int(n_shuffles)
+    else:
+        raise ValueError("n_shuffles must be an integer!")
+
+    hmm_shuffled = copy.deepcopy(hmm)
+    scores = score_hmm_logprob(bst=bst,
+                               hmm=hmm,
+                               normalize=normalize)
+    n_events = bst.n_epochs
+    shuffled = np.zeros((n_shuffles, n_events))
+    for ii in range(n_shuffles):
+        hmm_shuffled.transmat_ = shuffle_transmat(hmm_shuffled.transmat_)
+        shuffled[ii,:] = score_hmm_logprob(bst=bst,
+                                           hmm=hmm_shuffled,
+                                           normalize=normalize)
+
+    return scores, shuffled
+
+def score_hmm_timeswap_shuffle(bst, hmm, n_shuffles=250, normalize=False):
+    """Score sequences using a hidden Markov model, and a model where
+    the transition probability matrix has been shuffled.BaseException
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing all the candidate events to
+        score.
+    hmm : PoissonHMM
+        Trained hidden markov model to score sequences.
+    n_shuffles : int, optional (default is 250)
+        Number of times to perform both time_swap and column_cycle
+        shuffles.
+    normalize : bool, optional (default is False)
+        If True, the scores will be normalized by event lengths.
+
+    Returns
+    -------
+    scores : array of size (n_events,)
+    shuffled : array of size (n_shuffles, n_events)
+    """
+
+    scores = score_hmm_logprob(bst=bst,
+                               hmm=hmm,
+                               normalize=normalize)
+    n_events = bst.n_epochs
+    shuffled = np.zeros((n_shuffles, n_events))
+    for ii in range(n_shuffles):
+        bst_shuffled = time_swap_bst(bst=bst)
+        shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
+                                           hmm=hmm,
+                                           normalize=normalize)
+
+    return scores, shuffled
 
 def get_significant_events(scores, shuffled_scores, q=95):
     """Return the significant events based on percentiles.

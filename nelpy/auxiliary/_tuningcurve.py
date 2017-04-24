@@ -38,7 +38,7 @@ class TuningCurve1D:
 
     __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
 
-    def __init__(self, bst, extern, *, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False):
+    def __init__(self, bst=None, extern=None, *, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False):
         """
 
         If sigma is nonzero, then smoothing is applied.
@@ -51,6 +51,9 @@ class TuningCurve1D:
             transform_func operates on extern and returns a value that TuninCurve1D can interpret. If no transform is specified, the identity operator is assumed.
         """
         # TODO: input validation
+        if not empty:
+            assert bst is not None, "bst must be specified, or empty=True"
+            assert extern is not None, "extern must be specified, or empty=True"
 
         # if an empty object is requested, return it:
         if empty:
@@ -195,6 +198,48 @@ class TuningCurve1D:
         """
         return utils.spatial_sparsity(occupancy=self.occupancy,
                                       ratemap=self.ratemap)
+
+    def _init_from_ratemap(self, ratemap, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None,):
+        """Initialize a TuningCurve1D object from a ratemap.
+
+        Parameters
+        ----------
+        ratemap : array
+            Array of shape (n_units, n_extern)
+
+        Returns
+        -------
+
+        """
+        n_units, n_extern = ratemap.shape
+
+        if extmin is None:
+            extmin = 0
+        if extmax is None:
+            extmax = extmin + 1
+
+        self._bins = np.linspace(extmin, extmax, n_extern+1)
+        self._ratemap = ratemap
+
+        # inherit unit IDs if available, otherwise initialize to default
+        if unit_ids is None:
+            unit_ids = list(range(1,n_units + 1))
+
+        unit_ids = np.array(unit_ids, ndmin=1)  # standardize unit_ids
+
+        # if unit_labels is empty, default to unit_ids
+        if unit_labels is None:
+            unit_labels = unit_ids
+
+        unit_labels = np.array(unit_labels, ndmin=1)  # standardize
+
+        self._unit_ids = unit_ids
+        self._unit_labels = unit_labels
+        self._unit_tags = unit_tags  # no input validation yet
+        if label is not None:
+            self.label = label
+
+        return self
 
     @property
     def ratemap(self):
