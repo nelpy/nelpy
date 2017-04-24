@@ -1,0 +1,25 @@
+* integrate unimodal into nelpy
+
+* restrict minimum firing rate
+* restrict to minimum number of cells
+* remove empty bins
+* linregress
+* shuffle
+
+* psth, isi, fano-factor, ... (easy and not important)
+
+* rename decoding to ML
+* singletons in EpochArray
+* remove empty bins during regression, but not from the decoding itself
+
+[2] reorder TCs
+[3] decode w unit ids
+[4] filter cells for decoding
+[5] filter events n_active
+[6] HMM error decoding comparison
+[7] regression shuffle aggregation
+[8] TC plots
+
+[8] Xilinx
+[9] Fbright
+[10] Owls nest
