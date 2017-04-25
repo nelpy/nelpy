@@ -30,28 +30,6 @@ def fsgetter(self):
         warnings.warn("No sampling frequency has been specified!")
     return self._fs
 
-def fssetter(self, val):
-    """(float) [generic setter] Sampling frequency."""
-    if self._fs == val:
-        return
-    try:
-        if val <= 0:
-            raise ValueError("sampling rate must be positive")
-    except:
-        raise TypeError("sampling rate must be a scalar")
-
-    # if it is the first time that a sampling rate is set, do not
-    # modify anything except for self._fs:
-    if self._fs is None:
-        pass
-    else:
-        warnings.warn(
-            "Sampling frequency has been updated! This will "
-            "modify the spike times."
-            )
-        self._time = self.tdata / val
-    self._fs = val
-
 
 ########################################################################
 # class AnalogSignalArray
@@ -179,7 +157,14 @@ class AnalogSignalArray:
         # set initial fs to None
         self._fs = None
         # then attempt to update the fs; this does input validation:
-        self.fs = fs
+        if(fs is not None):
+            try:
+                if(fs > 0):
+                    self._fs = fs
+                else:
+                    raise ValueError("fs must be positive")
+            except TypeError:
+                raise TypeError("fs expected to be a scalar")
 
         #set fs_acquisition
         self._fs_acquisition = None
@@ -191,6 +176,8 @@ class AnalogSignalArray:
                     raise ValueError("fs_acquisition must be positive")
             except TypeError:
                 raise TypeError("fs_acquisition expected to be a scalar")
+        else:
+            self._fs_acquisition = self.fs
 
         # Note; if we have an empty array of ydata with no dimension,
         # then calling len(ydata) will return a TypeError
@@ -239,15 +226,18 @@ class AnalogSignalArray:
                 if(self._fs_acquisition is not None):
                     if(calc_time):
                         time = tdata / self._fs_acquisition
+                        self._tdata = tdata
                     else:
                         time = tdata
+                        self._tdata = time*self._fs_acquisition
                 else:
                     self._fs_acquisition = self._fs
                     if calc_time:
                         time = tdata / self._fs
+                        self._tdata = tdata
                     else:
                         time = tdata
-                self._tdata = tdata
+                        self._tdata = time*self._fs_acquisition
                 if support is not None:
                     # tdata, fs, support passed properly
                     self._time = time
@@ -270,7 +260,7 @@ class AnalogSignalArray:
                     self._time = time
                     self._support = EpochArray(
                         get_contiguous_segments(
-                            self._tdata,
+                            self.tdata,
                             step=self._step,
                             in_memory=in_memory),
                         fs=self._fs_acquisition)
@@ -282,6 +272,9 @@ class AnalogSignalArray:
                                     " but tdata has been scaled by fs_acq for now.")
                     time = tdata / self._fs_acquisition
                 else:
+                    if calc_time:
+                        warnings.warn("No fs passed. time being set equal to "
+                                      "tdata.")
                     time = tdata
                 self._tdata = tdata
                 # tdata and support
@@ -307,7 +300,7 @@ class AnalogSignalArray:
                     self._time = time
                     self._support = EpochArray(
                         get_contiguous_segments(
-                            self._tdata,
+                            self.tdata,
                             step=self._step,
                             in_memory=in_memory),
                         fs=self._fs_acquisition)
