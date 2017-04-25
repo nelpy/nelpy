@@ -1,34 +1,59 @@
+[ ] windowed decoding of HMMs?
+    - decode
+    - predict_proba
+    - predict
+    - score_samples
+    - score
+    - fit
+    - fit_ext
+    - decode_ext
+    - Should just have a private helper function for this inside PoissonHMM
+[ ] adjust firing rate when decoding PBEs
+[ ] memoryless time swap
+    - mode evaluation
+    - posterior evaluation
+[ ] event boundary determination (trimming)
+[ ] event comparison across all modalities
+[ ] session aggregation
+[ ] ...
+
+[ ] log prob with MAP decoding seems weird... Shoulnd't log prob P(Y_1:T)
+    be independent of decoding algorithm anyway?
+
+[ ] pomegranate (at leat YAHMM) was [very] slow for me; but it still seems
+    like a really nice package, with a clear goal, and super nice flexibility
+    e.g. mixtures of HMMs, which would be awesome for hippocampal work.
+    Maybe reconsider? http://pomegranate.readthedocs.io/en/latest/faq.html
+
+    @misc{Schreiber2016,
+        author = {Jacob Schreiber},
+        title = {pomegranate},
+        year = {2016},
+        publisher = {GitHub},
+        journal = {GitHub repository},
+        howpublished = {\url{https://github.com/jmschrei/pomegranate}},
+        commit = {enter commit that you used}
+}
+
+Read and re-interpret https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2722652/
+and https://users.soe.ucsc.edu/~karplus/papers/nullmod.pdf
+
+Q. Kourosh's surrogate model suggests a transposed transmat A is used?
+Q. Kourosh does no windowed decoding?
+Q. How can surrogate models lead to any variation PER BIN when only the
+   transmat is shuffled, and when decoding is MEMORYLESS?
+Q. percentiles seem to be relaxed to ge rather than gt, but first and
+   6th example bins do not seem to be consistent (might just be that
+   we don't have the resolution here,...)
+
 * integrate unimodal into nelpy
-
-* restrict minimum firing rate
-* restrict to minimum number of cells
-* remove empty bins
-* linregress
-* shuffle
-
 * psth, isi, fano-factor, ... (easy and not important)
 
 * rename decoding to ML
 * singletons in EpochArray
-* remove empty bins during regression, but not from the decoding itself
 
-<<<<<<< HEAD
-[2] reorder TCs
-[3] decode w unit ids
-[4] filter cells for decoding
-[5] filter events n_active
-[6] HMM error decoding comparison
-[7] regression shuffle aggregation
-[8] TC plots
-
-[8] Xilinx
-[9] Fbright
-[10] Owls nest
-=======
-[6] regression shuffle aggregation
 [5] HMM error decoding comparison
 
-[8] Xilinx
 [9] Owls nest
 [10] CRCNS Berkeley
 
@@ -43,4 +68,3 @@ Bricklink
 ---------
 HMM log prob shuffles x 2
 Sessions aggregation ( and analysis specifications)
->>>>>>> 909173c0b0312ce3eb280470d2ad5ac490104d6d

@@ -286,7 +286,7 @@ class PoissonHMM(PHMM):
         Returns
         -------
         logprob : float
-            Log probability of the produced state sequence.
+            Log probability of the PRODUCED STATE SEQUENCE.
         state_sequence : array, shape (n_samples, )
             Labels for each sample from ``X`` obtained via a given
             decoder ``algorithm``.
