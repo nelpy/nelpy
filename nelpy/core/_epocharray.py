@@ -735,6 +735,10 @@ class EpochArray:
         if (self.ismerged) and (gap==0.0):
             "yeah, not gonna merge..."
             return self
+        if (self.n_epochs == 1):
+            "yeah, not gonna merge either bruh..."
+            return self
+            
 
         if gap < 0:
             raise ValueError("gap cannot be negative")
@@ -771,8 +775,8 @@ class EpochArray:
             new_starts = np.array(new_starts)
             new_stops = np.array(new_stops)
 
-            newepocharray._time = np.vstack([new_starts, new_stops]).T
-            newepocharray._tdata = newepocharray._time * fs
+            newepocharray._tdata = np.vstack([new_starts, new_stops]).T
+            newepocharray._time = newepocharray._tdata / fs
 
             # after one pass, all the gap offsets have been added, and
             # then we just need to keep merging...
