@@ -189,7 +189,7 @@ def load_dat(filepath):
     with open(filepath, 'rb') as fileobj:
         for packet in iter(lambda: fileobj.read(packetSize),''):
             ii += 1
-             if packet:
+            if packet:
                 ts = struct.unpack('<I', packet[headerSize:headerSize+timestampSize])[0]
                 timestamps.append(ts)
                 ch = struct.unpack('<h', packet[headerSize+timestampSize:headerSize+timestampSize+2])[0]
