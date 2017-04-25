@@ -1,7 +1,61 @@
 """Bayesian encoding and decoding"""
 
+__all__ = ['decode1D',
+           'k_fold_cross_validation',
+           'cumulative_dist_decoding_error_using_xval',
+           'cumulative_dist_decoding_error',
+           'get_mode_pth_from_array',
+           'get_mean_pth_from_array']
+
 import numpy as np
 from . import auxiliary
+
+def get_mode_pth_from_array(posterior, tuningcurve=None):
+    """If tuningcurve is provided, then we map it back to the external coordinates / units.
+    Otherwise, we stay in the bin space."""
+    n_xbins = posterior.shape[0]
+
+    if tuningcurve is None:
+        xmin = 0
+        xmax = n_xbins
+    else:
+        # TODO: this only works for TuningCurve1D currently
+        if isinstance(tuningcurve, auxiliary.TuningCurve1D):
+            xmin = tuningcurve.bins[0]
+            xmax = tuningcurve.bins[-1]
+        else:
+            raise TypeError("tuningcurve type not yet supported!")
+
+    _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
+    xbins = (bins + xmax/n_xbins)[:-1]
+
+    mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
+    mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
+
+    return mode_pth
+
+def get_mean_pth_from_array(posterior, tuningcurve=None):
+    """If tuningcurve is provided, then we map it back to the external coordinates / units.
+    Otherwise, we stay in the bin space."""
+    n_xbins = posterior.shape[0]
+
+    if tuningcurve is None:
+        xmin = 0
+        xmax = 1
+    else:
+        # TODO: this only works for TuningCurve1D currently
+        if isinstance(tuningcurve, auxiliary.TuningCurve1D):
+            xmin = tuningcurve.bins[0]
+            xmax = tuningcurve.bins[-1]
+        else:
+            raise TypeError("tuningcurve type not yet supported!")
+
+    _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
+    xbins = (bins + xmax/n_xbins)[:-1]
+
+    mean_pth = (xbins * posterior.T).sum(axis=1)
+
+    return mean_pth
 
 def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
     """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
@@ -57,8 +111,9 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
     if isinstance(ratemap, auxiliary.TuningCurve1D):
         xmin = ratemap.bins[0]
         xmax = ratemap.bins[-1]
+        # re-order units if necessary
+        ratemap = ratemap.reorder_units_by_ids(bst.unit_ids)
         ratemap = ratemap.ratemap
-        # TODO: re-order units if necessary
 
     _, n_xbins = ratemap.shape
 
@@ -180,7 +235,7 @@ def k_fold_cross_validation(X, k=None, randomize=False):
         validation = [x for i, x in enumerate(X) if i % k == _k_]
         yield training, validation
 
-def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, tuningcurve=None, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins = 200):
+def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, tuningcurve=None, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins=None):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
     procedure.
@@ -198,6 +253,9 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
         the external correlates, e.g., position bins.
     k : int, optional
         Number of fold for k-fold cross-validation. Default is k=5.
+    n_bins : int
+        Number of decoding error bins, ranging from tuningcurve.extmin
+        to tuningcurve.extmax.
 
     Returns
     -------
@@ -220,6 +278,11 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
     if transfunc is None:
         transfunc = _trans_func
 
+    if n_bins is None:
+        n_bins = 200
+
+    max_error = extmax - extmin
+
     # indices of training and validation epochs / events
 
     n_bins = n_bins # number of bins for error histogram
@@ -232,13 +295,87 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
         # calculate validation error (for current fold) by comapring
         # decoded pos v target pos
         target = transfunc(extern, at=bst[validation].bin_centers)
-        histnew, bins = np.histogram(np.abs(target - mean_pth), bins=n_bins, range=(extmin, extmax))
+
+        histnew, bins = np.histogram(np.abs(target - mean_pth), bins=n_bins, range=(0, max_error))
         hist = hist + histnew
 
     # build cumulative error distribution
     cumhist = np.cumsum(hist)
     cumhist = cumhist / cumhist[-1]
     bincenters = (bins + (bins[1] - bins[0])/2)[:-1]
+
+    # modify to start at (0,0):
+    cumhist = np.insert(cumhist, 0, 0)
+    bincenters = np.insert(bincenters, 0, 0)
+
+    # modify to end at (max_error,1):
+    cumhist = np.append(cumhist, 1)
+    bincenters = np.append(bincenters, max_error)
+
+    return cumhist, bincenters
+
+def cumulative_dist_decoding_error(bst, *, tuningcurve, extern,
+                                   decodefunc=decode1D, transfunc=None,
+                                   n_bins=None):
+    """Cumulative distribution of decoding errors during epochs in
+    BinnedSpikeTrainArray using a fixed TuningCurve.
+
+    Parameters
+    ----------
+    bst: BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing all the epochs to be decoded.
+        Should typically have the same type of epochs as the ratemap
+        (e.g., online epochs), but this is not a requirement.
+    tuningcurve : TuningCurve1D
+    extern : query-able object of external correlates (e.g. pos AnalogSignalArray)
+    n_bins : int
+        Number of decoding error bins, ranging from tuningcurve.extmin
+        to tuningcurve.extmax.
+
+    Returns
+    -------
+
+    (cumhist, bincenters)
+        (see Fig 3.(b) of "Analysis of Hippocampal Memory Replay Using
+        Neural Population Decoding", Fabian Kloosterman, 2012)
+
+    """
+
+    def _trans_func(extern, at):
+        """Default transform function to map extern into numerical bins"""
+
+        _, ext = extern.asarray(at=at)
+
+        return ext
+
+    if transfunc is None:
+        transfunc = _trans_func
+    if n_bins is None:
+        n_bins = 200
+
+    # indices of training and validation epochs / events
+
+    max_error = tuningcurve.bins[-1] - tuningcurve.bins[0]
+
+    posterior, _, mode_pth, mean_pth = decodefunc(bst=bst, ratemap=tuningcurve)
+    target = transfunc(extern, at=bst.bin_centers)
+    hist, bins = np.histogram(
+        np.abs(target - mean_pth),
+        bins=n_bins,
+        range=(0, max_error))
+
+    # build cumulative error distribution
+    cumhist = np.cumsum(hist)
+    cumhist = cumhist / cumhist[-1]
+    bincenters = (bins + (bins[1] - bins[0])/2)[:-1]
+
+    # modify to start at (0,0):
+    cumhist = np.insert(cumhist, 0, 0)
+    bincenters = np.insert(bincenters, 0, 0)
+
+    # modify to end at (max_error,1):
+    cumhist = np.append(cumhist, 1)
+    bincenters = np.append(bincenters, max_error)
 
     return cumhist, bincenters
 

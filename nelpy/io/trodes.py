@@ -5,7 +5,6 @@ In development see issue #164 (https://github.com/eackermann/nelpy/issues/164)
 """
 
 import warnings
-import struct
 import numpy as np
 from ..core import AnalogSignalArray
 
@@ -40,12 +39,11 @@ def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, st
     step : np.uint() (optional)
         Step size used in making AnalogSignalArray. If not passed it is inferred.
         See AnalogSignalArray for details.
-    decimation_factor : int (optional)
+    decimate : int (optional)
         Factor by which data is decimated. Data will match what is sent to modules.
         This is initialized to -1 and not used by default. Intelligent decimation or
         interpolation is not done here. Load up AnalogSignalArray then do that if it
-        is of importance. Lastly, this assumes an anti-aliasing filter has been with
-        the exportLFP() function given by Trodes. 
+        is of importance.
 
     Returns
     ----------
@@ -169,7 +167,6 @@ def load_dio_dat(filepath):
     #x = np.fromfile(f, dtype=dt)
     print("Done loading all data!")
     return np.asarray(np.fromfile(f, dtype=[('time',np.uint32), ('dio',np.uint8)]))
-
 
 def load_dat(filepath):
     """Loads timestamps and unfiltered data from Trodes .dat files. These

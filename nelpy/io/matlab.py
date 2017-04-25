@@ -3,14 +3,17 @@
 
 import scipy.io
 
-def insert_into_namespace(name, value, name_space=globals()):
+def insert_into_namespace(name, value, name_space=None):
+    if name_space is None:
+        name_space = globals()
     name_space[name] = value
 
 # mat = scipy.io.loadmat("simplified (Newton, 2015-03-11_15-09-22).mat", squeeze_me=True)
 # vars = [key for key in mat.keys() if '__' not in key]
 # varinfo = scipy.io.whosmat("simplified (Newton, 2015-03-11_15-09-22).mat", squeeze_me=True)
 
-def load(filename, name_space):
+
+def load(filename, name_space=None):
     """Load all variables from .mat file.
 
     NOTE: You will need an HDF5 python library to read matlab 7.3 or
@@ -25,6 +28,8 @@ def load(filename, name_space):
     for var in vars:
         insert_into_namespace(var, mat[var], name_space)
         # Global.var = mat[var]
+
+    return mat
 
 
 # NOTE: You will need an HDF5 python library to read matlab 7.3 format mat files.

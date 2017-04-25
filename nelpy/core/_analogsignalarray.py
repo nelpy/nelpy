@@ -49,7 +49,7 @@ def fssetter(self, val):
             "Sampling frequency has been updated! This will "
             "modify the spike times."
             )
-        self._time = self._tdata / val
+        self._time = self.tdata / val
     self._fs = val
 
 
@@ -291,7 +291,7 @@ class AnalogSignalArray:
                     self._restrict_to_epoch_array(epocharray=support)
                     # print(self._ydata)
                     warnings.warn("support created with specified epoch array but no specified sampling rate")
-                    if(self._support.isempty):
+                    if(self.support.isempty):
                         warnings.warn("Support is empty. Empty AnalogSignalArray returned")
                         exclude = ['_support','_ydata']
                         attrs = (x for x in self.__attributes__ if x not in exclude)

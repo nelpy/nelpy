@@ -12,6 +12,7 @@
 * singletons in EpochArray
 * remove empty bins during regression, but not from the decoding itself
 
+<<<<<<< HEAD
 [2] reorder TCs
 [3] decode w unit ids
 [4] filter cells for decoding
@@ -23,3 +24,23 @@
 [8] Xilinx
 [9] Fbright
 [10] Owls nest
+=======
+[6] regression shuffle aggregation
+[5] HMM error decoding comparison
+
+[8] Xilinx
+[9] Owls nest
+[10] CRCNS Berkeley
+
+
+Fulbright
+Steve
+CRCNS
+Visa
+Freedom
+Scottrade
+Bricklink
+---------
+HMM log prob shuffles x 2
+Sessions aggregation ( and analysis specifications)
+>>>>>>> 909173c0b0312ce3eb280470d2ad5ac490104d6d

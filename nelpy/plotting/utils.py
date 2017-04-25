@@ -3,6 +3,8 @@
 
 Some functions Copyright (c) 2016, Etienne R. Ackermann
 Some functions are modified from Jessica B. Hamrick, Copyright (c) 2013
+'get_color_cycle', 'set_palette', and 'desaturate' are Copyright (c) 2012-2016, Michael L. Waskom
+'FigureManager' modified from Camille Scott, Copyright (C) 2015 <camille.scott.w@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -26,7 +28,14 @@ from matplotlib import colors as mplcolors
 from matplotlib import cbook
 from matplotlib.image import AxesImage
 import matplotlib.pyplot as plt
+import colorsys
 import os
+import sys
+import inspect
+from . import palettes
+
+from distutils.version import LooseVersion
+mpl_ge_150 = LooseVersion(mpl.__version__) >= "1.5.0"
 
 __all__ = ['align_xlabels',
            'align_ylabels',
@@ -50,7 +59,109 @@ __all__ = ['align_xlabels',
            'set_xlabel_coords',
            'set_ylabel_coords',
            'sync_xlims',
-           'sync_ylims']
+           'sync_ylims',
+           'xticks_interval',
+           'yticks_interval',
+           'get_color_cycle',
+           'FigureManager']
+
+class FigureManager(object):
+    """Figure context manager.
+
+    See http://stackoverflow.com/questions/12594148/skipping-execution-of-with-block
+    but I was unable to get a solution so far...
+
+    See http://stackoverflow.com/questions/11195140/break-or-exit-out-of-with-statement
+    for additional inspiration for making nested context managers...
+
+    Parameters
+    ----------
+    filename : string
+        Filename without an extension. If an extension is present,
+        AND if formats is empty, then the filename extension will be used.
+    save : bool
+        If True, figure will be saved to disk.
+    formats: list
+        List of formats to export. Defaults to ['pdf', 'png']
+    dpi: float, default 300
+        Resolution of the figure in dots per inch (DPI).
+    verbose: bool, optional
+        If true, print additional output to screen.
+    overwrite: bool, optional
+        If true, file will be overwritten.
+    """
+
+    class Break(Exception):
+        pass
+
+    def __init__(self, *, filename=None, save=False, show=False,
+                 nrows=1, ncols=1, figsize=(8,3), tight_layout=False,
+                 formats=None, dpi=None, verbose=True, overwrite=False,
+                 **kwargs):
+
+        self.nrows=nrows
+        self.ncols=ncols
+        self.figsize=figsize
+        self.tight_layout=tight_layout
+        self.dpi=dpi
+        self.kwargs = kwargs
+
+        self.filename = filename
+        self.show = show
+        self.save = save
+        self.formats = formats
+        self.dpi = dpi
+        self.verbose = verbose
+        self.overwrite = overwrite
+
+        if self.show or self.save:
+            self.skip = False
+        else:
+            self.skip = True
+
+    def __enter__(self):
+        if not self.skip:
+            self.fig, self.ax = plt.subplots(nrows=self.nrows,
+                                             ncols=self.ncols,
+                                             figsize=self.figsize,
+                                             tight_layout=self.tight_layout,
+                                             dpi=self.dpi,
+                                             **self.kwargs)
+            if self.fig != plt.gcf():
+                self.clear()
+                raise RuntimeError('Figure does not match active mpl figure')
+            return self.fig, self.ax
+        return -1, -1
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.skip:
+            return True
+        if not exc_type:
+            if self.save:
+                assert self.filename is not None, "filename has to be specified!"
+                savefig(name=self.filename,
+                        fig=self.fig,
+                        formats=self.formats,
+                        dpi=self.dpi,
+                        verbose=self.verbose,
+                        overwrite=self.overwrite)
+
+            if self.show:
+                plt.show(self.fig)
+            self.clear()
+        else:
+            self.clear()
+            return False
+
+    def clear(self):
+        plt.close(self.fig)
+        del self.ax
+        del self.fig
+
+def skip_if_no_output(fig):
+    if fig == -1:
+        raise FigureManager.Break
+    return True
 
 def annotate(text, ax=None, xy=None, rotation=None, va=None, **kwargs):
     """Docstring goes here."""
@@ -103,7 +214,7 @@ def get_extension_from_filename(name):
         ext = None
     return nameOnly, ext
 
-def savefig(name, fig=None, formats=None, dpi=300, verbose=True, overwrite=False):
+def savefig(name, fig=None, formats=None, dpi=None, verbose=True, overwrite=False):
     """Saves a figure in one or multiple formats.
 
     Parameters
@@ -115,7 +226,7 @@ def savefig(name, fig=None, formats=None, dpi=300, verbose=True, overwrite=False
         Figure to save, default uses current figure.
     formats: list
         List of formats to export. Defaults to ['pdf', 'png']
-    dpi: float
+    dpi: float, default 300
         Resolution of the figure in dots per inch (DPI).
     verbose: bool, optional
         If true, print additional output to screen.
@@ -130,6 +241,9 @@ def savefig(name, fig=None, formats=None, dpi=300, verbose=True, overwrite=False
     # Check inputs
     # if not 0 <= prop <= 1:
     #     raise ValueError("prop must be between 0 and 1")
+
+    if dpi is None:
+        dpi = 300
 
     supportedFormats = ['eps', 'jpeg', 'jpg', 'pdf', 'pgf', 'png', 'ps', 'raw', 'rgba', 'svg', 'svgz', 'tif', 'tiff']
 
@@ -218,6 +332,22 @@ or-specific-number
     def _set_orderOfMagnitude(self, range):
         """Override to prevent order_of_mag being reset elsewhere."""
         self.orderOfMagnitude = self._order_of_mag
+
+def xticks_interval(step=10, *axes):
+    """Set xticks interval."""
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    loc = mpl.ticker.MultipleLocator(base=step) # this locator puts ticks at regular intervals
+    for ax in axes:
+        ax.xaxis.set_major_locator(loc)
+
+def yticks_interval(step=10, *axes):
+    """Set yticks interval."""
+    if len(axes) == 0:
+        axes = [plt.gca()]
+    loc = mpl.ticker.MultipleLocator(base=step) # this locator puts ticks at regular intervals
+    for ax in axes:
+        ax.yaxis.set_major_locator(loc)
 
 def clear_top(*axes):
     """Remove the top edge of the axis bounding box.
@@ -639,6 +769,49 @@ def set_ylim(ylims, *axes):
     for ax in axes:
         ax.set_ylim(ylims[0], ylims[1])
 
+def get_color_cycle():
+    if mpl_ge_150:
+        cyl = mpl.rcParams['axes.prop_cycle']
+        # matplotlib 1.5 verifies that axes.prop_cycle *is* a cycler
+        # but no garuantee that there's a `color` key.
+        # so users could have a custom rcParmas w/ no color...
+        try:
+            return [x['color'] for x in cyl]
+        except KeyError:
+            pass  # just return axes.color style below
+    return mpl.rcParams['axes.color_cycle']
+
+def desaturate(color, prop):
+    """Decrease the saturation channel of a color by some percent.
+    Parameters
+    ----------
+    color : matplotlib color
+        hex, rgb-tuple, or html color name
+    prop : float
+        saturation channel of color will be multiplied by this value
+    Returns
+    -------
+    new_color : rgb tuple
+        desaturated color code in RGB tuple representation
+    """
+    # Check inputs
+    if not 0 <= prop <= 1:
+        raise ValueError("prop must be between 0 and 1")
+
+    # Get rgb tuple rep
+    rgb = mplcolors.colorConverter.to_rgb(color)
+
+    # Convert to hls
+    h, l, s = colorsys.rgb_to_hls(*rgb)
+
+    # Desaturate the saturation channel
+    s *= prop
+
+    # Convert back to rgb
+    new_color = colorsys.hls_to_rgb(h, l, s)
+
+    return new_color
+
 class ModestImage(AxesImage):
     """Computationally modest image class.
 
@@ -822,3 +995,5 @@ def imshow(axes, X, cmap=None, norm=None, aspect=None,
     im._remove_method = lambda h: axes.images.remove(h)
 
     return im
+
+
