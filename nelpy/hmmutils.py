@@ -516,6 +516,8 @@ class PoissonHMM(PHMM):
         """Learn a mapping from the internal state space, to an external
         augmented space (e.g. position).
 
+        X : BinnedSpikeTrainArray
+
         ext : array-lke
             array of external correlates (n_bins, )
         n_extern : int
@@ -554,7 +556,7 @@ class PoissonHMM(PHMM):
         posteriors = np.vstack(posteriors.T)  # 1D array of states, of length n_bins
 
         if len(posteriors) != len(ext):
-            raise ValueError("ext must have same lengt as decoded state sequence!")
+            raise ValueError("ext must have same length as decoded state sequence!")
 
         for ii, posterior in enumerate(posteriors):
             extern[:,ext_map[ext[ii]]] += np.transpose(posterior)
