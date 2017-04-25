@@ -1,3 +1,10 @@
+(1) windowed
+(2) extern_fit
+(3) posterior overlay
+(4) score decomposition
+(5) kourosh time resolved
+(6) virtual tuning curves using PBEs, Bayesian and HMM
+
 [ ] windowed decoding of HMMs?
     - decode
     - predict_proba

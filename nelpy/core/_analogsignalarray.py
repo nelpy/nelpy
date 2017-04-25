@@ -67,9 +67,9 @@ class AnalogSignalArray:
         1,2,3,4,5,6,7,8,9,10,11,...,20,21,22... it would be 1,10,20,30...
         In cases like this fs_acquisiton would be 10 times higher than fs.
         As such, fs_acquisition as opposed to fs should be used to calculate
-        time and should be changed from the default None. See notebook of 
+        time and should be changed from the default None. See notebook of
         AnalogSignalArray uses. Lastly, it is worth noting that fs_acquisition
-        is set equal to fs if it is not set. 
+        is set equal to fs if it is not set.
     fs_meta : float, optional
         Optional sampling rate storage. The true sampling rate if tdata
         is time can be stored here. The above parameter, fs, must be left
@@ -91,15 +91,15 @@ class AnalogSignalArray:
         use case is when there is a dropped sample
     calc_time : bool, optional
         Boolean to determine whether or not time will be calculated by scaling
-        tdata by fs or fs_acquisition depending on which is passed in. 
+        tdata by fs or fs_acquisition depending on which is passed in.
     labels : np.array(dtype=np.str,dimension=N)
-        Labeling each one of the signals in AnalogSignalArray. By default this 
+        Labeling each one of the signals in AnalogSignalArray. By default this
         will be set to None. It is expected that all signals will be labeled if
         labels are passed in. If any signals are not labeled we will label them
-        as Nones and if more labels are passed in than the number of signals 
+        as Nones and if more labels are passed in than the number of signals
         given, the extras will be truncated. If we're nice (which we are for
-        the most part), we will display a warning upon doing any of these 
-        things! :P Lastly, it is worth noting that most logical and type error 
+        the most part), we will display a warning upon doing any of these
+        things! :P Lastly, it is worth noting that most logical and type error
         checking for this is expected to be done by the user. Inputs are casted
         to string snad stored in a numpy array.
     empty : bool
@@ -117,15 +117,15 @@ class AnalogSignalArray:
     fs : float, scalar, optional
         See Parameters
     fs_acquisition : float, scalar, optional
-        See Parameters. fs_acquisition will be set to fs if fs_acquisition is 
-        None and fs is specified. 
+        See Parameters. fs_acquisition will be set to fs if fs_acquisition is
+        None and fs is specified.
     fs_meta : float, scalar, optional
         See Paramters
     step : int
         See Parameters
     support : EpochArray, optional
         See Parameters
-    labels : np.array 
+    labels : np.array
         See Parameters
     interp : array of interpolation objects from scipy.interpolate
 
@@ -134,7 +134,7 @@ class AnalogSignalArray:
     __attributes__ = ['_ydata', '_tdata', '_time', '_fs', '_support', \
                       '_interp', '_fs_meta', '_step', '_fs_acquisition']
     def __init__(self, ydata, *, tdata=None, fs=None, fs_acquisition=None, fs_meta = None,
-                 step=None, merge_sample_gap=0, support=None, calc_time = True, 
+                 step=None, merge_sample_gap=0, support=None, calc_time = True,
                  in_memory=True, labels=None, empty=False):
 
         if(empty):

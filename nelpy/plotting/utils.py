@@ -27,6 +27,7 @@ from matplotlib import cm
 from matplotlib import colors as mplcolors
 from matplotlib import cbook
 from matplotlib.image import AxesImage
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import colorsys
 import os
@@ -64,6 +65,18 @@ __all__ = ['align_xlabels',
            'yticks_interval',
            'get_color_cycle',
            'FigureManager']
+
+def add_colorbar(ax=None, ):
+    """
+    TODO: get keywords from **kwargs, i.e. if they're there, then use
+    them, but if not, then don't. This should go for orientation, etc.
+    Some others might have good defaults, so use them!
+    """
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.15)
+    cb=plt.colorbar(img, cax=cax, orientation="vertical")
+    cb.set_label('probability', labelpad=-10)
+    cb.set_ticks([0,1])
 
 class FigureManager(object):
     """Figure context manager.

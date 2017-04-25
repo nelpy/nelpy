@@ -121,8 +121,22 @@ _rainbow = {"c0": "#fbb735",
             "c12": '#00bbff'
             }
 
+_cows = {'hereford': '#6d3129',
+         'jersey': '#d3a474',
+         'brown_swiss': '#968470',
+         'charolais': '#d9c0a6',
+         'galloway': '#191919',
+         'texas_longhorn': '#aa622d',
+         'gelbvieh': '#86322b',
+         'shorthorn': '#86322b',
+         'holstein': '#bfbaae',
+         'angus': '#2c2a38',
+         'texas_aggie': '#5c0025'
+         }
+
 # instantiate ColorGroups
 sweet = ColorGroup(_sweet)
 riceuniv = ColorGroup(_riceuniv)
 lake_louise = ColorGroup(_louise)
 rainbow = ColorGroup(_rainbow)
+cows = ColorGroup(_cows)
