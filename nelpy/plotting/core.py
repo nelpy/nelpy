@@ -62,9 +62,11 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
         xmax = xvals[-1]
 
     for unit, curve in enumerate(ratemap):
-        ax.plot(xvals, unit*pad + curve)
+        line = ax.plot(xvals, unit*pad + curve)
         if fill:
-            ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=0.3)
+            # Get the color from the current curve
+            fillcolor = line[0].get_color()
+            ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=0.3, color=fillcolor)
 
     ax.set_xlim(xmin, xmax)
     if pad != 0:
