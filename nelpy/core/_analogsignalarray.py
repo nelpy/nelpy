@@ -124,7 +124,8 @@ class AnalogSignalArray:
         See Parameters
     """
     __attributes__ = ['_ydata', '_tdata', '_time', '_fs', '_support', \
-                      '_interp', '_fs_meta', '_step', '_fs_acquisition']
+                      '_interp', '_fs_meta', '_step', '_fs_acquisition',\
+                      '_labels']
     def __init__(self, ydata, *, tdata=None, fs=None, fs_acquisition=None, fs_meta = None,
                  step=None, merge_sample_gap=0, support=None, calc_time = True,
                  in_memory=True, labels=None, empty=False):
