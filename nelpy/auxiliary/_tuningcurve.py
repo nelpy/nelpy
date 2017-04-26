@@ -262,6 +262,66 @@ class TuningCurve1D:
 
         return self
 
+    def mean(self,*,axis=None):
+        """Returns the mean of firing rate (in Hz).
+        Parameters
+        ----------
+        axis : int, optional
+            When axis is None, the global mean firing rate is returned.
+            When axis is 0, the mean firing rates across units, as a
+            function of the external correlate (e.g. position) are
+            returned.
+            When axis is 1, the mean firing rate for each unit is
+            returned.
+        Returns
+        -------
+        mean :
+        """
+        means = np.mean(self.ratemap, axis=axis).squeeze()
+        if means.size == 1:
+            return np.asscalar(means)
+        return means
+
+    def max(self,*,axis=None):
+        """Returns the mean of firing rate (in Hz).
+        Parameters
+        ----------
+        axis : int, optional
+            When axis is None, the global mean firing rate is returned.
+            When axis is 0, the mean firing rates across units, as a
+            function of the external correlate (e.g. position) are
+            returned.
+            When axis is 1, the mean firing rate for each unit is
+            returned.
+        Returns
+        -------
+        mean :
+        """
+        maxes = np.max(self.ratemap, axis=axis).squeeze()
+        if maxes.size == 1:
+            return np.asscalar(maxes)
+        return maxes
+
+    def min(self,*,axis=None):
+        """Returns the mean of firing rate (in Hz).
+        Parameters
+        ----------
+        axis : int, optional
+            When axis is None, the global mean firing rate is returned.
+            When axis is 0, the mean firing rates across units, as a
+            function of the external correlate (e.g. position) are
+            returned.
+            When axis is 1, the mean firing rate for each unit is
+            returned.
+        Returns
+        -------
+        mean :
+        """
+        mins = np.min(self.ratemap, axis=axis).squeeze()
+        if mins.size == 1:
+            return np.asscalar(mins)
+        return mins
+
     @property
     def ratemap(self):
         return self._ratemap
