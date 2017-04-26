@@ -70,6 +70,12 @@ def spatial_information(occupancy, ratemap):
             sparsity (in percent) for each unit
         """
 
+        ratemap = copy(ratemap)
+        # ensure that the ratemap always has nonzero firing rates,
+        # otherwise the spatial information might return NaNs:
+        bkg_rate = ratemap[ratemap>0].min()
+        ratemap[ratemap < bkg_rate] = bkg_rate
+
         Pi = occupancy / np.sum(occupancy)
         R = ratemap.mean(axis=1) # mean firing rate
         Ri = ratemap.T

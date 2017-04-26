@@ -216,7 +216,7 @@ class TuningCurve1D:
         return utils.spatial_sparsity(occupancy=self.occupancy,
                                       ratemap=self.ratemap)
 
-    def _init_from_ratemap(self, ratemap, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None):
+    def _init_from_ratemap(self, ratemap, occupancy=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None):
         """Initialize a TuningCurve1D object from a ratemap.
 
         Parameters
@@ -229,6 +229,10 @@ class TuningCurve1D:
 
         """
         n_units, n_extern = ratemap.shape
+
+        if occupancy is None:
+            # assume uniform occupancy
+            self._occupancy = np.ones(n_extern)
 
         if extmin is None:
             extmin = 0
