@@ -662,7 +662,8 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
     if ax is None:
         ax = plt.gca()
     if height is None:
-        height = 1
+        ymax, ymin = ax.get_ylim()
+        height = ymax - ymin
 
     if hc is not None:
         try:
