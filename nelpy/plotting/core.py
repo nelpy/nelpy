@@ -661,8 +661,8 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
     """
     if ax is None:
         ax = plt.gca()
+    ymin, ymax = ax.get_ylim()
     if height is None:
-        ymax, ymin = ax.get_ylim()
         height = ymax - ymin
 
     if hc is not None:
@@ -675,7 +675,7 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
     for ii, (start, stop) in enumerate(zip(epochs.starts, epochs.stops)):
         ax.add_patch(
             patches.Rectangle(
-                (start, 0),   # (x,y)
+                (start, ymin),   # (x,y)
                 width=stop - start ,          # width
                 height=height,          # height
                 hatch=hatch,
