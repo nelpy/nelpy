@@ -23,14 +23,6 @@ warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
 
-
-def fsgetter(self):
-    """(float) [generic getter] Sampling frequency."""
-    if self._fs is None:
-        warnings.warn("No sampling frequency has been specified!")
-    return self._fs
-
-
 ########################################################################
 # class AnalogSignalArray
 ########################################################################
@@ -554,12 +546,9 @@ class AnalogSignalArray:
     @property
     def fs(self):
         """(float) Sampling frequency."""
-        return fsgetter(self)
-
-    @fs.setter
-    def fs(self, val):
-        """(float) Sampling rate / frequency (Hz)."""
-        fssetter(self, val)
+        if self._fs is None:
+            warnings.warn("No sampling frequency has been specified!")
+        return self._fs
 
     @property
     def isempty(self):

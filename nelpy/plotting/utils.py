@@ -71,6 +71,7 @@ def add_colorbar(ax=None, ):
     TODO: get keywords from **kwargs, i.e. if they're there, then use
     them, but if not, then don't. This should go for orientation, etc.
     Some others might have good defaults, so use them!
+    TODO this function is barbones for now
     """
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.15)

@@ -102,7 +102,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
     if w is None:
         w=1
     assert float(w).is_integer(), "w must be a positive integer!"
-    assert w > 0, "w bust be a positive integer!"
+    assert w > 0, "w must be a positive integer!"
 
     n_units, t_bins = bst.data.shape
 

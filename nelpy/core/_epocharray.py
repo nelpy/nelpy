@@ -596,6 +596,8 @@ class EpochArray:
         """(bool) No overlapping epochs exist."""
         if self.isempty:
             return True
+        if self.n_epochs == 1:
+            return True
         if not self.issorted:
             self._sort()
         if not is_sorted(self.stops):
@@ -732,16 +734,13 @@ class EpochArray:
         -------
         merged_epochs : nelpy.EpochArray
         """
-        if (self.ismerged) and (gap==0.0):
-            "yeah, not gonna merge..."
-            return self
-        if (self.n_epochs == 1):
-            "yeah, not gonna merge either bruh..."
-            return self
-            
 
         if gap < 0:
             raise ValueError("gap cannot be negative")
+
+        if (self.ismerged) and (gap==0.0):
+            # already merged
+            return self
 
         newepocharray = copy.copy(self)
 
