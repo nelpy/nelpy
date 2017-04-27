@@ -391,7 +391,7 @@ class PoissonHMM(PHMM):
                 centers.append(seq.centers)
             return logprobs, state_sequences, centers
 
-    def predict_proba(self, X, lengths=None, w=None):
+    def predict_proba(self, X, lengths=None, w=None, returnLengths=False):
         """Compute the posterior probability for each state in the model.
 
         X : array-like, shape (n_samples, n_features)
@@ -415,10 +415,14 @@ class PoissonHMM(PHMM):
             # assume we have a feature matrix
             if w is not None:
                 raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+            if returnLengths:
+                return np.transpose(self._predict_proba(self, X, lengths=lengths)), lengths
             return np.transpose(self._predict_proba(self, X, lengths=lengths))
         else:
             # we have a BinnedSpikeTrainArray
             windowed_arr, lengths = self._sliding_window_array(bst=X, w=w)
+            if returnLengths:
+                return np.transpose(self._predict_proba(self, windowed_arr, lengths=lengths)), lengths
             return np.transpose(self._predict_proba(self, windowed_arr, lengths=lengths))
 
     def predict(self, X, lengths=None, w=None):
@@ -705,6 +709,8 @@ class PoissonHMM(PHMM):
         score : Compute the log probability under the model.
         """
 
+        _, n_extern = self._extern_.shape
+
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             raise NotImplementedError("not implemented yet.")
@@ -712,20 +718,16 @@ class PoissonHMM(PHMM):
                 raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
         else:
             # we have a BinnedSpikeTrainArray
-            logprobs = []
-            state_sequences = []
-            external_sequences = []
-            posteriors = []
-            for seq in X:
-                windowed_arr, lengths = self._sliding_window_array(bst=seq, w=w)
-                logprob, state_sequence = self._decode(self, windowed_arr, lengths=lengths, algorithm=algorithm)
-                logprobs.append(logprob)
-                external_sequence = state_sequence
-                external_sequences.append(external_sequence)
-                posterior = self.predict_proba(X=seq, lengths=lengths, w=w)
-                posterior = np.dot(self._extern_.T, posterior)
-                posteriors.append(posterior)
-            return logprobs, external_sequences, posteriors
+            pass
+        state_posteriors, lengths = self.predict_proba(X=X, lengths=lengths, w=w, returnLengths=True)
+        fixy = np.mean(self._extern_ * np.arange(n_extern), axis=1)
+        mean_pth = np.sum(state_posteriors.T*fixy, axis=1) # range 0 to 1
+        ext_posteriors = np.dot((self._extern_ * np.arange(n_extern)).T, state_posteriors)
+        mode_pth = np.argmax(ext_posteriors, axis=0)/n_extern # range 0 to n_extern
+
+        bdries = np.cumsum(lengths)
+
+        return ext_posteriors, bdries, mode_pth, mean_pth
 
     def _plot_external(self, *, figsize=(3,5), sharey=True,
                        labelstates=None, ec=None, fillcolor=None,
