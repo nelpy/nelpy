@@ -279,6 +279,51 @@ def theta_band_filter(data, lowcut=None, highcut=None, *, numtaps=None,
                            numtaps=numtaps,
                            fs=fs)
 
+def gamma_band_filter(data, lowcut=None, highcut=None, *, numtaps=None,
+                       fs=None, verbose=False):
+    """Filter data to the rodent gamma band (default 32--100 Hz).
+
+    Parameters
+    ----------
+    data : AnalogSignalArray, ndarray, or list
+    lowcut : float, optional (default 32 Hz)
+        Lower cut-off frequency
+    highcut : float, optional (default 100 Hz)
+        Upper cut-off frequency
+    numtaps : int, optional (default determined automatically)
+        Number of filter taps
+    fs : float, optional if AnalogSignalArray is passed
+        Sampling frequency (Hz)
+
+    Returns
+    -------
+    filtered : same type as data
+    """
+
+    if numtaps is None:
+        if isinstance(data, (np.ndarray, list)):
+            if fs is None:
+                raise ValueError("sampling frequency must be specified!")
+        elif isinstance(data, AnalogSignalArray):
+            if fs is None:
+                fs = data.fs
+        numtaps = approx_number_of_taps(fs=fs,
+                                        delta_f=1,
+                                        delta1=10e-3,
+                                        delta2=10e-3)
+        if verbose:
+            print("Filtering with {} taps.".format(numtaps))
+
+    if lowcut is None:
+        lowcut = 32
+    if highcut is None:
+        highcut = 100
+    return bandpass_filter(data,
+                           lowcut=lowcut,
+                           highcut=highcut,
+                           numtaps=numtaps,
+                           fs=fs)
+
 def filter_lfp(data, band=None, *, lowcut=None, highcut=None,
                numtaps=None, fs=None, verbose=False):
     """Filter data with a zero phase FIR filtfilt filter.
@@ -309,7 +354,7 @@ def filter_lfp(data, band=None, *, lowcut=None, highcut=None,
     -------
     filtered : same type as data.
     """
-    supported_bands = ['ripple', 'delta', 'theta']
+    supported_bands = ['ripple', 'delta', 'theta', 'gamma']
 
 
     # Delta wave – (0.1 – 3 Hz)
@@ -323,7 +368,7 @@ def filter_lfp(data, band=None, *, lowcut=None, highcut=None,
     # slow gamma : 10–50 Hz
     # hippocampal theta : 6–10 Hz
     # motionless but alert theta : 6–7 Hz
-    # cat & rabbit theta: 4-6 Hz
+    # cat & rabbit theta: 4-6 Hz meow! hop!
 
     if band is None:
         band = 'ripple'
@@ -346,6 +391,8 @@ def filter_lfp(data, band=None, *, lowcut=None, highcut=None,
         return theta_band_filter(**kwargs)
     if band == 'delta':
         return delta_band_filter(**kwargs)
+    if band == 'gamma':
+        return gamma_band_filter(**kwargs)
 
     return 0
 

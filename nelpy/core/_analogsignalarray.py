@@ -481,6 +481,12 @@ class AnalogSignalArray:
         return np.asanyarray(lengths).squeeze()
 
     @property
+    def labels(self):
+        """(list) The number of samples in each epoch."""
+        # TODO: make this faster and better!
+        return self._labels
+
+    @property
     def n_signals(self):
         """(int) The number of signals."""
         try:
