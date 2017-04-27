@@ -384,7 +384,7 @@ class AnalogSignalArray:
             self._ydata = np.vstack([self._ydata, np.array(signal, ndmin=2)])
         if label == None:
             warnings.warn("None label appended")
-        np.append(self._labels,label)
+        self._labels = np.append(self._labels,label)
         return self
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
