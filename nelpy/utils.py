@@ -426,7 +426,10 @@ class PrettyInt(int):
         return '{:,}'.format(self.val)
 
 class PrettyDuration(float):
-    """Time duration with pretty print"""
+    """Time duration with pretty print.
+
+    Behaves like a float, and can always be cast to a float.
+    """
 
     def __init__(self, seconds):
         self.duration = seconds
@@ -440,13 +443,16 @@ class PrettyDuration(float):
     @staticmethod
     def to_dhms(seconds):
         """convert seconds into hh:mm:ss:ms"""
+        pos = seconds >= 0
+        if not pos:
+            seconds = -seconds
         ms = seconds % 1; ms = round(ms*1000)
         seconds = floor(seconds)
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
         d, h = divmod(h, 24)
-        Time = namedtuple('Time', 'dd hh mm ss ms')
-        time = Time(dd=d, hh=h, mm=m, ss=s, ms=ms)
+        Time = namedtuple('Time', 'pos dd hh mm ss ms')
+        time = Time(pos=pos, dd=d, hh=h, mm=m, ss=s, ms=ms)
         return time
 
     @staticmethod
@@ -454,7 +460,7 @@ class PrettyDuration(float):
         """returns a formatted time string."""
         if np.isinf(seconds):
             return 'inf'
-        dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
+        pos, dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
         if s > 0:
             if mm == 0:
                 # in this case, represent milliseconds in terms of
@@ -478,7 +484,38 @@ class PrettyDuration(float):
             timestr = daystr + "{:01d}{} seconds".format(ss, sstr)
         else:
             timestr = daystr +"{} milliseconds".format(s)
+        if not pos:
+            timestr = "-" + timestr
         return timestr
+
+    def __add__(self, other):
+        """a + b"""
+        return PrettyDuration(self.duration + other)
+
+    def __radd__(self, other):
+        """b + a"""
+        return self.__add__(other)
+
+    def __sub__(self, other):
+        """a - b"""
+        return PrettyDuration(self.duration - other)
+
+    def __rsub__(self, other):
+        """b - a"""
+        return other - self.duration
+
+    def __mul__(self, other):
+        """a * b"""
+        return PrettyDuration(self.duration * other)
+
+    def __rmul__(self, other):
+        """b * a"""
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        """a / b"""
+        return PrettyDuration(self.duration / other)
+
 
 def shrinkMatColsTo(mat, numCols):
     """ Docstring goes here
