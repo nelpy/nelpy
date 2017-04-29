@@ -57,7 +57,7 @@ def get_mean_pth_from_array(posterior, tuningcurve=None):
 
     return mean_pth
 
-def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
+def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_bins=True):
     """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
 
     TODO: complete docstring
@@ -81,6 +81,10 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
         that will be used if no spikes are observed in a decoding window
         Default is np.nan.
         If nospk_prior is any scalar, then a uniform prior is assumed.
+
+    _skip_empty_bins is only used to return the posterior regardless of
+    whether any spikes were observed, so that we can understand the spatial
+    distribution in the absence of spikes, or at low firing rates.
 
     Returns
     -------
@@ -159,7 +163,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
                 obs = datacum[:, re] - datacum[:, re-w] # spikes in window of size w
                 re+=1
                 post_idx = cum_posterior_lengths[ii] + tt
-                if obs.sum() == 0:
+                if obs.sum() == 0 and _skip_empty_bins:
                     # no spikes to decode in window!
                     posterior[:,post_idx] = nospk_prior
                 else:
@@ -168,7 +172,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None):
               # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
             post_idx = cum_posterior_lengths[ii]
             obs = datacum[:, -1] # spikes in window of size at most w
-            if obs.sum() == 0:
+            if obs.sum() == 0 and _skip_empty_bins:
                 # no spikes to decode in window!
                 posterior[:,post_idx] = nospk_prior
             else:

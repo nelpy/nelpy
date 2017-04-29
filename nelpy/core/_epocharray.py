@@ -5,6 +5,8 @@ import numpy as np
 import copy
 import numbers
 
+from sys import float_info
+
 from ..utils import is_sorted, \
                    PrettyDuration, \
                    PrettyInt
@@ -397,6 +399,70 @@ class EpochArray:
     def __bool__(self):
         """(bool) Empty EventArray"""
         return not self.isempty
+
+    def partition(self, *, ds=None, n_epochs=None):
+        """Returns an EpochArray that has been partitioned.
+
+        # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
+        # underlying support is propagated, and the first and last points
+        # of the supports are always included, even if this would cause
+        # n_points or ds to be violated.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Maximum duration (in seconds), for each epoch.
+        n_points : int, optional
+            Number of epochs. If ds is None and n_epochs is None, then
+            default is to use n_epochs = 100
+
+        Returns
+        -------
+        out : EpochArray
+            EpochArray that has been partitioned.
+        """
+
+        if self.isempty:
+            raise ValueError ("cannot parition an empty object in a meaningful way!")
+
+        if ds is not None and n_epochs is not None:
+            raise ValueError("ds and n_epochs cannot be used together")
+
+        if n_epochs is not None:
+            assert float(n_epochs).is_integer(), "n_epochs must be a positive integer!"
+            assert n_epochs > 1, "n_epochs must be a positive integer > 1"
+            # determine ds from number of desired points:
+            ds = self.duration / n_epochs
+
+        if ds is None:
+            # neither n_epochs nor ds was specified, so assume defaults:
+            n_epochs = 100
+            ds = self.duration / n_epochs
+
+        # build list of points at which to esplit the EpochArray
+        new_starts = []
+        new_stops = []
+        for start, stop in self.time:
+            newxvals = np.arange(start, stop, step=ds).tolist()
+            if newxvals[-1] + float_info.epsilon < stop:
+                newxvals.append(stop)
+            newxvals = np.asanyarray(newxvals)
+            new_starts.extend(newxvals[:-1])
+            new_stops.extend(newxvals[1:])
+
+        # now make a new epoch array:
+        out = copy.copy(self)
+        if self.fs is None:
+            fs=1
+        else:
+            fs = self.fs
+
+        out._time = np.hstack(
+                [np.array(new_starts)[..., np.newaxis],
+                 np.array(new_stops)[..., np.newaxis]])
+        out._tdata = out._time*fs
+
+        return out
 
     @property
     def label(self):

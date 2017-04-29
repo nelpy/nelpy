@@ -510,6 +510,33 @@ class AnalogSignalArray:
         dstr = " for a total of {}".format(PrettyDuration(self.support.duration))
         return "<AnalogSignalArray%s:%s>%s" % (address_str, nstr, dstr)
 
+    def partition(self, ds=None, n_epochs=None):
+        """Returns an AnalogSignalArray whose support has been
+        partitioned.
+
+        # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
+        # underlying support is propagated, and the first and last points
+        # of the supports are always included, even if this would cause
+        # n_points or ds to be violated.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Maximum duration (in seconds), for each epoch.
+        n_points : int, optional
+            Number of epochs. If ds is None and n_epochs is None, then
+            default is to use n_epochs = 100
+
+        Returns
+        -------
+        out : AnalogSignalArray
+            AnalogSignalArray that has been partitioned.
+        """
+
+        out = copy.copy(self)
+        out._support = out.support.partition(ds=ds, n_epochs=n_epochs)
+        return out
+
     @property
     def ydata(self):
         """(np.array N-Dimensional) ydata that was initially passed in but transposed

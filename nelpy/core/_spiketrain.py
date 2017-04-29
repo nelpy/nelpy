@@ -140,6 +140,32 @@ class SpikeTrain(ABC):
         address_str = " at " + str(hex(id(self)))
         return "<base SpikeTrain" + address_str + ">"
 
+    def partition(self, ds=None, n_epochs=None):
+        """Returns an SpikeTrain whose support has been partitioned.
+
+        # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
+        # underlying support is propagated, and the first and last points
+        # of the supports are always included, even if this would cause
+        # n_points or ds to be violated.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Maximum duration (in seconds), for each epoch.
+        n_points : int, optional
+            Number of epochs. If ds is None and n_epochs is None, then
+            default is to use n_epochs = 100
+
+        Returns
+        -------
+        out : SpikeTrain
+            SpikeTrain that has been partitioned.
+        """
+
+        out = copy.copy(self)
+        out._support = out.support.partition(ds=ds, n_epochs=n_epochs)
+        return out
+
     @abstractmethod
     def isempty(self):
         """(bool) Empty SpikeTrain."""
