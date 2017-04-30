@@ -498,7 +498,7 @@ def outward_ticks(*axes, axis='both'):
         else:
             ax.tick_params(axis=axis, direction='out')
 
-def set_xlabel_coords(y, x=0.5, *axes):
+def set_xlabel_coords(y, *axes, x=0.5):
     """Set the y-coordinate (and optionally the x-coordinate) of the x-axis
     label.
 
@@ -520,7 +520,7 @@ def set_xlabel_coords(y, x=0.5, *axes):
     for ax in axes:
         ax.xaxis.set_label_coords(x, y)
 
-def set_ylabel_coords(x, y=0.5, *axes):
+def set_ylabel_coords(x, *axes, y=0.5):
     """Set the x-coordinate (and optionally the y-coordinate) of the y-axis
     label.
 
@@ -553,8 +553,9 @@ def align_ylabels(xcoord, *axes):
         The matplotlib axis objects to format
 
     """
-    for ax in axes:
-        set_ylabel_coords(xcoord, ax=ax)
+    set_ylabel_coords(xcoord, *axes)
+    # for ax in axes:
+    #     set_ylabel_coords(xcoord, ax=ax)
 
 
 def align_xlabels(ycoord, *axes):
@@ -568,8 +569,7 @@ def align_xlabels(ycoord, *axes):
         The matplotlib axis objects to format
 
     """
-    for ax in axes:
-        set_xlabel_coords(ycoord, ax=ax)
+    set_xlabel_coords(ycoord, *axes)
 
 def no_xticks(*axes):
     """Remove the tick marks on the x-axis (but leave the labels).
