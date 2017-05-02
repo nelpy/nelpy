@@ -16,6 +16,7 @@ import numpy as np
 from pandas import unique
 from . import plotting
 from matplotlib.pyplot import subplots
+import copy
 
 __all__ = ['PoissonHMM']
 
@@ -203,6 +204,31 @@ class PoissonHMM(PHMM):
 
         return new_order
 
+    @property
+    def unit_ids(self):
+        return self._unit_ids
+
+    @property
+    def unit_labels(self):
+        return self._unit_labels
+
+    @property
+    def means(self):
+        """Observation matrix, (n_components, n_units)."""
+        return self.means_
+
+    @property
+    def transmat(self):
+        """Transition probability matrix, (n_components, n_components).
+        NOTE: Aij = Pr(S_{t+1}=j|S_t=i).
+        """
+        return self.transmat_
+
+    @property
+    def startprob(self):
+        """Prior distribution over states, (n_components,)."""
+        return self.startprob_
+
     def get_state_order(self, method=None):
         """return a state ordering, optionally using augmented data.
 
@@ -237,6 +263,33 @@ class PoissonHMM(PHMM):
             raise NotImplementedError("ordering method '" + str(method) + "' not supported!")
         return neworder
 
+    def _reorder_units_by_ids(self, neworder):
+        """Reorder unit_ids to match that of a BinnedSpikeTrain.
+
+        WARNING! modifies self.means_ in-place
+
+        neworder must be list-like, of size (n_units,) and in terms of
+        unit_ids
+
+        Return
+        ------
+        self : reordered PoissonHMM
+        """
+
+        neworder = [self.unit_ids.index(x) for x in neworder]
+
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            swap_cols(self.means_, frm, to)
+            self._unit_ids[frm], self._unit_ids[to] = self._unit_ids[to], self._unit_ids[frm]
+            self._unit_labels[frm], self._unit_labels[to] = self._unit_labels[to], self._unit_labels[frm]
+            # TODO: re-build unit tags (tag system not yet implemented)
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
+
+        return self
+
     def reorder_states(self, neworder):
         """Reorder internal HMM states according to a specified order.
 
@@ -265,6 +318,20 @@ class PoissonHMM(PHMM):
             warn("PoissonHMM(BinnedSpikeTrain) attributes already exist.")
         for attrib in self.__attributes__:
             exec("self." + attrib + " = binnedSpikeTrainArray." + attrib)
+        self._unit_ids = copy.copy(binnedSpikeTrainArray.unit_ids)
+        self._unit_labels = copy.copy(binnedSpikeTrainArray.unit_labels)
+        self._unit_tags = copy.copy(binnedSpikeTrainArray.unit_tags)
+
+    def _has_same_unit_id_order(self, unit_ids):
+        """Returns True if the unit_ids are in the specified order."""
+        if self._unit_ids is None:
+            return True
+        if len(unit_ids) != len(self.unit_ids):
+            raise TypeError("Incorrect number of unit_ids encountered!")
+        for ii, unit_id in enumerate(unit_ids):
+            if unit_id != self.unit_ids[ii]:
+                return False
+        return True
 
     def _sliding_window_array(self, bst, w=1):
         """Returns an unwrapped data array by sliding w bins one bin at a time.
@@ -288,6 +355,11 @@ class PoissonHMM(PHMM):
 
         if not isinstance(bst, BinnedSpikeTrainArray):
             raise NotImplementedError ("support for other datatypes not yet implemented!")
+
+        # potentially re-organize internal observation matrix to be
+        # compatible with BinnedSpikeTrainArray
+        if not self._has_same_unit_id_order(bst.unit_ids):
+            self._reorder_units_by_ids(bst.unit_ids)
 
         if w == 1:
             return bst.data.T, bst.lengths
@@ -600,6 +672,7 @@ class PoissonHMM(PHMM):
             # we have a BinnedSpikeTrainArray
             windowed_arr, lengths = self._sliding_window_array(bst=X, w=w)
             self._fit(self, windowed_arr, lengths=lengths)
+            # adopt unit_ids, unit_labels, etc. from BinnedSpikeTrain
             self.assume_attributes(X)
         return self
 
