@@ -1,6 +1,16 @@
 
 from functools import wraps
 
+
+def name_of_variable(var):
+    """Return the name of an object"""
+    for n,v in globals().items():
+        print(n)
+        if id(v) == id(var):
+            return n
+    return None
+
+
 def tags(tag_name):
     def tags_decorator(func):
         @wraps(func)
