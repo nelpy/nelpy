@@ -658,7 +658,7 @@ class PoissonHMM(PHMM):
 
         for ii, posterior in enumerate(posteriors):
             if not np.isnan(ext[ii]):
-                extern[:,ext_map[ext[ii]]] += np.transpose(posterior)
+                extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
 
         # normalize extern tuning curves:
         colsum = np.tile(extern.sum(axis=1),(n_extern,1)).T

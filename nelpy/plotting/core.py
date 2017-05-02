@@ -41,6 +41,8 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
         if unit_labels is None:
             unit_labels = ratemap.unit_labels
         ratemap = ratemap.ratemap
+    else:
+        raise NotImplementedError
 
     if pad is None:
         pad = ratemap.mean()/2
