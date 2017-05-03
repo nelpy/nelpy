@@ -916,7 +916,7 @@ def get_run_epochs(speed, v1=10, v2=8):
     )
 
     # convert bounds to time in seconds
-    RUN_bounds = speed.tdata[RUN_bounds]
+    RUN_bounds = speed.time[RUN_bounds]
     # create EpochArray with running bounds
     run_epochs = core.EpochArray(RUN_bounds, fs=1)
     return run_epochs
@@ -948,7 +948,7 @@ def get_inactive_epochs(speed, v1=5, v2=7):
     )
 
     # convert bounds to time in seconds
-    INACTIVE_bounds = speed.tdata[INACTIVE_bounds]
+    INACTIVE_bounds = speed.time[INACTIVE_bounds]
     # create EpochArray with inactive bounds
     inactive_epochs = core.EpochArray(INACTIVE_bounds, fs=1)
     return inactive_epochs
