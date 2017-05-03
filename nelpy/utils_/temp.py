@@ -2,6 +2,28 @@
 from functools import wraps
 
 
+class EpochSignalSlicer(object):
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, *args):
+        """epochs, signals"""
+        try:
+            slices = np.s_[args]; slices = slices[0]
+        except TypeError:
+            slices = np.s_[args]
+        if len(slices) > 2:
+            raise IndexError("only [epochs, signal] slicing is supported at this time!")
+        elif len(slices) == 2:
+            epochslice, signalslice = slices
+        else:
+            # only epochs to slice:
+            epochslice = slices[0]
+        return epochslice
+
+lfp._ = EpochSignalSlicer(lfp)
+
+
 def name_of_variable(var):
     """Return the name of an object"""
     for n,v in globals().items():

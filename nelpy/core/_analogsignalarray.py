@@ -346,6 +346,15 @@ class AnalogSignalArray:
         else:
             raise TypeError("unsupported operand type(s) for *: 'AnalogSignalArray' and '{}'".format(str(type(other))))
 
+    def __sub__(self, other):
+        """overloaded - operator."""
+        if isinstance(other, numbers.Number):
+            newasa = copy.copy(self)
+            newasa._ydata = self._ydata - other
+            return newasa
+        else:
+            raise TypeError("unsupported operand type(s) for -: 'AnalogSignalArray' and '{}'".format(str(type(other))))
+
     def __rmul__(self, other):
         return self.__mul__(other)
 

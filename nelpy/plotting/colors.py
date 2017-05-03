@@ -134,9 +134,47 @@ _cows = {'hereford': '#6d3129',
          'texas_aggie': '#5c0025'
          }
 
+_corporate = {'facebook':   '#3b5998',
+              'dropbox':    '#1081de',
+              'uber1':      '#11939a',
+              'uber2':      '#000000',
+              'airbnb1':    '#ff5a60',
+              'airbnb2':    '#d53847',
+              'airbnb3':    '#484848',
+              'microsoft1': '#737373',
+              'microsoft2': '#f24e1f',
+              'microsoft3': '#ffb901',
+              'microsoft4': '#7fba00',
+              'microsoft5': '#01a4ef',
+              'google1':    '#4285f4',
+              'google2':    '#ea4335',
+              'google3':    '#fbbc05',
+              'google4':    '#34a853',
+              'walmart1':   '#fdbb30',
+              'walmart2':   '#007bc4',
+              'amazon1':    '#232f3e',
+              'amazon2':    '#ff9900',
+              'ibm':        '#171717',
+              'merck':      '#009999',
+              '_3m':        '#ff0000',
+              'teradata1':  '#dfdfdf',
+              'teradata2':  '#3b3b3b',
+              'teradata3':  '#ec881d',
+              'oracle1':    '#f0f3f5',
+              'oracle2':    '#393939',
+              'oracle3':    '#f20000'}
+
+_microsoft = dict([(key, value) for key, value in _corporate.items() if key.startswith("microsoft")])
+_google = dict([(key, value) for key, value in _corporate.items() if key.startswith("google")])
+_airbnb = dict([(key, value) for key, value in _corporate.items() if key.startswith("airbnb")])
+
 # instantiate ColorGroups
 sweet = ColorGroup(_sweet)
 riceuniv = ColorGroup(_riceuniv)
 lake_louise = ColorGroup(_louise)
 rainbow = ColorGroup(_rainbow)
 cows = ColorGroup(_cows)
+corporate = ColorGroup(_corporate)
+google = ColorGroup(_google)
+microsoft = ColorGroup(_microsoft)
+airbnb = ColorGroup(_airbnb)
