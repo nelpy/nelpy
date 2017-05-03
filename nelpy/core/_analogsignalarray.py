@@ -94,6 +94,10 @@ class AnalogSignalArray:
         things! :P Lastly, it is worth noting that most logical and type error
         checking for this is expected to be done by the user. Inputs are casted
         to string snad stored in a numpy array.
+    sortme : bool
+        Boolean to determine where or not to sort the data. Particularly, this 
+        sorts upon tdata being given out of sequence and sorts both ydata and 
+        tdata in increasing time increments. 
     empty : bool
         Return an empty AnalogSignalArray if true else false. Default
         set to false.
@@ -128,7 +132,7 @@ class AnalogSignalArray:
                       '_labels']
     def __init__(self, ydata, *, tdata=None, fs=None, fs_acquisition=None, fs_meta = None,
                  step=None, merge_sample_gap=0, support=None, calc_time = True,
-                 in_memory=True, labels=None, empty=False):
+                 in_memory=True, labels=None, sortme=False, empty=False):
 
         if(empty):
             for attr in self.__attributes__:
@@ -192,6 +196,18 @@ class AnalogSignalArray:
                 # self.__init__([],empty=True)
                 raise TypeError("tdata and ydata size mismatch! Note: ydata "
                                 "is expected to have rows containing signals")
+            #data is not sorted and user wants it to be
+            if not is_sorted(tdata):
+                warnings.warn("Data is _not_ sorted! Set sortme flag to True "\
+                              "if you want ASA to sort it in time!")
+                if sortme:
+                    if ydata.shape[0] > 1:
+                        axis = 1
+                    else:
+                        axis = -1
+                    ind = np.argsort(tdata)
+                    tdata = tdata[ind]
+                    ydata = np.take(ydata,ind,axis=axis)
 
         self._ydata = ydata
         # Note: time will be None if this is not a time series and fs isn't
