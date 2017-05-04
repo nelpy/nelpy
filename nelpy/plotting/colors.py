@@ -162,11 +162,15 @@ _corporate = {'facebook':   '#3b5998',
               'teradata3':  '#ec881d',
               'oracle1':    '#f0f3f5',
               'oracle2':    '#393939',
-              'oracle3':    '#f20000'}
+              'oracle3':    '#f20000',
+              'bcg1':       '#177b57',
+              'bcg2':       '#32c77f',
+              'bcg3':       '#333333'}
 
 _microsoft = dict([(key, value) for key, value in _corporate.items() if key.startswith("microsoft")])
 _google = dict([(key, value) for key, value in _corporate.items() if key.startswith("google")])
 _airbnb = dict([(key, value) for key, value in _corporate.items() if key.startswith("airbnb")])
+_bcg = dict([(key, value) for key, value in _corporate.items() if key.startswith("bcg")])
 
 # instantiate ColorGroups
 sweet = ColorGroup(_sweet)
@@ -178,3 +182,4 @@ corporate = ColorGroup(_corporate)
 google = ColorGroup(_google)
 microsoft = ColorGroup(_microsoft)
 airbnb = ColorGroup(_airbnb)
+bcg = ColorGroup(_bcg)

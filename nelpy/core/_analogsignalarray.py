@@ -196,13 +196,9 @@ class AnalogSignalArray:
             if not is_sorted(tdata):
                 warnings.warn("Data is _not_ sorted! Data will be sorted "\
                               "automatically.")
-                if ydata.shape[0] > 1:
-                    axis = 1
-                else:
-                    axis = -1
                 ind = np.argsort(tdata)
                 tdata = tdata[ind]
-                ydata = np.take(ydata,ind,axis=axis)
+                ydata = np.take(a=ydata, indices=ind, axis=-1)
 
         self._ydata = ydata
         # Note: time will be None if this is not a time series and fs isn't
