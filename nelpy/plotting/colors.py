@@ -2,7 +2,14 @@
 
 __all__ = ['sweet',
            'riceuniv',
-           'lake_louise']
+           'lake_louise',
+           'corporate',
+           'cows',
+           'airbnb',
+           'google',
+           'bcg',
+           'microsoft',
+           'ColorGroup']
 
 import colorsys
 import numpy as np

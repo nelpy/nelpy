@@ -23,6 +23,33 @@ warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
 
+class EpochSignalSlicer(object):
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, *args):
+        """epochs, signals"""
+        # by default, keep all signals
+        signalslice = slice(None, None, None)
+        if isinstance(*args, int):
+            epochslice = args[0]
+        elif isinstance(*args, EpochArray):
+            epochslice = args[0]
+        else:
+            try:
+                slices = np.s_[args]; slices = slices[0]
+                if len(slices) > 2:
+                    raise IndexError("only [epochs, signal] slicing is supported at this time!")
+                elif len(slices) == 2:
+                    epochslice, signalslice = slices
+                else:
+                    epochslice = slices[0]
+            except TypeError:
+                # only epoch to slice:
+                epochslice = slices
+
+        return epochslice, signalslice
+
 ########################################################################
 # class AnalogSignalArray
 ########################################################################
@@ -129,6 +156,8 @@ class AnalogSignalArray:
     def __init__(self, ydata, *, tdata=None, fs=None, fs_acquisition=None, fs_meta = None,
                  step=None, merge_sample_gap=0, support=None, calc_time = True,
                  in_memory=True, labels=None, empty=False):
+
+        self._epochsignalslicer = EpochSignalSlicer(self)
 
         if(empty):
             for attr in self.__attributes__:
@@ -673,28 +702,35 @@ class AnalogSignalArray:
             intersect passed epocharray with support,
             index particular a singular epoch or multiple epochs with slice
         """
-        epoch = self._support[idx]
-        if epoch is None:
-            warnings.warn("Index resulted in empty epoch array")
-            return AnalogSignalArray(empty=True)
-        else:
-            asa = AnalogSignalArray([],empty=True)
-            exclude = ['_interp','_support']
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("asa." + attr + " = self." + attr)
-            if(not asa.isempty):
-                asa._restrict_to_epoch_array(epocharray=epoch)
-            if(asa.support.isempty):
-                        warnings.warn("Support is empty. Empty AnalogSignalArray returned")
-                        asa = AnalogSignalArray([],empty=True)
+        epochslice, signalslice = self._epochsignalslicer[idx]
+
+        asa = self._subset(signalslice)
+
+        if asa.isempty:
             return asa
+
+        if isinstance(epochslice, slice):
+            if epochslice.start == None and epochslice.stop == None:
+                return asa
+
+        newepochs = self._support[epochslice]
+        # TODO: this needs to change so that n_signals etc. are preserved
+        ################################################################
+        if newepochs.isempty:
+            warnings.warn("Index resulted in empty epoch array")
+            return AnalogSignalArray([], empty=True)
+        ################################################################
+
+        asa._restrict_to_epoch_array(epocharray=newepochs)
+
+        return asa
 
     def _subset(self, idx):
         asa = self.copy()
-        asa._ydata = self._ydata[idx,:]
+        try:
+            asa._ydata = np.atleast_2d(self._ydata[idx,:])
+        except IndexError:
+            raise IndexError("index {} is out of bounds for n_signals with size {}".format(idx, self.n_signals))
         return asa
 
     def copy(self):
