@@ -23,11 +23,13 @@ def load(filename, name_space=None):
     """
 
     mat = scipy.io.loadmat(filename, squeeze_me=True)
-    vars = [key for key in mat.keys() if '__' not in key]
 
-    for var in vars:
-        insert_into_namespace(var, mat[var], name_space)
-        # Global.var = mat[var]
+    # optionally inject variables into desired name_space
+    if name_space is not None:
+        vars = [key for key in mat.keys() if '__' not in key]
+        for var in vars:
+            insert_into_namespace(var, mat[var], name_space)
+            # Global.var = mat[var]
 
     return mat
 
