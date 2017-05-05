@@ -13,7 +13,6 @@ import matplotlib as mpl
 
 _orig_rc_params = mpl.rcParams.copy()
 
-
 from .core import *
 from .decoding import *
 from .miscplot import *

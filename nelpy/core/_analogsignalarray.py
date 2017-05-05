@@ -710,7 +710,7 @@ class AnalogSignalArray:
             return asa
 
         if isinstance(epochslice, slice):
-            if epochslice.start == None and epochslice.stop == None:
+            if epochslice.start == None and epochslice.stop == None and epochslice.step == None:
                 return asa
 
         newepochs = self._support[epochslice]
