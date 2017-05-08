@@ -1,6 +1,14 @@
 
 from functools import wraps
 
+# return real part of a vector
+def real_vector(vector):
+  return map(lambda x: x.real, vector)
+
+# return imaginary part of a vector
+def imag_vector(vector):
+  return map(lambda x: x.imag, vector)
+
 
 class EpochSignalSlicer(object):
     def __init__(self, obj):

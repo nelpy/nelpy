@@ -375,6 +375,46 @@ class AnalogSignalArray:
             if np.abs(self.fs - self._estimate_fs()/self.fs) > 0.01:
                 warnings.warn("estimated fs and provided fs differ by more than 1%")
 
+    @property
+    def isreal(self):
+        """Returns True if entire signal is real."""
+        return np.all(np.isreal(self._ydata))
+        # return np.isrealobj(self._ydata)
+
+    @property
+    def iscomplex(self):
+        """Returns True if any part of the signal is complex."""
+        return np.any(np.iscomplex(self._ydata))
+        # return np.iscomplexobj(self._ydata)
+
+    @property
+    def abs(self):
+        """AnalogSignalArray with absolute value of (potentially complex) data."""
+        out = copy.copy(self)
+        out._ydata = np.abs(self._ydata)
+        return out
+
+    @property
+    def angle(self):
+        """AnalogSignalArray with only phase angle (in radians) of data."""
+        out = copy.copy(self)
+        out._ydata = np.angle(self._ydata)
+        return out
+
+    @property
+    def imag(self):
+        """AnalogSignalArray with only imaginary part of data."""
+        out = copy.copy(self)
+        out._ydata = self._ydata.imag
+        return out
+
+    @property
+    def real(self):
+        """AnalogSignalArray with only real part of data."""
+        out = copy.copy(self)
+        out._ydata = self._ydata.real
+        return out
+
     def __mul__(self, other):
         """overloaded * operator."""
         if isinstance(other, numbers.Number):
