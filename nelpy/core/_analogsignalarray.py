@@ -166,10 +166,10 @@ class AnalogSignalArray:
             return
         #check if single AnalogSignal or multiple AnalogSignals in array
         #and standardize ydata to 2D
-        ydata = np.squeeze(ydata).astype(float)
+        ydata = np.squeeze(ydata).copy()
         try:
             if(ydata.shape[0] == ydata.size):
-                ydata = np.array(ydata,ndmin=2).astype(float)
+                ydata = np.array(ydata,ndmin=2)
 
         except ValueError:
             raise TypeError("Unsupported type! integer or floating point expected")
@@ -341,9 +341,11 @@ class AnalogSignalArray:
             if fs is not None:
                 if(self._fs_acquisition is not None):
                     time = tdata / self._fs_acquisition
+                    step = 1/self._fs_acquisition
                 else:
                     self._fs_acquisition = self._fs
                     time = tdata / self._fs
+                    step = self._fs
                 # fs and support
                 if support is not None:
                     self.__init__([],empty=True)
@@ -352,7 +354,7 @@ class AnalogSignalArray:
                 else:
                     self._time = time
                     warnings.warn("support created with given sampling rate, fs")
-                    self._support = EpochArray(np.array([0, self._time[-1]]))
+                    self._support = EpochArray(np.array([0, self._time[-1] + step]))
             else:
                 # just support
                 if support is not None:
@@ -363,7 +365,7 @@ class AnalogSignalArray:
                 else:
                     self._time = tdata
                     warnings.warn("support created with given ydata! support is entire signal")
-                    self._support = EpochArray(np.array([0, self._time[-1]]))
+                    self._support = EpochArray(np.array([0, self._time[-1]+1]))
             self._tdata = tdata
 
         # finally, if still no fs has been set, estimate it:
@@ -470,7 +472,7 @@ class AnalogSignalArray:
         for eptime in epocharray.time:
             t_start = eptime[0]
             t_stop = eptime[1]
-            indices.append((self._time >= t_start) & (self._time <= t_stop))
+            indices.append((self._time >= t_start) & (self._time < t_stop))
         indices = np.any(np.column_stack(indices), axis=1)
         if np.count_nonzero(indices) < len(self._time):
             warnings.warn(

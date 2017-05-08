@@ -86,13 +86,13 @@ class TestEvenMore:
     def test_AnalogSignalArray_mean2(self):
         asa = AnalogSignalArray([[1, 2, 4, 5], [7, 8, 9, 10]])
         asa.add_signal([3, 4, 5, 6])
-        asa = asa[EpochArray([[0,1.1], [1.9,3]])]
+        asa = asa[EpochArray([[0,1.1], [1.9,3.1]])]
         assert np.array(asa.mean() == np.array([ 3. ,  8.5,  4.5])).all()
 
     def test_AnalogSignalArray_mean3(self):
         asa = AnalogSignalArray([[1, 2, 4, 5], [7, 8, 9, 10]])
         asa.add_signal([3, 4, 5, 6])
-        asa = asa[EpochArray([[0,1.1], [1.9,3]])]
+        asa = asa[EpochArray([[0,1.1], [1.9,3.1]])]
         means = [seg.mean() for seg in asa]
         assert np.array(means == np.array([np.array([ 1.5,  7.5,  3.5]), np.array([ 4.5,  9.5,  5.5])])).all()
 

@@ -669,7 +669,7 @@ class EpochArray:
         if not is_sorted(self.stops):
             return False
 
-        return np.all(self.time[1:,0] - self.time[:-1,1] >= 0)
+        return np.all(self.time[1:,0] - self.time[:-1,1] > 0)
 
     @property
     def issorted(self):

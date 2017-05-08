@@ -388,7 +388,7 @@ def get_contiguous_segments(data, step=None, sort=False, in_memory=True):
         breaks = np.argwhere(np.diff(data)>=2*step)
         starts = np.insert(breaks+1, 0, 0)
         stops = np.append(breaks, len(data)-1)
-        bdries = np.vstack((data[starts], data[stops])).T
+        bdries = np.vstack((data[starts], data[stops] + step)).T
     else:
         from itertools import groupby
         from operator import itemgetter
@@ -409,7 +409,7 @@ def get_contiguous_segments(data, step=None, sort=False, in_memory=True):
             stop = start
             for stop in gen:
                 pass
-            bdries.append([start, stop])
+            bdries.append([start, stop + step])
 
     return np.asarray(bdries)
 
