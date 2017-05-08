@@ -57,3 +57,4 @@ class TestSpikeTrainArrayEtienne:
     def test_14(self):
         sta = SpikeTrainArray([[3,4],[4],[2]])
         assert sta.n_units == 3
+
