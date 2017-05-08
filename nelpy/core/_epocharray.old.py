@@ -11,13 +11,41 @@ from ..utils import is_sorted, \
                    PrettyDuration, \
                    PrettyInt
 
-from ..utils_.decorators import deprecated
-
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
+
+
+def fsgetter(self):
+    """(float) [generic getter] Sampling frequency."""
+    if self._fs is None:
+        warnings.warn("No sampling frequency has been specified!")
+    return self._fs
+
+def fssetter(self, val):
+    """(float) [generic setter] Sampling frequency."""
+    if self._fs == val:
+        return
+    try:
+        if val <= 0:
+            raise ValueError("sampling rate must be positive")
+    except:
+        raise TypeError("sampling rate must be a scalar")
+
+    # if it is the first time that a sampling rate is set, do not
+    # modify anything except for self._fs:
+    if self._fs is None:
+        pass
+    else:
+        warnings.warn(
+            "Sampling frequency has been updated! This will "
+            "modify the spike times."
+            )
+        self._time = self.tdata / val
+    self._fs = val
+
 
 ########################################################################
 # class EpochArray
@@ -27,10 +55,13 @@ class EpochArray:
 
     Parameters
     ----------
-    time : np.array
+    tdata : np.array
         If shape (n_epochs, 1) or (n_epochs,), the start time for each
         epoch (which then requires a duration to be specified).
         If shape (n_epochs, 2), the start and stop times for each epoch.
+    fs : float, optional
+        Sampling rate in Hz. If fs is passed as a parameter, then time
+        is assumed to be in sample numbers instead of actual time.
     duration : np.array, float, or None, optional
         The length of the epoch. If (float) then the same duration is
         assumed for every epoch.
@@ -42,13 +73,17 @@ class EpochArray:
     ----------
     time : np.array
         The start and stop times for each epoch. With shape (n_epochs, 2).
+    tdata : np.array
+        The start and stop tdata for each epoch. With shape (n_epochs, 2).
+    fs: float
+        Sampling frequency (Hz).
     meta : dict
         Metadata associated with spiketrain.
     """
 
-    __attributes__ = ["_time", "_meta", "_domain"]
+    __attributes__ = ["_tdata", "_time", "_fs", "_meta", "_domain"]
 
-    def __init__(self, time=None, *, duration=None,
+    def __init__(self, tdata=None, *, fs=None, duration=None,
                  meta=None, empty=False, domain=None, label=None):
 
         # if an empty object is requested, return it:
@@ -57,7 +92,7 @@ class EpochArray:
                 exec("self." + attr + " = None")
             return
 
-        time = np.squeeze(time)  # coerce time into np.array
+        tdata = np.squeeze(tdata)  # coerce tdata into np.array
 
         # all possible inputs:
         # 1. single epoch, no duration    --- OK
@@ -70,61 +105,66 @@ class EpochArray:
         # Q. won't np.squeeze make our life difficult?
         #
         # Strategy: determine if duration was passed. If so, try to see
-        # if time can be coerced into right shape. If not, raise
+        # if tdata can be coerced into right shape. If not, raise
         # error.
         # If duration was NOT passed, then do usual checks for epochs.
 
         if duration is not None:  # assume we received scalar starts
-            time = np.array(time, ndmin=1)
+            tdata = np.array(tdata, ndmin=1)
             duration = np.squeeze(duration).astype(float)
             if duration.ndim == 0:
                 duration = duration[..., np.newaxis]
 
-            if time.ndim == 2 and duration.ndim == 1:
+            if tdata.ndim == 2 and duration.ndim == 1:
                 raise ValueError(
                     "duration not allowed when using start and stop "
                     "times")
 
             if len(duration) > 1:
-                if time.ndim == 1 and time.shape[0] != duration.shape[0]:
+                if tdata.ndim == 1 and tdata.shape[0] != duration.shape[0]:
                     raise ValueError(
                         "must have same number of time and duration "
-                        "time"
+                        "tdata"
                         )
-            if time.ndim == 1 and duration.ndim == 1:
-                stop_epoch = time + duration
-                time = np.hstack(
-                    (time[..., np.newaxis], stop_epoch[..., np.newaxis]))
+            if tdata.ndim == 1 and duration.ndim == 1:
+                stop_epoch = tdata + duration
+                tdata = np.hstack(
+                    (tdata[..., np.newaxis], stop_epoch[..., np.newaxis]))
         else:  # duration was not specified, so assume we recived epochs
 
-            # Note: if we have an empty array of time with no
-            # dimension, then calling len(time) will return a
+            # Note: if we have an empty array of tdata with no
+            # dimension, then calling len(tdata) will return a
             # TypeError.
             try:
-                # if no time were received, return an empty EpochArray:
-                if len(time) == 0:
+                # if no tdata were received, return an empty EpochArray:
+                if len(tdata) == 0:
                     return EpochArray(empty=True)
             except TypeError:
                 warnings.warn("unsupported type ("
-                    + str(type(time))
+                    + str(type(tdata))
                     + "); creating empty EpochArray")
                 return EpochArray(empty=True)
 
             # Only one epoch is given eg EpochArray([3,5,6,10]) with no
             # duration and more than two values:
-            if time.ndim == 1 and len(time) > 2:  # we already know duration is None
+            if tdata.ndim == 1 and len(tdata) > 2:  # we already know duration is None
                 raise TypeError(
-                    "time of size (n_epochs, ) has to be accompanied by "
+                    "tdata of size (n_epochs, ) has to be accompanied by "
                     "a duration")
 
-            if time.ndim == 1:  # and duration is None:
-                time = np.array([time])
+            if tdata.ndim == 1:  # and duration is None:
+                tdata = np.array([tdata])
 
-        if time.ndim > 2:
-            raise ValueError("time must be a 1D or a 2D vector")
+        if tdata.ndim > 2:
+            raise ValueError("tdata must be a 1D or a 2D vector")
+
+        # set initial fs to None
+        self._fs = None
+        # then attempt to update the fs; this does input validation:
+        self.fs = fs
 
         try:
-            if time[:, 0].shape[0] != time[:, 1].shape[0]:
+            if tdata[:, 0].shape[0] != tdata[:, 1].shape[0]:
                 raise ValueError(
                     "must have the same number of start and stop times")
         except Exception:
@@ -135,13 +175,21 @@ class EpochArray:
         # spikes, for example in which case the automatically inferred support
         # is a delta dirac
 
-        if time.ndim == 2 and np.any(time[:, 1] - time[:, 0] < 0):
+        if tdata.ndim == 2 and np.any(tdata[:, 1] - tdata[:, 0] < 0):
             raise ValueError("start must be less than or equal to stop")
+
+        # if a sampling rate was given, relate time to tdata using fs:
+        if fs is not None:
+            time = tdata / fs
+        else:
+            time = tdata
 
         # potentially assign domain
         self._domain = domain
 
         self._time = time
+        self._tdata = tdata
+        self._fs = fs
         self._meta = meta
         self.label = label
 
@@ -174,13 +222,14 @@ class EpochArray:
             warnings.simplefilter("ignore")
             epocharray = EpochArray(empty=True)
 
-            exclude = ["_time"]
+            exclude = ["_tdata", "_time"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 for attr in attrs:
                     exec("epocharray." + attr + " = self." + attr)
+            epocharray._tdata = np.array([self.tdata[index, :]])
             epocharray._time = np.array([self.time[index, :]])
         self._index += 1
         return epocharray
@@ -200,14 +249,35 @@ class EpochArray:
             idx = [ii for ii in idx]
 
         if isinstance(idx, EpochArray):
+            # case #: (self, idx):
+            # case 0: idx.isempty == True
+            # case 1: (fs, fs) = (None, const)
+            # case 2: (fs, fs) = (const, None)
+            # case 3: (fs, fs) = (None, None)
+            # case 4: (fs, fs) = (const, const)
+            # case 5: (fs, fs) = (constA, constB)
             if idx.isempty:  # case 0:
                 return EpochArray(empty=True)
-            return self.intersect(epoch=idx, boundaries=True)
+            if idx.fs != self.fs:  # cases (1, 2, 5):
+                epocharray = EpochArray(empty=True)
+                epocharray._tdata = idx._tdata
+                epocharray._time = idx._time
+                epoch = self.intersect(epocharray, boundaries=True)
+            else:  # cases (3, 4)
+                epoch = self.intersect(
+                    epoch=idx,
+                    boundaries=True
+                    )
+            if epoch.isempty:
+                return EpochArray(empty=True)
+            return epoch
         else:
             try: # works for ints, lists, and slices
                 out = copy.copy(self)
                 out._time = None
+                out._tdata = None
                 out._time = self.time[idx,:]
+                out._tdata = self.tdata[idx,:]
             except IndexError:
                 pass
             except Exception:
@@ -215,6 +285,39 @@ class EpochArray:
                     'unsupported subsctipting type {}'.format(type(idx)))
             finally:
                 return out
+        # elif isinstance(idx, int):
+        #     epocharray = EpochArray(empty=True)
+        #     exclude = ["_tdata", "_time"]
+        #     attrs = (x for x in self.__attributes__ if x not in exclude)
+        #     with warnings.catch_warnings():
+        #         warnings.simplefilter("ignore")
+        #         for attr in attrs:
+        #             exec("epocharray." + attr + " = self." + attr)
+        #     try:
+        #         epocharray._time = self.time[[idx], :]  # use np integer indexing! Cool!
+        #         epocharray._tdata = self.tdata[[idx], :]
+        #     except IndexError:
+        #         # index is out of bounds, so return an empty EpochArray
+        #         pass
+        #     finally:
+        #         return epocharray
+        # else:
+        #     try:
+        #         epocharray = EpochArray(empty=True)
+        #         exclude = ["_tdata", "_time"]
+        #         attrs = (x for x in self.__attributes__ if x not in exclude)
+        #         with warnings.catch_warnings():
+        #             warnings.simplefilter("ignore")
+        #             for attr in attrs:
+        #                 exec("epocharray." + attr + " = self." + attr)
+        #         epocharray._time = np.array([self.starts[idx],
+        #                                      self.stops[idx]]).T
+        #         epocharray._tdata = np.array([self._tdatastarts[idx],
+        #                                       self._tdatastops[idx]]).T
+        #         return epocharray
+        #     except Exception:
+        #         raise TypeError(
+        #             'unsupported subsctipting type {}'.format(type(idx)))
 
     def __add__(self, other):
         """add duration to start and stop of each epoch, or join two epoch arrays without merging"""
@@ -248,8 +351,13 @@ class EpochArray:
     def __lshift__(self, other):
         """shift time to left"""
         if isinstance(other, numbers.Number):
+            if self._fs is None:
+                fs = 1
+            else:
+                fs = self._fs
             new = copy.copy(self)
             new._time = new._time - other
+            new._tdata = new._tdata - other*fs
             return new
         else:
             raise TypeError("unsupported operand type(s) for <<: 'EpochArray' and {}".format(str(type(other))))
@@ -257,8 +365,13 @@ class EpochArray:
     def __rshift__(self, other):
         """shift time to right"""
         if isinstance(other, numbers.Number):
+            if self._fs is None:
+                fs = 1
+            else:
+                fs = self._fs
             new = copy.copy(self)
             new._time = new._time + other
+            new._tdata = new._tdata + other*fs
             return new
         else:
             raise TypeError("unsupported operand type(s) for >>: 'EpochArray' and {}".format(str(type(other))))
@@ -339,9 +452,16 @@ class EpochArray:
 
         # now make a new epoch array:
         out = copy.copy(self)
+        if self.fs is None:
+            fs=1
+        else:
+            fs = self.fs
+
         out._time = np.hstack(
                 [np.array(new_starts)[..., np.newaxis],
                  np.array(new_stops)[..., np.newaxis]])
+        out._tdata = out._time*fs
+
         return out
 
     @property
@@ -397,13 +517,18 @@ class EpochArray:
         newtimes = newtimes[durations>0]
         complement = copy.copy(self)
         complement._time = newtimes
+        if self._fs is None:
+            fs = 1
+        else:
+            fs = self._fs
+        complement._tdata = newtimes * fs
         return complement
 
     @property
     def domain(self):
         """domain (in seconds) within which support is defined"""
         if self._domain is None:
-            return EpochArray([-np.inf, np.inf])
+            return EpochArray([-np.inf, np.inf], fs=1)
         return self._domain
 
     @domain.setter
@@ -413,7 +538,7 @@ class EpochArray:
         if isinstance(val, EpochArray):
             self._domain = val
         elif isinstance(val, (tuple, list)):
-            self._domain = EpochArray([val[0], val[1]])
+            self._domain = EpochArray([val[0], val[1]], fs=1)
 
     @property
     def meta(self):
@@ -427,8 +552,23 @@ class EpochArray:
         self._meta = val
 
     @property
+    def fs(self):
+        """(float) Sampling frequency."""
+        return fsgetter(self)
+
+    @fs.setter
+    def fs(self, val):
+        """(float) Sampling frequency."""
+        fssetter(self, val)
+
+    @property
+    def tdata(self):
+        """Epochs [start, stop] in sample numbers (default fs=1 Hz)."""
+        return self._tdata
+
+    @property
     def time(self):
-        """Epoch times [start, stop) in seconds."""
+        """Epoch times [start, stop] in seconds."""
         return self._time
 
     @property
@@ -460,11 +600,25 @@ class EpochArray:
         return self.time[:, 0]
 
     @property
+    def _tdatastarts(self):
+        """(np.array) The start of each epoch, in tdata"""
+        if self.isempty:
+            return []
+        return self.tdata[:, 0]
+
+    @property
     def start(self):
         """(np.array) The start of the first epoch."""
         if self.isempty:
             return []
         return self.time[:, 0][0]
+
+    @property
+    def _tdatastart(self):
+        """(np.array) The start of the first epoch, in tdata"""
+        if self.isempty:
+            return []
+        return self.tdata[:, 0][0]
 
     @property
     def stops(self):
@@ -474,11 +628,23 @@ class EpochArray:
         return self.time[:, 1]
 
     @property
+    def _tdatastops(self):
+        """(np.array) The stop of each epoch, in tdata"""
+        if self.isempty:
+            return []
+        return self.tdata[:, 1]
+
+    @property
     def stop(self):
         """(np.array) The stop of the last epoch."""
         if self.isempty:
             return []
         return self.time[:, 1][-1]
+
+    @property
+    def _tdatastop(self):
+        """(np.array) The stop of the first epoch, in tdata"""
+        return self.tdata[:, 0][0]
 
     @property
     def n_epochs(self):
@@ -549,7 +715,9 @@ class EpochArray:
         """
         if self.isempty or epoch.isempty:
             warnings.warn('epoch intersection is empty')
-            return EpochArray(empty=True)
+            # TODO: copy everything except time? Wouldn't rest get
+            # lost anyway due to no samples ==> return EpochArray(empty)?
+            return EpochArray([], duration=[], meta=meta)
 
         new_starts = []
         new_stops = []
@@ -585,11 +753,38 @@ class EpochArray:
             new_starts = np.unique(new_starts)
             new_stops = np.unique(new_stops)
 
-        epoch_a._time = np.hstack(
-            [np.array(new_starts)[..., np.newaxis],
-                np.array(new_stops)[..., np.newaxis]])
+        epocharray = EpochArray(empty=True)
+        exclude = ["_tdata", "_time", "_fs"]
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("epocharray." + attr + " = self." + attr)
 
-        return epoch_a
+        # case 1: (fs, fs) = (None, const)
+        # case 2: (fs, fs) = (const, None)
+        # case 3: (fs, fs) = (None, None)
+        # case 4: (fs, fs) = (const, const)
+        # case 5: (fs, fs) = (constA, constB)
+
+        if self.fs != epoch.fs or self.fs is None:  # cases (1, 2, 3, 5)
+            warnings.warn(
+                "sampling rates are different; intersecting along "
+                "time only and throwing away fs"
+                )
+            epocharray._time = np.hstack(
+                [np.array(new_starts)[..., np.newaxis],
+                 np.array(new_stops)[..., np.newaxis]])
+            epocharray._tdata = epocharray._time
+            epocharray._fs = None
+        else:  # case (4, )
+            epocharray._time = np.hstack(
+                [np.array(new_starts)[..., np.newaxis],
+                 np.array(new_stops)[..., np.newaxis]])
+            epocharray._tdata = epocharray._time*self.fs
+            epocharray._fs = self.fs
+
+        return epocharray
 
     def merge(self, *, gap=0.0):
         """Merges epochs that are close or overlapping.
@@ -615,31 +810,38 @@ class EpochArray:
 
         newepocharray = copy.copy(self)
 
+        fs = newepocharray.fs
+        if fs is None:
+            fs = 1
+
+        gap = gap * fs
+
         if not newepocharray.issorted:
             newepocharray._sort()
 
         while not newepocharray.ismerged or gap>0:
-            stops = newepocharray.stops[:-1] + gap
-            starts = newepocharray.starts[1:]
+            stops = newepocharray._tdatastops[:-1] + gap
+            starts = newepocharray._tdatastarts[1:]
             to_merge = (stops - starts) >= 0
 
-            new_starts = [newepocharray.starts[0]]
+            new_starts = [newepocharray._tdatastarts[0]]
             new_stops = []
 
-            next_stop = newepocharray.stops[0]
+            next_stop = newepocharray._tdatastops[0]
             for i in range(newepocharray.time.shape[0] - 1):
-                this_stop = newepocharray.stops[i]
+                this_stop = newepocharray._tdatastops[i]
                 next_stop = max(next_stop, this_stop)
                 if not to_merge[i]:
                     new_stops.append(next_stop)
-                    new_starts.append(newepocharray.starts[i + 1])
+                    new_starts.append(newepocharray._tdatastarts[i + 1])
 
-            new_stops.append(newepocharray.stops[-1])
+            new_stops.append(newepocharray._tdatastops[-1])
 
             new_starts = np.array(new_starts)
             new_stops = np.array(new_stops)
 
-            newepocharray._time = np.vstack([new_starts, new_stops]).T
+            newepocharray._tdata = np.vstack([new_starts, new_stops]).T
+            newepocharray._time = newepocharray._tdata / fs
 
             # after one pass, all the gap offsets have been added, and
             # then we just need to keep merging...
@@ -674,11 +876,14 @@ class EpochArray:
                 "direction must be 'both', 'start', or 'stop'")
 
         newepocharray = copy.copy(self)
-
+        fs = newepocharray.fs
+        if fs is None:
+            fs = 1
         newepocharray._time = np.hstack((
                 resize_starts[..., np.newaxis],
                 resize_stops[..., np.newaxis]
                 ))
+        newepocharray._tdata = newepocharray._time * fs
 
         return newepocharray
 
@@ -727,15 +932,43 @@ class EpochArray:
 
         newepocharray = copy.copy(self)
 
-        join_starts = np.concatenate(
-            (self.time[:, 0], epoch.time[:, 0]))
-        join_stops = np.concatenate(
-            (self.time[:, 1], epoch.time[:, 1]))
+        if self.fs != epoch.fs:
+            warnings.warn(
+                "sampling rates are different; joining along time "
+                "only and throwing away fs"
+                )
+            join_starts = np.concatenate(
+                (self.time[:, 0], epoch.time[:, 0]))
+            join_stops = np.concatenate(
+                (self.time[:, 1], epoch.time[:, 1]))
+            #TODO: calling merge() just once misses some instances.
+            # I haven't looked carefully enough to know which edge cases
+            # these are...
+            # merge() should therefore be checked!
+            # return EpochArray(join_starts, fs=None,
+            # duration=join_stops - join_starts, meta=meta).merge()
+            # .merge()
+            newepocharray._time = np.hstack((
+                join_starts[..., np.newaxis],
+                join_stops[..., np.newaxis]
+                ))
+            newepocharray._tdata = newepocharray._time
+            newepocharray._fs = None
+            return newepocharray
+        else:
+            join_starts = np.concatenate(
+                (self.tdata[:, 0], epoch.tdata[:, 0]))
+            join_stops = np.concatenate(
+                (self.tdata[:, 1], epoch.tdata[:, 1]))
 
-        newepocharray._time = np.hstack((
+        # return EpochArray(join_starts, fs=self.fs, duration=
+        # join_stops - join_starts, meta=meta).merge().merge()
+        newepocharray._tdata = np.hstack((
             join_starts[..., np.newaxis],
             join_stops[..., np.newaxis]
             ))
+        newepocharray._fs = self.fs
+        newepocharray._time = newepocharray._tdata / self.fs
         return newepocharray
 
     def contains(self, value):
@@ -764,6 +997,6 @@ class EpochArray:
         """Sort epochs by epoch starts"""
         sort_idx = np.argsort(self.time[:, 0])
         self._time = self._time[sort_idx]
-
+        self._tdata = self._tdata[sort_idx]
 #----------------------------------------------------------------------#
 #======================================================================#

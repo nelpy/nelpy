@@ -58,68 +58,6 @@ print get_text.__name__ # get_text
 print get_text.__doc__ # returns some text
 print get_text.__module__ # __main__
 
-
-########################################################################
-
-import warnings
-
-def deprecated(func):
-    '''This is a decorator which can be used to mark functions
-    as deprecated. It will result in a warning being emitted
-    when the function is used.'''
-    def new_func(*args, **kwargs):
-        warnings.warn("Call to deprecated function {}.".format(func.__name__),
-                      category=DeprecationWarning)
-        return func(*args, **kwargs)
-    new_func.__name__ = func.__name__
-    new_func.__doc__ = func.__doc__
-    new_func.__dict__.update(func.__dict__)
-    return new_func
-
-# === Examples of use ===
-
-@deprecated
-def some_old_function(x,y):
-    return x + y
-
-class SomeClass:
-    @deprecated
-    def some_old_method(self, x,y):
-        return x + y
-
-########################################################################
-
-import warnings
-import functools
-
-
-def deprecated(func):
-    '''This is a decorator which can be used to mark functions
-    as deprecated. It will result in a warning being emitted
-    when the function is used.'''
-
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        warnings.warn_explicit(
-            "Call to deprecated function {}.".format(func.__name__),
-            category=DeprecationWarning,
-            filename=func.func_code.co_filename,
-            lineno=func.func_code.co_firstlineno + 1
-        )
-        return func(*args, **kwargs)
-    return new_func
-
-
-## Usage examples ##
-@deprecated
-def my_func():
-    pass
-
-@other_decorators_must_be_upper
-@deprecated
-def my_func():
-    pass
-
 ########################################################################
 
 import warnings

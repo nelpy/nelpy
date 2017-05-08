@@ -5,7 +5,6 @@ import numpy as np
 import copy
 import numbers
 
-from functools import wraps
 from scipy import interpolate
 from sys import float_info
 from collections import namedtuple
@@ -51,75 +50,6 @@ class EpochSignalSlicer(object):
 
         return epochslice, signalslice
 
-
-def asa_init_wrapper(func):
-    """Decorator that helps figure out timestamps, fs, and sample numbers"""
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-
-        if kwargs.get('empty', False):
-            func(*args, **kwargs)
-            return
-
-        if len(args) > 2:
-            raise TypeError("__init__() takes 1 positional arguments but {} positional arguments (and {} keyword-only arguments) were given".format(len(args)-1, len(kwargs.items())))
-
-        ydata = kwargs.get('ydata', [])
-        if ydata == []:
-            ydata = args[1]
-
-        if ydata == []:
-            warnings.warn('No data! Returning empty AnalogSignalArray.')
-            func(*args, **kwargs)
-            return
-
-        #check if single AnalogSignal or multiple AnalogSignals in array
-        #and standardize ydata to 2D
-        ydata = np.squeeze(ydata)
-        try:
-            if(ydata.shape[0] == ydata.size):
-                ydata = np.array(ydata,ndmin=2)
-        except ValueError:
-            raise TypeError("Unsupported ydata type!")
-
-        re_estimate_fs = False
-        no_fs = True
-        fs = kwargs.get('fs', None)
-        if fs is not None:
-            no_fs = False
-            try:
-                if(fs <= 0):
-                    raise ValueError("fs must be positive")
-            except TypeError:
-                raise TypeError("fs must be a scalar!")
-        else:
-            fs = 1
-            re_estimate_fs = True
-
-        timestamps = kwargs.get('timestamps', None)
-        if timestamps is None:
-            timestamps = np.linspace(0, ydata.shape[1]/fs, ydata.shape[1]+1)
-            timestamps = timestamps[:-1]
-        else:
-            if re_estimate_fs:
-                warnings.warn('fs was not specified, so we try to estimate it from the data...')
-                fs = 1.0/np.median(np.diff(timestamps))
-                warnings.warn('fs was estimated to be {} Hz'.format(fs))
-            else:
-                if no_fs:
-                    warnings.warn('fs was not specified, so we will assume default of 1 Hz...')
-                    fs = 1
-
-        kwargs['fs'] = fs
-        kwargs['ydata'] = ydata
-        kwargs['timestamps'] = timestamps
-
-        func(args[0], **kwargs)
-        return
-
-    return wrapper
-
 ########################################################################
 # class AnalogSignalArray
 ########################################################################
@@ -159,6 +89,12 @@ class AnalogSignalArray:
         time and should be changed from the default None. See notebook of
         AnalogSignalArray uses. Lastly, it is worth noting that fs_acquisition
         is set equal to fs if it is not set.
+    fs_meta : float, optional
+        Optional sampling rate storage. The true sampling rate if tdata
+        is time can be stored here. The above parameter, fs, must be left
+        blank if tdata is time and not sample numbers. This will not be
+        used for any calculations. Just to store in AnalogSignalArray as
+        a value.
     support : EpochArray, optional
         EpochArray array on which LFP is defined.
         Default is [0, last spike] inclusive.
@@ -202,6 +138,8 @@ class AnalogSignalArray:
     fs_acquisition : float, scalar, optional
         See Parameters. fs_acquisition will be set to fs if fs_acquisition is
         None and fs is specified.
+    fs_meta : float, scalar, optional
+        See Paramters
     step : int
         See Parameters
     support : EpochArray, optional
@@ -212,13 +150,11 @@ class AnalogSignalArray:
 
         See Parameters
     """
-    __attributes__ = ['_ydata','_timestamps', '_fs', '_support', \
-                      '_interp', '_step', '_fs_acquisition',\
+    __attributes__ = ['_ydata', '_tdata', '_time', '_fs', '_support', \
+                      '_interp', '_fs_meta', '_step', '_fs_acquisition',\
                       '_labels']
-
-    @asa_init_wrapper
-    def __init__(self, ydata=[], *, timestamps=None, fs=None, fs_acquisition=None,
-                 step=None, merge_sample_gap=0, support=None,
+    def __init__(self, ydata, *, tdata=None, fs=None, fs_acquisition=None, fs_meta = None,
+                 step=None, merge_sample_gap=0, support=None, calc_time = True,
                  in_memory=True, labels=None, empty=False):
 
         self._epochsignalslicer = EpochSignalSlicer(self)
@@ -228,9 +164,29 @@ class AnalogSignalArray:
                 exec("self." + attr + " = None")
             self._support = EpochArray(empty=True)
             return
+        #check if single AnalogSignal or multiple AnalogSignals in array
+        #and standardize ydata to 2D
+        ydata = np.squeeze(ydata).copy()
+        try:
+            if(ydata.shape[0] == ydata.size):
+                ydata = np.array(ydata,ndmin=2)
 
+        except ValueError:
+            raise TypeError("Unsupported type! integer or floating point expected")
         self._step = step
-        self._fs = fs
+        self._fs_meta = fs_meta
+
+        # set initial fs to None
+        self._fs = None
+        # then attempt to update the fs; this does input validation:
+        if(fs is not None):
+            try:
+                if(fs > 0):
+                    self._fs = fs
+                else:
+                    raise ValueError("fs must be positive")
+            except TypeError:
+                raise TypeError("fs expected to be a scalar")
 
         #set fs_acquisition
         self._fs_acquisition = None
@@ -241,38 +197,42 @@ class AnalogSignalArray:
                 else:
                     raise ValueError("fs_acquisition must be positive")
             except TypeError:
-                raise TypeError("fs_acquisition must be a scalar")
+                raise TypeError("fs_acquisition expected to be a scalar")
+        else:
+            self._fs_acquisition = self.fs
 
         # Note; if we have an empty array of ydata with no dimension,
         # then calling len(ydata) will return a TypeError
         try:
-            # if no ydata are given return empty AnalogSignalArray
+            # if no ydata are given return empty AnalogSignal
             if ydata.size == 0:
-                self.__init__(empty=True)
+                self.__init__([],empty=True)
                 return
         except TypeError:
             warnings.warn("unsupported type; creating empty AnalogSignalArray")
-            self.__init__(empty=True)
+            self.__init__([],empty=True)
             return
 
-        # Note: if both timestamps and ydata are given and dimensionality does not
+        # Note: if both tdata and ydata are given and dimensionality does not
         # match, then TypeError!
-        if(timestamps is not None):
-            timestamps = np.squeeze(timestamps).astype(float)
-            if(timestamps.shape[0] != ydata.shape[1]):
+        if(tdata is not None):
+            tdata = np.squeeze(tdata).astype(float)
+            if(tdata.shape[0] != ydata.shape[1]):
                 # self.__init__([],empty=True)
-                raise TypeError("timestamps and ydata size mismatch! Note: ydata "
+                raise TypeError("tdata and ydata size mismatch! Note: ydata "
                                 "is expected to have rows containing signals")
             #data is not sorted and user wants it to be
-            if not is_sorted(timestamps):
+            if not is_sorted(tdata):
                 warnings.warn("Data is _not_ sorted! Data will be sorted "\
                               "automatically.")
-                ind = np.argsort(timestamps)
-                timestamps = timestamps[ind]
+                ind = np.argsort(tdata)
+                tdata = tdata[ind]
                 ydata = np.take(a=ydata, indices=ind, axis=-1)
 
         self._ydata = ydata
-        self._timestamps = timestamps
+        # Note: time will be None if this is not a time series and fs isn't
+        # specified set xtime to None.
+        self._time = None
 
         #handle labels
         if labels is not None:
@@ -283,29 +243,137 @@ class AnalogSignalArray:
                               "size of ydata")
                 labels = labels[0:ydata.shape[0]]
             elif labels.shape[0] < ydata.shape[0]:
-                warnings.warn("Less labels than timestamps! labels are filled with "
+                warnings.warn("Less labels than tdata! labels are filled with "
                               "None to match ydata shape")
                 for i in range(labels.shape[0],ydata.shape[0]):
                     labels.append(None)
         self._labels = labels
 
         # Alright, let's handle all the possible parameter cases!
-        if support is not None:
-            self._restrict_to_epoch_array(epocharray=support)
-        else:
-            warnings.warn("creating support from timestamps and "
-                            "sampling rate, fs!")
-            self._support = EpochArray(
-                get_contiguous_segments(
-                    self.timestamps,
-                    step=self._step,
-                    fs=fs,
-                    in_memory=in_memory))
-            if merge_sample_gap > 0:
-                self._support = self._support.merge(gap=merge_sample_gap)
+        if tdata is not None:
+            if fs is not None:
+                if(self._fs_acquisition is not None):
+                    if(calc_time):
+                        time = tdata / self._fs_acquisition
+                        self._tdata = tdata
+                    else:
+                        time = tdata
+                        self._tdata = time*self._fs_acquisition
+                else:
+                    self._fs_acquisition = self._fs
+                    if calc_time:
+                        time = tdata / self._fs
+                        self._tdata = tdata
+                    else:
+                        time = tdata
+                        self._tdata = time*self._fs_acquisition
+                if support is not None:
+                    # tdata, fs, support passed properly
+                    self._time = time
+                    # print(self._ydata)
+                    self._restrict_to_epoch_array(epocharray=support)
+                    # print(self._ydata)
+                    if(self.support.isempty):
+                        warnings.warn("Support is empty. Empty AnalogSignalArray returned")
+                        exclude = ['_support','_ydata']
+                        attrs = (x for x in self.__attributes__ if x not in exclude)
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            for attr in attrs:
+                                exec("self." + attr + " = None")
 
-        if np.abs((self.fs - self._estimate_fs())/self.fs) > 0.01:
-            warnings.warn("estimated fs and provided fs differ by more than 1%")
+                # tdata, fs and no support
+                else:
+                    warnings.warn("creating support with given tdata and "
+                                  "sampling rate, fs (or fs_acq)!")
+                    self._time = time
+                    self._support = EpochArray(
+                        get_contiguous_segments(
+                            self.tdata,
+                            step=self._step,
+                            in_memory=in_memory),
+                        fs=self._fs_acquisition)
+                    if merge_sample_gap > 0:
+                        self._support = self._support.merge(gap=merge_sample_gap)
+            else:
+                if(self._fs_acquisition is not None and calc_time):
+                    warnings.warn("Why would you enter fs_acq but not fs? This feature may be removed"
+                                    " but tdata has been scaled by fs_acq for now.")
+                    time = tdata / self._fs_acquisition
+                else:
+                    if calc_time:
+                        warnings.warn("No fs passed. time being set equal to "
+                                      "tdata.")
+                    time = tdata
+                self._tdata = tdata
+                # tdata and support
+                if support is not None:
+                    self._time = time
+                    # print(self._ydata)
+                    self._restrict_to_epoch_array(epocharray=support)
+                    # print(self._ydata)
+                    warnings.warn("support created with specified epoch array but no specified sampling rate")
+                    if(self.support.isempty):
+                        warnings.warn("Support is empty. Empty AnalogSignalArray returned")
+                        exclude = ['_support','_ydata']
+                        attrs = (x for x in self.__attributes__ if x not in exclude)
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            for attr in attrs:
+                                exec("self." + attr + " = None")
+                # tdata
+                else:
+                    warnings.warn("support created with just tdata! no sampling rate specified so "\
+                                    + " support is entire range of signal with Epochs separted by" \
+                                    + " time step difference from first time to second time")
+                    self._time = time
+                    self._support = EpochArray(
+                        get_contiguous_segments(
+                            self.tdata,
+                            step=self._step,
+                            in_memory=in_memory),
+                        fs=self._fs_acquisition)
+                    #merge gaps in Epochs if requested
+                    if merge_sample_gap > 0:
+                        self._support = self._support.merge(gap=merge_sample_gap)
+        else:
+            tdata = np.arange(0, ydata.shape[1], 1)
+            if fs is not None:
+                if(self._fs_acquisition is not None):
+                    time = tdata / self._fs_acquisition
+                    step = 1/self._fs_acquisition
+                else:
+                    self._fs_acquisition = self._fs
+                    time = tdata / self._fs
+                    step = self._fs
+                # fs and support
+                if support is not None:
+                    self.__init__([],empty=True)
+                    raise TypeError("tdata must be passed if support is specified")
+                # just fs
+                else:
+                    self._time = time
+                    warnings.warn("support created with given sampling rate, fs")
+                    self._support = EpochArray(np.array([0, self._time[-1] + step]))
+            else:
+                # just support
+                if support is not None:
+                    self.__init__([],empty=True)
+                    raise TypeError("tdata must be passed if support is "
+                        +"specified")
+                # just ydata
+                else:
+                    self._time = tdata
+                    warnings.warn("support created with given ydata! support is entire signal")
+                    self._support = EpochArray(np.array([0, self._time[-1]+1]))
+            self._tdata = tdata
+
+        # finally, if still no fs has been set, estimate it:
+        if self.fs is None:
+            self._fs = self._estimate_fs()
+        else:
+            if np.abs(self.fs - self._estimate_fs()/self.fs) > 0.01:
+                warnings.warn("estimated fs and provided fs differ by more than 1%")
 
     @property
     def isreal(self):
@@ -383,7 +451,7 @@ class AnalogSignalArray:
     def _estimate_fs(self, data=None):
         """Estimate the sampling rate of the data."""
         if data is None:
-            data = self.timestamps
+            data = self.time
         return 1.0/np.median(np.diff(data))
 
     def add_signal(self, signal, label=None):
@@ -407,7 +475,7 @@ class AnalogSignalArray:
         return self
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
-        """Restrict self._timestamps and self._ydata to an EpochArray. If no
+        """Restrict self._time and self._ydata to an EpochArray. If no
         EpochArray is specified, self._support is used.
 
         Parameters
@@ -426,7 +494,7 @@ class AnalogSignalArray:
             if epocharray.isempty:
                 warnings.warn("Support specified is empty")
                 # self.__init__([],empty=True)
-                exclude = ['_support','_ydata','_fs','_step', \
+                exclude = ['_support','_ydata','_fs','_fs_meta', '_step', \
                            '_fs_acquisition']
                 attrs = (x for x in self.__attributes__ if x not in exclude)
                 with warnings.catch_warnings():
@@ -444,9 +512,9 @@ class AnalogSignalArray:
         for eptime in epocharray.time:
             t_start = eptime[0]
             t_stop = eptime[1]
-            indices.append((self._timestamps >= t_start) & (self._timestamps < t_stop))
+            indices.append((self._time >= t_start) & (self._time < t_stop))
         indices = np.any(np.column_stack(indices), axis=1)
-        if np.count_nonzero(indices) < len(self._timestamps):
+        if np.count_nonzero(indices) < len(self._time):
             warnings.warn(
                 'ignoring signal outside of support')
         try:
@@ -454,7 +522,8 @@ class AnalogSignalArray:
         except IndexError:
             self._ydata = np.zeros([0,self._ydata.shape[0]])
             self._ydata[:] = np.NAN
-        self._timestamps = self._timestamps[indices]
+        self._time = self._time[indices]
+        self._tdata = self._tdata[indices]
         if update:
             self._support = epocharray
 
@@ -562,6 +631,14 @@ class AnalogSignalArray:
         return self._ydata
 
     @property
+    def tdata(self):
+        """(np.array 1D) Either sample numbers or time depending on what was passed in
+        """
+        if self._tdata is None:
+            warnings.warn("No tdata specified")
+        return self._tdata
+
+    @property
     def support(self):
         """(nelpy.EpochArray) The support of the underlying AnalogSignalArray
         (in seconds).
@@ -571,18 +648,21 @@ class AnalogSignalArray:
     @property
     def step(self):
         """ steps per sample
-        Example 1: sample_numbers = np.array([1,2,3,4,5,6]) #aka timestamps
+        Example 1: sample_numbers = np.array([1,2,3,4,5,6]) #aka tdata
         Steps per sample in the above case would be 1
 
-        Example 2: sample_numbers = np.array([1,3,5,7,9]) #aka timestamps
+        Example 2: sample_numbers = np.array([1,3,5,7,9]) #aka tdata
         Steps per sample in Example 2 would be 2
         """
         return self._step
 
     @property
-    def timestamps(self):
-        """(np.array 1D) Timestamps in seconds."""
-        return self._timestamps
+    def time(self):
+        """(np.array 1D) Time calculated off sample numbers and frequency or time passed in
+        """
+        if self._time is None:
+            warnings.warn("No time calculated. This should be due to no tdata specified")
+        return self._time
 
     @property
     def fs(self):
@@ -609,7 +689,7 @@ class AnalogSignalArray:
         """(int) number of time samples where signal is defined."""
         if self.isempty:
             return 0
-        return PrettyInt(len(self.timestamps))
+        return PrettyInt(len(self.time))
 
     def __iter__(self):
         """AnalogSignal iterator initialization"""
@@ -625,7 +705,7 @@ class AnalogSignalArray:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             epoch = EpochArray(empty=True)
-            exclude = ["_timestamps"]
+            exclude = ["_tdata", "_time"]
             attrs = (x for x in self._support.__attributes__ if x not in exclude)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -633,10 +713,13 @@ class AnalogSignalArray:
                     exec("epoch." + attr + " = self._support." + attr)
                 try:
                     epoch._time = self._support.time[[index], :]  # use np integer indexing! Cool!
+                    epoch._tdata = self._support.tdata[[index], :]
                 except IndexError:
                     # index is out of bounds, so return an empty EpochArray
                     pass
-
+            # epoch = EpochArray(
+            #         np.array([self._support.tdata[index,:]])
+            #     )
         self._index += 1
 
         asa = AnalogSignalArray([],empty=True)
@@ -886,7 +969,7 @@ class AnalogSignalArray:
             e.g., where=(ydata[1,:]>5) or tuple where=(speed>5,tspeed)
         at : array_like, optional
             Array of oints to evaluate array at. If none given, use
-            self.timestamps together with 'where' if applicable.
+            self.tdata together with 'where' if applicable.
         n_points: int, optional
             Number of points to interplate at. These points will be
             distributed uniformly from self.support.start to stop.
@@ -908,7 +991,7 @@ class AnalogSignalArray:
         XYArray = namedtuple('XYArray', ['xvals', 'yvals'])
 
         if at is None and where is None and split_by_epoch is False and n_points is None:
-            xyarray = XYArray(self.timestamps, self._ydata_rowsig.squeeze())
+            xyarray = XYArray(self.time, self._ydata_rowsig.squeeze())
             return xyarray
 
         if where is not None:
@@ -920,8 +1003,8 @@ class AnalogSignalArray:
                 at = y[x]
             else:
                 x = np.asanyarray(where).squeeze()
-                assert len(x) == len(self.timestamps), "'where' condition must have same number of elements as self.timestamps"
-                at = self.timestamps[x]
+                assert len(x) == len(self.time), "'where' condition must have same number of elements as self.time"
+                at = self.time[x]
         elif at is not None:
             assert n_points is None, "'at' and 'n_points' cannot be used at the same time"
         else:
@@ -1016,13 +1099,14 @@ class AnalogSignalArray:
 
         # now make a new simplified ASA:
         asa = AnalogSignalArray([], empty=True)
-        exclude = ['_interp', '_ydata', '_timestamps']
+        exclude = ['_interp', '_ydata', '_tdata', '_time']
         attrs = (x for x in self.__attributes__ if x not in exclude)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for attr in attrs:
                 exec("asa." + attr + " = self." + attr)
-        asa._timestamps = np.asanyarray(at)
+        asa._tdata = np.asanyarray(at)
+        asa._time = asa._tdata
         asa._ydata = yvals
 
         return asa

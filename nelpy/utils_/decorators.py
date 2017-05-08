@@ -1,9 +1,41 @@
+import functools
 import inspect
+import warnings
 
 __all__ = ['add_method_to_instance',
            'add_method_to_class',
            'add_prop_to_instance',
-           'add_prop_to_class']
+           'add_prop_to_class',
+           'deprecated']
+
+def deprecated(func):
+    '''This is a decorator which can be used to mark functions
+    as deprecated. It will result in a warning being emitted
+    when the function is used.'''
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        warnings.warn_explicit(
+            "Call to deprecated function {}.".format(func.__name__),
+            category=DeprecationWarning,
+            filename=func.func_code.co_filename,
+            lineno=func.func_code.co_firstlineno + 1
+        )
+        return func(*args, **kwargs)
+    new_func.__name__ = func.__name__
+    new_func.__doc__ = func.__doc__
+    new_func.__dict__.update(func.__dict__)
+    return new_func
+
+# ## Usage examples ##
+# @deprecated
+# def my_func():
+#     pass
+
+# @other_decorators_must_be_upper
+# @deprecated
+# def my_func():
+#     pass
 
 def add_method_to_instance(instance):
     """Add a method to an object instance.
