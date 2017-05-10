@@ -279,7 +279,7 @@ class SpikeTrain(ABC):
                 return SpikeTrainArray(empty=True)
 
             spiketrainarray = SpikeTrainArray(empty=True)
-            exclude = ["_timestamps", "unit_ids", "unit_labels"]
+            exclude = ["_time", "unit_ids", "unit_labels"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
 
             with warnings.catch_warnings():
@@ -287,7 +287,7 @@ class SpikeTrain(ABC):
                 for attr in attrs:
                     exec("spiketrainarray." + attr + " = self." + attr)
 
-            spiketrainarray._timestamps = self.timestamps[unit_subset_ids]
+            spiketrainarray._time = self.time[unit_subset_ids]
             spiketrainarray._unit_ids = new_unit_ids
             spiketrainarray._unit_labels = new_unit_labels
 
@@ -324,8 +324,8 @@ class SpikeTrainArray(SpikeTrain):
 
     Parameters
     ----------
-    timestamps : array of np.array(dtype=np.float64) spike times in seconds.
-        Array of length n_units, each entry with shape (n_timestamps,)
+    time : array of np.array(dtype=np.float64) spike times in seconds.
+        Array of length n_units, each entry with shape (n_time,)
     fs : float, optional
         Sampling rate in Hz. Default is 30,000
     support : EpochArray, optional
@@ -343,8 +343,8 @@ class SpikeTrainArray(SpikeTrain):
 
     Attributes
     ----------
-    timestamps : array of np.array(dtype=np.float64) spike times in seconds.
-        Array of length n_units, each entry with shape (n_timestamps,)
+    time : array of np.array(dtype=np.float64) spike times in seconds.
+        Array of length n_units, each entry with shape (n_time,)
     support : EpochArray on which spiketrain array is defined.
     n_spikes: np.array(dtype=np.int) of shape (n_units,)
         Number of spikes in each unit.
@@ -358,7 +358,7 @@ class SpikeTrainArray(SpikeTrain):
         Metadata associated with spiketrain.
     """
 
-    __attributes__ = ["_timestamps", "_support"]
+    __attributes__ = ["_time", "_support"]
     __attributes__.extend(SpikeTrain.__attributes__)
     def __init__(self, timestamps=None, *, fs=None, support=None,
                  unit_ids=None, unit_labels=None, unit_tags=None,
@@ -443,12 +443,12 @@ class SpikeTrainArray(SpikeTrain):
                     data = np.array(data, ndmin=2)
             return data
 
-        timestamps = standardize_to_2d(timestamps)
+        time = standardize_to_2d(timestamps)
 
         #sort spike trains, but only if necessary:
-        for ii, train in enumerate(timestamps):
+        for ii, train in enumerate(time):
             if not is_sorted(train):
-                timestamps[ii] = np.sort(train)
+                time[ii] = np.sort(train)
 
         kwargs = {"fs": fs,
                   "unit_ids": unit_ids,
@@ -456,26 +456,26 @@ class SpikeTrainArray(SpikeTrain):
                   "unit_tags": unit_tags,
                   "label": label}
 
-        self._timestamps = timestamps  # this is necessary so that
+        self._time = time  # this is necessary so that
         # super() can determine self.n_units when initializing.
 
         # initialize super so that self.fs is set:
         super().__init__(**kwargs)
 
-        # if only empty timestamps were received AND no support, attach an
+        # if only empty time were received AND no support, attach an
         # empty support:
-        if np.sum([st.size for st in timestamps]) == 0 and support is None:
+        if np.sum([st.size for st in time]) == 0 and support is None:
             warnings.warn("no spikes; cannot automatically determine support")
             support = EpochArray(empty=True)
 
         # determine spiketrain array support:
         if support is None:
-            first_spk = np.array([unit[0] for unit in timestamps if len(unit) !=0]).min()
+            first_spk = np.array([unit[0] for unit in time if len(unit) !=0]).min()
             # BUG: if spiketrain is empty np.array([]) then unit[-1]
             # raises an error in the following:
             # FIX: list[-1] raises an IndexError for an empty list,
             # whereas list[-1:] returns an empty list.
-            last_spk = np.array([unit[-1:] for unit in timestamps if len(unit) !=0]).max()
+            last_spk = np.array([unit[-1:] for unit in time if len(unit) !=0]).max()
             self._support = EpochArray(np.array([first_spk, last_spk + 1/fs]))
             # in the above, there's no reason to restrict to support
         else:
@@ -483,11 +483,11 @@ class SpikeTrainArray(SpikeTrain):
             # array's support:
             self._support = support
 
-        timestamps = self._restrict_to_epoch_array(
+        time = self._restrict_to_epoch_array(
             epocharray=self._support,
-            timestamps=timestamps)
+            time=time)
 
-        self._timestamps = timestamps
+        self._time = time
 
 
     def copy(self):
@@ -508,7 +508,7 @@ class SpikeTrainArray(SpikeTrain):
 
         newdata = []
         for unit in range(self.n_units):
-            newdata.append(np.append(self.timestamps[unit], other.timestamps[unit]))
+            newdata.append(np.append(self.time[unit], other.time[unit]))
 
         fs = self.fs
         if self.fs != other.fs:
@@ -530,17 +530,17 @@ class SpikeTrainArray(SpikeTrain):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             support = self.support[index]
-            timestamps = self._restrict_to_epoch_array(
+            time = self._restrict_to_epoch_array(
                 epocharray=support,
-                timestamps=self.timestamps,
+                time=self.time,
                 copyover=True
                 )
             spiketrain = SpikeTrainArray(empty=True)
-            exclude = ["_timestamps", "_support"]
+            exclude = ["_time", "_support"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
             for attr in attrs:
                 exec("spiketrain." + attr + " = self." + attr)
-            spiketrain._timestamps = timestamps
+            spiketrain._time = time
             spiketrain._support = support
         self._index += 1
         return spiketrain
@@ -565,22 +565,22 @@ class SpikeTrainArray(SpikeTrain):
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                timestamps = self._restrict_to_epoch_array(
+                time = self._restrict_to_epoch_array(
                     epocharray=support,
-                    timestamps=self.timestamps,
+                    time=self.time,
                     copyover=True
                     )
                 spiketrain = SpikeTrainArray(empty=True)
-                exclude = ["_timestamps", "_support"]
+                exclude = ["_time", "_support"]
                 attrs = (x for x in self.__attributes__ if x not in exclude)
                 for attr in attrs:
                     exec("spiketrain." + attr + " = self." + attr)
-                spiketrain._timestamps = timestamps
+                spiketrain._time = time
                 spiketrain._support = support
             return spiketrain
         elif isinstance(idx, int):
             spiketrain = SpikeTrainArray(empty=True)
-            exclude = ["_timestamps", "_support"]
+            exclude = ["_time", "_support"]
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 attrs = (x for x in self.__attributes__ if x not in exclude)
@@ -591,12 +591,12 @@ class SpikeTrainArray(SpikeTrain):
             if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
                 return spiketrain
             else:
-                timestamps = self._restrict_to_epoch_array(
+                time = self._restrict_to_epoch_array(
                         epocharray=support,
-                        timestamps=self.timestamps,
+                        time=self.time,
                         copyover=True
                         )
-                spiketrain._timestamps = time
+                spiketrain._time = time
                 spiketrain._support = support
                 return spiketrain
         else:  # most likely slice indexing
@@ -604,17 +604,17 @@ class SpikeTrainArray(SpikeTrain):
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     support = self.support[idx]
-                    timestamps = self._restrict_to_epoch_array(
+                    time = self._restrict_to_epoch_array(
                         epocharray=support,
-                        timestamps=self.timestamps,
+                        time=self.time,
                         copyover=True
                         )
                     spiketrain = SpikeTrainArray(empty=True)
-                    exclude = ["_timestamps", "_support"]
+                    exclude = ["_time", "_support"]
                     attrs = (x for x in self.__attributes__ if x not in exclude)
                     for attr in attrs:
                         exec("spiketrain." + attr + " = self." + attr)
-                    spiketrain._timestamps = time
+                    spiketrain._time = time
                     spiketrain._support = support
                 return spiketrain
             except Exception:
@@ -625,15 +625,15 @@ class SpikeTrainArray(SpikeTrain):
     def isempty(self):
         """(bool) Empty SpikeTrainArray."""
         try:
-            return np.sum([len(st) for st in self.timestamps]) == 0
+            return np.sum([len(st) for st in self.time]) == 0
         except TypeError:
-            return True  # this happens when self.timestamps == None
+            return True  # this happens when self.time == None
 
     @property
     def n_units(self):
         """(int) The number of units."""
         try:
-            return PrettyInt(len(self.timestamps))
+            return PrettyInt(len(self.time))
         except TypeError:
             return 0
 
@@ -670,7 +670,7 @@ class SpikeTrainArray(SpikeTrain):
 
         spiketrainarray = SpikeTrainArray(empty=True)
 
-        exclude = ["_timestamps", "unit_ids", "unit_labels", "unit_tags"]
+        exclude = ["_time", "unit_ids", "unit_labels", "unit_tags"]
         attrs = (x for x in self.__attributes__ if x not in exclude)
 
         with warnings.catch_warnings():
@@ -681,35 +681,35 @@ class SpikeTrainArray(SpikeTrain):
         spiketrainarray._unit_labels = [unit_label]
         spiketrainarray._unit_tags = None
 
-        alltimes = self.timestamps[0]
+        alltimes = self.time[0]
         for unit in range(1,self.n_units):
-            alltimes = linear_merge(alltimes, self.timestamps[unit])
+            alltimes = linear_merge(alltimes, self.time[unit])
 
-        spiketrainarray._timestamps = np.array(list(alltimes), ndmin=2)
+        spiketrainarray._time = np.array(list(alltimes), ndmin=2)
         return spiketrainarray
 
     @staticmethod
-    def _restrict_to_epoch_array(epocharray, timestamps, copyover=True):
-        """Return timestamps restricted to an EpochArray.
+    def _restrict_to_epoch_array(epocharray, time, copyover=True):
+        """Return time restricted to an EpochArray.
 
         Parameters
         ----------
         epocharray : EpochArray
-        timestamps : array-like
+        time : array-like
         """
 
         if epocharray.isempty:
-            n_units = len(timestamps)
-            timestamps = np.zeros((n_units,0))
-            return timestamps
+            n_units = len(time)
+            time = np.zeros((n_units,0))
+            return time
 
-        singleunit = len(timestamps)==1  # bool
+        singleunit = len(time)==1  # bool
         # TODO: is this copy even necessary?
         if copyover:
-            timestamps = copy.copy(timestamps)
+            time = copy.copy(time)
 
         # NOTE: this used to assume multiple units for the enumeration to work
-        for unit, st_time in enumerate(timestamps):
+        for unit, st_time in enumerate(time):
             indices = []
             for eptime in epocharray.time:
                 t_start = eptime[0]
@@ -720,10 +720,10 @@ class SpikeTrainArray(SpikeTrain):
                 warnings.warn(
                     'ignoring spikes outside of spiketrain support')
             if singleunit:
-                timestamps = np.array([timestamps[0,indices]], ndmin=2)
+                time = np.array([time[0,indices]], ndmin=2)
             else:
-                timestamps[unit] = timestamps[unit][indices]
-        return timestamps
+                time[unit] = time[unit][indices]
+        return time
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
@@ -751,22 +751,22 @@ class SpikeTrainArray(SpikeTrain):
         return BinnedSpikeTrainArray(self, ds=ds)
 
     @property
-    def timestamps(self):
+    def time(self):
         """Spike times in seconds."""
-        return self._timestamps
+        return self._time
 
     @property
     @deprecated
     def time(self):
         """Spike times in seconds."""
-        return self._timestamps
+        return self._time
 
     @property
     def n_spikes(self):
         """(np.array) The number of spikes in each unit."""
         if self.isempty:
             return 0
-        return np.array([len(unit) for unit in self.timestamps])
+        return np.array([len(unit) for unit in self.time])
 
     @property
     def issorted(self):
@@ -774,7 +774,7 @@ class SpikeTrainArray(SpikeTrain):
         if self.isempty:
             return True
         return np.array(
-            [is_sorted(spiketrain) for spiketrain in self.timestamps]
+            [is_sorted(spiketrain) for spiketrain in self.time]
             ).all()
 
     def _reorder_units_by_idx(self, neworder, inplace=False):
@@ -796,7 +796,7 @@ class SpikeTrainArray(SpikeTrain):
         for oi, ni in enumerate(neworder):
             frm = oldorder.index(ni)
             to = oi
-            swap_rows(out._timestamps, frm, to)
+            swap_rows(out._time, frm, to)
             out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
             out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
             # TODO: re-build unit tags (tag system not yet implemented)
@@ -837,7 +837,7 @@ class SpikeTrainArray(SpikeTrain):
         for oi, ni in enumerate(neworder):
             frm = oldorder.index(ni)
             to = oi
-            swap_rows(out._timestamps, frm, to)
+            swap_rows(out._time, frm, to)
             out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
             out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
             # TODO: re-build unit tags (tag system not yet implemented)
@@ -901,7 +901,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         # initialize super so that self.fs is set:
         self._data = np.zeros((spiketrainarray.n_units,0))
             # the above is necessary so that super() can determine
-            # self.n_units when initializing. self.timestamps will
+            # self.n_units when initializing. self.time will
             # be updated later in __init__ to reflect subsequent changes
         super().__init__(**kwargs)
 
@@ -1239,7 +1239,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         for epoch in epochArray:
             bins, centers = self._get_bins_inside_epoch(epoch, ds)
             if bins is not None:
-                for uu, spiketraintimes in enumerate(spiketrainarray.timestamps):
+                for uu, spiketraintimes in enumerate(spiketrainarray.time):
                     spike_counts, _ = np.histogram(
                         spiketraintimes,
                         bins=bins,
@@ -1479,7 +1479,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         counter = 0
         for epoch in epochArray:
             bins, centers = self._get_bins_to_cover_epoch(epoch, ds)
-            for uu, spiketraintimes in enumerate(spiketrainarray.timestamps):
+            for uu, spiketraintimes in enumerate(spiketrainarray.time):
                 spike_counts, _ = np.histogram(
                     spiketraintimes,
                     bins=bins,

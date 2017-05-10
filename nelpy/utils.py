@@ -174,10 +174,10 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     if _fast:
         mua = core.AnalogSignalArray([], empty=True)
         mua._support = mua_binned.support
-        mua._timestamps = mua_binned.bin_centers
+        mua._time = mua_binned.bin_centers
         mua._ydata = mua_binned.data
     else:
-        mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, step=ds)
+        mua = core.AnalogSignalArray(mua_binned.data, time=mua_binned.bin_centers, step=ds)
 
     mua._fs = 1/ds
 
@@ -351,7 +351,7 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
         raise ValueError("no mua events detected")
 
     # store MUA bounds in an EpochArray
-    mua_epochs = core.EpochArray(mua.timestamps[mua_bounds_idx])
+    mua_epochs = core.EpochArray(mua.time[mua_bounds_idx])
 
     return mua_epochs
 
@@ -923,7 +923,7 @@ def get_run_epochs(speed, v1=10, v2=8):
     )
 
     # convert bounds to time in seconds
-    RUN_bounds = speed.timestamps[RUN_bounds]
+    RUN_bounds = speed.time[RUN_bounds]
     # add 1/fs to stops for open interval
     RUN_bounds[:,1] += 1/speed.fs
     # create EpochArray with running bounds
@@ -957,7 +957,7 @@ def get_inactive_epochs(speed, v1=5, v2=7):
     )
 
     # convert bounds to time in seconds
-    INACTIVE_bounds = speed.timestamps[INACTIVE_bounds]
+    INACTIVE_bounds = speed.time[INACTIVE_bounds]
     # add 1/fs to stops for open interval
     INACTIVE_bounds[:,1] += 1/speed.fs
     # create EpochArray with inactive bounds
@@ -974,7 +974,7 @@ def spiketrain_union(st1, st2):
 
     newdata = []
     for unit in range(st1.n_units):
-        newdata.append(np.append(st1.timestamps[unit], st2.timestamps[unit]))
+        newdata.append(np.append(st1.time[unit], st2.time[unit]))
 
     fs = None
     if st1.fs == st2.fs:
@@ -1071,18 +1071,18 @@ def collapse_time(obj, gap=0):
         newsupport = core.EpochArray(np.vstack((starts, stops)).T)
         new_obj._support = newsupport
 
-        new_time = obj.timestamps.astype(float) # fast copy
+        new_time = obj.time.astype(float) # fast copy
         time_idx = np.insert(np.cumsum(obj.lengths),0,0)
 
         new_offset = 0
         for epidx in range(obj.n_epochs):
             if epidx > 0:
-                new_time[time_idx[epidx]:time_idx[epidx+1]] = new_time[time_idx[epidx]:time_idx[epidx+1]] - obj.timestamps[time_idx[epidx]] + new_offset + gap
+                new_time[time_idx[epidx]:time_idx[epidx+1]] = new_time[time_idx[epidx]:time_idx[epidx+1]] - obj.time[time_idx[epidx]] + new_offset + gap
                 new_offset += durations[epidx] + gap
             else:
-                new_time[time_idx[epidx]:time_idx[epidx+1]] = new_time[time_idx[epidx]:time_idx[epidx+1]] - obj.timestamps[time_idx[epidx]] + new_offset
+                new_time[time_idx[epidx]:time_idx[epidx+1]] = new_time[time_idx[epidx]:time_idx[epidx+1]] - obj.time[time_idx[epidx]] + new_offset
                 new_offset += durations[epidx]
-        new_obj._timestamps = new_time
+        new_obj._time = new_time
 
         new_obj._fs = obj._fs
 
@@ -1095,10 +1095,10 @@ def collapse_time(obj, gap=0):
         for st_ in obj:
             le = st_.support.start
             for unit_ in range(obj.n_units):
-                new_time[unit_].extend(st_._timestamps[unit_] - le + duration)
+                new_time[unit_].extend(st_._time[unit_] - le + duration)
             duration += st_.support.duration
         new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time])
-        new_obj._timestamps = new_time
+        new_obj._time = new_time
         new_obj._support = core.EpochArray([0, duration])
         new_obj._unit_ids = obj._unit_ids
         new_obj._unit_labels = obj._unit_labels

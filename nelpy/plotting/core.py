@@ -380,7 +380,7 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
             warnings.simplefilter("ignore")
             for segment in npl_obj:
                 if color is not None:
-                    ax.plot(segment._timestamps,
+                    ax.plot(segment._time,
                             segment._ydata_colsig,
                             color=color,
                             mec=mec,
@@ -388,7 +388,7 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                             **kwargs
                             )
                 else:
-                    ax.plot(segment._timestamps,
+                    ax.plot(segment._time,
                             segment._ydata_colsig,
                             # color=color,
                             mec=mec,
@@ -630,10 +630,10 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
             color_range = range(data.n_units)
             # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
             colors = cmap(np.linspace(0.25, 0.75, data.n_units))
-            for unit, spiketrain, color_idx in zip(unitlist, data.timestamps, color_range):
+            for unit, spiketrain, color_idx in zip(unitlist, data.time, color_range):
                 ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[color_idx], lw=lw, **kwargs)
         else:  # use a constant color:
-            for unit, spiketrain in zip(unitlist, data.timestamps):
+            for unit, spiketrain in zip(unitlist, data.time):
                 ax.vlines(spiketrain, unit - hh, unit + hh, colors=color, lw=lw, **kwargs)
 
         # get existing label data so we can set some attributes

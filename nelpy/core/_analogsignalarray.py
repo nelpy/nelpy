@@ -97,14 +97,14 @@ def asa_init_wrapper(func):
             fs = 1
             re_estimate_fs = True
 
-        timestamps = kwargs.get('timestamps', None)
-        if timestamps is None:
-            timestamps = np.linspace(0, ydata.shape[1]/fs, ydata.shape[1]+1)
-            timestamps = timestamps[:-1]
+        time = kwargs.get('timestamps', None)
+        if time is None:
+            time = np.linspace(0, ydata.shape[1]/fs, ydata.shape[1]+1)
+            time = time[:-1]
         else:
             if re_estimate_fs:
                 warnings.warn('fs was not specified, so we try to estimate it from the data...')
-                fs = 1.0/np.median(np.diff(timestamps))
+                fs = 1.0/np.median(np.diff(time))
                 warnings.warn('fs was estimated to be {} Hz'.format(fs))
             else:
                 if no_fs:
@@ -113,7 +113,7 @@ def asa_init_wrapper(func):
 
         kwargs['fs'] = fs
         kwargs['ydata'] = ydata
-        kwargs['timestamps'] = timestamps
+        kwargs['timestamps'] = time
 
         func(args[0], **kwargs)
         return
@@ -145,11 +145,11 @@ class AnalogSignalArray:
         is assumed to be in sample numbers instead of actual time. See
         fs_meta parameter below if sampling rate is to be stored as
         metadata and not used for calculations. See fs_acquisition if
-        timestamps are stored at a different rate than what was sampled
+        time are stored at a different rate than what was sampled
         and marked by the system.
     fs_acquisition : float, optional
         Optional to store sampling rate in Hz of the acquisition system.
-        This should be used when tdata is passed in timestamps associated
+        This should be used when tdata is passed in time associated
         with the acquisition system but is stored in step sizes that are
         of a different sampling rate. E.g. times could be stamped at
         30kHz but stored in a decimated fashion at 3kHz so instead of
@@ -212,7 +212,7 @@ class AnalogSignalArray:
 
         See Parameters
     """
-    __attributes__ = ['_ydata','_timestamps', '_fs', '_support', \
+    __attributes__ = ['_ydata','_time', '_fs', '_support', \
                       '_interp', '_step', '_fs_acquisition',\
                       '_labels']
 
@@ -255,24 +255,24 @@ class AnalogSignalArray:
             self.__init__(empty=True)
             return
 
-        # Note: if both timestamps and ydata are given and dimensionality does not
+        # Note: if both time and ydata are given and dimensionality does not
         # match, then TypeError!
-        if(timestamps is not None):
-            timestamps = np.squeeze(timestamps).astype(float)
-            if(timestamps.shape[0] != ydata.shape[1]):
-                # self.__init__([],empty=True)
-                raise TypeError("timestamps and ydata size mismatch! Note: ydata "
-                                "is expected to have rows containing signals")
-            #data is not sorted and user wants it to be
-            if not is_sorted(timestamps):
-                warnings.warn("Data is _not_ sorted! Data will be sorted "\
-                              "automatically.")
-                ind = np.argsort(timestamps)
-                timestamps = timestamps[ind]
-                ydata = np.take(a=ydata, indices=ind, axis=-1)
+
+        time = np.squeeze(timestamps).astype(float)
+        if(time.shape[0] != ydata.shape[1]):
+            # self.__init__([],empty=True)
+            raise TypeError("time and ydata size mismatch! Note: ydata "
+                            "is expected to have rows containing signals")
+        #data is not sorted and user wants it to be
+        if not is_sorted(time):
+            warnings.warn("Data is _not_ sorted! Data will be sorted "\
+                            "automatically.")
+            ind = np.argsort(time)
+            time = time[ind]
+            ydata = np.take(a=ydata, indices=ind, axis=-1)
 
         self._ydata = ydata
-        self._timestamps = timestamps
+        self._time = time
 
         #handle labels
         if labels is not None:
@@ -283,7 +283,7 @@ class AnalogSignalArray:
                               "size of ydata")
                 labels = labels[0:ydata.shape[0]]
             elif labels.shape[0] < ydata.shape[0]:
-                warnings.warn("Less labels than timestamps! labels are filled with "
+                warnings.warn("Less labels than time! labels are filled with "
                               "None to match ydata shape")
                 for i in range(labels.shape[0],ydata.shape[0]):
                     labels.append(None)
@@ -293,11 +293,11 @@ class AnalogSignalArray:
         if support is not None:
             self._restrict_to_epoch_array(epocharray=support)
         else:
-            warnings.warn("creating support from timestamps and "
+            warnings.warn("creating support from time and "
                             "sampling rate, fs!")
             self._support = EpochArray(
                 get_contiguous_segments(
-                    self.timestamps,
+                    self.time,
                     step=self._step,
                     fs=fs,
                     in_memory=in_memory))
@@ -383,7 +383,7 @@ class AnalogSignalArray:
     def _estimate_fs(self, data=None):
         """Estimate the sampling rate of the data."""
         if data is None:
-            data = self.timestamps
+            data = self.time
         return 1.0/np.median(np.diff(data))
 
     def add_signal(self, signal, label=None):
@@ -407,7 +407,7 @@ class AnalogSignalArray:
         return self
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
-        """Restrict self._timestamps and self._ydata to an EpochArray. If no
+        """Restrict self._time and self._ydata to an EpochArray. If no
         EpochArray is specified, self._support is used.
 
         Parameters
@@ -444,9 +444,9 @@ class AnalogSignalArray:
         for eptime in epocharray.time:
             t_start = eptime[0]
             t_stop = eptime[1]
-            indices.append((self._timestamps >= t_start) & (self._timestamps < t_stop))
+            indices.append((self._time >= t_start) & (self._time < t_stop))
         indices = np.any(np.column_stack(indices), axis=1)
-        if np.count_nonzero(indices) < len(self._timestamps):
+        if np.count_nonzero(indices) < len(self._time):
             warnings.warn(
                 'ignoring signal outside of support')
         try:
@@ -454,7 +454,7 @@ class AnalogSignalArray:
         except IndexError:
             self._ydata = np.zeros([0,self._ydata.shape[0]])
             self._ydata[:] = np.NAN
-        self._timestamps = self._timestamps[indices]
+        self._time = self._time[indices]
         if update:
             self._support = epocharray
 
@@ -571,18 +571,18 @@ class AnalogSignalArray:
     @property
     def step(self):
         """ steps per sample
-        Example 1: sample_numbers = np.array([1,2,3,4,5,6]) #aka timestamps
+        Example 1: sample_numbers = np.array([1,2,3,4,5,6]) #aka time
         Steps per sample in the above case would be 1
 
-        Example 2: sample_numbers = np.array([1,3,5,7,9]) #aka timestamps
+        Example 2: sample_numbers = np.array([1,3,5,7,9]) #aka time
         Steps per sample in Example 2 would be 2
         """
         return self._step
 
     @property
-    def timestamps(self):
-        """(np.array 1D) Timestamps in seconds."""
-        return self._timestamps
+    def time(self):
+        """(np.array 1D) Time in seconds."""
+        return self._time
 
     @property
     def fs(self):
@@ -609,7 +609,7 @@ class AnalogSignalArray:
         """(int) number of time samples where signal is defined."""
         if self.isempty:
             return 0
-        return PrettyInt(len(self.timestamps))
+        return PrettyInt(len(self.time))
 
     def __iter__(self):
         """AnalogSignal iterator initialization"""
@@ -625,7 +625,7 @@ class AnalogSignalArray:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             epoch = EpochArray(empty=True)
-            exclude = ["_timestamps"]
+            exclude = ["_time"]
             attrs = (x for x in self._support.__attributes__ if x not in exclude)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -856,14 +856,14 @@ class AnalogSignalArray:
         """returns a scipy interp1d object"""
 
         if assume_sorted is None:
-            assume_sorted = is_sorted(self.timestamps)
+            assume_sorted = is_sorted(self.time)
 
         if self.n_signals > 1:
             axis = 1
         else:
             axis = -1
 
-        f = interpolate.interp1d(x=self.timestamps,
+        f = interpolate.interp1d(x=self.time,
                                  y=self._ydata_rowsig,
                                  kind=kind,
                                  axis=axis,
@@ -886,7 +886,7 @@ class AnalogSignalArray:
             e.g., where=(ydata[1,:]>5) or tuple where=(speed>5,tspeed)
         at : array_like, optional
             Array of oints to evaluate array at. If none given, use
-            self.timestamps together with 'where' if applicable.
+            self.time together with 'where' if applicable.
         n_points: int, optional
             Number of points to interplate at. These points will be
             distributed uniformly from self.support.start to stop.
@@ -908,7 +908,7 @@ class AnalogSignalArray:
         XYArray = namedtuple('XYArray', ['xvals', 'yvals'])
 
         if at is None and where is None and split_by_epoch is False and n_points is None:
-            xyarray = XYArray(self.timestamps, self._ydata_rowsig.squeeze())
+            xyarray = XYArray(self.time, self._ydata_rowsig.squeeze())
             return xyarray
 
         if where is not None:
@@ -920,8 +920,8 @@ class AnalogSignalArray:
                 at = y[x]
             else:
                 x = np.asanyarray(where).squeeze()
-                assert len(x) == len(self.timestamps), "'where' condition must have same number of elements as self.timestamps"
-                at = self.timestamps[x]
+                assert len(x) == len(self.time), "'where' condition must have same number of elements as self.time"
+                at = self.time[x]
         elif at is not None:
             assert n_points is None, "'at' and 'n_points' cannot be used at the same time"
         else:
@@ -1016,13 +1016,13 @@ class AnalogSignalArray:
 
         # now make a new simplified ASA:
         asa = AnalogSignalArray([], empty=True)
-        exclude = ['_interp', '_ydata', '_timestamps']
+        exclude = ['_interp', '_ydata', '_time']
         attrs = (x for x in self.__attributes__ if x not in exclude)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for attr in attrs:
                 exec("asa." + attr + " = self." + attr)
-        asa._timestamps = np.asanyarray(at)
+        asa._time = np.asanyarray(at)
         asa._ydata = yvals
 
         return asa
