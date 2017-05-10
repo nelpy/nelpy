@@ -537,7 +537,7 @@ def shrinkMatColsTo(mat, numCols):
     return a
 
 def find_threshold_crossing_events(x, threshold, *, mode='above'):
-    """Find threshold crossing events.
+    """Find threshold crossing events. INCLUSIVE
 
     Parameters
     ----------
@@ -550,9 +550,9 @@ def find_threshold_crossing_events(x, threshold, *, mode='above'):
     from operator import itemgetter
 
     if mode == 'below':
-        cross_threshold = np.where(x < threshold, 1, 0)
+        cross_threshold = np.where(x <= threshold, 1, 0)
     elif mode == 'above':
-        cross_threshold = np.where(x > threshold, 1, 0)
+        cross_threshold = np.where(x >= threshold, 1, 0)
     else:
         raise NotImplementedError(
             "mode {} not understood for find_threshold_crossing_events".format(str(mode)))
@@ -924,6 +924,8 @@ def get_run_epochs(speed, v1=10, v2=8):
 
     # convert bounds to time in seconds
     RUN_bounds = speed.time[RUN_bounds]
+    if len(RUN_bounds) == 0:
+        return core.EpochArray(empty=True)
     # add 1/fs to stops for open interval
     RUN_bounds[:,1] += 1/speed.fs
     # create EpochArray with running bounds
@@ -958,6 +960,8 @@ def get_inactive_epochs(speed, v1=5, v2=7):
 
     # convert bounds to time in seconds
     INACTIVE_bounds = speed.time[INACTIVE_bounds]
+    if len(INACTIVE_bounds) == 0:
+        return core.EpochArray(empty=True)
     # add 1/fs to stops for open interval
     INACTIVE_bounds[:,1] += 1/speed.fs
     # create EpochArray with inactive bounds
