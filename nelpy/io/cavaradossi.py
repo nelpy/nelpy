@@ -21,8 +21,6 @@ def bytes_from_file(filename, packetsize=270):
 for b in bytes_from_file('filename'):
     do_stuff_with(b)
 
-
-
 # see http://stackoverflow.com/questions/22229229/reading-4-byte-integers-from-binary-file-in-python
 import struct
 
@@ -43,7 +41,6 @@ with open(filename, 'rb') as fileobj:
             break
         if ii > 1000000:
             break
-
 
 plt.plot(np.array(timestamps),np.array(chdata))
 plt.ylim([-1500, 1500])

@@ -856,14 +856,14 @@ class AnalogSignalArray:
         """returns a scipy interp1d object"""
 
         if assume_sorted is None:
-            assume_sorted = is_sorted(self.time)
+            assume_sorted = is_sorted(self.timestamps)
 
         if self.n_signals > 1:
             axis = 1
         else:
             axis = -1
 
-        f = interpolate.interp1d(x=self.time,
+        f = interpolate.interp1d(x=self.timestamps,
                                  y=self._ydata_rowsig,
                                  kind=kind,
                                  axis=axis,

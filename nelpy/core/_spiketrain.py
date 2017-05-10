@@ -510,7 +510,11 @@ class SpikeTrainArray(SpikeTrain):
         for unit in range(self.n_units):
             newdata.append(np.append(self.timestamps[unit], other.timestamps[unit]))
 
-        return SpikeTrainArray(newdata, support=support, fs=1)
+        fs = self.fs
+        if self.fs != other.fs:
+            fs = None
+
+        return SpikeTrainArray(newdata, support=support, fs=fs)
 
     def __iter__(self):
         """SpikeTrainArray iterator initialization."""
@@ -536,7 +540,7 @@ class SpikeTrainArray(SpikeTrain):
             attrs = (x for x in self.__attributes__ if x not in exclude)
             for attr in attrs:
                 exec("spiketrain." + attr + " = self." + attr)
-            spiketrain._timestamps = time
+            spiketrain._timestamps = timestamps
             spiketrain._support = support
         self._index += 1
         return spiketrain
@@ -552,13 +556,7 @@ class SpikeTrainArray(SpikeTrain):
         if isinstance(idx, EpochArray):
             if idx.isempty:
                 return SpikeTrainArray(empty=True)
-            if idx.fs != self.support.fs:
-                support = self.support.intersect(
-                    epoch=EpochArray(idx.time, fs=None),
-                    boundaries=True
-                    )
-            else:
-                support = self.support.intersect(
+            support = self.support.intersect(
                     epoch=idx,
                     boundaries=True
                     ) # what if fs of slicing epoch is different?
@@ -577,7 +575,7 @@ class SpikeTrainArray(SpikeTrain):
                 attrs = (x for x in self.__attributes__ if x not in exclude)
                 for attr in attrs:
                     exec("spiketrain." + attr + " = self." + attr)
-                spiketrain._timestamps = time
+                spiketrain._timestamps = timestamps
                 spiketrain._support = support
             return spiketrain
         elif isinstance(idx, int):
@@ -991,13 +989,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
             if idx.isempty:
                 return BinnedSpikeTrainArray(empty=True)
-            if idx.fs != self.support.fs:
-                support = self.support.intersect(
-                    epoch=EpochArray(idx.time, fs=None),
-                    boundaries=True
-                    )
-            else:
-                support = self.support.intersect(
+            support = self.support.intersect(
                     epoch=idx,
                     boundaries=True
                     ) # what if fs of slicing epoch is different?
@@ -1272,7 +1264,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
         support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
         supportdata = np.vstack([support_starts, support_stops]).T
-        self._support = EpochArray(supportdata, fs=1) # set support to TRUE bin support
+        self._support = EpochArray(supportdata) # set support to TRUE bin support
 
     def smooth(self, *, sigma=None, inplace=False,  bw=None):
         """Smooth BinnedSpikeTrainArray by convolving with a Gaussian kernel.
@@ -1461,7 +1453,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         newbst = copy.copy(bst)
         if newdata is not None:
             newbst._data = newdata
-            newbst._support = EpochArray(newsupport, fs=1)
+            newbst._support = EpochArray(newsupport)
             newbst._bins = newbins
             newbst._bin_centers = newcenters
             newbst._ds = bst.ds*w
