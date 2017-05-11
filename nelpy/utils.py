@@ -177,7 +177,7 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
         mua._time = mua_binned.bin_centers
         mua._ydata = mua_binned.data
     else:
-        mua = core.AnalogSignalArray(mua_binned.data, time=mua_binned.bin_centers, step=ds)
+        mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
 
     mua._fs = 1/ds
 

@@ -21,13 +21,13 @@ if fileroot is None:
 exp_data = dict()
 myhmm = dict()
 data = dict()
-sessiondate = dict()
+sessiontime = dict()
 
 sessions = ['session1', 'session2']
 
-animal = 'gor01'; month,day = (6,7); sessiondate['session1'] = '11-26-53'; sessiondate['session2'] = '16-40-19' # 91 units, but session one has missing position data
-# animal = 'gor01'; month,day = (6,12); sessiondate['session1'] = '15-55-31'; sessiondate['session2'] = '16-53-46' # 55 units
-# animal = 'gor01'; month,day = (6,13); sessiondate['session1'] = '14-42-6'; sessiondate['session2'] = '15-22-3'
+animal = 'gor01'; month,day = (6,7); sessiontime['session1'] = '11-26-53'; sessiontime['session2'] = '16-40-19' # 91 units, but session one has missing position data
+# animal = 'gor01'; month,day = (6,12); sessiontime['session1'] = '15-55-31'; sessiontime['session2'] = '16-53-46' # 55 units
+# animal = 'gor01'; month,day = (6,13); sessiontime['session1'] = '14-42-6'; sessiontime['session2'] = '15-22-3'
 
 for session in sessions:
 
@@ -35,7 +35,7 @@ for session in sessions:
 
     exp_kws = dict(fileroot = fileroot,
                animal = animal,
-               session = sessiondate[session],
+               session = sessiontime[session],
                month = month,
                day = day,
                includeUnsortedSpikes=False, # should be True for MUA analysis!
@@ -78,11 +78,11 @@ def get_num_electrodes(sessiondir):
         raise ValueError('number of electrodes (shanks) could not be established...')
 
 #datatype = ['spikes', 'eeg', 'pos', '?']
-def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, session='11-26-53', datatype='spikes', channels='all', fs=32552,starttime=0, ctx=None, verbose=False, includeUnsortedSpikes=False):
+def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessiontime='11-26-53', datatype='spikes', channels='all', fs=32552,starttime=0, ctx=None, verbose=False, includeUnsortedSpikes=False):
 
     fileroot = os.path.normpath(fileroot)
     anim_prefix = "{}-{}-{}".format(animal,month,day)
-    session_prefix = "{}-{}-{}_{}".format(year,month,day,session)
+    session_prefix = "{}-{}-{}_{}".format(year,month,day,sessiontime)
     sessiondir = "{}/{}/{}".format(fileroot, anim_prefix, session_prefix)
 
     if (datatype=='spikes'):
@@ -134,7 +134,7 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, session='
 
         # make sure that spike times are sorted! (this is not true for unit 0 of the hc-3 dataset, for example):
         for unit, spikes in enumerate(st_array):
-            st_array[unit] = np.sort(spikes)
+            st_array[unit] = np.sort(spikes)/fs
 
         spikes = SpikeTrainArray(st_array, label=session_prefix, fs=fs, unit_ids=unit_ids)
 
@@ -186,7 +186,8 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, session='
 
     elif (datatype=='pos'):
         filename = "{}/{}/{}/{}.whl".format(fileroot, anim_prefix, session_prefix, session_prefix)
-        print("reading {} Hz position data from '{}'".format(fs, filename))
+        if verbose:
+            print("reading {} Hz position data from '{}'".format(fs, filename))
         dfwhl = pd.read_table(filename,sep='\t', skiprows=0, names=['x1', 'y1', 'x2', 'y2'] )
         dfwhl['x'] = (dfwhl['x1'] + dfwhl['x2']) / 2
         dfwhl['y'] = (dfwhl['y1'] + dfwhl['y2']) / 2
