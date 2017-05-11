@@ -5,7 +5,10 @@ __all__ = ['linregress_ting',
            'column_cycle_array',
            'trajectory_score_array',
            'trajectory_score_bst',
-           'get_significant_events']
+           'get_significant_events',
+           'three_consecutive_bins_above_q',
+           'score_hmm_time_resolved',
+           'score_hmm_logprob_cumulative']
 
 import warnings
 import copy
@@ -339,7 +342,7 @@ def score_hmm_logprob(bst, hmm, normalize=False):
 
     logprob = np.atleast_1d(hmm.score(bst))
     if normalize:
-        logprob = (np.atleast_1d(logprob) / bst.lengths)
+        logprob = np.atleast_1d(logprob) / bst.lengths
 
     return logprob
 
@@ -454,3 +457,115 @@ def get_significant_events(scores, shuffled_scores, q=95):
         q=q)).squeeze()
 
     return sig_event_idx, pvalues
+
+def score_hmm_logprob_cumulative(bst, hmm, normalize=False):
+    """Score events in a BinnedSpikeTrainArray by computing the log
+    probability under the model.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+    hmm : PoissonHMM
+    normalize : bool, optional. Default is False.
+        If True, log probabilities will be normalized by their sequence
+        lengths.
+    Returns
+    -------
+    logprob : array of size (n_events,)
+        Log probabilities, one for each event in bst.
+    """
+
+    logprob = np.atleast_1d(hmm._cum_score_per_bin(bst))
+    if normalize:
+        cumlengths = []
+        for evt in bst.lengths:
+            cumlengths.extend(np.arange(1, evt+1).tolist())
+        cumlengths = np.array(cumlengths)
+        logprob = np.atleast_1d(logprob) / cumlengths
+
+    return logprob
+
+def score_hmm_time_resolved(bst, hmm, n_shuffles=250, normalize=False):
+    """Score sequences using a hidden Markov model, and a model where
+    the transition probability matrix has been shuffled.BaseException
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing all the candidate events to
+        score.
+    hmm : PoissonHMM
+        Trained hidden markov model to score sequences.
+    n_shuffles : int, optional (default is 250)
+        Number of times to perform both time_swap and column_cycle
+        shuffles.
+    normalize : bool, optional (default is False)
+        If True, the scores will be normalized by event lengths.
+
+    Returns
+    -------
+    scores : array of size (n_events,)
+    shuffled : array of size (n_shuffles, n_events)
+    """
+
+    if float(n_shuffles).is_integer:
+        n_shuffles = int(n_shuffles)
+    else:
+        raise ValueError("n_shuffles must be an integer!")
+
+    hmm_shuffled = copy.deepcopy(hmm)
+    Lbraw = score_hmm_logprob_cumulative(bst=bst,
+                               hmm=hmm,
+                               normalize=normalize)
+
+    # per event, compute L(:b|raw) - L(:b-1|raw)
+    Lb = copy.copy(Lbraw)
+
+    cumLengths = np.cumsum(bst.lengths)
+    cumLengths = np.insert(cumLengths, 0, 0)
+
+    for ii in range(bst.n_epochs):
+        LE = cumLengths[ii]
+        RE = cumLengths[ii+1]
+        Lb[LE+1:RE] -= Lbraw[LE:RE-1]
+
+    n_bins = bst.n_bins
+    shuffled = np.zeros((n_shuffles, n_bins))
+    for ii in range(n_shuffles):
+        hmm_shuffled.transmat_ = shuffle_transmat(hmm_shuffled.transmat_)
+        Lbtmat = score_hmm_logprob_cumulative(bst=bst,
+                               hmm=hmm_shuffled,
+                               normalize=normalize)
+
+        # per event, compute L(:b|tmat) - L(:b-1|raw)
+        NL = copy.copy(Lbtmat)
+        for jj in range(bst.n_epochs):
+            LE = cumLengths[jj]
+            RE = cumLengths[jj+1]
+            NL[LE+1:RE] -= Lbraw[LE:RE-1]
+
+        shuffled[ii,:] = NL
+
+    scores = Lb
+
+    return scores, shuffled
+
+def three_consecutive_bins_above_q(pvals, lengths, q=0.75, n_consecutive=3):
+    cumLengths = np.cumsum(lengths)
+    cumLengths = np.insert(cumLengths, 0, 0)
+
+    above_thresh = 100*(1 - pvals) > q
+    idx = []
+    for ii in range(len(lengths)):
+        LE = cumLengths[ii]
+        RE = cumLengths[ii+1]
+        temp = 0
+        for b in above_thresh[LE:RE]:
+            if b:
+                temp +=1
+            else:
+                temp = 0 # reset
+        if temp >= n_consecutive:
+            idx.append(ii)
+
+    return np.array(idx)

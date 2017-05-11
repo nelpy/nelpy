@@ -638,6 +638,25 @@ class PoissonHMM(PHMM):
                 logprobs.append(logprob)
         return logprobs
 
+    def _cum_score_per_bin(self, X, lengths=None, w=None):
+        """Compute the log probability under the model, cumulatively for each bin per event."""
+
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            if w is not None:
+                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+            return self._score(self, X, lengths=lengths)
+        else:
+            # we have a BinnedSpikeTrainArray
+            logprobs = []
+            for seq in X:
+                windowed_arr, lengths = self._sliding_window_array(bst=seq, w=w)
+                n_bins, _ = windowed_arr.shape
+                for ii in range(1, n_bins+1):
+                    logprob = self._score(self, X=windowed_arr[:ii,:])
+                    logprobs.append(logprob)
+        return logprobs
+
     def fit(self, X, lengths=None, w=None):
         """Estimate model parameters using nelpy objects.
 

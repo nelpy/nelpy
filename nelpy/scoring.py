@@ -1,4 +1,4 @@
-"""Temporary scoring functions. Needs a lot of work."""
+"""Temporary scoring functions. Needs a lot of work. DEPRECATED"""
 
 import numpy as np
 from itertools import groupby
