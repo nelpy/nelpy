@@ -97,7 +97,12 @@ def asa_init_wrapper(func):
             fs = 1
             re_estimate_fs = True
 
-        time = kwargs.get('timestamps', None)
+        tdata = kwargs.get('tdata', None)
+        if tdata is not None:
+            warnings.warn("'tdata' has been deprecated! Use 'timestamps' instead. 'tdata' will be interpreted as 'timestamps' in seconds.")
+            time = tdata
+        else:
+            time = kwargs.get('timestamps', None)
         if time is None:
             time = np.linspace(0, ydata.shape[1]/fs, ydata.shape[1]+1)
             time = time[:-1]

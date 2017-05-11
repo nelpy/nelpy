@@ -56,7 +56,7 @@ class ResultsContainer(object):
         address_str = " at " + str(hex(id(self)))
         descr_str = ""
         if self.description is not None:
-            descr_str = "\n\tDescription: " + str(self.description)
+            descr_str = "\n**Description:** " + str(self.description)
         return "<ResultsContainer" + address_str + n_str + ">" + descr_str
 
     @property
