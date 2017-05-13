@@ -456,7 +456,7 @@ def get_significant_events(scores, shuffled_scores, q=95):
         axis=0,
         q=q)).squeeze()
 
-    return sig_event_idx, pvalues
+    return np.atleast_1d(sig_event_idx), np.atleast_1d(pvalues)
 
 def score_hmm_logprob_cumulative(bst, hmm, normalize=False):
     """Score events in a BinnedSpikeTrainArray by computing the log
@@ -569,3 +569,47 @@ def three_consecutive_bins_above_q(pvals, lengths, q=0.75, n_consecutive=3):
             idx.append(ii)
 
     return np.array(idx)
+
+def _scoreOrderD_time_swap(hmm, state_sequences, lengths, n_shuffles=250, normalize=False):
+    """Compute order score of state sequences
+
+    A score of 0 means there's only one state.
+    """
+
+    scoresD = [] # scores with no adjacent duplicates
+    n_sequences = len(state_sequences)
+    shuffled = np.zeros((n_shuffles, n_sequences))
+
+    for seqid in range(n_sequences):
+        logP = np.log(hmm.transmat_)
+        pth = state_sequences[seqid]
+        plen = len(pth)
+        logPseq = 0
+        for ii in range(plen-1):
+            logPseq += logP[pth[ii],pth[ii+1]]
+        score = logPseq - np.log(plen)
+        scoresD.append(score)
+        for nn in range(n_shuffles):
+            logPseq = 0
+            pth = np.random.permutation(pth)
+            for ii in range(plen-1):
+                logPseq += logP[pth[ii],pth[ii+1]]
+            score = logPseq - np.log(plen)
+            shuffled[nn, seqid] = score
+
+    scoresD = np.array(scoresD)
+
+    if normalize:
+        scoresD = scoresD/lengths
+        shuffled = shuffled/lengths
+
+    return scoresD, shuffled
+
+def score_hmm_order_time_swap(bst, hmm, n_shuffles=250, normalize=False):
+    lp, paths, centers = hmm.decode(X=bst)
+    scores, shuffled = _scoreOrderD_time_swap(hmm, paths, lengths=bst.lengths, n_shuffles=n_shuffles, normalize=normalize)
+    if normalize:
+        scores = scores/bst.lengths
+        shuffled = shuffled/bst.lengths
+
+    return scores, shuffled
