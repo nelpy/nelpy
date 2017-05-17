@@ -1,4 +1,4 @@
-"""A collection of functions used to extract data from Cavaradossi's .dat fikes"""
+"""A collection of functions used to extract data from Cavaradossi's .dat files"""
 
 numChannels = 128
 headerSize = 10

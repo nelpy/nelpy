@@ -177,6 +177,8 @@ def load_dat(filepath):
     wireless and saved on an SD card. 
     """
 
+    raise DeprecationWarning("This should not fall under 'trodes', and is not much of a function yet")
+
     numChannels = 128
     headerSize = 10
     timestampSize = 4

@@ -724,6 +724,33 @@ class TuningCurve1D:
 #----------------------------------------------------------------------#
 #======================================================================#
 
+########################################################################
+# class TuningCurve1D
+########################################################################
+# class TuningCurve2D:
+#     """Tuning curves (2-dimensional) of multiple units.
+#     """
+
+#     __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
+
+#     def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False):
+#         """
+
+#         If sigma is nonzero, then smoothing is applied.
+
+#         We always require bst and extern, and then some combination of
+#             (1) bin edges, transform_func*
+#             (2) n_extern, transform_func*
+#             (3) n_extern, x_min, x_max, transform_func*
+
+#             transform_func operates on extern and returns a value that TuninCurve1D can interpret. If no transform is specified, the identity operator is assumed.
+#         """
+#     raise NotImplementedError
+
+
+#----------------------------------------------------------------------#
+#======================================================================#
+
 class DirectionalTuningCurve1D(TuningCurve1D):
     """Directional tuning curves (1-dimensional) of multiple units.
 

@@ -24,6 +24,144 @@ warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
 
+class EpochUnitSlicer(object):
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, *args):
+        """epochs, units"""
+        # by default, keep all units
+        unitslice = slice(None, None, None)
+        if isinstance(*args, int):
+            epochslice = args[0]
+        elif isinstance(*args, EpochArray):
+            epochslice = args[0]
+        else:
+            try:
+                slices = np.s_[args]; slices = slices[0]
+                if len(slices) > 2:
+                    raise IndexError("only [epochs, units] slicing is supported at this time!")
+                elif len(slices) == 2:
+                    epochslice, unitslice = slices
+                else:
+                    epochslice = slices[0]
+            except TypeError:
+                # only epoch to slice:
+                epochslice = slices
+
+        return epochslice, unitslice
+
+class ItemGetter_loc(object):
+    """.loc is primarily label based (that is, unit_id based)
+
+    .loc will raise KeyError when the items are not found.
+
+    Allowed inputs are:
+        - A single label, e.g. 5 or 'a', (note that 5 is interpreted
+            as a label of the index. This use is not an integer
+            position along the index)
+        - A list or array of labels ['a', 'b', 'c']
+        - A slice object with labels 'a':'f', (note that contrary to
+            usual python slices, both the start and the stop are
+            included!)
+    """
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, idx):
+        """epochs, units"""
+        epochslice, unitslice = self.obj._slicer[idx]
+
+        # first convert unit slice into list
+        if isinstance(unitslice, slice):
+            start = unitslice.start
+            stop = unitslice.stop
+            istep = unitslice.step
+            try:
+                if start is None:
+                    istart = 0
+                else:
+                    istart = self.obj._unit_ids.index(start)
+            except ValueError:
+                raise KeyError('unit_id {} could not be found in SpikeTrain!'.format(start))
+            try:
+                if stop is None:
+                    istop = self.obj.n_units
+                else:
+                    istop = self.obj._unit_ids.index(stop) + 1
+            except ValueError:
+                raise KeyError('unit_id {} could not be found in SpikeTrain!'.format(stop))
+            if istep is None:
+                istep = 1
+            if istep < 0:
+                istop -=1
+                istart -=1
+                istart, istop = istop, istart
+            unit_idx_list = list(range(istart, istop, istep))
+        else:
+            unit_idx_list = []
+            unitslice = np.atleast_1d(unitslice)
+            for unit in unitslice:
+                try:
+                    uidx = self.obj.unit_ids.index(unit)
+                except ValueError:
+                    raise KeyError("unit_id {} could not be found in SpikeTrain!".format(unit))
+                else:
+                    unit_idx_list.append(uidx)
+
+        if not isinstance(unit_idx_list, list):
+            unit_idx_list = list(unit_idx_list)
+        out = copy.copy(self.obj)
+        out._time = out._time[unit_idx_list]
+        out._unit_ids = list(np.atleast_1d(np.atleast_1d(out._unit_ids)[unit_idx_list]))
+        out._unit_labels = list(np.atleast_1d(np.atleast_1d(out._unit_labels)[unit_idx_list]))
+        # TODO: update tags
+        if isinstance(epochslice, slice):
+            if epochslice.start == None and epochslice.stop == None and epochslice.step == None:
+                out.loc = ItemGetter_loc(out)
+                out.iloc = ItemGetter_iloc(out)
+                return out
+        out = out[epochslice]
+        out.loc = ItemGetter_loc(out)
+        out.iloc = ItemGetter_iloc(out)
+        return out
+
+class ItemGetter_iloc(object):
+    """.iloc is primarily integer position based (from 0 to length-1
+    of the axis).
+
+    .iloc will raise IndexError if a requested indexer is
+    out-of-bounds, except slice indexers which allow out-of-bounds
+    indexing. (this conforms with python/numpy slice semantics).
+
+    Allowed inputs are:
+        - An integer e.g. 5
+        - A list or array of integers [4, 3, 0]
+        - A slice object with ints 1:7
+    """
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, idx):
+        """epochs, units"""
+        epochslice, unitslice = self.obj._slicer[idx]
+        out = copy.copy(self.obj)
+        if isinstance(unitslice, int):
+            unitslice = [unitslice]
+        out._time = out._time[unitslice]
+        out._unit_ids = list(np.atleast_1d(np.atleast_1d(out._unit_ids)[unitslice]))
+        out._unit_labels = list(np.atleast_1d(np.atleast_1d(out._unit_labels)[unitslice]))
+        # TODO: update tags
+        if isinstance(epochslice, slice):
+            if epochslice.start == None and epochslice.stop == None and epochslice.step == None:
+                out.loc = ItemGetter_loc(out)
+                out.iloc = ItemGetter_iloc(out)
+                return out
+        out = out[epochslice]
+        out.loc = ItemGetter_loc(out)
+        out.iloc = ItemGetter_iloc(out)
+        return out
+
 ########################################################################
 # class SpikeTrain
 ########################################################################
@@ -108,6 +246,10 @@ class SpikeTrain(ABC):
         self._unit_tags = unit_tags  # no input validation yet
         self.label = label
 
+        self._slicer = EpochUnitSlicer(self)
+        self.loc = ItemGetter_loc(self)
+        self.iloc = ItemGetter_iloc(self)
+
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
         return "<base SpikeTrain" + address_str + ">"
@@ -136,6 +278,8 @@ class SpikeTrain(ABC):
 
         out = copy.copy(self)
         out._support = out.support.partition(ds=ds, n_epochs=n_epochs)
+        out.loc = ItemGetter_loc(out)
+        out.iloc = ItemGetter_iloc(out)
         return out
 
     @abstractmethod
@@ -171,8 +315,6 @@ class SpikeTrain(ABC):
     @unit_ids.setter
     def unit_ids(self, val):
         if len(val) != self.n_units:
-            # print(len(val))
-            # print(self.n_units)
             raise TypeError("unit_ids must be of length n_units")
         elif len(set(val)) < len(val):
             raise TypeError("duplicate unit_ids are not allowed")
@@ -290,6 +432,8 @@ class SpikeTrain(ABC):
             spiketrainarray._time = self.time[unit_subset_ids]
             spiketrainarray._unit_ids = new_unit_ids
             spiketrainarray._unit_labels = new_unit_labels
+            spiketrainarray.loc = ItemGetter_loc(spiketrainarray)
+            spiketrainarray.iloc = ItemGetter_iloc(spiketrainarray)
 
             return spiketrainarray
         elif isinstance(self, BinnedSpikeTrainArray):
@@ -309,6 +453,8 @@ class SpikeTrain(ABC):
             binnedspiketrainarray._data = self.data[unit_subset_ids,:]
             binnedspiketrainarray._unit_ids = new_unit_ids
             binnedspiketrainarray._unit_labels = new_unit_labels
+            binnedspiketrainarray.loc = ItemGetter_loc(binnedspiketrainarray)
+            binnedspiketrainarray.iloc = ItemGetter_iloc(binnedspiketrainarray)
 
             return binnedspiketrainarray
         else:
@@ -489,7 +635,6 @@ class SpikeTrainArray(SpikeTrain):
 
         self._time = time
 
-
     def copy(self):
         """Returns a copy of the SpikeTrainArray."""
         newcopy = SpikeTrainArray(empty=True)
@@ -497,6 +642,8 @@ class SpikeTrainArray(SpikeTrain):
             warnings.simplefilter("ignore")
             for attr in self.__attributes__:
                 exec("newcopy." + attr + " = self." + attr)
+        newcopy.loc = ItemGetter_loc(newcopy)
+        newcopy.iloc = ItemGetter_iloc(newcopy)
         return newcopy
 
     def __add__(self, other):
@@ -513,7 +660,6 @@ class SpikeTrainArray(SpikeTrain):
         fs = self.fs
         if self.fs != other.fs:
             fs = None
-
         return SpikeTrainArray(newdata, support=support, fs=fs)
 
     def __iter__(self):
@@ -542,6 +688,8 @@ class SpikeTrainArray(SpikeTrain):
                 exec("spiketrain." + attr + " = self." + attr)
             spiketrain._time = time
             spiketrain._support = support
+            spiketrain.loc = ItemGetter_loc(spiketrain)
+            spiketrain.iloc = ItemGetter_iloc(spiketrain)
         self._index += 1
         return spiketrain
 
@@ -550,6 +698,7 @@ class SpikeTrainArray(SpikeTrain):
         # TODO: allow indexing of form sta[4,1:5] so that the STs of
         # epochs 1 to 5 (exlcusive) are returned, for neuron id 4.
 
+        # print('in __getitem__', idx)
         if self.isempty:
             return self
 
@@ -577,6 +726,8 @@ class SpikeTrainArray(SpikeTrain):
                     exec("spiketrain." + attr + " = self." + attr)
                 spiketrain._time = time
                 spiketrain._support = support
+                spiketrain.loc = ItemGetter_loc(spiketrain)
+                spiketrain.iloc = ItemGetter_iloc(spiketrain)
             return spiketrain
         elif isinstance(idx, int):
             spiketrain = SpikeTrainArray(empty=True)
@@ -589,6 +740,8 @@ class SpikeTrainArray(SpikeTrain):
                 support = self.support[idx]
                 spiketrain._support = support
             if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
+                spiketrain.loc = ItemGetter_loc(spiketrain)
+                spiketrain.iloc = ItemGetter_iloc(spiketrain)
                 return spiketrain
             else:
                 time = self._restrict_to_epoch_array(
@@ -598,6 +751,8 @@ class SpikeTrainArray(SpikeTrain):
                         )
                 spiketrain._time = time
                 spiketrain._support = support
+                spiketrain.loc = ItemGetter_loc(spiketrain)
+                spiketrain.iloc = ItemGetter_iloc(spiketrain)
                 return spiketrain
         else:  # most likely slice indexing
             try:
@@ -616,6 +771,8 @@ class SpikeTrainArray(SpikeTrain):
                         exec("spiketrain." + attr + " = self." + attr)
                     spiketrain._time = time
                     spiketrain._support = support
+                    spiketrain.loc = ItemGetter_loc(spiketrain)
+                    spiketrain.iloc = ItemGetter_iloc(spiketrain)
                 return spiketrain
             except Exception:
                 raise TypeError(
@@ -686,6 +843,8 @@ class SpikeTrainArray(SpikeTrain):
             alltimes = linear_merge(alltimes, self.time[unit])
 
         spiketrainarray._time = np.array(list(alltimes), ndmin=2)
+        spiketrainarray.loc = ItemGetter_loc(spiketrainarray)
+        spiketrainarray.iloc = ItemGetter_iloc(spiketrainarray)
         return spiketrainarray
 
     @staticmethod
@@ -697,13 +856,13 @@ class SpikeTrainArray(SpikeTrain):
         epocharray : EpochArray
         time : array-like
         """
-
         if epocharray.isempty:
             n_units = len(time)
             time = np.zeros((n_units,0))
             return time
 
         singleunit = len(time)==1  # bool
+
         # TODO: is this copy even necessary?
         if copyover:
             time = copy.copy(time)
@@ -720,9 +879,15 @@ class SpikeTrainArray(SpikeTrain):
                 warnings.warn(
                     'ignoring spikes outside of spiketrain support')
             if singleunit:
-                time = np.array([time[0,indices]], ndmin=2)
+                time = np.array([time[0][indices]], ndmin=2)
             else:
-                time[unit] = time[unit][indices]
+                # here we have to do some annoying conversion between
+                # arrays and lists to fully support jagged array
+                # mutation
+                time_ = time.tolist()
+                time_[unit] = np.array(time_[unit])
+                time_[unit] = time_[unit][indices]
+                time = np.array(time_)
         return time
 
     def __repr__(self):
@@ -801,7 +966,8 @@ class SpikeTrainArray(SpikeTrain):
             out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
             # TODO: re-build unit tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
-
+        out.loc = ItemGetter_loc(out)
+        out.iloc = ItemGetter_iloc(out)
         return out
 
     def reorder_units(self, neworder, *, inplace=False):
@@ -843,6 +1009,8 @@ class SpikeTrainArray(SpikeTrain):
             # TODO: re-build unit tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
+        out.loc = ItemGetter_loc(out)
+        out.iloc = ItemGetter_iloc(out)
         return out
 
 #----------------------------------------------------------------------#
@@ -926,6 +1094,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
             warnings.simplefilter("ignore")
             for attr in self.__attributes__:
                 exec("newcopy." + attr + " = self." + attr)
+        newcopy.loc = ItemGetter_loc(newcopy)
+        newcopy.iloc = ItemGetter_iloc(newcopy)
         return newcopy
 
     def __repr__(self):
@@ -977,6 +1147,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
             binnedspiketrain._bin_centers = self._bin_centers[bsupport[0][0]:bsupport[0][1]+1]
             binnedspiketrain._binnedSupport = bsupport - bsupport[0,0]
         self._index += 1
+        binnedspiketrain.loc = ItemGetter_loc(binnedspiketrain)
+        binnedspiketrain.iloc = ItemGetter_iloc(binnedspiketrain)
         return binnedspiketrain
 
     def __getitem__(self, idx):
@@ -1010,6 +1182,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
             support = self.support[idx]
             binnedspiketrain._support = support
             if (idx >= self.support.n_epochs) or idx < (-self.support.n_epochs):
+                binnedspiketrain.loc = ItemGetter_loc(binnedspiketrain)
+                binnedspiketrain.iloc = ItemGetter_iloc(binnedspiketrain)
                 return binnedspiketrain
             else:
                 bsupport = self.binnedSupport[[idx],:]
@@ -1021,6 +1195,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 binnedspiketrain._bins = self._bins[binstart:binstop]
                 binnedspiketrain._binnedSupport = bsupport - bsupport[0,0]
                 binnedspiketrain._bin_centers = centers
+                binnedspiketrain.loc = ItemGetter_loc(binnedspiketrain)
+                binnedspiketrain.iloc = ItemGetter_iloc(binnedspiketrain)
                 return binnedspiketrain
         else:  # most likely a slice
             try:
@@ -1056,6 +1232,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
                 for start, stop in zip(binstarts, binstops):
                     ll.extend(np.arange(start,stop,step=1))
                 binnedspiketrain._bins = self._bins[ll]
+                binnedspiketrain.loc = ItemGetter_loc(binnedspiketrain)
+                binnedspiketrain.iloc = ItemGetter_iloc(binnedspiketrain)
 
                 return binnedspiketrain
 
@@ -1466,6 +1644,9 @@ class BinnedSpikeTrainArray(SpikeTrain):
             newbst._bin_centers = None
             newbst._bins = None
 
+        newbst.loc = ItemGetter_loc(newbst)
+        newbst.iloc = ItemGetter_iloc(newbst)
+
         return newbst
 
     def _bin_spikes_old(self, spiketrainarray, epochArray, ds):
@@ -1562,6 +1743,8 @@ class BinnedSpikeTrainArray(SpikeTrain):
         binnedspiketrainarray._unit_ids = [unit_id]
         binnedspiketrainarray._unit_labels = [unit_label]
         binnedspiketrainarray._unit_tags = None
+        binnedspiketrainarray.loc = ItemGetter_loc(binnedspiketrainarray)
+        binnedspiketrainarray.iloc = ItemGetter_iloc(binnedspiketrainarray)
         return binnedspiketrainarray
 
 #----------------------------------------------------------------------#
