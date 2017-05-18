@@ -129,41 +129,25 @@ def asa_init_wrapper(func):
 # class AnalogSignalArray
 ########################################################################
 class AnalogSignalArray:
-    """Continuous analog signal(s) with regular sampling rates and same
+    """Continuous analog signal(s) with regular sampling rates (irregular 
+    sampling rates can be corrected with operations on the support) and same
     support. NOTE: ydata that is not equal dimensionality will NOT work
     and error/warning messages may/may not be sent out. Also, in this
-    current rendition, I am assuming tdata is the exact same for all
-    signals passed through. As such, tdata is expected to be single
+    current rendition, I am assuming timestamps are the exact same for all
+    signals passed through. As such, timestamps are expected to be single
     dimensional.
 
     Parameters
     ----------
     ydata : np.array(dtype=np.float,dimension=N)
-    tdata : np.array(dtype=np.float,dimension=N), optional
-        if fs is provided tdata is assumed to be sample numbers
-        else it is assumed to be time but tdata can be a non time
-        variable. Additionally, if tdata is time it is assumed to be
-        sampled regularly in order to generate epochs. Irregular
-        sampling rates can be corrected with operations on the support.
+    timestamps : np.array(dtype=np.float,dimension=N), optional
+        Timestamps in seconds (ideally). Timestamps are assumed to be sampled
+        regularly in order to generate epochs. Irregular sampling rates can be
+        corrected with operations on the support.
     fs : float, optional
-        Sampling rate in Hz. If fs is passed as a parameter, then time
-        is assumed to be in sample numbers instead of actual time. See
-        fs_meta parameter below if sampling rate is to be stored as
-        metadata and not used for calculations. See fs_acquisition if
-        time are stored at a different rate than what was sampled
-        and marked by the system.
-    fs_acquisition : float, optional
-        Optional to store sampling rate in Hz of the acquisition system.
-        This should be used when tdata is passed in time associated
-        with the acquisition system but is stored in step sizes that are
-        of a different sampling rate. E.g. times could be stamped at
-        30kHz but stored in a decimated fashion at 3kHz so instead of
-        1,2,3,4,5,6,7,8,9,10,11,...,20,21,22... it would be 1,10,20,30...
-        In cases like this fs_acquisiton would be 10 times higher than fs.
-        As such, fs_acquisition as opposed to fs should be used to calculate
-        time and should be changed from the default None. See notebook of
-        AnalogSignalArray uses. Lastly, it is worth noting that fs_acquisition
-        is set equal to fs if it is not set.
+        Sampling rate in Hz. timestamps are still expected to be in units of 
+        time and fs is expected to be in the corresponding sampling rate (e.g. 
+        timestamps in seconds, fs in Hz)
     support : EpochArray, optional
         EpochArray array on which LFP is defined.
         Default is [0, last spike] inclusive.
@@ -177,9 +161,6 @@ class AnalogSignalArray:
         Optional merging of gaps between support epochs. If epochs are within
         a certain amount of time, gap, they will be merged as one epoch. Example
         use case is when there is a dropped sample
-    calc_time : bool, optional
-        Boolean to determine whether or not time will be calculated by scaling
-        tdata by fs or fs_acquisition depending on which is passed in.
     labels : np.array(dtype=np.str,dimension=N)
         Labeling each one of the signals in AnalogSignalArray. By default this
         will be set to None. It is expected that all signals will be labeled if
@@ -198,15 +179,10 @@ class AnalogSignalArray:
     ----------
     ydata : np.array
         With shape (n_ydata,N).
-    tdata : np.array
-        With shape (n_tdata,N).
-    time : np.array
+    timestamps : np.array
         With shape (n_tdata,N).
     fs : float, scalar, optional
         See Parameters
-    fs_acquisition : float, scalar, optional
-        See Parameters. fs_acquisition will be set to fs if fs_acquisition is
-        None and fs is specified.
     step : int
         See Parameters
     support : EpochArray, optional
@@ -218,11 +194,10 @@ class AnalogSignalArray:
         See Parameters
     """
     __attributes__ = ['_ydata','_time', '_fs', '_support', \
-                      '_interp', '_step', '_fs_acquisition',\
-                      '_labels']
+                      '_interp', '_step', '_labels']
 
     @asa_init_wrapper
-    def __init__(self, ydata=[], *, timestamps=None, fs=None, fs_acquisition=None,
+    def __init__(self, ydata=[], *, timestamps=None, fs=None,
                  step=None, merge_sample_gap=0, support=None,
                  in_memory=True, labels=None, empty=False):
 
@@ -236,17 +211,6 @@ class AnalogSignalArray:
 
         self._step = step
         self._fs = fs
-
-        #set fs_acquisition
-        self._fs_acquisition = None
-        if(fs_acquisition is not None):
-            try:
-                if(fs_acquisition > 0):
-                    self._fs_acquisition = fs_acquisition
-                else:
-                    raise ValueError("fs_acquisition must be positive")
-            except TypeError:
-                raise TypeError("fs_acquisition must be a scalar")
 
         # Note; if we have an empty array of ydata with no dimension,
         # then calling len(ydata) will return a TypeError
@@ -431,8 +395,7 @@ class AnalogSignalArray:
             if epocharray.isempty:
                 warnings.warn("Support specified is empty")
                 # self.__init__([],empty=True)
-                exclude = ['_support','_ydata','_fs','_step', \
-                           '_fs_acquisition']
+                exclude = ['_support','_ydata','_fs','_step']
                 attrs = (x for x in self.__attributes__ if x not in exclude)
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
