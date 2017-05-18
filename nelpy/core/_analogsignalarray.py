@@ -118,7 +118,7 @@ def asa_init_wrapper(func):
 
         kwargs['fs'] = fs
         kwargs['ydata'] = ydata
-        kwargs['timestamps'] = time
+        kwargs['timestamps'] = np.squeeze(time)
 
         func(args[0], **kwargs)
         return
