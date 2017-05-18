@@ -492,9 +492,9 @@ def rastercountplot(spiketrain, nbins=25, **kwargs):
     ax1.set_ylim([-0.5, np.max(steps)+1])
     rasterplot(spiketrain, ax=ax2, **kwargs)
 
-    utils.clear_left_right(ax=ax1)
-    utils.clear_top_bottom(ax=ax1)
-    utils.clear_top(ax=ax2)
+    utils.clear_left_right(ax1)
+    utils.clear_top_bottom(ax1)
+    utils.clear_top(ax2)
 
     ax1.fill_between(stepsx, steps, step='mid', color='0.4')
 
