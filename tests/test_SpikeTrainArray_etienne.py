@@ -1,4 +1,5 @@
-from nelpy.objects import SpikeTrainArray
+from nelpy.core import SpikeTrainArray
+import numpy as np
 
 class TestSpikeTrainArrayEtienne:
 
@@ -57,3 +58,13 @@ class TestSpikeTrainArrayEtienne:
     def test_14(self):
         sta = SpikeTrainArray([[3,4],[4],[2]])
         assert sta.n_units == 3
+
+    def test_15(self):
+        sta = SpikeTrainArray([[1,2,3,5,10,11,12,15], [1,2,3,5,10,11,12,15]], fs=5)
+        sta = sta.partition(n_epochs=5)
+        assert np.allclose(np.array([[1, 2, 3], [1, 2, 3]]), sta.iloc[0].time)
+
+    def test_16(self):
+        sta = SpikeTrainArray([[1,2,3,5,10,11,12,15], [1,2,3,5,10,11,12,15]], fs=5)
+        sta = sta.partition(n_epochs=5)
+        assert np.allclose(np.array([[5, 15], [5, 15]]), sta.iloc[[1,4],:].time)

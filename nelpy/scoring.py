@@ -1,4 +1,4 @@
-"""Temporary scoring functions. Needs a lot of work."""
+"""Temporary scoring functions. Needs a lot of work. DEPRECATED"""
 
 import numpy as np
 from itertools import groupby
@@ -23,6 +23,56 @@ def scoreOrderND(hmm, state_sequences):
 
     return np.array(scoresND)
 
+def scoreOrderD_time_swap(hmm, state_sequences, n_shuffles=250):
+    """Compute order score of state sequences
+
+    A score of 0 means there's only one state.
+    """
+
+    scoresD = [] # scores with no adjacent duplicates
+    n_sequences = len(state_sequences)
+    shuffled = np.zeros((n_shuffles, n_sequences))
+
+    for seqid in range(n_sequences):
+        logP = np.log(hmm.transmat_)
+        pth = state_sequences[seqid]
+        plen = len(pth)
+        logPseq = 0
+        for ii in range(plen-1):
+            logPseq += logP[pth[ii],pth[ii+1]]
+        score = logPseq - np.log(plen)
+        scoresD.append(score)
+        for nn in range(n_shuffles):
+            logPseq = 0
+            pth = np.random.permutation(pth)
+            for ii in range(plen-1):
+                logPseq += logP[pth[ii],pth[ii+1]]
+            score = logPseq - np.log(plen)
+            shuffled[nn, seqid] = score
+
+    scoresD = np.array(scoresD)
+    return scoresND, shuffled
+
+# def scoreOrderD_trans_mat_shuffle(hmm, state_sequences, n_shuffles=5):
+#     """Compute order score of state sequences
+
+#     A score of 0 means there's only one state.
+#     """
+
+#     scoresND = [] # scores with no adjacent duplicates
+#     shuffles =
+#     for seqid in range(len(state_sequences)):
+#         logP = np.log(hmm.transmat_)
+#         pth = state_sequences[seqid]
+#         plen = len(pth)
+#         logPseq = 0
+#         for ii in range(plen-1):
+#             logPseq += logP[pth[ii],pth[ii+1]]
+#         score = logPseq - np.log(plen)
+#         scoresND.append(score)
+
+#     return np.array(scoresND)
+
 def scoreOrderD(hmm, state_sequences):
     """Compute order score of state sequences
 
@@ -30,7 +80,6 @@ def scoreOrderD(hmm, state_sequences):
     """
 
     scoresND = [] # scores with no adjacent duplicates
-
     for seqid in range(len(state_sequences)):
         logP = np.log(hmm.transmat_)
         pth = state_sequences[seqid]

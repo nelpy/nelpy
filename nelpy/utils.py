@@ -1,6 +1,7 @@
 """This module contains helper functions and utilities for nelpy."""
 
-__all__ = ['swap_cols',
+__all__ = ['spatial_information',
+           'swap_cols',
            'swap_rows',
            'pairwise',
            'is_sorted',
@@ -19,7 +20,171 @@ import scipy.ndimage.filters #import gaussian_filter1d, gaussian_filter
 from numpy import log, ceil
 import copy
 
-from . import objects # so that objects.AnalogSignalArray is exposed
+from . import core # so that core.AnalogSignalArray is exposed
+from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
+
+def spatial_information(occupancy, ratemap):
+        """Compute the spatial information and firing sparsity...
+
+        The specificity index examines the amount of information
+        (in bits) that a single spike conveys about the animal's
+        location (i.e., how well cell firing redicts the animals
+        location).The spatial information content of cell discharge was
+        calculated using the formula:
+            information content = \Sum P_i(R_i/R)log_2(R_i/R)
+        where i is the bin number, P, is the probability for occupancy
+        of bin i, R, is the mean firing rate for bin i, and R is the
+        overall mean firing rate.
+
+        In order to account for the effects of low firing rates (with
+        fewer spikes there is a tendency toward higher information
+        content) or random bursts of firing, the spike firing
+        time-series was randomly offset in time from the rat location
+        time-series, and the information content was calculated. A
+        distribution of the information content based on 100 such random
+        shifts was obtained and was used to compute a standardized score
+        (Zscore) of information content for that cell. While the
+        distribution is not composed of independent samples, it was
+        nominally normally distributed, and a Z value of 2.29 was chosen
+        as a cut-off for significance (the equivalent of a one-tailed
+        t-test with P = 0.01 under a normal distribution).
+
+        Reference(s)
+        ------------
+        Markus, E. J., Barnes, C. A., McNaughton, B. L., Gladden, V. L.,
+            and Skaggs, W. E. (1994). "Spatial information content and
+            reliability of hippocampal CA1 neurons: effects of visual
+            input", Hippocampus, 4(4), 410-421.
+
+        Parameters
+        ----------
+        occupancy : array of shape (n_bins,)
+            Occupancy of the animal.
+        ratemap : array of shape (n_units, n_bins)
+            Rate map in Hz.
+        Returns
+        -------
+        si : array of shape (n_units,)
+            spatial information (in bits) per unit
+        sparsity: array of shape (n_units,)
+            sparsity (in percent) for each unit
+        """
+
+        ratemap = copy.copy(ratemap)
+        # ensure that the ratemap always has nonzero firing rates,
+        # otherwise the spatial information might return NaNs:
+        bkg_rate = ratemap[ratemap>0].min()
+        ratemap[ratemap < bkg_rate] = bkg_rate
+
+        Pi = occupancy / np.sum(occupancy)
+        R = ratemap.mean(axis=1) # mean firing rate
+        Ri = ratemap.T
+        si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
+
+        return si
+
+def spatial_sparsity(occupancy, ratemap):
+        """Compute the firing sparsity...
+
+        The specificity index examines the amount of information
+        (in bits) that a single spike conveys about the animal's
+        location (i.e., how well cell firing redicts the animals
+        location).The spatial information content of cell discharge was
+        calculated using the formula:
+            information content = \Sum P_i(R_i/R)log_2(R_i/R)
+        where i is the bin number, P, is the probability for occupancy
+        of bin i, R, is the mean firing rate for bin i, and R is the
+        overall mean firing rate.
+
+        In order to account for the effects of low firing rates (with
+        fewer spikes there is a tendency toward higher information
+        content) or random bursts of firing, the spike firing
+        time-series was randomly offset in time from the rat location
+        time-series, and the information content was calculated. A
+        distribution of the information content based on 100 such random
+        shifts was obtained and was used to compute a standardized score
+        (Zscore) of information content for that cell. While the
+        distribution is not composed of independent samples, it was
+        nominally normally distributed, and a Z value of 2.29 was chosen
+        as a cut-off for significance (the equivalent of a one-tailed
+        t-test with P = 0.01 under a normal distribution).
+
+        Reference(s)
+        ------------
+        Markus, E. J., Barnes, C. A., McNaughton, B. L., Gladden, V. L.,
+            and Skaggs, W. E. (1994). "Spatial information content and
+            reliability of hippocampal CA1 neurons: effects of visual
+            input", Hippocampus, 4(4), 410-421.
+
+        Parameters
+        ----------
+        occupancy : array of shape (n_bins,)
+            Occupancy of the animal.
+        ratemap : array of shape (n_units, n_bins)
+            Rate map in Hz.
+        Returns
+        -------
+        si : array of shape (n_units,)
+            spatial information (in bits) per unit
+        sparsity: array of shape (n_units,)
+            sparsity (in percent) for each unit
+        """
+
+        Pi = occupancy / np.sum(occupancy)
+        R = ratemap.mean(axis=1) # mean firing rate
+        Ri = ratemap.T
+        sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
+        return sparsity
+
+def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
+    """Compute the multiunit activity (MUA) from a spike train.
+
+    Parameters
+    ----------
+    st : SpikeTrainArray
+        SpikeTrainArray containing one or more units.
+    ds : float, optional
+        Time step in which to bin spikes. Default is 1 ms.
+    sigma : float, optional
+        Standard deviation (in seconds) of Gaussian smoothing kernel.
+        Default is 10 ms. If sigma==0 then no smoothing is applied.
+    bw : float, optional
+        Bandwidth of the Gaussian filter. Default is 6.
+
+    Returns
+    -------
+    mua : AnalogSignalArray
+        AnalogSignalArray with MUA.
+    """
+
+    if ds is None:
+        ds = 0.001 # 1 ms bin size
+    if sigma is None:
+        sigma = 0.01 # 10 ms standard deviation
+    if bw is None:
+        bw = 6
+
+    # bin spikes, so that we can count the spikes
+    mua_binned = st.bin(ds=ds).flatten()
+
+    # make sure data type is float, so that smoothing works, and convert to rate
+    mua_binned._data = mua_binned._data.astype(float) / ds
+
+    # put mua rate inside an AnalogSignalArray
+    if _fast:
+        mua = core.AnalogSignalArray([], empty=True)
+        mua._support = mua_binned.support
+        mua._time = mua_binned.bin_centers
+        mua._ydata = mua_binned.data
+    else:
+        mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
+
+    mua._fs = 1/ds
+
+    if (sigma != 0) and (bw > 0):
+        mua = gaussian_filter(mua, sigma=sigma, bw=bw)
+
+    return mua
 
 def is_odd(n):
     """Returns True if n is odd, and False if n is even.
@@ -54,26 +219,6 @@ def pairwise(iterable):
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
-
-def rmse(predictions, targets):
-    """Calculate the root mean squared error of an array of predictions.
-
-    Parameters
-    ----------
-    predictions : array_like
-        Array of predicted values.
-    targets : array_like
-        Array of target values.
-
-    Returns
-    -------
-    rmse: float
-        Root mean squared error of the predictions wrt the targets.
-    """
-    predictions = np.asanyarray(predictions)
-    targets = np.asanyarray(targets)
-    rmse = np.sqrt(((predictions - targets) ** 2).mean())
-    return rmse
 
 def argsort(seq):
     # http://stackoverflow.com/questions/3071415/efficient-method-to-calculate-the-rank-vector-of-a-list-in-python
@@ -150,7 +295,67 @@ def linear_merge(list1, list2):
                 while True:
                     yield next(list1)
 
-def get_contiguous_segments(data,step=None, sort=False):
+def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshold=None, minThresholdLength=None, SecondaryThreshold=None):
+    """Determine MUA/PBEs from multiunit activity.
+
+    MUA : multiunit activity
+    PBE : population burst event
+
+    Parameters
+    ----------
+    mua : AnalogSignalArray
+        AnalogSignalArray with one signal, namely the multiunit firing rate [in Hz].
+    fs : float, optional
+        Sampling frequency of mua, in Hz. If not specified, it will be inferred from
+        mua.fs
+    minLength : float, optional
+    maxLength : float, optional
+    PrimaryThreshold : float, optional
+    SecondaryThreshold : float, optional
+    minThresholdLength : float, optional
+
+    Returns
+    -------
+    mua_epochs : EpochArray
+        EpochArray containing all the MUA events / PBEs.
+    """
+
+    if fs is None:
+        fs = mua.fs
+    if fs is None:
+        raise ValueError("fs must either be specified, or must be contained in mua!")
+
+    if PrimaryThreshold is None:
+        PrimaryThreshold =  mua.mean() + 3*mua.std()
+    if SecondaryThreshold is None:
+        SecondaryThreshold = mua.mean()
+    if minLength is None:
+        minLength = 0.050 # 50 ms minimum event duration
+    if maxLength is None:
+        maxLength = 0.750 # 750 ms maximum event duration
+    if minThresholdLength is None:
+        minThresholdLength = 0.0
+
+    # determine MUA event bounds:
+    mua_bounds_idx, maxes, _ = get_events_boundaries(
+        x = mua.ydata,
+        PrimaryThreshold = PrimaryThreshold,
+        SecondaryThreshold = mua.mean(),
+        minThresholdLength = minThresholdLength,
+        minLength = minLength,
+        maxLength = maxLength,
+        ds = 1/fs
+    )
+
+    if len(mua_bounds_idx) == 0:
+        raise ValueError("no mua events detected")
+
+    # store MUA bounds in an EpochArray
+    mua_epochs = core.EpochArray(mua.time[mua_bounds_idx])
+
+    return mua_epochs
+
+def get_contiguous_segments(data, step=None, fs=None, sort=False, in_memory=True):
     """Compute contiguous segments (seperated by step) in a list.
 
     WARNING! This function assumes that a sorted list is passed.
@@ -159,27 +364,59 @@ def get_contiguous_segments(data,step=None, sort=False):
 
     Returns an array of size (n_segments, 2), with each row
     being of the form ([start, stop]) inclusive.
+
+    WARNING! Step is robustly computed in-core (i.e., when in-memory is
+        True), but is assumed to be 1 when out-of-core.
+
+    Parameters
+    ----------
+    in_memory : bool, optional
+        If True, then we use np.diff which requires all the data to fit
+        into memory simultaneously, otherwise we use groupby, which uses
+        a generator to process potentially much larger chunks of data,
+        but also much slower.
+    fs : sampling rate (Hz) used to extend half-open interval support by 1/fs
     """
-    from itertools import groupby
-    from operator import itemgetter
+    if in_memory:
+        if step is None:
+            step = np.median(np.diff(data))
 
-    if step is None:
-        step = 1
-    if sort:
-        data = np.sort(data)  # below groupby algorithm assumes sorted list
-    if np.any(np.diff(data) < step):
-        warnings.warn("some steps in the data are smaller than the requested step size.")
+        step_ = step
+        if fs is not None:
+            step_ = 1/fs
 
-    bdries = []
+        # assuming that data(t1) is sampled somewhere on [t, t+1/fs) we have a 'continuous' signal as long as
+        # data(t2 = t1+1/fs) is sampled somewhere on [t+1/fs, t+2/fs). In the most extreme case, it could happen
+        # that t1 = t and t2 = t + 2/fs, i.e. a difference of 2 steps.
 
-    for k, g in groupby(enumerate(data), lambda ix: (round(100*step*ix[0] - 100*ix[1])//10)):
-        f = itemgetter(1)
-        gen = (f(x) for x in g)
-        start = next(gen)
-        stop = start
-        for stop in gen:
-            pass
-        bdries.append([start, stop])
+        breaks = np.argwhere(np.diff(data)>=2*step)
+        starts = np.insert(breaks+1, 0, 0)
+        stops = np.append(breaks, len(data)-1)
+        bdries = np.vstack((data[starts], data[stops] + step_)).T
+    else:
+        from itertools import groupby
+        from operator import itemgetter
+
+        if step is None:
+            step = 1
+        step_ = step
+        if fs is not None:
+            step_ = 1/fs
+        if sort:
+            data = np.sort(data)  # below groupby algorithm assumes sorted list
+        if np.any(np.diff(data) < step):
+            warnings.warn("some steps in the data are smaller than the requested step size.")
+
+        bdries = []
+
+        for k, g in groupby(enumerate(data), lambda ix: (ix[0] - ix[1])):
+            f = itemgetter(1)
+            gen = (f(x) for x in g)
+            start = next(gen)
+            stop = start
+            for stop in gen:
+                pass
+            bdries.append([start, stop + step_])
 
     return np.asarray(bdries)
 
@@ -196,7 +433,10 @@ class PrettyInt(int):
         return '{:,}'.format(self.val)
 
 class PrettyDuration(float):
-    """Time duration with pretty print"""
+    """Time duration with pretty print.
+
+    Behaves like a float, and can always be cast to a float.
+    """
 
     def __init__(self, seconds):
         self.duration = seconds
@@ -210,13 +450,16 @@ class PrettyDuration(float):
     @staticmethod
     def to_dhms(seconds):
         """convert seconds into hh:mm:ss:ms"""
+        pos = seconds >= 0
+        if not pos:
+            seconds = -seconds
         ms = seconds % 1; ms = round(ms*1000)
         seconds = floor(seconds)
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
         d, h = divmod(h, 24)
-        Time = namedtuple('Time', 'dd hh mm ss ms')
-        time = Time(dd=d, hh=h, mm=m, ss=s, ms=ms)
+        Time = namedtuple('Time', 'pos dd hh mm ss ms')
+        time = Time(pos=pos, dd=d, hh=h, mm=m, ss=s, ms=ms)
         return time
 
     @staticmethod
@@ -224,7 +467,7 @@ class PrettyDuration(float):
         """returns a formatted time string."""
         if np.isinf(seconds):
             return 'inf'
-        dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
+        pos, dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
         if s > 0:
             if mm == 0:
                 # in this case, represent milliseconds in terms of
@@ -248,7 +491,38 @@ class PrettyDuration(float):
             timestr = daystr + "{:01d}{} seconds".format(ss, sstr)
         else:
             timestr = daystr +"{} milliseconds".format(s)
+        if not pos:
+            timestr = "-" + timestr
         return timestr
+
+    def __add__(self, other):
+        """a + b"""
+        return PrettyDuration(self.duration + other)
+
+    def __radd__(self, other):
+        """b + a"""
+        return self.__add__(other)
+
+    def __sub__(self, other):
+        """a - b"""
+        return PrettyDuration(self.duration - other)
+
+    def __rsub__(self, other):
+        """b - a"""
+        return other - self.duration
+
+    def __mul__(self, other):
+        """a * b"""
+        return PrettyDuration(self.duration * other)
+
+    def __rmul__(self, other):
+        """b * a"""
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        """a / b"""
+        return PrettyDuration(self.duration / other)
+
 
 def shrinkMatColsTo(mat, numCols):
     """ Docstring goes here
@@ -263,7 +537,7 @@ def shrinkMatColsTo(mat, numCols):
     return a
 
 def find_threshold_crossing_events(x, threshold, *, mode='above'):
-    """Find threshold crossing events.
+    """Find threshold crossing events. INCLUSIVE
 
     Parameters
     ----------
@@ -276,9 +550,9 @@ def find_threshold_crossing_events(x, threshold, *, mode='above'):
     from operator import itemgetter
 
     if mode == 'below':
-        cross_threshold = np.where(x < threshold, 1, 0)
+        cross_threshold = np.where(x <= threshold, 1, 0)
     elif mode == 'above':
-        cross_threshold = np.where(x > threshold, 1, 0)
+        cross_threshold = np.where(x >= threshold, 1, 0)
     else:
         raise NotImplementedError(
             "mode {} not understood for find_threshold_crossing_events".format(str(mode)))
@@ -420,7 +694,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
     if fs is None:
         if isinstance(data, (np.ndarray, list)):
             raise ValueError("sampling frequency must be specified!")
-        elif isinstance(data, objects.AnalogSignalArray):
+        elif isinstance(data, core.AnalogSignalArray):
             fs = data.fs
 
     if isinstance(data, (np.ndarray, list)):
@@ -437,7 +711,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             EnvelopeSmoothingSD = sigma*fs
             smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
-    elif isinstance(data, objects.AnalogSignalArray):
+    elif isinstance(data, core.AnalogSignalArray):
         # Compute number of samples to compute fast FFTs:
         padlen = nextfastpower(len(data.ydata)) - len(data.ydata)
         # Pad data
@@ -529,13 +803,13 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
     else:
         out = obj
 
-    if isinstance(out, objects.AnalogSignalArray):
+    if isinstance(out, core.AnalogSignalArray):
         asa = out
         if fs is None:
             fs = asa.fs
         if fs is None:
             raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
-    elif isinstance(out, objects.BinnedSpikeTrainArray):
+    elif isinstance(out, core.BinnedSpikeTrainArray):
         bst = out
         if fs is None:
             fs = 1/bst.ds
@@ -553,11 +827,11 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
 
     cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
 
-    if isinstance(out, objects.AnalogSignalArray):
+    if isinstance(out, core.AnalogSignalArray):
         # now smooth each epoch separately
         for idx in range(asa.n_epochs):
             out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
-    elif isinstance(out, objects.BinnedSpikeTrainArray):
+    elif isinstance(out, core.BinnedSpikeTrainArray):
         out._data = out._data.astype(float)
         # now smooth each epoch separately
         for idx in range(out.n_epochs):
@@ -649,9 +923,13 @@ def get_run_epochs(speed, v1=10, v2=8):
     )
 
     # convert bounds to time in seconds
-    RUN_bounds = speed.tdata[RUN_bounds]
+    RUN_bounds = speed.time[RUN_bounds]
+    if len(RUN_bounds) == 0:
+        return core.EpochArray(empty=True)
+    # add 1/fs to stops for open interval
+    RUN_bounds[:,1] += 1/speed.fs
     # create EpochArray with running bounds
-    run_epochs = objects.EpochArray(RUN_bounds, fs=1)
+    run_epochs = core.EpochArray(RUN_bounds)
     return run_epochs
 
 def get_inactive_epochs(speed, v1=5, v2=7):
@@ -681,9 +959,13 @@ def get_inactive_epochs(speed, v1=5, v2=7):
     )
 
     # convert bounds to time in seconds
-    INACTIVE_bounds = speed.tdata[INACTIVE_bounds]
+    INACTIVE_bounds = speed.time[INACTIVE_bounds]
+    if len(INACTIVE_bounds) == 0:
+        return core.EpochArray(empty=True)
+    # add 1/fs to stops for open interval
+    INACTIVE_bounds[:,1] += 1/speed.fs
     # create EpochArray with inactive bounds
-    inactive_epochs = objects.EpochArray(INACTIVE_bounds, fs=1)
+    inactive_epochs = core.EpochArray(INACTIVE_bounds)
     return inactive_epochs
 
 def spiketrain_union(st1, st2):
@@ -698,7 +980,11 @@ def spiketrain_union(st1, st2):
     for unit in range(st1.n_units):
         newdata.append(np.append(st1.time[unit], st2.time[unit]))
 
-    return objects.SpikeTrainArray(newdata, support=support, fs=1)
+    fs = None
+    if st1.fs == st2.fs:
+        fs = st1.fs
+
+    return core.SpikeTrainArray(newdata, support=support, fs=fs)
 
 ########################################################################
 # uncurated below this line!
@@ -779,14 +1065,14 @@ def collapse_time(obj, gap=0):
 
     # Also set a new attribute, with the boundaries in seconds.
 
-    if isinstance(obj, objects.AnalogSignalArray):
-        new_obj = objects.AnalogSignalArray([], empty=True)
+    if isinstance(obj, core.AnalogSignalArray):
+        new_obj = core.AnalogSignalArray(empty=True)
         new_obj._ydata = obj._ydata
 
         durations = obj.support.durations
         starts = np.insert(np.cumsum(durations + gap),0,0)[:-1]
         stops = starts + durations
-        newsupport = objects.EpochArray(np.vstack((starts, stops)).T, fs=1)
+        newsupport = core.EpochArray(np.vstack((starts, stops)).T)
         new_obj._support = newsupport
 
         new_time = obj.time.astype(float) # fast copy
@@ -801,14 +1087,13 @@ def collapse_time(obj, gap=0):
                 new_time[time_idx[epidx]:time_idx[epidx+1]] = new_time[time_idx[epidx]:time_idx[epidx+1]] - obj.time[time_idx[epidx]] + new_offset
                 new_offset += durations[epidx]
         new_obj._time = new_time
-        new_obj._tdata = new_obj._time
 
         new_obj._fs = obj._fs
 
-    elif isinstance(obj, objects.SpikeTrainArray):
+    elif isinstance(obj, core.SpikeTrainArray):
         if gap > 0:
             raise ValueError("gaps not supported for SpikeTrainArrays yet!")
-        new_obj = objects.SpikeTrainArray(empty=True)
+        new_obj = core.SpikeTrainArray(empty=True)
         new_time = lists = [[] for _ in range(obj.n_units)]
         duration = 0
         for st_ in obj:
@@ -818,10 +1103,10 @@ def collapse_time(obj, gap=0):
             duration += st_.support.duration
         new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time])
         new_obj._time = new_time
-        new_obj._support = objects.EpochArray([0, duration], fs=1)
+        new_obj._support = core.EpochArray([0, duration])
         new_obj._unit_ids = obj._unit_ids
         new_obj._unit_labels = obj._unit_labels
-    elif isinstance(obj, objects.BinnedSpikeTrainArray):
+    elif isinstance(obj, core.BinnedSpikeTrainArray):
         raise NotImplementedError("BinnedSpikeTrains are not yet supported, but bst.data is essentially already collapsed!")
     else:
         raise TypeError("unsupported type for collapse_time")

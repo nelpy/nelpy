@@ -6,7 +6,7 @@ In development see issue #164 (https://github.com/eackermann/nelpy/issues/164)
 
 import warnings
 import numpy as np
-from ..objects import AnalogSignalArray
+from ..core import AnalogSignalArray
 
 
 def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, step=None\
@@ -54,12 +54,12 @@ def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, st
     Examples
     ----------
     >>> #Single channel (tetrode 1 channel 3) extraction with fs and step
-    >>> load_dat("debugging/testMoo.LFP", 1, 3, fs=30000, step=10)
+    >>> load_lfp_dat("debugging/testMoo.LFP", 1, 3, fs=30000, step=10)
     out : AnalogSignalArray with given timestamps, fs, and step size
 
     >>> #Multichannel extraction with fs and step
     >>> #tetrode 1 channels 1 and 4, tetrodes 3, 6, and 8 channels 2, 1, and 3
-    >>> load_dat("debugging/testMoo.LFP", [1,1,3,6,8],[1,4,2,1,3], fs=30000, step=10)
+    >>> load_lfp_dat("debugging/testMoo.LFP", [1,1,3,6,8],[1,4,2,1,3], fs=30000, step=10)
     out : AnalogSignalArray with given timestamps, fs, and step size
 
     """
@@ -126,3 +126,77 @@ def load_lfp_dat(filepath, tetrode, channel, *, fs=None, fs_acquisition=None, st
         raise FileNotFoundError(".LFP extension expected")
 
     return asa
+
+def load_dio_dat(filepath):
+    """Loads DIO pin event timestamps from .dat files. Returns as 2D 
+    numpy array containing timestamps and state changes aka high to low
+    or low to high. NOTE: This will be changed to EventArray once it is
+    implemented and has only been tested with digital input pins but it 
+    should work with digital output pins because they are stored the 
+    same way.
+
+    Parameters
+    ----------
+    filepath : string
+        Entire path to .dat file requested. See Examples. 
+
+    Returns
+    ----------
+    events : np.array([uint32, uint8])
+        numpy array of Trodes imestamps and state changes (0 or 1)
+        First event is 0 or 1 (active high or low on pin) at first Trodes
+        timestamp.
+
+    Examples
+    ----------
+    >>> #Single channel (tetrode 1 channel 3) extraction with fs and step
+    >>> load_dio_dat("twoChan_DONOTUSE.DIO/twoChan_DONOTUSE.dio_Din11.dat")
+    out : numpy array of state changes [uint32 Trodes timestamps, uint8 0 or 1].
+
+    """
+    
+    #DIO pin 11 is detection pulse
+    print("*****************Loading DIO Data*****************")
+    f = open(filepath,'rb')
+    instr = f.readline()
+    while (instr != b'<End settings>\n') :
+        print(instr)
+        instr = f.readline()
+    print('Current file position', f.tell())
+    #dt = np.dtype([np.uint32, np.uint8])
+    #x = np.fromfile(f, dtype=dt)
+    print("Done loading all data!")
+    return np.asarray(np.fromfile(f, dtype=[('time',np.uint32), ('dio',np.uint8)]))
+
+def load_dat(filepath):
+    """Loads timestamps and unfiltered data from Trodes .dat files. These
+    files are saved directly from Trodes. This function should _not_ be 
+    used after exportLFP or exportDIO functions given in the Trodes repo
+    have been run. This function is for loading .dat files that are saved
+    instead of .rec files. This is generally done when the recording is 
+    wireless and saved on an SD card. 
+    """
+
+    raise DeprecationWarning("This should not fall under 'trodes', and is not much of a function yet")
+
+    numChannels = 128
+    headerSize = 10
+    timestampSize = 4
+    channelSize = numChannels*2
+    packetSize = headerSize + timestampSize + channelSize
+
+    timestamp = []
+    chdata = []
+
+    with open(filepath, 'rb') as fileobj:
+        for packet in iter(lambda: fileobj.read(packetSize),''):
+            ii += 1
+            if packet:
+                ts = struct.unpack('<I', packet[headerSize:headerSize+timestampSize])[0]
+                timestamps.append(ts)
+                ch = struct.unpack('<h', packet[headerSize+timestampSize:headerSize+timestampSize+2])[0]
+                chdata.append(ch)
+            else:
+                break
+            if ii > 1000000:
+                break
