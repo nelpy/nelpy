@@ -12,8 +12,9 @@ def insert_into_namespace(name, value, name_space=None):
 # vars = [key for key in mat.keys() if '__' not in key]
 # varinfo = scipy.io.whosmat("simplified (Newton, 2015-03-11_15-09-22).mat", squeeze_me=True)
 
+#NOTE: see https://github.com/frejanordsiek/hdf5storage for more comprehensive support
 
-def load(filename, name_space=None):
+def load(filename, squeeze_me=True, name_space=None):
     """Load all variables from .mat file.
 
     NOTE: You will need an HDF5 python library to read matlab 7.3 or
@@ -22,7 +23,7 @@ def load(filename, name_space=None):
         name_Space=globals()
     """
 
-    mat = scipy.io.loadmat(filename, squeeze_me=True)
+    mat = scipy.io.loadmat(filename, squeeze_me=squeeze_me)
 
     # optionally inject variables into desired name_space
     if name_space is not None:

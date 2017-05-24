@@ -183,11 +183,11 @@ def add_simple_scalebar(text, ax=None, xy=None, length=None, orientation='v', ro
 #             va = 'baseline'
 
     if orientation == 0:
-        ax.hlines(xy[1], xy[0], xy[0] + length, lw=2 )
+        ax.hlines(xy[1], xy[0], xy[0] + length, lw=2, zorder=1000 )
     else:
-        ax.vlines(xy[0], xy[1], xy[1] + length, lw=2 )
+        ax.vlines(xy[0], xy[1], xy[1] + length, lw=2, zorder=1000 )
         xytext = (xy[0] + 3, xy[1] + length/2)
-        ax.annotate(text, xy=xytext, rotation=rotation_text, va='center', **kwargs)
+        ax.annotate(text, xy=xytext, rotation=rotation_text, va='center', zorder=1000, **kwargs)
 
 
 def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None,

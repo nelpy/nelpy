@@ -16,6 +16,10 @@ More specifically, the functionality of this package includes:
 - basic data exploration and visualization operating directly on the core nelpy objects
 - and much more
 
+Support
+=======
+This work was supported by the National Science Foundation (CBET-1351692 and IOS-1550994) and the Human Frontiers Science Program (RGY0088). Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) and do not necessarily reflect the views of the National Science Foundation.
+
 Quick example
 =============
 
