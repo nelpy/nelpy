@@ -12,6 +12,8 @@ import sys
 
 from scipy.misc import imread
 
+W_MAZE = True
+
 def corr_picker_callback(event, x, y, ignored, data):
     image = data[5]
     window_name = data[6]
@@ -57,12 +59,24 @@ def corr_picker_callback(event, x, y, ignored, data):
     # redraw if something changed.
     if data[4]:
         pick_image = image.copy()
+
+        # if len(data[0]) == n_pts_to_pick:
+        #     cv2.polylines(pick_image, np.array([data[0]]), True, (101/255, 170/255, 211/255), thickness=2)
+        if W_MAZE:
+            if len(data[0]) == n_pts_to_pick:
+                data_ = np.array([data[0]])
+                # outer arms
+                cv2.polylines(pick_image, data_[:,:5,:], False, (101/255, 170/255, 211/255), thickness=2)
+                # central arm
+                cv2.polylines(pick_image, data_[:,[2,5],:], False, (101/255, 170/255, 211/255), thickness=2)
+        else:
+            if len(data[0]) == n_pts_to_pick:
+                cv2.polylines(pick_image, np.array([data[0]]), True, (101/255, 170/255, 211/255), thickness=2)
+                # cv2.fillPoly(pick_image, np.array([data[0]]), (101/255, 170/255, 211/255, 0.8))
+
         for i, pt in enumerate(data[0]):
             cv2.circle(pick_image, tuple(pt), 3, (151/255, 207/255, 0), -1)
             cv2.putText(pick_image, str(i+1), tuple(pt), cv2.FONT_HERSHEY_SIMPLEX, 1, (151/255, 207/255, 0))
-
-        if len(data[0]) == n_pts_to_pick:
-            cv2.polylines(pick_image, np.array([data[0]]), True, (101/255, 170/255, 211/255))
 
         cv2.imshow(window_name, pick_image)
         data[4] = False
