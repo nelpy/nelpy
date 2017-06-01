@@ -277,6 +277,25 @@ class AnalogSignalArray:
             warnings.warn("estimated fs and provided fs differ by more than 1%")
 
     @property
+    def signals(self):
+        """Returns a list of AnalogSignalArrays, each array containing
+        a single signal (channel).
+
+        WARNING: this method creates a copy of each signal, so is not
+        particularly efficient at this time.
+
+        Example
+        =======
+        >>> for channel in lfp.signals:
+            print(channel)
+        """
+        signals = []
+        for ii in range(self.n_signals):
+            signals.append(self[:,ii])
+        return signals
+        # return np.asanyarray(signals).squeeze()
+
+    @property
     def isreal(self):
         """Returns True if entire signal is real."""
         return np.all(np.isreal(self._ydata))
@@ -324,6 +343,15 @@ class AnalogSignalArray:
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for *: 'AnalogSignalArray' and '{}'".format(str(type(other))))
+
+    def __add__(self, other):
+        """overloaded + operator."""
+        if isinstance(other, numbers.Number):
+            newasa = copy.copy(self)
+            newasa._ydata = self._ydata + other
+            return newasa
+        else:
+            raise TypeError("unsupported operand type(s) for +: 'AnalogSignalArray' and '{}'".format(str(type(other))))
 
     def __sub__(self, other):
         """overloaded - operator."""

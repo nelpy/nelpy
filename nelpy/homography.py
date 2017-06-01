@@ -4,6 +4,13 @@ we can do a lot of the selection just with matplotlib or similar instead.
 However, I would have to figure out how to draw those polygons with mpl.
 
 Some of this code was mofified from https://www.cs.drexel.edu/~kon/introcompvis/
+
+To fix the Trodes videos, use ffmpeg -r 60 -f h264 -i sine_camera_test_05-30-2017\(17_01_35\).h264 -c copy output.mp4
+
+or ffmpeg -r 60 -f h264 -i sine_camera_test_05-30-2017\(17_01_35\).h264 -vcodec copy -an output.mp4
+
+see e.g. https://superuser.com/questions/320045/video-encode-frame-rate-change
+and https://superuser.com/questions/538829/repairing-corrupt-mp4
 """
 
 import cv2
