@@ -13,6 +13,7 @@ from collections import namedtuple
 from ..utils import is_sorted, \
                    get_contiguous_segments, \
                    PrettyDuration, \
+                   PrettyBytes, \
                    PrettyInt, \
                    gaussian_filter
 
@@ -596,6 +597,11 @@ class AnalogSignalArray:
             return True
 
     @property
+    def n_bytes(self):
+        """Approximate number of bytes taken up by object."""
+        return PrettyBytes(self.ydata.nbytes + self.time.nbytes)
+
+    @property
     def n_epochs(self):
         """(int) number of epochs in AnalogSignalArray"""
         return self._support.n_epochs
@@ -954,6 +960,12 @@ class AnalogSignalArray:
         xyarray = XYArray(xvals=np.asanyarray(at), yvals=np.asanyarray(out).squeeze())
         return xyarray
 
+    def subsample(self, *, fs):
+        """Returns an AnalogSignalArray where the ydata has been
+        subsampled to a new rate of fs.
+        """
+        return self.simplify(ds=1/fs)
+
     def simplify(self, *, ds=None, n_points=None):
         """Returns an AnalogSignalArray where the ydata has been
         simplified / subsampled.
@@ -1020,6 +1032,7 @@ class AnalogSignalArray:
                 exec("asa." + attr + " = self." + attr)
         asa._time = np.asanyarray(at)
         asa._ydata = yvals
+        asa._fs = 1/ds
 
         return asa
 

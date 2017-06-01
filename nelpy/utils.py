@@ -420,6 +420,25 @@ def get_contiguous_segments(data, step=None, fs=None, sort=False, in_memory=True
 
     return np.asarray(bdries)
 
+class PrettyBytes(int):
+    """Prints number of bytes in a more readable format"""
+
+    def __init__(self, val):
+        self.val = val
+
+    def __str__(self):
+        if self.val < 1024:
+            return '{:.2f} bytes'.format(self.val)
+        elif self.val < 1024**2:
+            return '{:.2f} kilobytes'.format(self.val/1024)
+        elif self.val < 1024**3:
+            return '{:.2f} megabytes'.format(self.val/1024**2)
+        elif self.val < 1024**4:
+            return '{:.2f} gigabytes'.format(self.val/1024**3)
+
+    def __repr__(self):
+        return self.__str__()
+
 class PrettyInt(int):
     """Prints integers in a more readable format"""
 
