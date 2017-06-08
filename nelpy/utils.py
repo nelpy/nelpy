@@ -340,7 +340,7 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
     mua_bounds_idx, maxes, _ = get_events_boundaries(
         x = mua.ydata,
         PrimaryThreshold = PrimaryThreshold,
-        SecondaryThreshold = mua.mean(),
+        SecondaryThreshold = SecondaryThreshold,
         minThresholdLength = minThresholdLength,
         minLength = minLength,
         maxLength = maxLength,
@@ -899,12 +899,28 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
         sigma = 0.05 # 50 ms default
 
     out = copy.deepcopy(asa)
-
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
+
+    if asa.n_signals == 2:
+        out._ydata = out._ydata[[0],:]
 
     # now obtain the derivative for each epoch separately
     for idx in range(asa.n_epochs):
-        out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+        # if 1D:
+        if asa.n_signals == 1:
+            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+                # only single sample
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+            else:
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+        elif asa.n_signals == 2:
+            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+                # only single sample
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+            else:
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
+        else:
+            raise TypeError("more than 2D position not currently supported!")
 
     out._ydata = out._ydata * fs
 

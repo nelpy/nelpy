@@ -229,7 +229,7 @@ class PoissonHMM(PHMM):
         """Prior distribution over states, (n_components,)."""
         return self.startprob_
 
-    def get_state_order(self, method=None):
+    def get_state_order(self, method=None, start_state=None):
         """return a state ordering, optionally using augmented data.
 
         method \in ['transmat' (default), 'mode', 'mean']
@@ -245,7 +245,7 @@ class PoissonHMM(PHMM):
         neworder = []
 
         if method == 'transmat':
-            return self._get_order_from_transmat()
+            return self._get_order_from_transmat(start_state=start_state)
         elif method == 'mode':
             if self._extern_ is not None:
                 neworder = self._extern_.argmax(axis=1).argsort()
@@ -701,7 +701,7 @@ class PoissonHMM(PHMM):
 
         X : BinnedSpikeTrainArray
 
-        ext : array-lke
+        ext : array-like
             array of external correlates (n_bins, )
         n_extern : int
             number of extern variables, with range 0,.. n_extern-1

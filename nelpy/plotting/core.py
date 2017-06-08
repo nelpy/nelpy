@@ -24,7 +24,7 @@ __all__ = ['plot',
            'rasterplot',
            'rastercountplot']
 
-def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True):
+def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None):
     """
     WARNING! This function is not complete, and hence 'private',
     and may be moved somewhere else later on.
@@ -64,7 +64,10 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
         xmax = xvals[-1]
 
     for unit, curve in enumerate(ratemap):
-        line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit))
+        if color is None:
+            line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit))
+        else:
+            line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit), color=color)
         if fill:
             # Get the color from the current curve
             fillcolor = line[0].get_color()

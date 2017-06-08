@@ -1015,8 +1015,6 @@ class AnalogSignalArray:
         at = []
         for start, stop in self.support.time:
             newxvals = np.arange(start, stop, step=ds).tolist()
-            if newxvals[-1] + float_info.epsilon < stop:
-                newxvals.append(stop)
             at.extend(newxvals)
 
         _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
