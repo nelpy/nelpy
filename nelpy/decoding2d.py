@@ -1,7 +1,7 @@
 import numpy as np
 from . import auxiliary
 
-def decode2d(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_bins=True):
+def decode2d(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=None, _skip_empty_bins=True):
     """Decodes binned spike trains using a ratemap with shape (n_units, ext_nx, ext_ny)
 
     TODO: complete docstring
@@ -61,13 +61,14 @@ def decode2d(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
 
     n_units, t_bins = bst.data.shape
 
+    xbins = None
+    ybins = None
+
     # if we pass a TuningCurve2D object, extract the ratemap and re-order
     # units if necessary
     if isinstance(ratemap, auxiliary.TuningCurve2D):
-        xmin = ratemap.xbins[0]
-        xmax = ratemap.xbins[-1]
-        ymin = ratemap.ybins[0]
-        ymax = ratemap.ybins[-1]
+        xbins = ratemap.xbins
+        ybins = ratemap.ybins
         # re-order units if necessary
         ratemap = ratemap.reorder_units_by_ids(bst.unit_ids)
         ratemap = ratemap.ratemap
@@ -82,8 +83,6 @@ def decode2d(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
     assert nospk_prior.shape == (n_xbins, n_ybins), "prior must have shape ({}, {})".format(n_xbins, n_ybins)
 
     lfx = np.log(ratemap)
-
-    ########################################################################
 
     eterm = -ratemap.sum(axis=0)*bst.ds*w
 
@@ -123,9 +122,6 @@ def decode2d(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
                     # no spikes to decode in window!
                     posterior[:,:,post_idx] = nospk_prior
                 else:
-                    ########################################################################
-                    ########################################################################
-                    ########################################################################
                     posterior[:,:,post_idx] = (tile_obs(obs, n_xbins, n_ybins) * lfx).sum(axis=0) + eterm
         else: # only one window can fit in, and perhaps only partially. We just take all the data we can get,
               # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
@@ -137,19 +133,31 @@ def decode2d(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
             else:
                 posterior[:,:,post_idx] = (tile_obs(obs, n_xbins, n_ybins) * lfx).sum(axis=0) + eterm
 
-    ########################################################################
-
     # normalize posterior:
-    posterior = np.exp(posterior)
     for tt in range(n_tbins):
+        posterior[:,:,tt] = posterior[:,:,tt] - posterior[:,:,tt].max()
+        posterior[:,:,tt] = np.exp(posterior[:,:,tt])
         posterior[:,:,tt] = posterior[:,:,tt] / posterior[:,:,tt].sum()
 
-    # _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
-    # xbins = (bins + xmax/n_xbins)[:-1]
+    if xbins is None:
+        _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
+        xbins = (bins + xmax/n_xbins)[:-1]
+    if ybins is None:
+        _, bins = np.histogram([], bins=n_ybins, range=(ymin,ymax))
+        ybins = (bins + ymax/n_ybins)[:-1]
 
-    # mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
-    # mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
+    mode_pth = np.zeros((2, n_tbins))
+    for tt in range(n_tbins):
+        if np.any(np.isnan(posterior[:,:,tt])):
+            print(posterior[:,:,tt])
+            mode_pth[0,tt] = np.nan
+            mode_pth[0,tt] = np.nan
+        else:
+            x_, y_ = np.unravel_index(np.argmax(posterior[:,:,tt]), (n_xbins, n_ybins))
+            mode_pth[0,tt] = xbins[x_]
+            mode_pth[1,tt] = ybins[y_]
+
     # mean_pth = (xbins * posterior.T).sum(axis=1)
     # return posterior, cum_posterior_lengths, mode_pth, mean_pth
 
-    return posterior
+    return posterior, cum_posterior_lengths, mode_pth, []
