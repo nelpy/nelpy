@@ -141,6 +141,13 @@ _cows = {'hereford': '#6d3129',
          'texas_aggie': '#5c0025'
          }
 
+_vidal = {'orange': '#d77828',
+          'red': '#d84027',
+          'dark_blue': '#3060ad',
+          'blue': '#1c87c9',
+          'teal': '#2fbfc4'
+          }
+
 _corporate = {'facebook':   '#3b5998',
               'dropbox':    '#1081de',
               'uber1':      '#11939a',
@@ -181,6 +188,7 @@ _bcg = dict([(key, value) for key, value in _corporate.items() if key.startswith
 
 # instantiate ColorGroups
 sweet = ColorGroup(_sweet)
+vidal = ColorGroup(_vidal)
 riceuniv = ColorGroup(_riceuniv)
 lake_louise = ColorGroup(_louise)
 rainbow = ColorGroup(_rainbow)
