@@ -40,6 +40,8 @@ from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 
 def frange(start, stop, step):
     """arange with floating point step"""
+    # TODO: this function is not very general; we can extend it to work
+    # for reverse (stop < start), empty, and default args, etc.
     num_steps = np.floor((stop-start)/step)
     return np.linspace(start, stop, num=num_steps, endpoint=False)
 

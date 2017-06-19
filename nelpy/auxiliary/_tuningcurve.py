@@ -274,12 +274,12 @@ class TuningCurve2D:
             return ( self.ratemap.shape[0], 1, 1)
         return self.ratemap.shape
 
-    # def __repr__(self):
-    #     address_str = " at " + str(hex(id(self)))
-    #     if self.isempty:
-    #         return "<empty TuningCurve1D" + address_str + ">"
-    #     shapestr = " with shape (%s, %s)" % (self.shape[0], self.shape[1])
-    #     return "<TuningCurve1D%s>%s" % (address_str, shapestr)
+    def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
+        if self.isempty:
+            return "<empty TuningCurve2D" + address_str + ">"
+        shapestr = " with shape (%s, %s, %s)" % (self.shape[0], self.shape[1], self.shape[2])
+        return "<TuningCurve2D%s>%s" % (address_str, shapestr)
 
     @property
     def isempty(self):
@@ -320,6 +320,105 @@ class TuningCurve2D:
             out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=bw)
 
         return out
+
+    def reorder_units_by_ids(self, neworder, *, inplace=False):
+        """Reorder units according to a specified order.
+
+        neworder must be list-like, of size (n_units,) and in terms of
+        unit_ids
+
+        Return
+        ------
+        out : reordered TuningCurve2D
+        """
+        def swap_units(arr, frm, to):
+            """swap 'units' of a 3D np.array"""
+            arr[[frm, to],:,:] = arr[[to, frm],:,:]
+
+        if inplace:
+            out = self
+        else:
+            out = copy.deepcopy(self)
+
+        neworder = [self.unit_ids.index(x) for x in neworder]
+
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            swap_units(out._ratemap, frm, to)
+            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
+            out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
+            # TODO: re-build unit tags (tag system not yet implemented)
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
+
+        return out
+
+    @property
+    def unit_ids(self):
+        """Unit IDs contained in the SpikeTrain."""
+        return self._unit_ids
+
+    @unit_ids.setter
+    def unit_ids(self, val):
+        if len(val) != self.n_units:
+            # print(len(val))
+            # print(self.n_units)
+            raise TypeError("unit_ids must be of length n_units")
+        elif len(set(val)) < len(val):
+            raise TypeError("duplicate unit_ids are not allowed")
+        else:
+            try:
+                # cast to int:
+                unit_ids = [int(id) for id in val]
+            except TypeError:
+                raise TypeError("unit_ids must be int-like")
+        self._unit_ids = unit_ids
+
+    @property
+    def unit_labels(self):
+        """Labels corresponding to units contained in the SpikeTrain."""
+        if self._unit_labels is None:
+            warnings.warn("unit labels have not yet been specified")
+        return self._unit_labels
+
+    @unit_labels.setter
+    def unit_labels(self, val):
+        if len(val) != self.n_units:
+            raise TypeError("labels must be of length n_units")
+        else:
+            try:
+                # cast to str:
+                labels = [str(label) for label in val]
+            except TypeError:
+                raise TypeError("labels must be string-like")
+        self._unit_labels = labels
+
+    @property
+    def unit_tags(self):
+        """Tags corresponding to units contained in the SpikeTrain"""
+        if self._unit_tags is None:
+            warnings.warn("unit tags have not yet been specified")
+        return self._unit_tags
+
+    @property
+    def label(self):
+        """Label pertaining to the source of the spike train."""
+        if self._label is None:
+            warnings.warn("label has not yet been specified")
+        return self._label
+
+    @label.setter
+    def label(self, val):
+        if val is not None:
+            try:  # cast to str:
+                label = str(val)
+            except TypeError:
+                raise TypeError("cannot convert label to string")
+        else:
+            label = val
+        self._label = label
+
 
 
 
