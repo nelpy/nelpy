@@ -1,5 +1,33 @@
 """A collection of functions used to extract data from Cavaradossi's
 .dat files; Should be renamed sd or something.
+
+x55 (Sync byte)
+x68 (Data format byte - Note: MCU will replace this with Digital inputs)
+1 byte with valid flags (bit3 = acc_valid, bit2 = gyro_valid, bit1 = mag_valid, bit0 = rf_valid) (Note: at most one bit set)
+x00 (filler to make the packet byte count even)
+i2c_data_x[7:0]   (or rf_timestamp[7:0] if rf_valid)
+i2c_data_x[15:8]  (or rf_timestamp[15:8] if rf_valid)
+i2c_data_y[7:0]   (or rf_timestamp[23:16] if rf_valid)
+i2c_data_y[15:8]  (or rf_timestamp[31:24] if rf_valid)
+i2c_data_z[7:0]   (or x00 if rf_valid)
+i2c_data_z[15:8]  (or x00 if rf_valid)
+timestamp[7:0]
+timestamp[15:8]
+timestamp[23:16]
+timestamp[31:24]
+for (ch = 0, ch < 32, ch++) {
+  sample0[7:0]
+  sample0[15:8]
+  sample1[7:0]
+  sample1[15:8]
+  sample2[7:0]
+  sample2[15:8]
+  sample3[7:0]
+  sample3[15:8]
+}
+
+Note: i2c_data[x,y,z] = 0 if no valid flag set.
+
 """
 
 """
@@ -78,6 +106,40 @@ class SDReader():
         if fs_out != self.fs:
             asa = asa.subsample(fs=fs_out)
 
+        return asa
+
+    def read_sync_pulse(self, filename, duration=None):
+        """duration in seconds."""
+
+        # determine number of packets to extract
+        num_packets = self.get_num_packets(filename=filename)
+        if duration is None:
+            max_packets = num_packets
+        else:
+            max_packets = duration*self.fs
+        n_packets = np.min((max_packets, num_packets))
+
+        # syncdata = np.zeros((n_packets, 2), dtype=np.uint32)
+        # timestamps = np.zeros(n_packets)
+        rf_syncs = []
+        rf_timestamps = []
+
+        ii = 0
+        with open(filename, 'rb') as fileobj:
+            for packet in iter(lambda: fileobj.read(self.packetSize), ''):
+                if packet:
+                    sp = struct.unpack('<I', packet[4:8])[0] # sync pulse
+                    rf_invalid = struct.unpack('<H', packet[8:10])[0]
+                    if not rf_invalid and sp:
+                        rf_syncs.append(sp)
+                        ts = struct.unpack('<I', packet[self.headerSize:self.headerSize+self.timestampSize])[0]
+                        rf_timestamps.append(ts)
+                    ii = ii+1
+                else:
+                    break
+                if ii >= n_packets:
+                    break
+        asa = AnalogSignalArray(ydata=rf_syncs, timestamps=np.array(rf_timestamps)/self.fs, fs=self.fs)
         return asa
 
 # def bytes_from_file(filename, packetsize=270):
