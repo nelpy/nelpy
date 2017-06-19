@@ -66,18 +66,19 @@ __all__ = ['align_xlabels',
            'get_color_cycle',
            'FigureManager']
 
-def add_colorbar(ax=None, ):
+def add_colorbar(img, ax=None):
     """
     TODO: get keywords from **kwargs, i.e. if they're there, then use
     them, but if not, then don't. This should go for orientation, etc.
     Some others might have good defaults, so use them!
-    TODO this function is barbones for now
+    TODO this function is barebones for now
     """
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.15)
     cb=plt.colorbar(img, cax=cax, orientation="vertical")
-    cb.set_label('probability', labelpad=-10)
-    cb.set_ticks([0,1])
+    # cb.set_label('probability', labelpad=-10)
+    # cb.set_ticks([0,1])
+    return cb
 
 class FigureManager(object):
     """Figure context manager.
