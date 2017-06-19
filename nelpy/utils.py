@@ -1,6 +1,7 @@
 """This module contains helper functions and utilities for nelpy."""
 
 __all__ = ['spatial_information',
+           'frange',
            'swap_cols',
            'swap_rows',
            'pairwise',
@@ -22,6 +23,25 @@ import copy
 
 from . import core # so that core.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
+
+# def sub2ind(array_shape, rows, cols):
+#     ind = rows*array_shape[1] + cols
+#     ind[ind < 0] = -1
+#     ind[ind >= array_shape[0]*array_shape[1]] = -1
+#     return ind
+
+# def ind2sub(array_shape, ind):
+#     # see also np.unravel_index(ind, array.shape)
+#     ind[ind < 0] = -1
+#     ind[ind >= array_shape[0]*array_shape[1]] = -1
+#     rows = (ind.astype('int') / array_shape[1])
+#     cols = ind % array_shape[1]
+#     return (rows, cols)
+
+def frange(start, stop, step):
+    """arange with floating point step"""
+    num_steps = np.floor((stop-start)/step)
+    return np.linspace(start, stop, num=num_steps, endpoint=False)
 
 def spatial_information(occupancy, ratemap):
         """Compute the spatial information and firing sparsity...
