@@ -8,6 +8,7 @@ nelpy.analysis provides several commonly used analyses.
 """
 
 from .replay import *
+from .ergodic import *
 # from .ripple import *
 # from .decoding import *
 
