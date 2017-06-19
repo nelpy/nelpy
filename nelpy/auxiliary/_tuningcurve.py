@@ -1,4 +1,4 @@
-__all__ = ['TuningCurve1D', 'DirectionalTuningCurve1D']
+__all__ = ['TuningCurve1D', 'TuningCurve2D', 'DirectionalTuningCurve1D']
 
 import copy
 import numpy as np
@@ -8,11 +8,320 @@ import warnings
 
 from .. import utils
 
+# TODO: TuningCurve2D
+# 1. spatial information
+# 1. init from rate map
+# 1. magic functions
+# 1. ordering? doesn't necessarily make sense
+# 1. unit_id getters and setters
+# 1. __repr__
+# 1. iterator
+# 1. mean, max, min, etc.
+# 1. unit_subsets
+# 1. plotting support
+
+
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
+
+
+########################################################################
+# class TuningCurve2D
+########################################################################
+class TuningCurve2D:
+    """Tuning curves (2-dimensional) of multiple units.
+
+    Parameters
+    ----------
+
+    Attributes
+    ----------
+
+    """
+
+    __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
+
+    def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None,
+                 bw=None, ext_nx=None, ext_ny, transform_func=None,
+                 minbgrate=None, ext_xmin=0, ext_ymin=0, ext_xmax=1, ext_ymax=1,
+                 extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None,
+                 label=None, empty=False):
+        """
+
+        If sigma is nonzero, then smoothing is applied.
+
+        We always require bst and extern, and then some combination of
+            (1) bin edges, transform_func*
+            (2) n_extern, transform_func*
+            (3) n_extern, x_min, x_max, transform_func*
+
+            transform_func operates on extern and returns a value that TuninCurve1D can interpret. If no transform is specified, the identity operator is assumed.
+        """
+        # TODO: input validation
+        if not empty:
+            if ratemap is None:
+                assert bst is not None, "bst must be specified or ratemap must be specified!"
+                assert extern is not None, "extern must be specified or ratemap must be specified!"
+            else:
+                assert bst is None, "ratemap and bst cannot both be specified!"
+                assert extern is None, "ratemap and extern cannot both be specified!"
+
+        # if an empty object is requested, return it:
+        if empty:
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
+
+        if ratemap is not None:
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            self._init_from_ratemap(ratemap=ratemap,
+                                    extmin=extmin,
+                                    extmax=extmax,
+                                    extlabels=extlabels,
+                                    unit_ids=unit_ids,
+                                    unit_labels=unit_labels,
+                                    unit_tags=unit_tags,
+                                    label=label)
+            return
+
+        self._bst = bst
+        self._extern = extern
+
+        if minbgrate is None:
+            minbgrate = 0.01 # Hz minimum background firing rate
+
+        if ext_nx is not None:
+            if ext_xmin is not None and ext_xmax is not None:
+                self._xbins = np.linspace(ext_xmin, ext_xmax, ext_nx+1)
+            else:
+                raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+        if ext_ny is not None:
+            if ext_ymin is not None and ext_ymax is not None:
+                self._ybins = np.linspace(ext_ymin, ext_ymax, ext_ny+1)
+            else:
+                raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+        self._unit_ids = bst.unit_ids
+        self._unit_labels = bst.unit_labels
+        self._unit_tags = bst.unit_tags  # no input validation yet
+        self.label = label
+
+        if transform_func is None:
+            self.trans_func = self._trans_func
+
+        # compute occupancy
+        self._occupancy = self._compute_occupancy()
+        # compute ratemap (in Hz)
+        self._ratemap = self._compute_ratemap()
+        # normalize firing rate by occupancy
+        self._ratemap = self._normalize_firing_rate_by_occupancy()
+        # enforce minimum background firing rate
+        self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
+
+        # TODO: support 2D sigma
+        if sigma is not None:
+            if sigma > 0:
+                self.smooth(sigma=sigma, bw=bw, inplace=True)
+
+        # optionally detach _bst and _extern to save space when pickling, for example
+        self._detach()
+
+    def _detach(self):
+        """Detach bst and extern from tuning curve."""
+        self._bst = None
+        self._extern = None
+
+    @property
+    def n_bins(self):
+        """(int) Number of external correlates (bins)."""
+        return self.n_xbins*self.n_ybins
+
+    @property
+    def n_xbins(self):
+        """(int) Number of external correlates (bins)."""
+        return len(self.xbins) - 1
+
+    @property
+    def n_ybins(self):
+        """(int) Number of external correlates (bins)."""
+        return len(self.ybins) - 1
+
+    @property
+    def xbins(self):
+        """External correlate bins."""
+        return self._xbins
+
+    @property
+    def ybins(self):
+        """External correlate bins."""
+        return self._ybins
+
+    @property
+    def bins(self):
+        """External correlate bins."""
+        return (self.xbins, self.ybins)
+
+    def _trans_func(self, extern, at):
+        """Default transform function to map extern into numerical bins.
+
+        Assumes first signal is x-dim, second is y-dim.
+        """
+
+        _, ext = extern.asarray(at=at)
+        x, y = ext[0,:], ext[1,:]
+
+        return x, y
+
+    def _compute_occupancy(self):
+
+        x, y = self.trans_func(self._extern, at=self._bst.bin_centers)
+
+        xmin = self.xbins[0]
+        xmax = self.xbins[-1]
+        ymin = self.ybins[0]
+        ymax = self.ybins[-1]
+
+        occupancy, _, _ = np.histogram2d(x, y, bins=[self.xbins, self.ybins], range=([[xmin, xmax], [ymin, ymax]]))
+
+        return occupancy
+
+    def _compute_ratemap(self):
+
+        x, y = self.trans_func(self._extern, at=self._bst.bin_centers)
+
+        ext_bin_idx_x = np.digitize(x, self.xbins, True)
+        ext_bin_idx_y = np.digitize(y, self.ybins, True)
+
+        # make sure that all the events fit between extmin and extmax:
+        # TODO: this might rather be a warning, but it's a pretty serious warning...
+        if ext_bin_idx_x.max() > self.n_xbins:
+            raise ValueError("ext values greater than 'ext_xmax'")
+        if ext_bin_idx_x.min() == 0:
+            raise ValueError("ext values less than 'ext_xmin'")
+        if ext_bin_idx_y.max() > self.n_ybins:
+            raise ValueError("ext values greater than 'ext_ymax'")
+        if ext_bin_idx_y.min() == 0:
+            raise ValueError("ext values less than 'ext_ymin'")
+
+        ratemap = np.zeros((self.n_units, self.n_xbins, self.n_ybins))
+
+        for tt, (bidxx, bidxy) in enumerate(zip(ext_bin_idx_x, ext_bin_idx_y)):
+            ratemap[:,bidxx-1, bidxy-1] += self._bst.data[:,tt]
+
+        return ratemap / self._bst.ds
+
+    def normalize(self, inplace=False):
+        """Normalize firing rates. For visualization."""
+
+        raise NotImplementedError
+
+        if not inplace:
+            out = copy.deepcopy(self)
+        else:
+            out = self
+        if self.n_units > 1:
+            per_unit_max = np.max(out.ratemap, axis=1)[..., np.newaxis]
+            out._ratemap = self.ratemap / np.tile(per_unit_max, (1, out.n_bins))
+        else:
+            per_unit_max = np.max(out.ratemap)
+            out._ratemap = self.ratemap / np.tile(per_unit_max, out.n_bins)
+        return out
+
+    def _normalize_firing_rate_by_occupancy(self):
+
+        # normalize spike counts by occupancy:
+        denom = np.tile(self.occupancy, (self.n_units,1,1))
+        denom[denom==0] = 1
+        ratemap = self.ratemap / denom
+        return ratemap
+
+    @property
+    def is2d(self):
+        return True
+
+    @property
+    def occupancy(self):
+        return self._occupancy
+
+    def _init_from_ratemap(self):
+        raise NotImplementedError
+
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        try:
+            return len(self._unit_ids)
+        except TypeError: # when unit_ids is an integer
+            return 1
+        except AttributeError:
+            return 0
+
+    @property
+    def shape(self):
+        """(tuple) The shape of the TuningCurve2D ratemap."""
+        if self.isempty:
+            return (self.n_units, 0, 0)
+        if len(self.ratemap.shape) ==1:
+            return ( self.ratemap.shape[0], 1, 1)
+        return self.ratemap.shape
+
+    # def __repr__(self):
+    #     address_str = " at " + str(hex(id(self)))
+    #     if self.isempty:
+    #         return "<empty TuningCurve1D" + address_str + ">"
+    #     shapestr = " with shape (%s, %s)" % (self.shape[0], self.shape[1])
+    #     return "<TuningCurve1D%s>%s" % (address_str, shapestr)
+
+    @property
+    def isempty(self):
+        """(bool) True if TuningCurve1D is empty"""
+        try:
+            return len(self.ratemap) == 0
+        except TypeError: #TypeError should happen if ratemap = []
+            return True
+
+    @property
+    def ratemap(self):
+        return self._ratemap
+
+    def __len__(self):
+        return self.n_units
+
+    def smooth(self, *, sigma=None, bw=None, inplace=False):
+        """Smooths the tuning curve
+        """
+        if sigma is None:
+            sigma = 0.1 # in units of extern
+        if bw is None:
+            bw = 4
+
+        ds_x = (self.xbins[-1] - self.xbins[0])/self.n_xbins
+        ds_y = (self.ybins[-1] - self.ybins[0])/self.n_ybins
+        sigma_x = sigma / ds_x
+        sigma_y = sigma / ds_y
+
+        if not inplace:
+            out = copy.deepcopy(self)
+        else:
+            out = self
+
+        if self.n_units > 1:
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=bw)
+        else:
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=bw)
+
+        return out
+
+
 
 
 ########################################################################
@@ -115,6 +424,10 @@ class TuningCurve1D:
 
         # optionally detach _bst and _extern to save space when pickling, for example
         self._detach()
+
+    @property
+    def is2d(self):
+        return False
 
     def spatial_information(self):
         """Compute the spatial information and firing sparsity...
@@ -369,9 +682,11 @@ class TuningCurve1D:
         ext_bin_idx = np.digitize(ext, self.bins, True)
         # make sure that all the events fit between extmin and extmax:
         # TODO: this might rather be a warning, but it's a pretty serious warning...
-        if len(ext_bin_idx[ext_bin_idx>=self.n_bins]) > 0:
-            raise ValueError("decoded values outside of [extmin, extmax]")
-        ext_bin_idx = ext_bin_idx[ext_bin_idx<self.n_bins]
+        if ext_bin_idx.max() > self.n_bins:
+            raise ValueError("ext values greater than 'ext_max'")
+        if ext_bin_idx.min() == 0:
+            raise ValueError("ext values less than 'ext_min'")
+
         ratemap = np.zeros((self.n_units, self.n_bins))
 
         for tt, bidx in enumerate(ext_bin_idx):
