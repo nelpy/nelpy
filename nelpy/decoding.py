@@ -323,6 +323,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
                 posterior[:,:,post_idx] = (tile_obs(obs, n_xbins, n_ybins) * lfx).sum(axis=0) + eterm
 
     # normalize posterior:
+    # see http://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
     for tt in range(n_tbins):
         posterior[:,:,tt] = posterior[:,:,tt] - posterior[:,:,tt].max()
         posterior[:,:,tt] = np.exp(posterior[:,:,tt])
@@ -338,7 +339,6 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
     mode_pth = np.zeros((2, n_tbins))
     for tt in range(n_tbins):
         if np.any(np.isnan(posterior[:,:,tt])):
-            print(posterior[:,:,tt])
             mode_pth[0,tt] = np.nan
             mode_pth[0,tt] = np.nan
         else:
