@@ -16,7 +16,6 @@ from .. import utils
 # 1. unit_subsets
 # 1. plotting support
 
-
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -72,18 +71,19 @@ class TuningCurve2D:
             return
 
         if ratemap is not None:
-            raise NotImplementedError("Cannot initialize TuningCurve2D from rate map yet.")
-            # for attr in self.__attributes__:
-            #     exec("self." + attr + " = None")
-            # self._init_from_ratemap(ratemap=ratemap,
-            #                         extmin=extmin,
-            #                         extmax=extmax,
-            #                         extlabels=extlabels,
-            #                         unit_ids=unit_ids,
-            #                         unit_labels=unit_labels,
-            #                         unit_tags=unit_tags,
-            #                         label=label)
-            # return
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            self._init_from_ratemap(ratemap=ratemap,
+                                    ext_xmin=ext_xmin,
+                                    ext_xmax=ext_xmax,
+                                    ext_ymin=ext_ymin,
+                                    ext_ymax=ext_ymax,
+                                    extlabels=extlabels,
+                                    unit_ids=unit_ids,
+                                    unit_labels=unit_labels,
+                                    unit_tags=unit_tags,
+                                    label=label)
+            return
 
         self._bst = bst
         self._extern = extern
@@ -224,6 +224,61 @@ class TuningCurve2D:
         """
         return utils.spatial_sparsity(occupancy=self.occupancy,
                                       ratemap=self.ratemap)
+
+    def _init_from_ratemap(self, ratemap, occupancy=None, ext_xmin=0,
+                           ext_xmax=1, ext_ymin=0, ext_ymax=1,
+                           extlabels=None, unit_ids=None, unit_labels=None,
+                           unit_tags=None, label=None):
+        """Initialize a TuningCurve2D object from a ratemap.
+
+        Parameters
+        ----------
+        ratemap : array
+            Array of shape (n_units, ext_nx, ext_ny)
+
+        Returns
+        -------
+
+        """
+        n_units, ext_nx, ext_ny = ratemap.shape
+
+        if occupancy is None:
+            # assume uniform occupancy
+            self._occupancy = np.ones((ext_nx, ext_ny))
+
+        if ext_xmin is None:
+            ext_xmin = 0
+        if ext_xmax is None:
+            ext_xmax = ext_xmin + 1
+
+        if ext_ymin is None:
+            ext_ymin = 0
+        if ext_ymax is None:
+            ext_ymax = ext_ymin + 1
+
+        self._xbins = np.linspace(ext_xmin, ext_xmax, ext_nx+1)
+        self._ybins = np.linspace(ext_ymin, ext_ymax, ext_ny+1)
+        self._ratemap = ratemap
+
+        # inherit unit IDs if available, otherwise initialize to default
+        if unit_ids is None:
+            unit_ids = list(range(1,n_units + 1))
+
+        unit_ids = np.array(unit_ids, ndmin=1)  # standardize unit_ids
+
+        # if unit_labels is empty, default to unit_ids
+        if unit_labels is None:
+            unit_labels = unit_ids
+
+        unit_labels = np.array(unit_labels, ndmin=1)  # standardize
+
+        self._unit_ids = unit_ids
+        self._unit_labels = unit_labels
+        self._unit_tags = unit_tags  # no input validation yet
+        if label is not None:
+            self.label = label
+
+        return self
 
 
     def _detach(self):
