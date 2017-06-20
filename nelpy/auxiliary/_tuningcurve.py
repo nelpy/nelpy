@@ -40,7 +40,7 @@ class TuningCurve2D:
     __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
 
     def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None,
-                 bw=None, ext_nx=None, ext_ny, transform_func=None,
+                 bw=None, ext_nx=None, ext_ny=None, transform_func=None,
                  minbgrate=None, ext_xmin=0, ext_ymin=0, ext_xmax=1, ext_ymax=1,
                  extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None,
                  label=None, empty=False):
