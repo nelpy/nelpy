@@ -408,9 +408,6 @@ class TuningCurve2D:
     def occupancy(self):
         return self._occupancy
 
-    def _init_from_ratemap(self):
-        raise NotImplementedError
-
     @property
     def n_units(self):
         """(int) The number of units."""
