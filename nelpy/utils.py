@@ -164,7 +164,7 @@ def spatial_sparsity(occupancy, ratemap):
         Pi = occupancy / np.sum(occupancy)
         if len(ratemap.shape) == 3:
             # we have 2D tuning curve, (n_units, n_x, n_y)
-            R = ratemap.mean(axis=1).mean(axis=1 # mean firing rate
+            R = ratemap.mean(axis=1).mean(axis=1) # mean firing rate
             Ri = ratemap
             sparsity = np.sum(np.sum((Ri*Pi), axis=1), axis=1)/(R**2)
         elif len(ratemap.shape) == 2:
