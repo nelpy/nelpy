@@ -76,17 +76,18 @@ class TuningCurve2D:
             return
 
         if ratemap is not None:
-            for attr in self.__attributes__:
-                exec("self." + attr + " = None")
-            self._init_from_ratemap(ratemap=ratemap,
-                                    extmin=extmin,
-                                    extmax=extmax,
-                                    extlabels=extlabels,
-                                    unit_ids=unit_ids,
-                                    unit_labels=unit_labels,
-                                    unit_tags=unit_tags,
-                                    label=label)
-            return
+            raise NotImplementedError("Cannot initialize TuningCurve2D from rate map yet.")
+            # for attr in self.__attributes__:
+            #     exec("self." + attr + " = None")
+            # self._init_from_ratemap(ratemap=ratemap,
+            #                         extmin=extmin,
+            #                         extmax=extmax,
+            #                         extlabels=extlabels,
+            #                         unit_ids=unit_ids,
+            #                         unit_labels=unit_labels,
+            #                         unit_tags=unit_tags,
+            #                         label=label)
+            # return
 
         self._bst = bst
         self._extern = extern
@@ -543,12 +544,12 @@ class TuningCurve1D:
 
         The specificity index examines the amount of information
         (in bits) that a single spike conveys about the animal's
-        location (i.e., how well cell firing redicts the animals
+        location (i.e., how well cell firing predicts the animal's
         location).The spatial information content of cell discharge was
         calculated using the formula:
             information content = \Sum P_i(R_i/R)log_2(R_i/R)
-        where i is the bin number, P, is the probability for occupancy
-        of bin i, R, is the mean firing rate for bin i, and R is the
+        where i is the bin number, P_i, is the probability for occupancy
+        of bin i, R_i, is the mean firing rate for bin i, and R is the
         overall mean firing rate.
 
         In order to account for the effects of low firing rates (with

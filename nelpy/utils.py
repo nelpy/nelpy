@@ -50,12 +50,12 @@ def spatial_information(occupancy, ratemap):
 
         The specificity index examines the amount of information
         (in bits) that a single spike conveys about the animal's
-        location (i.e., how well cell firing redicts the animals
+        location (i.e., how well cell firing predicts the animal's
         location).The spatial information content of cell discharge was
         calculated using the formula:
             information content = \Sum P_i(R_i/R)log_2(R_i/R)
-        where i is the bin number, P, is the probability for occupancy
-        of bin i, R, is the mean firing rate for bin i, and R is the
+        where i is the bin number, P_i, is the probability for occupancy
+        of bin i, R_i, is the mean firing rate for bin i, and R is the
         overall mean firing rate.
 
         In order to account for the effects of low firing rates (with
@@ -99,9 +99,18 @@ def spatial_information(occupancy, ratemap):
         ratemap[ratemap < bkg_rate] = bkg_rate
 
         Pi = occupancy / np.sum(occupancy)
-        R = ratemap.mean(axis=1) # mean firing rate
-        Ri = ratemap.T
-        si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
+        if len(ratemap.shape) == 3:
+            # we have 2D tuning curve, (n_units, n_x, n_y)
+            R = ratemap.mean(axis=1).mean(axis=1) # mean firing rate
+            Ri = np.transpose(ratemap, (2,1,0))
+            si = np.sum(np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1), axis=1)
+        elif len(ratemap.shape) == 2:
+            # we have 1D tuning curve, (n_units, n_x)
+            R = ratemap.mean(axis=1) # mean firing rate
+            Ri = ratemap.T
+            si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
+        else:
+            raise TypeError("rate map shape not supported / understood!")
 
         return si
 
@@ -110,12 +119,12 @@ def spatial_sparsity(occupancy, ratemap):
 
         The specificity index examines the amount of information
         (in bits) that a single spike conveys about the animal's
-        location (i.e., how well cell firing redicts the animals
+        location (i.e., how well cell firing predicts the animal's
         location).The spatial information content of cell discharge was
         calculated using the formula:
             information content = \Sum P_i(R_i/R)log_2(R_i/R)
-        where i is the bin number, P, is the probability for occupancy
-        of bin i, R, is the mean firing rate for bin i, and R is the
+        where i is the bin number, P_i, is the probability for occupancy
+        of bin i, R_i, is the mean firing rate for bin i, and R is the
         overall mean firing rate.
 
         In order to account for the effects of low firing rates (with
@@ -153,9 +162,19 @@ def spatial_sparsity(occupancy, ratemap):
         """
 
         Pi = occupancy / np.sum(occupancy)
-        R = ratemap.mean(axis=1) # mean firing rate
-        Ri = ratemap.T
-        sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
+        if len(ratemap.shape) == 3:
+            # we have 2D tuning curve, (n_units, n_x, n_y)
+            R = ratemap.mean(axis=1).mean(axis=1 # mean firing rate
+            Ri = ratemap
+            sparsity = np.sum(np.sum((Ri*Pi), axis=1), axis=1)/(R**2)
+        elif len(ratemap.shape) == 2:
+            # we have 1D tuning curve, (n_units, n_x)
+            R = ratemap.mean(axis=1) # mean firing rate
+            Ri = ratemap.T
+            sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
+        else:
+            raise TypeError("rate map shape not supported / understood!")
+
         return sparsity
 
 def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
