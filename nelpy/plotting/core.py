@@ -14,7 +14,6 @@ from . import utils  # import plotting/utils
 from .. import auxiliary
 
 __all__ = ['plot',
-
            'plot_tuning_curves1D',
            'psdplot',
            'overviewstrip',

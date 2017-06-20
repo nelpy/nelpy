@@ -116,6 +116,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
     if isinstance(ratemap, auxiliary.TuningCurve1D):
         xmin = ratemap.bins[0]
         xmax = ratemap.bins[-1]
+        bin_centers = ratemap.bin_centers
         # re-order units if necessary
         ratemap = ratemap.reorder_units_by_ids(bst.unit_ids)
         ratemap = ratemap.ratemap
@@ -182,12 +183,13 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
     # normalize posterior:
     posterior = np.exp(posterior) / np.tile(np.exp(posterior).sum(axis=0),(n_xbins,1))
 
-    _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
-    xbins = (bins + xmax/n_xbins)[:-1]
+    # TODO: what was my rationale behid the following? Why not use bin centers?
+    # _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
+    # xbins = (bins + xmax/n_xbins)[:-1]
 
     mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
     mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
-    mean_pth = (xbins * posterior.T).sum(axis=1)
+    mean_pth = (bin_centers * posterior.T).sum(axis=1)
     return posterior, cum_posterior_lengths, mode_pth, mean_pth
 
 def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=None, _skip_empty_bins=True):
@@ -258,6 +260,8 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
     if isinstance(ratemap, auxiliary.TuningCurve2D):
         xbins = ratemap.xbins
         ybins = ratemap.ybins
+        xbin_centers = ratemap.xbin_centers
+        ybin_centers = ratemap.ybin_centers
         # re-order units if necessary
         ratemap = ratemap.reorder_units_by_ids(bst.unit_ids)
         ratemap = ratemap.ratemap
@@ -329,12 +333,12 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
         posterior[:,:,tt] = np.exp(posterior[:,:,tt])
         posterior[:,:,tt] = posterior[:,:,tt] / posterior[:,:,tt].sum()
 
-    if xbins is None:
-        _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
-        xbins = (bins + xmax/n_xbins)[:-1]
-    if ybins is None:
-        _, bins = np.histogram([], bins=n_ybins, range=(ymin,ymax))
-        ybins = (bins + ymax/n_ybins)[:-1]
+    # if xbins is None:
+    #     _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
+    #     xbins = (bins + xmax/n_xbins)[:-1]
+    # if ybins is None:
+    #     _, bins = np.histogram([], bins=n_ybins, range=(ymin,ymax))
+    #     ybins = (bins + ymax/n_ybins)[:-1]
 
     mode_pth = np.zeros((2, n_tbins))
     for tt in range(n_tbins):
@@ -346,10 +350,11 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
             mode_pth[0,tt] = xbins[x_]
             mode_pth[1,tt] = ybins[y_]
 
-    # mean_pth = (xbins * posterior.T).sum(axis=1)
-    # return posterior, cum_posterior_lengths, mode_pth, mean_pth
+    expected_x = (xbin_centers * posterior.sum(axis=1).T).sum(axis=1)
+    expected_y = (ybin_centers * posterior.sum(axis=0).T).sum(axis=1)
+    mean_pth = np.vstack((expected_x, expected_y))
 
-    return posterior, cum_posterior_lengths, mode_pth, []
+    return posterior, cum_posterior_lengths, mode_pth, mean_pth
 
 def k_fold_cross_validation(X, k=None, randomize=False):
     """
