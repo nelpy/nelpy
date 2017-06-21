@@ -699,6 +699,9 @@ class PoissonHMM(PHMM):
         """Learn a mapping from the internal state space, to an external
         augmented space (e.g. position).
 
+        Returns a row-normalized version of (n_states, n_ext), that
+        is, a distribution over external bins for each state.
+
         X : BinnedSpikeTrainArray
 
         ext : array-like
@@ -753,8 +756,9 @@ class PoissonHMM(PHMM):
                 extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
 
         # normalize extern tuning curves:
-        colsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
-        extern = extern/colsum
+        rowsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
+        rowsum = np.where(np.isclose(rowsum, 0), 1, rowsum)
+        extern = extern/rowsum
 
         if save:
             self._extern_ = extern
@@ -762,10 +766,85 @@ class PoissonHMM(PHMM):
 
         return extern
 
+    def fit_ext2(self, X, ext, n_extern=None, lengths=None, w=None):
+        """Learn a mapping from the internal state space, to an external
+        augmented space (e.g. position).
+
+        Returns a column-normalized version of (n_states, n_ext), that
+        is, a distribution over states for each extern bin.
+
+        X : BinnedSpikeTrainArray
+
+        ext : array-like
+            array of external correlates (n_bins, )
+        n_extern : int
+            number of extern variables, with range 0,.. n_extern-1
+
+        save : bool
+            stores extern in PoissonHMM if true, discards it if not
+
+        self.extern_ of size (n_components, n_extern)
+        """
+
+        ext_map = np.arange(n_extern)
+        if n_extern is None:
+            n_extern = len(unique(ext))
+            for ii, ele in enumerate(unique(ext)):
+                ext_map[ele] = ii
+
+        # idea: here, ext can be anything, and n_extern should be range
+        # we can e.g., define extern correlates {leftrun, rightrun} and
+        # fit the mapping. This is not expexted to be good at all for
+        # most states, but it could allow us to identify a state or two
+        # for which there *might* be a strong predictive relationship.
+        # In this way, the binning, etc. should be done external to this
+        # function, but it might still make sense to encapsulate it as
+        # a helper function inside PoissonHMM?
+
+        # xpos, ypos = get_position(exp_data['session1']['posdf'], bst.centers)
+        # x0=0; xl=100; n_extern=50
+        # xx_left = np.linspace(x0,xl,n_extern+1)
+        # xx_mid = np.linspace(x0,xl,n_extern+1)[:-1]; xx_mid += (xx_mid[1]-xx_mid[0])/2
+        # ext = np.digitize(xpos, xx_left) - 1 # spatial bin numbers
+
+        extern = np.zeros((self.n_components, n_extern))
+
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            if w is not None:
+                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+            posteriors = self.predict_proba(X=X, lengths=lengths, w=w)
+        else:
+            # we have a BinnedSpikeTrainArray
+            posteriors = self.predict_proba(X=X, lengths=lengths, w=w)
+        posteriors = np.vstack(posteriors.T)  # 1D array of states, of length n_bins
+
+        if len(posteriors) != len(ext):
+            raise ValueError("ext must have same length as decoded state sequence!")
+
+        for ii, posterior in enumerate(posteriors):
+            if not np.isnan(ext[ii]):
+                extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
+
+        # normalize extern tuning curves:
+        colsum = np.tile(extern.sum(axis=0), (self.n_components, 1))
+        colsum = np.where(np.isclose(colsum, 0), 1, colsum)
+        extern = extern/colsum
+
+        return extern
+
     def decode_ext(self, X, lengths=None, algorithm=None, w=None):
         """Find most likely state sequence corresponding to ``X``, and
         then map those states to an associated external representation
         (e.g. position).
+
+        WARNING! #TODO: This only works for 1D; otherwise the expected
+        path should be computed slightly differently. A workaround is to
+        create a virtual tuning curve using the HMM, and then to use
+        decoding.decode2D with that virtual tuning curve, where units
+        then become states. However, state (and similarly, unit-)
+        reordering then becomes a potential issue, since units have
+        persistent IDs, whereas states do not.
 
         Parameters
         ----------
