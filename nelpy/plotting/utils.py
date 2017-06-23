@@ -188,11 +188,11 @@ class FigureManager(object):
         del self.ax
         del self.fig
 
-def suptitle(t, gs=None, rect=(0, 0.1, 1, 1), **kwargs):
+def suptitle(t, gs=None, rect=(0, 0, 1, 0.95), **kwargs):
     """Add a suptitle to a figure with an embedded gridspec.
 
-    rect is in figure coords (0,0) lop left, and more specifically
-        in (x1, y1, x2, y2) with (x1, y1) top left, and (x2, y2) bottom
+    rect is in figure coords (0,0) bottom left, and more specifically
+        in (x1, y1, x2, y2) with (x1, y1) bottom left, and (x2, y2) top
         right
 
     see https://matplotlib.org/users/tight_layout_guide.html
