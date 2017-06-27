@@ -89,10 +89,10 @@ class ColorGroup():
         _palplot(self.colors, size=size)
 
 
-_sweet = {'green': '#00CF97',
-          'red': '#F05340',
-          'blue': '#56B4E9',
-          'gold': '#D3AA65',
+_sweet = {'green':  '#00CF97',
+          'red':    '#F05340',
+          'blue':   '#56B4E9',
+          'gold':   '#D3AA65',
           'purple': '#B47CC7',
           'maroon': '#C44E52',
           }
@@ -103,49 +103,51 @@ _riceuniv = {'blue': '#00417B',
              }
 
 # for Joshua Chu, who likes Lake Louise
-_louise = {'tree_green': '#334433',
-           'lake_green': '#0099aa',
-           'lake_blue': '#33aacc',
-           'stone_gray': '#bbbbbb',
+_louise = {'tree_green':    '#334433',
+           'lake_green':    '#0099aa',
+           'lake_blue':     '#33aacc',
+           'stone_gray':    '#bbbbbb',
            'mountain_gray': '#667788',
-           'lake_cyan': '#00bbff',
-           'bright_teal': '#11ddbb',
+           'lake_cyan':     '#00bbff',
+           'bright_teal':   '#11ddbb',
            'foliage_green': '#33aa66'
             }
 
-_rainbow = {"c0": "#fbb735",
-            "c1": "#e98931",
-            "c2": "#eb403b",
-            "c3": "#b32E37",
-            "c4": "#6c2a6a",
-            "c5": "#5c4399",
-            "c6": "#274389",
-            "c7": "#1f5ea8",
-            "c8": "#227FB0",
-            "c9": "#2ab0c5",
+_rainbow = {"c0":  "#fbb735",
+            "c1":  "#e98931",
+            "c2":  "#eb403b",
+            "c3":  "#b32E37",
+            "c4":  "#6c2a6a",
+            "c5":  "#5c4399",
+            "c6":  "#274389",
+            "c7":  "#1f5ea8",
+            "c8":  "#227FB0",
+            "c9":  "#2ab0c5",
             "c10": "#39c0b3",
             "c11": "#33aa66",
             "c12": '#00bbff'
             }
 
-_cows = {'hereford': '#6d3129',
-         'jersey': '#d3a474',
-         'brown_swiss': '#968470',
-         'charolais': '#d9c0a6',
-         'galloway': '#191919',
-         'texas_longhorn': '#aa622d',
-         'gelbvieh': '#86322b',
-         'shorthorn': '#86322b',
-         'holstein': '#bfbaae',
-         'angus': '#2c2a38',
-         'texas_aggie': '#5c0025'
+# For Shay, of course...
+_cows = {'hereford':        '#6d3129',
+         'jersey':          '#d3a474',
+         'brown_swiss':     '#968470',
+         'charolais':       '#d9c0a6',
+         'galloway':        '#191919',
+         'texas_longhorn':  '#aa622d',
+         'gelbvieh':        '#86322b',
+         'shorthorn':       '#86322b',
+         'holstein':        '#bfbaae',
+         'angus':           '#2c2a38',
+         'texas_aggie':     '#5c0025'
          }
 
-_vidal = {'orange': '#d77828',
-          'red': '#d84027',
-          'dark_blue': '#3060ad',
-          'blue': '#1c87c9',
-          'teal': '#2fbfc4'
+# Postdocs need colors, too
+_vidal = {'orange':         '#d77828',
+          'red':            '#d84027',
+          'dark_blue':      '#3060ad',
+          'blue':           '#1c87c9',
+          'teal':           '#2fbfc4'
           }
 
 _corporate = {'facebook':   '#3b5998',

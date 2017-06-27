@@ -354,6 +354,8 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
     expected_y = (ybin_centers * posterior.sum(axis=0).T).sum(axis=1)
     mean_pth = np.vstack((expected_x, expected_y))
 
+    posterior = np.transpose(posterior, axes=[1,0,2])
+
     return posterior, cum_posterior_lengths, mode_pth, mean_pth
 
 def k_fold_cross_validation(X, k=None, randomize=False):

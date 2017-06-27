@@ -42,9 +42,12 @@ class TuningCurve2D:
     def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None,
                  bw=None, ext_nx=None, ext_ny=None, transform_func=None,
                  minbgrate=None, ext_xmin=0, ext_ymin=0, ext_xmax=1, ext_ymax=1,
-                 extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None,
-                 label=None, empty=False):
+                 extlabels=None, min_duration=None, unit_ids=None,
+                 unit_labels=None, unit_tags=None, label=None, empty=False):
         """
+
+        NOTE: tuning curves in 2D have shapes (n_units, ny, nx) so that
+        we can plot them in an intuitive manner
 
         If sigma is nonzero, then smoothing is applied.
 
@@ -107,6 +110,10 @@ class TuningCurve2D:
         else:
             raise NotImplementedError
 
+        if min_duration is None:
+            min_duration = 0
+
+        self._min_duration = min_duration
         self._unit_ids = bst.unit_ids
         self._unit_labels = bst.unit_labels
         self._unit_tags = bst.unit_tags  # no input validation yet
@@ -350,7 +357,17 @@ class TuningCurve2D:
 
         return occupancy
 
-    def _compute_ratemap(self):
+    def _compute_ratemap(self, min_duration=None):
+        """
+
+        min_duration is the min duration in seconds for a bin to be
+        considered 'valid'; if too few observations were made, then the
+        firing rate is kept at an estimate of 0. If min_duration == 0,
+        then all the spikes are used.
+        """
+
+        if min_duration is None:
+            min_duration = self._min_duration
 
         x, y = self.trans_func(self._extern, at=self._bst.bin_centers)
 
@@ -372,6 +389,10 @@ class TuningCurve2D:
 
         for tt, (bidxx, bidxy) in enumerate(zip(ext_bin_idx_x, ext_bin_idx_y)):
             ratemap[:,bidxx-1, bidxy-1] += self._bst.data[:,tt]
+
+        # apply minimum observation duration
+        for uu in range(self.n_units):
+            ratemap[uu][self.occupancy*self._bst.ds < min_duration] = 0
 
         return ratemap / self._bst.ds
 
@@ -493,6 +514,8 @@ class TuningCurve2D:
         else:
             out = copy.deepcopy(self)
 
+        unit_ids = list(self.unit_ids)
+
         neworder = [self.unit_ids.index(x) for x in neworder]
 
         oldorder = list(range(len(neworder)))
@@ -510,7 +533,7 @@ class TuningCurve2D:
     @property
     def unit_ids(self):
         """Unit IDs contained in the SpikeTrain."""
-        return self._unit_ids
+        return list(self._unit_ids)
 
     @unit_ids.setter
     def unit_ids(self, val):
@@ -599,7 +622,7 @@ class TuningCurve1D:
 
     __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
 
-    def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False):
+    def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, min_duration=None, empty=False):
         """
 
         If sigma is nonzero, then smoothing is applied.
@@ -652,6 +675,11 @@ class TuningCurve1D:
                 raise NotImplementedError
         else:
             raise NotImplementedError
+
+        if min_duration is None:
+            min_duration = 0
+
+        self._min_duration = min_duration
 
         self._unit_ids = bst.unit_ids
         self._unit_labels = bst.unit_labels
@@ -927,7 +955,10 @@ class TuningCurve1D:
         # xbins = (bins + xmax/n_xbins)[:-1] # for plotting
         return occupancy
 
-    def _compute_ratemap(self):
+    def _compute_ratemap(self, min_duration=None):
+
+        if min_duration is None:
+            min_duration = self._min_duration
 
         ext = self.trans_func(self._extern, at=self._bst.bin_centers)
 
@@ -943,6 +974,10 @@ class TuningCurve1D:
 
         for tt, bidx in enumerate(ext_bin_idx):
             ratemap[:,bidx-1] += self._bst.data[:,tt]
+
+        # apply minimum observation duration
+        for uu in range(self.n_units):
+            ratemap[uu][self.occupancy*self._bst.ds < min_duration] = 0
 
         return ratemap / self._bst.ds
 
@@ -970,7 +1005,7 @@ class TuningCurve1D:
     @property
     def unit_ids(self):
         """Unit IDs contained in the SpikeTrain."""
-        return self._unit_ids
+        return list(self._unit_ids)
 
     @unit_ids.setter
     def unit_ids(self, val):
@@ -1265,6 +1300,7 @@ class TuningCurve1D:
         else:
             out = copy.deepcopy(self)
 
+        unit_ids = list(unit_ids)
         neworder = [self.unit_ids.index(x) for x in neworder]
 
         oldorder = list(range(len(neworder)))
