@@ -104,7 +104,7 @@ def time_swap_array(posterior):
     """Time swap.
     Note: it is often possible to simply shuffle the time bins, and not the actual data, for computational
     efficiency. Still, this function works as expected."""
-    out = copy.copy(posterior)
+    out = copy.deepcopy(posterior)
     rows, cols = posterior.shape
 
     colidx = np.arange(cols)
@@ -115,7 +115,7 @@ def time_swap_array(posterior):
 
 def time_swap_bst(bst):
     """Time swap on BinnedSpikeTrainArray, swapping only within each epoch."""
-    out = copy.copy(bst) # should this be deep?
+    out = copy.deepcopy(bst) # should this be deep? YES! Oh my goodness, yes!
     shuffled = np.arange(bst.n_bins)
     edges = np.insert(np.cumsum(bst.lengths),0,0)
     for ii in range(bst.n_epochs):
@@ -131,7 +131,7 @@ def column_cycle_array(posterior, amt=None):
     If amt is an array of the same length as posterior, then
     cycle each column by the corresponding amount in amt.
     Otherwise, cycle each column by a random amount."""
-    out = copy.copy(posterior)
+    out = copy.deepcopy(posterior)
     rows, cols = posterior.shape
 
     if amt is None:
@@ -519,7 +519,7 @@ def score_hmm_time_resolved(bst, hmm, n_shuffles=250, normalize=False):
                                normalize=normalize)
 
     # per event, compute L(:b|raw) - L(:b-1|raw)
-    Lb = copy.copy(Lbraw)
+    Lb = copy.deepcopy(Lbraw)
 
     cumLengths = np.cumsum(bst.lengths)
     cumLengths = np.insert(cumLengths, 0, 0)
@@ -538,7 +538,7 @@ def score_hmm_time_resolved(bst, hmm, n_shuffles=250, normalize=False):
                                normalize=normalize)
 
         # per event, compute L(:b|tmat) - L(:b-1|raw)
-        NL = copy.copy(Lbtmat)
+        NL = copy.deepcopy(Lbtmat)
         for jj in range(bst.n_epochs):
             LE = cumLengths[jj]
             RE = cumLengths[jj+1]
