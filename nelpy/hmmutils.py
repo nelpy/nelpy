@@ -186,6 +186,7 @@ class PoissonHMM(PHMM):
             List of states in transmat order.
         """
 
+        # unless specified, start in the a priori most probable state
         if start_state is None:
             start_state = np.argmax(self.startprob_)
 
@@ -193,11 +194,13 @@ class PoissonHMM(PHMM):
         num_states = self.transmat_.shape[0]
         rem_states = np.arange(0,start_state).tolist()
         rem_states.extend(np.arange(start_state+1,num_states).tolist())
-        cs = start_state
+        cs = start_state # current state
 
-        for ii in np.arange(0,num_states-1):
+        for ii in np.arange(0, num_states-1):
+            # find largest transition to set of remaining states
             nstilde = np.argmax(self.transmat_[cs,rem_states])
             ns = rem_states[nstilde]
+            # remove selected state from list of remaining states
             rem_states.remove(ns)
             cs = ns
             new_order.append(cs)
@@ -746,6 +749,7 @@ class PoissonHMM(PHMM):
         else:
             # we have a BinnedSpikeTrainArray
             posteriors = self.predict_proba(X=X, lengths=lengths, w=w)
+
         posteriors = np.vstack(posteriors.T)  # 1D array of states, of length n_bins
 
         if len(posteriors) != len(ext):
