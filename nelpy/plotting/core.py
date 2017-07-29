@@ -16,6 +16,7 @@ from . import utils  # import plotting/utils
 from .. import auxiliary
 
 __all__ = ['plot',
+           'plot2d',
            'colorline',
            'plot_tuning_curves1D',
            'psdplot',
@@ -447,6 +448,48 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
 
         # ax.set_ylim([np.array(data).min()-0.5, np.array(data).max()+0.5])
 
+    return ax
+
+def plot2d(npl_obj, data=None, *, ax=None, mew=None, color=None,
+         mec=None, markerfacecolor=None, **kwargs):
+    """
+    THIS SHOULD BE UPDATED! VERY ELEMENTARY AT THIS STAGE
+    """
+
+    if ax is None:
+        ax = plt.gca()
+    if mec is None:
+        mec = color
+    if markerfacecolor is None:
+        markerfacecolor = 'w'
+
+    if (isinstance(npl_obj, np.ndarray)):
+        ax.plot(npl_obj, mec=mec, markerfacecolor=markerfacecolor, **kwargs)
+
+    #TODO: better solution for this? we could just iterate over the epochs and
+    #plot them but that might take up too much time since a copy is being made
+    #each iteration?
+    if(isinstance(npl_obj, AnalogSignalArray)):
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for segment in npl_obj:
+                if color is not None:
+                    ax.plot(segment[:,0]._ydata_colsig,
+                            segment[:,1]._ydata_colsig,
+                            color=color,
+                            mec=mec,
+                            markerfacecolor='w',
+                            **kwargs
+                            )
+                else:
+                    ax.plot(segment[:,0]._ydata_colsig,
+                            segment[:,1]._ydata_colsig,
+                            # color=color,
+                            mec=mec,
+                            markerfacecolor='w',
+                            **kwargs
+                            )
     return ax
 
 def imshow(data, *, ax=None, interpolation=None, **kwargs):

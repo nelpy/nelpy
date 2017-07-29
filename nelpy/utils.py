@@ -513,7 +513,7 @@ class PrettyDuration(float):
         pos = seconds >= 0
         if not pos:
             seconds = -seconds
-        ms = seconds % 1; ms = round(ms*1000)
+        ms = seconds % 1; ms = round(ms*10000)/10
         seconds = floor(seconds)
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
