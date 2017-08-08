@@ -30,11 +30,92 @@ def draw_transmat_graph(G, edge_threshold=0, lw=1, ec='0.2', node_size=15):
 
     return ax
 
+def draw_transmat_graph_inner(G, edge_threshold=0, lw=1, ec='0.2', node_size=15):
+
+    num_states = G.number_of_nodes()
+
+    edgewidth = [ d['weight'] for (u,v,d) in G.edges(data=True)]
+    edgewidth = np.array(edgewidth)
+    edgewidth[edgewidth<edge_threshold] = 0
+
+    npos=circular_layout(G, scale=1, direction='CW')
+
+    nx.draw_networkx_edges(G, npos, alpha=1.0, width=edgewidth*lw, edge_color=ec)
+
+    nx.draw_networkx_nodes(G, npos, node_size=node_size, node_color='k',alpha=1.0)
+    ax = plt.gca()
+    ax.set_aspect('equal')
+
+    return ax
+
+def double_circular_layout(Gi, scale=1, center=None, dim=2, direction='CCW'):
+    inner=circular_layout(Gi, center=center, dim=dim, scale=scale, direction=direction)
+    outer=circular_layout(Gi, center=center, dim=dim, scale=scale*1.3, direction=direction)
+
+    num_states = Gi.number_of_nodes()
+
+    npos = {}
+    for k in outer.keys():
+        npos[k+num_states] = outer[k]
+
+    npos.update(inner)
+
+    return npos
+
+def draw_transmat_graph_outer(Go, Gi, edge_threshold=0, lw=1, ec='0.2', nc='k', node_size=15):
+
+    num_states = Go.number_of_nodes()
+
+    edgewidth = [ d['weight'] for (u,v,d) in Go.edges(data=True)]
+    edgewidth = np.array(edgewidth)
+    edgewidth[edgewidth<edge_threshold] = 0
+
+    npos=double_circular_layout(Gi, scale=1, direction='CW')
+
+    nx.draw_networkx_edges(Go, npos, alpha=1.0, width=edgewidth*lw, edge_color=ec)
+
+    nx.draw_networkx_nodes(Go, npos, node_size=node_size, node_color=nc,alpha=1.0)
+
+    ax = plt.gca()
+    ax.set_aspect('equal')
+
+    return ax
+
 def graph_from_transmat(transmat):
     G = nx.Graph()
     num_states = transmat.shape[1]
     # make symmetric
     tmat = (transmat + transmat.T) / 2
+
+    for s1 in range(num_states):
+        for s2 in range(num_states):
+            G.add_edge(s1, s2, weight=tmat[s1,s2])
+
+    return G
+
+def outer_graph_from_transmat(transmat):
+    G = nx.Graph()
+    num_states = transmat.shape[1]
+    # make symmetric
+    tmat = (transmat + transmat.T) / 2
+
+    for s1 in range(num_states):
+        G.add_edge(s1, s1 + num_states, weight=tmat[s1,s1]) # self transitions
+
+    for s1 in range(num_states-1):
+        G.add_edge(s1, s1 + num_states + 1, weight=tmat[s1,s1+1]) # forward neighbor transitions
+
+    return G
+
+def inner_graph_from_transmat(transmat):
+    G = nx.Graph()
+    num_states = transmat.shape[1]
+    # make symmetric
+    tmat = (transmat + transmat.T) / 2
+
+    # clear super diagonal
+    for ii in range(num_states-1):
+        tmat[ii,ii+1] = 0
 
     for s1 in range(num_states):
         for s2 in range(num_states):

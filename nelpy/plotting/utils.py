@@ -152,6 +152,8 @@ class FigureManager(object):
             #                                  tight_layout=self.tight_layout,
             #                                  dpi=self.dpi,
             #                                  **self.kwargs)
+            if len(self.ax) == 1:
+                self.ax = self.ax[0]
 
             if self.tight_layout:
                 self.fig.npl_gs.tight_layout(self.fig)

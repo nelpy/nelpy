@@ -1300,7 +1300,7 @@ class TuningCurve1D:
         else:
             out = copy.deepcopy(self)
 
-        unit_ids = list(unit_ids)
+        # unit_ids = list(unit_ids)
         neworder = [self.unit_ids.index(x) for x in neworder]
 
         oldorder = list(range(len(neworder)))
