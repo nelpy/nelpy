@@ -737,6 +737,7 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
     if ax is None:
         ax = plt.gca()
     ymin, ymax = ax.get_ylim()
+    xmin, xmax = ax.get_xlim()
     if height is None:
         height = ymax - ymin
 
@@ -761,7 +762,12 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
                 **kwargs
             )
         )
-    ax.set_xlim([epochs.start, epochs.stop])
+
+    if epochs.start < xmin:
+        xmin = epochs.start
+    if epochs.stop > xmax:
+        xmax = epochs.stop
+    ax.set_xlim([xmin, xmax])
 
     if hc is not None:
         try:
