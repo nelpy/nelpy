@@ -30,7 +30,7 @@ Let's give it a try. Create a ``SpikeTrainArray``:
     import nelpy as nel  # main nelpy imports
     import nelpy.plotting as npl  # optional plotting imports
     spike_times = np.array([1, 2, 4, 5, 10])
-    st = nel.SpikeTrainArray(spike_times, fs=1)
+    st = nel.SpikeTrainArray(spike_times)
 
 Do something:
 
