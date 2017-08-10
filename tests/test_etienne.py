@@ -161,12 +161,12 @@ class TestEvenMore:
         assert str(PrettyDuration(18.4)) == "18.4 seconds"
 
     def test_PrettyTimePrint10(self):
-        assert str(PrettyDuration(0.340)) == "340 milliseconds"
+        assert str(PrettyDuration(0.340)) == "340.0 milliseconds"
 
     def test_PrettyTimePrint11(self):
-        assert str(PrettyDuration(.340)) == "340 milliseconds"
+        assert str(PrettyDuration(.340)) == "340.0 milliseconds"
 
     def test_PrettyTimePrint12(self):
-        assert str(PrettyDuration(0.027)) == "27 milliseconds"
+        assert str(PrettyDuration(0.027)) == "27.0 milliseconds"
 
     #TODO: add tests for adding empty signals, and adding to empty signals
