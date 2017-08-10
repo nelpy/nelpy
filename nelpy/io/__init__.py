@@ -8,7 +8,6 @@ This is the nelpy IO module.
 from . import hc3
 from . import trodes
 from . import matlab
-# from .hc3 import *
-# from .trodes import *
+from .cavaradossi import SDReader
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'

@@ -121,7 +121,7 @@ class ItemGetter_loc(object):
                 out.loc = ItemGetter_loc(out)
                 out.iloc = ItemGetter_iloc(out)
                 return out
-        out = out[epochslice]
+        out = out._epochslicer(epochslice)
         out.loc = ItemGetter_loc(out)
         out.iloc = ItemGetter_iloc(out)
         return out
@@ -157,7 +157,7 @@ class ItemGetter_iloc(object):
                 out.loc = ItemGetter_loc(out)
                 out.iloc = ItemGetter_iloc(out)
                 return out
-        out = out[epochslice]
+        out = out._epochslicer(epochslice)
         out.loc = ItemGetter_loc(out)
         out.iloc = ItemGetter_iloc(out)
         return out
@@ -217,6 +217,9 @@ class SpikeTrain(ABC):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._support = EpochArray(empty=True)
+            self._slicer = EpochUnitSlicer(self)
+            self.loc = ItemGetter_loc(self)
+            self.iloc = ItemGetter_iloc(self)
             return
 
         # set initial fs to None
@@ -693,14 +696,10 @@ class SpikeTrainArray(SpikeTrain):
         self._index += 1
         return spiketrain
 
-    def __getitem__(self, idx):
-        """SpikeTrainArray index access."""
-        # TODO: allow indexing of form sta[4,1:5] so that the STs of
-        # epochs 1 to 5 (exlcusive) are returned, for neuron id 4.
-
-        # print('in __getitem__', idx)
-        if self.isempty:
-            return self
+    def _epochslicer(self, idx):
+        """Helper function to restrict object to EpochArray."""
+        # if self.isempty:
+        #     return self
 
         if isinstance(idx, EpochArray):
             if idx.isempty:
@@ -777,6 +776,14 @@ class SpikeTrainArray(SpikeTrain):
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
+
+
+    def __getitem__(self, idx):
+        """SpikeTrainArray index access.
+
+        By default, this method is bound to SpikeTrainArray.loc
+        """
+        return self.loc[idx]
 
     @property
     def isempty(self):

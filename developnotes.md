@@ -25,7 +25,7 @@ Then we can import nelpy and nelpydev alongside each other, using (by convention
     >>> import nelpy as nel
     >>> import nelpy.plotting as npl
     >>> import nelpydev as neld
-    >>> impoer nelpydev.plotting as npld
+    >>> import nelpydev.plotting as npld
 
 Submitting a release to PyPi
 ============================

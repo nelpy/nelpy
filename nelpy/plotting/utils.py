@@ -26,6 +26,7 @@ import matplotlib as mpl
 from matplotlib import cm
 from matplotlib import colors as mplcolors
 from matplotlib import cbook
+import matplotlib.gridspec as gridspec
 from matplotlib.image import AxesImage
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
@@ -38,7 +39,8 @@ from . import palettes
 from distutils.version import LooseVersion
 mpl_ge_150 = LooseVersion(mpl.__version__) >= "1.5.0"
 
-__all__ = ['align_xlabels',
+__all__ = ['add_colorbar',
+           'align_xlabels',
            'align_ylabels',
            'annotate',
            'clear_bottom',
@@ -59,6 +61,7 @@ __all__ = ['align_xlabels',
            'set_scientific',
            'set_xlabel_coords',
            'set_ylabel_coords',
+           'suptitle',
            'sync_xlims',
            'sync_ylims',
            'xticks_interval',
@@ -66,18 +69,19 @@ __all__ = ['align_xlabels',
            'get_color_cycle',
            'FigureManager']
 
-def add_colorbar(ax=None, ):
+def add_colorbar(img, ax=None):
     """
     TODO: get keywords from **kwargs, i.e. if they're there, then use
     them, but if not, then don't. This should go for orientation, etc.
     Some others might have good defaults, so use them!
-    TODO this function is barbones for now
+    TODO this function is barebones for now
     """
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.15)
     cb=plt.colorbar(img, cax=cax, orientation="vertical")
-    cb.set_label('probability', labelpad=-10)
-    cb.set_ticks([0,1])
+    # cb.set_label('probability', labelpad=-10)
+    # cb.set_ticks([0,1])
+    return cb
 
 class FigureManager(object):
     """Figure context manager.
@@ -135,12 +139,26 @@ class FigureManager(object):
 
     def __enter__(self):
         if not self.skip:
-            self.fig, self.ax = plt.subplots(nrows=self.nrows,
-                                             ncols=self.ncols,
-                                             figsize=self.figsize,
-                                             tight_layout=self.tight_layout,
-                                             dpi=self.dpi,
-                                             **self.kwargs)
+            self.fig = plt.figure(figsize=self.figsize,
+                                  dpi=self.dpi,
+                                  **self.kwargs)
+            self.fig.npl_gs = gridspec.GridSpec(nrows=self.nrows,
+                                                ncols=self.ncols)
+
+            self.ax = np.array([self.fig.add_subplot(ss) for ss in self.fig.npl_gs])
+            # self.fig, self.ax = plt.subplots(nrows=self.nrows,
+            #                                  ncols=self.ncols,
+            #                                  figsize=self.figsize,
+            #                                  tight_layout=self.tight_layout,
+            #                                  dpi=self.dpi,
+            #                                  **self.kwargs)
+            if len(self.ax) == 1:
+                self.ax = self.ax[0]
+
+            if self.tight_layout:
+                self.fig.npl_gs.tight_layout(self.fig)
+
+            # gs1.tight_layout(fig, rect=[0, 0.03, 1, 0.95])
             if self.fig != plt.gcf():
                 self.clear()
                 raise RuntimeError('Figure does not match active mpl figure')
@@ -171,6 +189,25 @@ class FigureManager(object):
         plt.close(self.fig)
         del self.ax
         del self.fig
+
+def suptitle(t, gs=None, rect=(0, 0, 1, 0.95), **kwargs):
+    """Add a suptitle to a figure with an embedded gridspec.
+
+    rect is in figure coords (0,0) bottom left, and more specifically
+        in (x1, y1, x2, y2) with (x1, y1) bottom left, and (x2, y2) top
+        right
+
+    see https://matplotlib.org/users/tight_layout_guide.html
+    """
+    fig = plt.gcf()
+    if gs is None:
+        try:
+            gs = fig.npl_gs
+        except AttributeError:
+            raise AttributeError("nelpy suptitle requires an embedded gridspec! Use the nelpy FigureManager.")
+
+    fig.suptitle(t, **kwargs)
+    gs.tight_layout(fig, rect=rect)
 
 def skip_if_no_output(fig):
     if fig == -1:

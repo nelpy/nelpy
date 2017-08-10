@@ -1,6 +1,7 @@
 """This module contains helper functions and utilities for nelpy."""
 
 __all__ = ['spatial_information',
+           'frange',
            'swap_cols',
            'swap_rows',
            'pairwise',
@@ -23,17 +24,38 @@ import copy
 from . import core # so that core.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 
+# def sub2ind(array_shape, rows, cols):
+#     ind = rows*array_shape[1] + cols
+#     ind[ind < 0] = -1
+#     ind[ind >= array_shape[0]*array_shape[1]] = -1
+#     return ind
+
+# def ind2sub(array_shape, ind):
+#     # see also np.unravel_index(ind, array.shape)
+#     ind[ind < 0] = -1
+#     ind[ind >= array_shape[0]*array_shape[1]] = -1
+#     rows = (ind.astype('int') / array_shape[1])
+#     cols = ind % array_shape[1]
+#     return (rows, cols)
+
+def frange(start, stop, step):
+    """arange with floating point step"""
+    # TODO: this function is not very general; we can extend it to work
+    # for reverse (stop < start), empty, and default args, etc.
+    num_steps = np.floor((stop-start)/step)
+    return np.linspace(start, stop, num=num_steps, endpoint=False)
+
 def spatial_information(occupancy, ratemap):
         """Compute the spatial information and firing sparsity...
 
         The specificity index examines the amount of information
         (in bits) that a single spike conveys about the animal's
-        location (i.e., how well cell firing redicts the animals
+        location (i.e., how well cell firing predicts the animal's
         location).The spatial information content of cell discharge was
         calculated using the formula:
             information content = \Sum P_i(R_i/R)log_2(R_i/R)
-        where i is the bin number, P, is the probability for occupancy
-        of bin i, R, is the mean firing rate for bin i, and R is the
+        where i is the bin number, P_i, is the probability for occupancy
+        of bin i, R_i, is the mean firing rate for bin i, and R is the
         overall mean firing rate.
 
         In order to account for the effects of low firing rates (with
@@ -77,9 +99,18 @@ def spatial_information(occupancy, ratemap):
         ratemap[ratemap < bkg_rate] = bkg_rate
 
         Pi = occupancy / np.sum(occupancy)
-        R = ratemap.mean(axis=1) # mean firing rate
-        Ri = ratemap.T
-        si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
+        if len(ratemap.shape) == 3:
+            # we have 2D tuning curve, (n_units, n_x, n_y)
+            R = ratemap.mean(axis=1).mean(axis=1) # mean firing rate
+            Ri = np.transpose(ratemap, (2,1,0))
+            si = np.sum(np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1), axis=1)
+        elif len(ratemap.shape) == 2:
+            # we have 1D tuning curve, (n_units, n_x)
+            R = ratemap.mean(axis=1) # mean firing rate
+            Ri = ratemap.T
+            si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
+        else:
+            raise TypeError("rate map shape not supported / understood!")
 
         return si
 
@@ -88,12 +119,12 @@ def spatial_sparsity(occupancy, ratemap):
 
         The specificity index examines the amount of information
         (in bits) that a single spike conveys about the animal's
-        location (i.e., how well cell firing redicts the animals
+        location (i.e., how well cell firing predicts the animal's
         location).The spatial information content of cell discharge was
         calculated using the formula:
             information content = \Sum P_i(R_i/R)log_2(R_i/R)
-        where i is the bin number, P, is the probability for occupancy
-        of bin i, R, is the mean firing rate for bin i, and R is the
+        where i is the bin number, P_i, is the probability for occupancy
+        of bin i, R_i, is the mean firing rate for bin i, and R is the
         overall mean firing rate.
 
         In order to account for the effects of low firing rates (with
@@ -131,9 +162,19 @@ def spatial_sparsity(occupancy, ratemap):
         """
 
         Pi = occupancy / np.sum(occupancy)
-        R = ratemap.mean(axis=1) # mean firing rate
-        Ri = ratemap.T
-        sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
+        if len(ratemap.shape) == 3:
+            # we have 2D tuning curve, (n_units, n_x, n_y)
+            R = ratemap.mean(axis=1).mean(axis=1) # mean firing rate
+            Ri = ratemap
+            sparsity = np.sum(np.sum((Ri*Pi), axis=1), axis=1)/(R**2)
+        elif len(ratemap.shape) == 2:
+            # we have 1D tuning curve, (n_units, n_x)
+            R = ratemap.mean(axis=1) # mean firing rate
+            Ri = ratemap.T
+            sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
+        else:
+            raise TypeError("rate map shape not supported / understood!")
+
         return sparsity
 
 def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
@@ -340,7 +381,7 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
     mua_bounds_idx, maxes, _ = get_events_boundaries(
         x = mua.ydata,
         PrimaryThreshold = PrimaryThreshold,
-        SecondaryThreshold = mua.mean(),
+        SecondaryThreshold = SecondaryThreshold,
         minThresholdLength = minThresholdLength,
         minLength = minLength,
         maxLength = maxLength,
@@ -420,6 +461,25 @@ def get_contiguous_segments(data, step=None, fs=None, sort=False, in_memory=True
 
     return np.asarray(bdries)
 
+class PrettyBytes(int):
+    """Prints number of bytes in a more readable format"""
+
+    def __init__(self, val):
+        self.val = val
+
+    def __str__(self):
+        if self.val < 1024:
+            return '{} bytes'.format(self.val)
+        elif self.val < 1024**2:
+            return '{:.3f} kilobytes'.format(self.val/1024)
+        elif self.val < 1024**3:
+            return '{:.3f} megabytes'.format(self.val/1024**2)
+        elif self.val < 1024**4:
+            return '{:.3f} gigabytes'.format(self.val/1024**3)
+
+    def __repr__(self):
+        return self.__str__()
+
 class PrettyInt(int):
     """Prints integers in a more readable format"""
 
@@ -453,7 +513,7 @@ class PrettyDuration(float):
         pos = seconds >= 0
         if not pos:
             seconds = -seconds
-        ms = seconds % 1; ms = round(ms*1000)
+        ms = seconds % 1; ms = round(ms*10000)/10
         seconds = floor(seconds)
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
@@ -880,12 +940,28 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
         sigma = 0.05 # 50 ms default
 
     out = copy.deepcopy(asa)
-
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
+
+    if asa.n_signals == 2:
+        out._ydata = out._ydata[[0],:]
 
     # now obtain the derivative for each epoch separately
     for idx in range(asa.n_epochs):
-        out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+        # if 1D:
+        if asa.n_signals == 1:
+            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+                # only single sample
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+            else:
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+        elif asa.n_signals == 2:
+            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+                # only single sample
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+            else:
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
+        else:
+            raise TypeError("more than 2D position not currently supported!")
 
     out._ydata = out._ydata * fs
 

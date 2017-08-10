@@ -11,10 +11,12 @@ from sys import float_info
 from collections import namedtuple
 
 from ..utils import is_sorted, \
-                   get_contiguous_segments, \
-                   PrettyDuration, \
-                   PrettyInt, \
-                   gaussian_filter
+                    frange, \
+                    get_contiguous_segments, \
+                    PrettyDuration, \
+                    PrettyBytes, \
+                    PrettyInt, \
+                    gaussian_filter
 
 from ._epocharray import EpochArray
 
@@ -277,6 +279,25 @@ class AnalogSignalArray:
             warnings.warn("estimated fs and provided fs differ by more than 1%")
 
     @property
+    def signals(self):
+        """Returns a list of AnalogSignalArrays, each array containing
+        a single signal (channel).
+
+        WARNING: this method creates a copy of each signal, so is not
+        particularly efficient at this time.
+
+        Example
+        =======
+        >>> for channel in lfp.signals:
+            print(channel)
+        """
+        signals = []
+        for ii in range(self.n_signals):
+            signals.append(self[:,ii])
+        return signals
+        # return np.asanyarray(signals).squeeze()
+
+    @property
     def isreal(self):
         """Returns True if entire signal is real."""
         return np.all(np.isreal(self._ydata))
@@ -324,6 +345,15 @@ class AnalogSignalArray:
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for *: 'AnalogSignalArray' and '{}'".format(str(type(other))))
+
+    def __add__(self, other):
+        """overloaded + operator."""
+        if isinstance(other, numbers.Number):
+            newasa = copy.copy(self)
+            newasa._ydata = self._ydata + other
+            return newasa
+        else:
+            raise TypeError("unsupported operand type(s) for +: 'AnalogSignalArray' and '{}'".format(str(type(other))))
 
     def __sub__(self, other):
         """overloaded - operator."""
@@ -566,6 +596,11 @@ class AnalogSignalArray:
             return len(self._ydata) == 0
         except TypeError: #TypeError should happen if _ydata = []
             return True
+
+    @property
+    def n_bytes(self):
+        """Approximate number of bytes taken up by object."""
+        return PrettyBytes(self.ydata.nbytes + self.time.nbytes)
 
     @property
     def n_epochs(self):
@@ -926,6 +961,12 @@ class AnalogSignalArray:
         xyarray = XYArray(xvals=np.asanyarray(at), yvals=np.asanyarray(out).squeeze())
         return xyarray
 
+    def subsample(self, *, fs):
+        """Returns an AnalogSignalArray where the ydata has been
+        subsampled to a new rate of fs.
+        """
+        return self.simplify(ds=1/fs)
+
     def simplify(self, *, ds=None, n_points=None):
         """Returns an AnalogSignalArray where the ydata has been
         simplified / subsampled.
@@ -974,9 +1015,7 @@ class AnalogSignalArray:
         # build list of points at which to evaluate the AnalogSignalArray
         at = []
         for start, stop in self.support.time:
-            newxvals = np.arange(start, stop, step=ds).tolist()
-            if newxvals[-1] + float_info.epsilon < stop:
-                newxvals.append(stop)
+            newxvals = frange(start, stop, step=ds).tolist()
             at.extend(newxvals)
 
         _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
@@ -992,6 +1031,7 @@ class AnalogSignalArray:
                 exec("asa." + attr + " = self." + attr)
         asa._time = np.asanyarray(at)
         asa._ydata = yvals
+        asa._fs = 1/ds
 
         return asa
 

@@ -18,7 +18,7 @@ from .decoding import *
 from .miscplot import *
 from .rcmod import *
 from .scalebar import add_scalebar, add_simple_scalebar
-from .utils import FigureManager
+from .utils import FigureManager, suptitle, savefig
 from . import colors
 from . import utils
 

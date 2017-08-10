@@ -3,8 +3,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
+from matplotlib.collections import LineCollection
 import warnings
 import itertools
+
 
 from scipy import signal
 
@@ -14,7 +16,8 @@ from . import utils  # import plotting/utils
 from .. import auxiliary
 
 __all__ = ['plot',
-
+           'plot2d',
+           'colorline',
            'plot_tuning_curves1D',
            'psdplot',
            'overviewstrip',
@@ -24,7 +27,32 @@ __all__ = ['plot',
            'rasterplot',
            'rastercountplot']
 
-def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True):
+def colorline(x, y, cmap=None, cm_range=(0, 0.7), **kwargs):
+    """Colorline plots a trajectory of (x,y) points with a colormap"""
+
+    assert len(cm_range)==2, "cm_range must have (min, max)"
+    assert len(x) == len(y), "x and y must have the same number of elements!"
+
+    ax = kwargs.get('ax', plt.gca())
+    lw = kwargs.get('lw', 2)
+    if cmap is None:
+        cmap=plt.cm.Blues_r
+
+    t = np.linspace(cm_range[0], cm_range[1], len(x))
+
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+    lc = LineCollection(segments, cmap=cmap, norm=plt.Normalize(0, 1),
+                        zorder=50)
+    lc.set_array(t)
+    lc.set_linewidth(lw)
+
+    ax.add_collection(lc)
+
+    return lc
+
+def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None):
     """
     WARNING! This function is not complete, and hence 'private',
     and may be moved somewhere else later on.
@@ -64,7 +92,10 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
         xmax = xvals[-1]
 
     for unit, curve in enumerate(ratemap):
-        line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit))
+        if color is None:
+            line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit))
+        else:
+            line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit), color=color)
         if fill:
             # Get the color from the current curve
             fillcolor = line[0].get_color()
@@ -419,6 +450,48 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
 
     return ax
 
+def plot2d(npl_obj, data=None, *, ax=None, mew=None, color=None,
+         mec=None, markerfacecolor=None, **kwargs):
+    """
+    THIS SHOULD BE UPDATED! VERY ELEMENTARY AT THIS STAGE
+    """
+
+    if ax is None:
+        ax = plt.gca()
+    if mec is None:
+        mec = color
+    if markerfacecolor is None:
+        markerfacecolor = 'w'
+
+    if (isinstance(npl_obj, np.ndarray)):
+        ax.plot(npl_obj, mec=mec, markerfacecolor=markerfacecolor, **kwargs)
+
+    #TODO: better solution for this? we could just iterate over the epochs and
+    #plot them but that might take up too much time since a copy is being made
+    #each iteration?
+    if(isinstance(npl_obj, AnalogSignalArray)):
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for segment in npl_obj:
+                if color is not None:
+                    ax.plot(segment[:,0]._ydata_colsig,
+                            segment[:,1]._ydata_colsig,
+                            color=color,
+                            mec=mec,
+                            markerfacecolor='w',
+                            **kwargs
+                            )
+                else:
+                    ax.plot(segment[:,0]._ydata_colsig,
+                            segment[:,1]._ydata_colsig,
+                            # color=color,
+                            mec=mec,
+                            markerfacecolor='w',
+                            **kwargs
+                            )
+    return ax
+
 def imshow(data, *, ax=None, interpolation=None, **kwargs):
     """Docstring goes here."""
 
@@ -664,6 +737,7 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
     if ax is None:
         ax = plt.gca()
     ymin, ymax = ax.get_ylim()
+    xmin, xmax = ax.get_xlim()
     if height is None:
         height = ymax - ymin
 
@@ -688,7 +762,12 @@ def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
                 **kwargs
             )
         )
-    ax.set_xlim([epochs.start, epochs.stop])
+
+    if epochs.start < xmin:
+        xmin = epochs.start
+    if epochs.stop > xmax:
+        xmax = epochs.stop
+    ax.set_xlim([xmin, xmax])
 
     if hc is not None:
         try:

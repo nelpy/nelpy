@@ -186,6 +186,7 @@ class PoissonHMM(PHMM):
             List of states in transmat order.
         """
 
+        # unless specified, start in the a priori most probable state
         if start_state is None:
             start_state = np.argmax(self.startprob_)
 
@@ -193,11 +194,13 @@ class PoissonHMM(PHMM):
         num_states = self.transmat_.shape[0]
         rem_states = np.arange(0,start_state).tolist()
         rem_states.extend(np.arange(start_state+1,num_states).tolist())
-        cs = start_state
+        cs = start_state # current state
 
-        for ii in np.arange(0,num_states-1):
+        for ii in np.arange(0, num_states-1):
+            # find largest transition to set of remaining states
             nstilde = np.argmax(self.transmat_[cs,rem_states])
             ns = rem_states[nstilde]
+            # remove selected state from list of remaining states
             rem_states.remove(ns)
             cs = ns
             new_order.append(cs)
@@ -229,7 +232,7 @@ class PoissonHMM(PHMM):
         """Prior distribution over states, (n_components,)."""
         return self.startprob_
 
-    def get_state_order(self, method=None):
+    def get_state_order(self, method=None, start_state=None):
         """return a state ordering, optionally using augmented data.
 
         method \in ['transmat' (default), 'mode', 'mean']
@@ -245,7 +248,7 @@ class PoissonHMM(PHMM):
         neworder = []
 
         if method == 'transmat':
-            return self._get_order_from_transmat()
+            return self._get_order_from_transmat(start_state=start_state)
         elif method == 'mode':
             if self._extern_ is not None:
                 neworder = self._extern_.argmax(axis=1).argsort()
@@ -699,9 +702,84 @@ class PoissonHMM(PHMM):
         """Learn a mapping from the internal state space, to an external
         augmented space (e.g. position).
 
+        Returns a row-normalized version of (n_states, n_ext), that
+        is, a distribution over external bins for each state.
+
         X : BinnedSpikeTrainArray
 
-        ext : array-lke
+        ext : array-like
+            array of external correlates (n_bins, )
+        n_extern : int
+            number of extern variables, with range 0,.. n_extern-1
+
+        save : bool
+            stores extern in PoissonHMM if true, discards it if not
+
+        self.extern_ of size (n_components, n_extern)
+        """
+
+        ext_map = np.arange(n_extern)
+        if n_extern is None:
+            n_extern = len(unique(ext))
+            for ii, ele in enumerate(unique(ext)):
+                ext_map[ele] = ii
+
+        # idea: here, ext can be anything, and n_extern should be range
+        # we can e.g., define extern correlates {leftrun, rightrun} and
+        # fit the mapping. This is not expexted to be good at all for
+        # most states, but it could allow us to identify a state or two
+        # for which there *might* be a strong predictive relationship.
+        # In this way, the binning, etc. should be done external to this
+        # function, but it might still make sense to encapsulate it as
+        # a helper function inside PoissonHMM?
+
+        # xpos, ypos = get_position(exp_data['session1']['posdf'], bst.centers)
+        # x0=0; xl=100; n_extern=50
+        # xx_left = np.linspace(x0,xl,n_extern+1)
+        # xx_mid = np.linspace(x0,xl,n_extern+1)[:-1]; xx_mid += (xx_mid[1]-xx_mid[0])/2
+        # ext = np.digitize(xpos, xx_left) - 1 # spatial bin numbers
+
+        extern = np.zeros((self.n_components, n_extern))
+
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            if w is not None:
+                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+            posteriors = self.predict_proba(X=X, lengths=lengths, w=w)
+        else:
+            # we have a BinnedSpikeTrainArray
+            posteriors = self.predict_proba(X=X, lengths=lengths, w=w)
+
+        posteriors = np.vstack(posteriors.T)  # 1D array of states, of length n_bins
+
+        if len(posteriors) != len(ext):
+            raise ValueError("ext must have same length as decoded state sequence!")
+
+        for ii, posterior in enumerate(posteriors):
+            if not np.isnan(ext[ii]):
+                extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
+
+        # normalize extern tuning curves:
+        rowsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
+        rowsum = np.where(np.isclose(rowsum, 0), 1, rowsum)
+        extern = extern/rowsum
+
+        if save:
+            self._extern_ = extern
+            # self._extern_map = ext_map
+
+        return extern
+
+    def fit_ext2(self, X, ext, n_extern=None, lengths=None, w=None):
+        """Learn a mapping from the internal state space, to an external
+        augmented space (e.g. position).
+
+        Returns a column-normalized version of (n_states, n_ext), that
+        is, a distribution over states for each extern bin.
+
+        X : BinnedSpikeTrainArray
+
+        ext : array-like
             array of external correlates (n_bins, )
         n_extern : int
             number of extern variables, with range 0,.. n_extern-1
@@ -753,19 +831,24 @@ class PoissonHMM(PHMM):
                 extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
 
         # normalize extern tuning curves:
-        colsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
+        colsum = np.tile(extern.sum(axis=0), (self.n_components, 1))
+        colsum = np.where(np.isclose(colsum, 0), 1, colsum)
         extern = extern/colsum
-
-        if save:
-            self._extern_ = extern
-            # self._extern_map = ext_map
 
         return extern
 
-    def decode_ext(self, X, lengths=None, algorithm=None, w=None):
+    def decode_ext(self, X, lengths=None, algorithm=None, w=None, ext_shape=None):
         """Find most likely state sequence corresponding to ``X``, and
         then map those states to an associated external representation
         (e.g. position).
+
+        WARNING! #TODO: This only works for 1D; otherwise the expected
+        path should be computed slightly differently. A workaround is to
+        create a virtual tuning curve using the HMM, and then to use
+        decoding.decode2D with that virtual tuning curve, where units
+        then become states. However, state (and similarly, unit-)
+        reordering then becomes a potential issue, since units have
+        persistent IDs, whereas states do not.
 
         Parameters
         ----------
@@ -803,6 +886,9 @@ class PoissonHMM(PHMM):
 
         _, n_extern = self._extern_.shape
 
+        if ext_shape is None:
+            ext_shape = (n_extern)
+
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             raise NotImplementedError("not implemented yet.")
@@ -811,11 +897,39 @@ class PoissonHMM(PHMM):
         else:
             # we have a BinnedSpikeTrainArray
             pass
-        state_posteriors, lengths = self.predict_proba(X=X, lengths=lengths, w=w, returnLengths=True)
-        fixy = np.mean(self._extern_ * np.arange(n_extern), axis=1)
-        mean_pth = np.sum(state_posteriors.T*fixy, axis=1) # range 0 to 1
-        ext_posteriors = np.dot((self._extern_ * np.arange(n_extern)).T, state_posteriors)
-        mode_pth = np.argmax(ext_posteriors, axis=0)/n_extern # range 0 to n_extern
+        if len(ext_shape) == 1:
+            # do old style decoding
+            # TODO: this can be improved to be like the 2D case!
+            state_posteriors, lengths = self.predict_proba(X=X, lengths=lengths, w=w, returnLengths=True)
+            fixy = np.mean(self._extern_ * np.arange(n_extern), axis=1)
+            mean_pth = np.sum(state_posteriors.T*fixy, axis=1) # range 0 to 1
+            ext_posteriors = np.dot((self._extern_ * np.arange(n_extern)).T, state_posteriors)
+            mode_pth = np.argmax(ext_posteriors, axis=0)/n_extern # range 0 to n_extern
+        elif len(ext_shape) == 2:
+            ext_posteriors = np.zeros((ext_shape[0], ext_shape[1], X.n_bins))
+            # get posterior distribution over states, of size (num_States, n_extern)
+            state_posteriors, lengths = self.predict_proba(X=X, lengths=lengths, w=w, returnLengths=True)
+            # for each bin, compute the distribution in the external domain
+            for bb in range(X.n_bins):
+                ext_posteriors[:,:,bb] = np.reshape((self._extern_*state_posteriors[:,[bb]]).sum(axis=0), ext_shape)
+            # now compute mean and mode paths
+            expected_x = np.sum((ext_posteriors.sum(axis=1)*np.atleast_2d(np.linspace(0,1, ext_shape[0])).T), axis=0)
+            expected_y = np.sum((ext_posteriors.sum(axis=0)*np.atleast_2d(np.linspace(0,1, ext_shape[1])).T), axis=0)
+            mean_pth = np.vstack((expected_x, expected_y))
+
+            mode_pth = np.zeros((2, X.n_bins))
+            for tt in range(X.n_bins):
+                if np.any(np.isnan(ext_posteriors[:,:,tt])):
+                    mode_pth[0,tt] = np.nan
+                    mode_pth[0,tt] = np.nan
+                else:
+                    x_, y_ = np.unravel_index(np.argmax(ext_posteriors[:,:,tt]), (ext_shape[0], ext_shape[1]))
+                    mode_pth[0,tt] = x_/ext_shape[0]
+                    mode_pth[1,tt] = y_/ext_shape[1]
+
+            ext_posteriors = np.transpose(ext_posteriors, axes=[1,0,2])
+        else:
+            raise TypeError("shape not currently supported!")
 
         bdries = np.cumsum(lengths)
 

@@ -38,7 +38,7 @@ setup(
     download_url = 'https://github.com/eackermann/nelpy/tarball/' + main_ns['__version__'],
     license='MIT License',
     author='Etienne Ackermann, Emily Irvine',
-    install_requires=['numpy>=1.9.0',
+    install_requires=['numpy>=1.11.0', # 1.11 introduced axis keyword in np.gradient
                     'scipy>=0.17.0', # 0.17.0 introduced functionality we use for interp1d
                     'matplotlib>=1.5.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
                     # 'shapely>=1.6'

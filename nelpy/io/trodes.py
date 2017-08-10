@@ -167,36 +167,3 @@ def load_dio_dat(filepath):
     #x = np.fromfile(f, dtype=dt)
     print("Done loading all data!")
     return np.asarray(np.fromfile(f, dtype=[('time',np.uint32), ('dio',np.uint8)]))
-
-def load_dat(filepath):
-    """Loads timestamps and unfiltered data from Trodes .dat files. These
-    files are saved directly from Trodes. This function should _not_ be 
-    used after exportLFP or exportDIO functions given in the Trodes repo
-    have been run. This function is for loading .dat files that are saved
-    instead of .rec files. This is generally done when the recording is 
-    wireless and saved on an SD card. 
-    """
-
-    raise DeprecationWarning("This should not fall under 'trodes', and is not much of a function yet")
-
-    numChannels = 128
-    headerSize = 10
-    timestampSize = 4
-    channelSize = numChannels*2
-    packetSize = headerSize + timestampSize + channelSize
-
-    timestamp = []
-    chdata = []
-
-    with open(filepath, 'rb') as fileobj:
-        for packet in iter(lambda: fileobj.read(packetSize),''):
-            ii += 1
-            if packet:
-                ts = struct.unpack('<I', packet[headerSize:headerSize+timestampSize])[0]
-                timestamps.append(ts)
-                ch = struct.unpack('<h', packet[headerSize+timestampSize:headerSize+timestampSize+2])[0]
-                chdata.append(ch)
-            else:
-                break
-            if ii > 1000000:
-                break
