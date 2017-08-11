@@ -103,12 +103,14 @@ class EpochArray:
             try:
                 # if no time were received, return an empty EpochArray:
                 if len(time) == 0:
-                    return EpochArray(empty=True)
+                    self.__init__(empty=True)
+                    return
             except TypeError:
                 warnings.warn("unsupported type ("
                     + str(type(time))
                     + "); creating empty EpochArray")
-                return EpochArray(empty=True)
+                self.__init__(empty=True)
+                return
 
             # Only one epoch is given eg EpochArray([3,5,6,10]) with no
             # duration and more than two values:
