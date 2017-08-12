@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-# from setuptools.command.test import test as TestCommand
 import io
 
 from distutils.util import convert_path
@@ -20,24 +19,13 @@ def read(*filenames, **kwargs):
 
 long_description = read('README.rst')
 
-# class PyTest(TestCommand):
-#     def finalize_options(self):
-#         TestCommand.finalize_options(self)
-#         self.test_args = []
-#         self.test_suite = True
-
-#     def run_tests(self):
-#         import pytest
-#         errcode = pytest.main(self.test_args)
-#         sys.exit(errcode)
-
 setup(
     name='nelpy',
     version=main_ns['__version__'],
-    url='https://github.com/eackermann/nelpy/',
-    download_url = 'https://github.com/eackermann/nelpy/tarball/' + main_ns['__version__'],
+    url='https://github.com/nelpy/nelpy/',
+    download_url = 'https://github.com/nelpy/nelpy/tarball/' + main_ns['__version__'],
     license='MIT License',
-    author='Etienne Ackermann, Emily Irvine',
+    author='Etienne Ackermann',
     install_requires=['numpy>=1.11.0', # 1.11 introduced axis keyword in np.gradient
                     'scipy>=0.17.0', # 0.17.0 introduced functionality we use for interp1d
                     'matplotlib>=1.5.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
@@ -51,3 +39,13 @@ setup(
     include_package_data=True,
     platforms='any'
 )
+
+# @misc{Ackermann2017,
+#         author = {Etienne Ackermann},
+#         title = {nelpy},
+#         year = {2017},
+#         publisher = {GitHub},
+#         journal = {GitHub repository},
+#         howpublished = {\url{https://github.com/nelpy/nelpy}},
+#         commit = {enter commit that you used}
+# }
