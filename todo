@@ -1,32 +1,3 @@
-(1) windowed
-(2) extern_fit
-(3) posterior overlay
-(4) score decomposition
-(5) kourosh time resolved
-(6) virtual tuning curves using PBEs, Bayesian and HMM
-
-[ ] windowed decoding of HMMs?
-    - decode
-    - predict_proba
-    - predict
-    - score_samples
-    - score
-    - fit
-    - fit_ext
-    - decode_ext
-    - Should just have a private helper function for this inside PoissonHMM
-[ ] adjust firing rate when decoding PBEs
-[ ] memoryless time swap
-    - mode evaluation
-    - posterior evaluation
-[ ] event boundary determination (trimming)
-[ ] event comparison across all modalities
-[ ] session aggregation
-[ ] ...
-
-[ ] log prob with MAP decoding seems weird... Shoulnd't log prob P(Y_1:T)
-    be independent of decoding algorithm anyway?
-
 [ ] pomegranate (at leat YAHMM) was [very] slow for me; but it still seems
     like a really nice package, with a clear goal, and super nice flexibility
     e.g. mixtures of HMMs, which would be awesome for hippocampal work.
@@ -45,33 +16,3 @@
 Read and re-interpret https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2722652/
 and https://users.soe.ucsc.edu/~karplus/papers/nullmod.pdf
 
-Q. Kourosh's surrogate model suggests a transposed transmat A is used?
-Q. Kourosh does no windowed decoding?
-Q. How can surrogate models lead to any variation PER BIN when only the
-   transmat is shuffled, and when decoding is MEMORYLESS?
-Q. percentiles seem to be relaxed to ge rather than gt, but first and
-   6th example bins do not seem to be consistent (might just be that
-   we don't have the resolution here,...)
-
-* integrate unimodal into nelpy
-* psth, isi, fano-factor, ... (easy and not important)
-
-* rename decoding to ML
-* singletons in EpochArray
-
-[5] HMM error decoding comparison
-
-[9] Owls nest
-[10] CRCNS Berkeley
-
-
-Fulbright
-Steve
-CRCNS
-Visa
-Freedom
-Scottrade
-Bricklink
----------
-HMM log prob shuffles x 2
-Sessions aggregation ( and analysis specifications)
