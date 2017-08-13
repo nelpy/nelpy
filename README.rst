@@ -45,6 +45,35 @@ Do something:
     >>> npl.raster(st) # plots the spike raster
 
 
+As a more representative example of what nelpy can be used for, consider the estimation of
+place fields (spatial tuning curves) from a spike train recorded in CA1 of a male Long-Evans rat.
+
+Estimating the place fields can be a complicated task, and roughly involves the following steps (not in a strict numerical order):
+
+1. assume we have position data and spike data available
+2. linearize the environment (and position data), if desired
+3. estimate the running velocity from the position data
+4. smooth the velocity estimates, since numerical differentiation is inherently noisy (and our measurements are imprecise)
+5. identify epochs where the animal was running, and where the animal was resting
+6. count the number of spikes from each unit, in each spatial bin of the environment, during run behavior
+7. determine how long the animal spent in each spatial bin (while running)
+8. estimate a firing rate within each spatial bin, by normalizing the number of observed spikes by the time spent in that spatial bin
+9. visualize the estimated tuning curves, and evaluate how well the tuning curves can be used to decode the animal's position
+10. ...
+
+Nelpy makes it easy to do all of the above, to interact with the ephys data, and to visualize the results.
+
+.. class:: no-web
+
+    .. image:: https://raw.githubusercontent.com/nelpy/nelpy/develop/.placefields.png
+        :alt: nelpy-promo-pic
+        :width: 100%
+        :align: center
+
+Nelpy makes it easy to interact with the ephys data, but also to do the actual analysis.
+
+To see the full code that was used to generate these figures, take a look at the `linear track example analysis <https://github.com/nelpy/example-analyses/linear-track>`_.
+
 Getting started
 ===============
 The best way to get started with using ``nelpy`` is probably to take a look at
@@ -60,15 +89,15 @@ The easiest way to install nelpy is to use ``pip``. From the terminal, run:
 
 .. code-block:: bash
 
-    pip install nelpy
+    $ pip install nelpy
 
 Alternatively, you can install the latest version of nelpy by running the following commands:
 
 .. code-block:: bash
 
-    git clone https://github.com/nelpy/nelpy.git
-    cd nelpy
-    python setup.py [install, develop]
+    $ git clone https://github.com/nelpy/nelpy.git
+    $ cd nelpy
+    $ python setup.py [install, develop]
 
 where the ``develop`` argument should be used if you want to modify the code.
 
