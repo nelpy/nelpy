@@ -72,7 +72,7 @@ Nelpy makes it easy to do all of the above, to interact with the ephys data, and
 
 Nelpy makes it easy to interact with the ephys data, but also to do the actual analysis.
 
-To see the full code that was used to generate these figures, take a look at the `linear track example analysis <https://github.com/nelpy/example-analyses/linear-track>`_.
+To see the full code that was used to generate these figures, take a look at the `linear track example analysis <https://github.com/nelpy/example-analyses/LinearTrackDemo.ipynb>`_.
 
 Getting started
 ===============
