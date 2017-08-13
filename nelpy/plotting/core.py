@@ -30,6 +30,9 @@ __all__ = ['plot',
 def colorline(x, y, cmap=None, cm_range=(0, 0.7), **kwargs):
     """Colorline plots a trajectory of (x,y) points with a colormap"""
 
+    # plt.plot(x, y, '-k', zorder=1)
+    # plt.scatter(x, y, s=40, c=plt.cm.RdBu(np.linspace(0,1,40)), zorder=2, edgecolor='k')
+
     assert len(cm_range)==2, "cm_range must have (min, max)"
     assert len(x) == len(y), "x and y must have the same number of elements!"
 
@@ -552,15 +555,21 @@ def overviewstrip():
     """
     raise NotImplementedError("overviewstripplot() not implemented yet")
 
-def rastercountplot(spiketrain, nbins=25, **kwargs):
-    fig = plt.figure(figsize=(12, 4))
+def rastercountplot(spiketrain, nbins=50, **kwargs):
+    fig = plt.figure(figsize=(14, 6))
     gs = gridspec.GridSpec(2, 1, hspace=0.01, height_ratios=[0.2,0.8])
     ax1 = plt.subplot(gs[0])
     ax2 = plt.subplot(gs[1])
 
+    color = kwargs.get('color', None)
+    if color is None:
+        color = '0.4'
+
     ds = (spiketrain.support.stop - spiketrain.support.start)/nbins
-    steps = np.squeeze(spiketrain.bin(ds=ds).flatten().data)
-    stepsx = np.linspace(spiketrain.support.start, spiketrain.support.stop, num=nbins)
+    flattened = spiketrain.bin(ds=ds).flatten()
+    steps = np.squeeze(flattened.data)
+    stepsx = np.linspace(spiketrain.support.start, spiketrain.support.stop, num=flattened.n_bins)
+
 #     ax1.plot(stepsx, steps, drawstyle='steps-mid', color='none');
     ax1.set_ylim([-0.5, np.max(steps)+1])
     rasterplot(spiketrain, ax=ax2, **kwargs)
@@ -569,7 +578,7 @@ def rastercountplot(spiketrain, nbins=25, **kwargs):
     utils.clear_top_bottom(ax1)
     utils.clear_top(ax2)
 
-    ax1.fill_between(stepsx, steps, step='mid', color='0.4')
+    ax1.fill_between(stepsx, steps, step='mid', color=color)
 
     utils.sync_xlims(ax1, ax2)
 

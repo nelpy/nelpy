@@ -113,6 +113,9 @@ class ItemGetter_loc(object):
             unit_idx_list = list(unit_idx_list)
         out = copy.copy(self.obj)
         out._time = out._time[unit_idx_list]
+        singleunit = len(out._time)==1
+        if singleunit:
+            out._time = np.array(out._time[0], ndmin=2)
         out._unit_ids = list(np.atleast_1d(np.atleast_1d(out._unit_ids)[unit_idx_list]))
         out._unit_labels = list(np.atleast_1d(np.atleast_1d(out._unit_labels)[unit_idx_list]))
         # TODO: update tags
@@ -149,6 +152,9 @@ class ItemGetter_iloc(object):
         if isinstance(unitslice, int):
             unitslice = [unitslice]
         out._time = out._time[unitslice]
+        singleunit = len(out._time)==1
+        if singleunit:
+            out._time = np.array(out._time[0], ndmin=2)
         out._unit_ids = list(np.atleast_1d(np.atleast_1d(out._unit_ids)[unitslice]))
         out._unit_labels = list(np.atleast_1d(np.atleast_1d(out._unit_labels)[unitslice]))
         # TODO: update tags

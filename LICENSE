@@ -1,7 +1,7 @@
 Nelpy license
 =============
 
-Copyright (c) 2015-2016, contributors
+Copyright (c) 2015-2017, contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -40,5 +40,6 @@ Nelpy relies on several open source libraries:
 
 Contributors
 ============
-- Etienne Ackermann (nelpy)
-- Emily Irvine (python-vdmlab)
+- Etienne Ackermann
+- Joshua Chu
+- Shayok Dutta

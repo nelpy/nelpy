@@ -103,12 +103,14 @@ class EpochArray:
             try:
                 # if no time were received, return an empty EpochArray:
                 if len(time) == 0:
-                    return EpochArray(empty=True)
+                    self.__init__(empty=True)
+                    return
             except TypeError:
                 warnings.warn("unsupported type ("
                     + str(type(time))
                     + "); creating empty EpochArray")
-                return EpochArray(empty=True)
+                self.__init__(empty=True)
+                return
 
             # Only one epoch is given eg EpochArray([3,5,6,10]) with no
             # duration and more than two values:
@@ -384,12 +386,13 @@ class EpochArray:
         if not self.issorted:
             self._sort()
         # check that EpochArray is entirely contained within domain
-        if (self.start < domain.start) or (self.stop > domain.stop):
-            raise ValueError("EpochArray must be entirely contained within domain")
+        # if (self.start < domain.start) or (self.stop > domain.stop):
+        #     raise ValueError("EpochArray must be entirely contained within domain")
+
         # check that EpochArray is fully merged, or merge it if necessary
         merged = self.merge()
         # build complement intervals
-        starts = np.insert(merged.stops,0 , domain.start)
+        starts = np.insert(merged.stops, 0 , domain.start)
         stops = np.append(merged.starts, domain.stop)
         newtimes = np.vstack([starts, stops]).T
         # remove intervals with zero duration
