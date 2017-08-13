@@ -556,10 +556,14 @@ def overviewstrip():
     raise NotImplementedError("overviewstripplot() not implemented yet")
 
 def rastercountplot(spiketrain, nbins=50, **kwargs):
-    fig = plt.figure(figsize=(12, 4))
+    fig = plt.figure(figsize=(14, 6))
     gs = gridspec.GridSpec(2, 1, hspace=0.01, height_ratios=[0.2,0.8])
     ax1 = plt.subplot(gs[0])
     ax2 = plt.subplot(gs[1])
+
+    color = kwargs.get('color', None)
+    if color is None:
+        color = '0.4'
 
     ds = (spiketrain.support.stop - spiketrain.support.start)/nbins
     flattened = spiketrain.bin(ds=ds).flatten()
@@ -574,7 +578,7 @@ def rastercountplot(spiketrain, nbins=50, **kwargs):
     utils.clear_top_bottom(ax1)
     utils.clear_top(ax2)
 
-    ax1.fill_between(stepsx, steps, step='mid', color='0.4')
+    ax1.fill_between(stepsx, steps, step='mid', color=color)
 
     utils.sync_xlims(ax1, ax2)
 
