@@ -46,9 +46,9 @@ Do something:
 
 
 As a more representative example of what nelpy can be used for, consider the estimation of
-place fields (spatial tuning curves) from a spike train recorded in CA1 of a male Long-Evans rat.
+place fields (spatial tuning curves) of CA1 units while an animal runs on a linear track.
 
-Estimating the place fields can be a complicated task, and roughly involves the following steps (not in a strict numerical order):
+Estimating the place fields can be a complicated affair, and roughly involves the following steps:
 
 1. assume we have position data and spike data available
 2. linearize the environment (and position data), if desired
@@ -61,8 +61,6 @@ Estimating the place fields can be a complicated task, and roughly involves the 
 9. visualize the estimated tuning curves, and evaluate how well the tuning curves can be used to decode the animal's position
 10. ...
 
-Nelpy makes it easy to do all of the above, to interact with the ephys data, and to visualize the results.
-
 .. class:: no-web
 
     .. image:: https://raw.githubusercontent.com/nelpy/nelpy/develop/.placefields.png
@@ -70,9 +68,9 @@ Nelpy makes it easy to do all of the above, to interact with the ephys data, and
         :width: 100%
         :align: center
 
-Nelpy makes it easy to interact with the ephys data, but also to do the actual analysis.
+Nelpy makes it easy to do all of the above, to interact with the ephys data, and to visualize the results.
 
-To see the full code that was used to generate these figures, take a look at the `linear track example analysis <https://github.com/nelpy/example-analyses/LinearTrackDemo.ipynb>`_.
+To see the full code that was used to generate the figures above, take a look at the `linear track example analysis <https://github.com/nelpy/example-analyses/LinearTrackDemo.ipynb>`_.
 
 Getting started
 ===============
