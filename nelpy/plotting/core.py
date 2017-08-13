@@ -30,6 +30,9 @@ __all__ = ['plot',
 def colorline(x, y, cmap=None, cm_range=(0, 0.7), **kwargs):
     """Colorline plots a trajectory of (x,y) points with a colormap"""
 
+    # plt.plot(x, y, '-k', zorder=1)
+    # plt.scatter(x, y, s=40, c=plt.cm.RdBu(np.linspace(0,1,40)), zorder=2, edgecolor='k')
+
     assert len(cm_range)==2, "cm_range must have (min, max)"
     assert len(x) == len(y), "x and y must have the same number of elements!"
 

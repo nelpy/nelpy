@@ -36,13 +36,44 @@ Do something:
 
 .. code-block:: python
 
-    st.n_spikes
+    print(st.n_spikes) # print out how many spikes there are in st
     5
+    print(st.supportn_spikes) # print out the underlying EpochArray on which st is defined
+    <EpochArray at 0x1d4812c7550: 1 epoch> of duration 9 seconds
+
+Getting started
+===============
+The best way to get started with using ``nelpy`` is probably to take a look at
+the `tutorials <https://github.com/nelpy/nelpy/tutorials>`_ and
+`example analyses <https://github.com/nelpy/nelpy/example-analyses>`_.
+
+The tutorials are still pretty bare-bones, but will hopefully be expanded soon!
+
+Installation
+============
+
+The easiest way to install nelpy is to use ``pip``. From the terminal, run:
+
+.. code-block:: bash
+
+    pip install nelpy
+
+Alternatively, you can install the latest version of nelpy by running the following commands:
+
+.. code-block:: bash
+
+    git clone https://github.com/nelpy/nelpy.git
+    cd nelpy
+    python setup.py [install, develop]
+
+where the ``develop`` argument should be used if you want to modify the code.
+
+A weak prerequisite for installing nelpy is a modified version of `hmmlearn <https://github.com/ckemere/hmmlearn/tree/master/hmmlearn>`_. This requirement is weak, in the sense that installation will complete successfully without it, and most of nelpy can also be used without any problems. However, as soon as any of the hidden Markov model (HMM) functions are used, you will get an error if the correct version of ``hmmlearn`` is not installed. To make things easier, there is a handy 64-bit Windows wheel in the `hmmlearn directory <https://github.com/nelpy/nelpy/blob/master/hmmlearn/>`_ of this repository. Installation on Linux/Unix should be almost trivial.
 
 Related work and inspiration
 ============================
-Nelpy drew heavy inspiration from the ``python-vdmlab`` package from the
-van der Meer lab at Dartmouth College (https://github.com/vandermeerlab),
+Nelpy drew heavy inspiration from the ``python-vdmlab`` package (renamed to ``nept``)
+from the van der Meer lab at Dartmouth College (https://github.com/vandermeerlab),
 which was created by Emily Irvine (https://github.com/emirvine). It is
 also inspired by the neuralensemble.org NEO project (http://neo.readthedocs.io).
 
@@ -67,34 +98,15 @@ ripple detection, Bayesian decoding, and so on. In short, nelpy is more than jus
 an object model, but the nelpy core is designed to be a flexible, readable, yet
 powerful object model for neuroelectrophysiology.
 
-Installation
-============
-
-The easiest way to install nelpy is to use ``pip``. From the terminal, run:
-
-.. code-block:: bash
-
-    pip install nelpy
-
-Alternatively, you can install the latest version of nelpy by running the following commands:
-
-.. code-block:: bash
-
-    git clone https://github.com/eackermann/nelpy.git
-    cd nelpy
-    python setup.py [install, develop]
-
-where the ``develop`` argument should be used if you want to modify the code.
-
-A weak prerequisite for installing nelpy is a modified version of `hmmlearn <https://github.com/ckemere/hmmlearn/tree/master/hmmlearn>`_. This requirement is weak, in the sense that installation will complete successfully without it, and most of nelpy can also be used without any problems. However, as soon as any of the hidden Markov model (HMM) functions are used, you will get an error if the correct version of ``hmmlearn`` is not installed. To make things easier, there is a handy 64-bit Windows wheel in the `hmmlearn directory <https://github.com/eackermann/nelpy/blob/master/hmmlearn/>`_ of this repository. Installation on Linux/Unix should be almost trivial.
-
 Where
 =====
 
 ===================   ========================================================
  download             https://pypi.python.org/pypi/nelpy
+ tutorials            https://github.com/nelpy/nelpy/tutorials
+ example analyses     https://github.com/nelpy/nelpy/example-analyses
  docs                 coming soon!
- code                 https://github.com/eackermann/nelpy
+ code                 https://github.com/nelpy/nelpy
 ===================   ========================================================
 
 License
