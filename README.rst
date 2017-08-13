@@ -2,6 +2,9 @@
 Nelpy
 =====
 
+.. image:: .placefields.png
+   :width: 40pt
+
 Neuroelectrophysiology object model, data exploration, and analysis in Python.
 
 Overview
