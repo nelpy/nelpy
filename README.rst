@@ -27,19 +27,21 @@ Let's give it a try. Create a ``SpikeTrainArray``:
 
 .. code-block:: python
 
-    import nelpy as nel  # main nelpy imports
-    import nelpy.plotting as npl  # optional plotting imports
-    spike_times = np.array([1, 2, 4, 5, 10])
-    st = nel.SpikeTrainArray(spike_times)
+    >>> import nelpy as nel  # main nelpy imports
+    >>> import nelpy.plotting as npl  # optional plotting imports
+    >>> spike_times = np.array([1, 2, 4, 5, 10])
+    >>> st = nel.SpikeTrainArray(spike_times)
 
 Do something:
 
-.. code-block:: python
+.. code-block:: bash
 
-    print(st.n_spikes) # print out how many spikes there are in st
+    >>> print(st.n_spikes) # print out how many spikes there are in st
     5
-    print(st.supportn_spikes) # print out the underlying EpochArray on which st is defined
+    >>> print(st.supportn_spikes) # print out the underlying EpochArray on which st is defined
     <EpochArray at 0x1d4812c7550: 1 epoch> of duration 9 seconds
+    >>> npl.raster(st) # plots the spike raster
+
 
 Getting started
 ===============
