@@ -70,7 +70,7 @@ Estimating the place fields can be a complicated affair, and roughly involves th
 
 Nelpy makes it easy to do all of the above, to interact with the ephys data, and to visualize the results.
 
-To see the full code that was used to generate the figures above, take a look at the `linear track example analysis <https://github.com/nelpy/example-analyses/LinearTrackDemo.ipynb>`_.
+To see the full code that was used to generate the figures above, take a look at the `linear track example analysis <https://github.com/nelpy/example-analyses/blob/master/LinearTrackDemo.ipynb>`_.
 
 Getting started
 ===============
