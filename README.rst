@@ -44,8 +44,8 @@ Do something:
 Getting started
 ===============
 The best way to get started with using ``nelpy`` is probably to take a look at
-the `tutorials <https://github.com/nelpy/nelpy/tutorials>`_ and
-`example analyses <https://github.com/nelpy/nelpy/example-analyses>`_.
+the `tutorials <https://github.com/nelpy/tutorials>`_ and
+`example analyses <https://github.com/nelpy/example-analyses>`_.
 
 The tutorials are still pretty bare-bones, but will hopefully be expanded soon!
 
@@ -112,4 +112,4 @@ Where
 License
 =======
 
-Nelpy is distributed under the MIT license. See the `LICENSE <https://github.com/eackermann/nelpy/blob/master/LICENSE>`_ file for details.
+Nelpy is distributed under the MIT license. See the `LICENSE <https://github.com/nelpy/nelpy/blob/master/LICENSE>`_ file for details.
