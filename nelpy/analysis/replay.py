@@ -390,7 +390,7 @@ def score_hmm_transmat_shuffle(bst, hmm, n_shuffles=250, normalize=False):
 
 def score_hmm_timeswap_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     """Score sequences using a hidden Markov model, and a model where
-    the transition probability matrix has been shuffled.BaseException
+    the transition probability matrix has been shuffled.
 
     Parameters
     ----------
@@ -423,6 +423,100 @@ def score_hmm_timeswap_shuffle(bst, hmm, n_shuffles=250, normalize=False):
                                            normalize=normalize)
 
     return scores, shuffled
+
+def score_hmm_incoherent_shuffle(bst, hmm, n_shuffles=250, normalize=False):
+    """Docstring goes here.
+
+    Returns
+    -------
+    scores : array of size (n_events,)
+    shuffled : array of size (n_shuffles, n_events)
+    """
+    raise NotImplementedError
+
+    scores = score_hmm_logprob(bst=bst,
+                               hmm=hmm,
+                               normalize=normalize)
+    n_events = bst.n_epochs
+    shuffled = np.zeros((n_shuffles, n_events))
+    for ii in range(n_shuffles):
+        bst_shuffled = time_swap_bst(bst=bst)
+        shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
+                                           hmm=hmm,
+                                           normalize=normalize)
+
+    return scores, shuffled
+
+def score_hmm_poisson_shuffle(bst, hmm, n_shuffles=250, normalize=False):
+    """Docstring goes here.
+
+    Returns
+    -------
+    scores : array of size (n_events,)
+    shuffled : array of size (n_shuffles, n_events)
+    """
+    raise NotImplementedError
+
+    scores = score_hmm_logprob(bst=bst,
+                               hmm=hmm,
+                               normalize=normalize)
+    n_events = bst.n_epochs
+    shuffled = np.zeros((n_shuffles, n_events))
+    for ii in range(n_shuffles):
+        bst_shuffled = time_swap_bst(bst=bst)
+        shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
+                                           hmm=hmm,
+                                           normalize=normalize)
+
+    return scores, shuffled
+
+def score_hmm_spike_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
+    """Docstring goes here.
+
+    Returns
+    -------
+    scores : array of size (n_events,)
+    shuffled : array of size (n_shuffles, n_events)
+    """
+    raise NotImplementedError
+
+    scores = score_hmm_logprob(bst=bst,
+                               hmm=hmm,
+                               normalize=normalize)
+    n_events = bst.n_epochs
+    shuffled = np.zeros((n_shuffles, n_events))
+    for ii in range(n_shuffles):
+        bst_shuffled = time_swap_bst(bst=bst)
+        shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
+                                           hmm=hmm,
+                                           normalize=normalize)
+
+    return scores, shuffled
+
+def score_hmm_unit_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
+    """Docstring goes here.
+
+    Returns
+    -------
+    scores : array of size (n_events,)
+    shuffled : array of size (n_shuffles, n_events)
+    """
+
+    raise NotImplementedError
+
+    scores = score_hmm_logprob(bst=bst,
+                               hmm=hmm,
+                               normalize=normalize)
+    n_events = bst.n_epochs
+    shuffled = np.zeros((n_shuffles, n_events))
+    for ii in range(n_shuffles):
+        bst_shuffled = time_swap_bst(bst=bst)
+        shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
+                                           hmm=hmm,
+                                           normalize=normalize)
+
+    return scores, shuffled
+
 
 def get_significant_events(scores, shuffled_scores, q=95):
     """Return the significant events based on percentiles.

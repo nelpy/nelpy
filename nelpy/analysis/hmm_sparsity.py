@@ -12,7 +12,7 @@ from .ergodic import steady_state
 class HMMSurrogate():
 
     def __init__(self, *, kind, st, num_states=None, ds=None, test_size=None,
-                 random_state=None, verbose=False, description=''):
+                 random_state=None, verbose=False, description='', PBE_idx=None):
         """
 
         WARNING!!! All the shuffle methods currently operate directly on PBEs_train,
@@ -32,6 +32,8 @@ class HMMSurrogate():
             Proportion of data to use as test data. Default is 0.2 (=20 %)
         random_state: int, optional
             Random seed for numpy, default is 1
+        PBE_idx: tuple of lists , optional
+            (PBE_trainidx, PBE_testidx)
         """
 
         if kind == 'actual':
@@ -55,9 +57,10 @@ class HMMSurrogate():
             ds = 0.02 # 20 ms bin size
         if test_size is None:
             test_size = 0.2
-        if random_state is None:
-            random_state = 1
+        if random_state is not None:
+            np.random.seed(random_state)
 
+        self._random_state = random_state
         self._st = st
         self._num_states = num_states
         self._ds = ds
@@ -67,9 +70,7 @@ class HMMSurrogate():
         self.label = kind
         self.description = description
 
-        np.random.seed(self._random_state)
-
-        self._preprocess()
+        self._preprocess(PBE_idx=PBE_idx)
         self.hmm = PoissonHMM(n_components=self._num_states, random_state=self._random_state, verbose=self._verbose)
 
         self.results = defaultdict(list)
@@ -177,7 +178,7 @@ class HMMSurrogate():
     def score_spectrum(self):
         pass
 
-    def _preprocess_PBEs(self):
+    def _preprocess_PBEs(self, PBE_idx=None):
         """used for most types of shuffles"""
         # compute PBEs
         self.PBEs = self._st.bin(ds=self._ds)
@@ -185,8 +186,14 @@ class HMMSurrogate():
         if self.PBEs.n_epochs == 1:
             raise ValueError("spike train is continuous, and does not have more than one event!")
 
-        # split into train and test data
-        self._trainidx, self._testidx = train_test_split(np.arange(self.PBEs.n_epochs), test_size=self._test_size, random_state=self._random_state)
+        if PBE_idx is not None:
+            self._trainidx, self._testidx = PBE_idx # tuple unpacking
+        else:
+            # split into train and test data
+            if self._random_state is not None:
+                self._trainidx, self._testidx = train_test_split(np.arange(self.PBEs.n_epochs), test_size=self._test_size, random_state=self._random_state)
+            else:
+                self._trainidx, self._testidx = train_test_split(np.arange(self.PBEs.n_epochs), test_size=self._test_size, random_state=1)
 
         self._trainidx.sort()
         self._testidx.sort()
@@ -200,11 +207,10 @@ class HMMSurrogate():
         self._preprocess_PBEs()
         self._st_flat = self._st.flatten().time.squeeze()
 
-    def _preprocess(self):
+    def _preprocess(self, PBE_idx=None):
+        self._preprocess_PBEs(PBE_idx=PBE_idx)
         if self.label == 'spike_id':
             self._preprocess_STs()
-        else:
-            self._preprocess_PBEs()
 
     def fit(self):
         self.hmm = PoissonHMM(n_components=self._num_states, verbose=self._verbose)
@@ -215,6 +221,13 @@ class HMMSurrogate():
         # re-order states of hmm
         transmat_order = self.hmm.get_state_order('transmat')
         self.hmm.reorder_states(transmat_order)
+
+    def score_loglikelihood(self):
+        # record log-likelihood on both train and validation sets after fitting model:
+        train_LL = np.array(self.hmm.score(self.PBEs_train)).sum() # one scalar for each sequence in training set
+        test_LL = np.array(self.hmm.score(self.PBEs_test)).sum() # one scalar for each sequence in training set
+        self.results['loglikelihood_train'].append(train_LL)
+        self.results['loglikelihood_test'].append(test_LL)
 
     def _gini(self, array):
         """Calculate the Gini coefficient of a numpy array."""
@@ -239,7 +252,7 @@ class HMMSurrogate():
         # Gini coefficient:
         return ((np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array)))
 
-    def _do_nothing(self):
+    def _do_nothing(self, kind='train'):
         """Do nothing to the data."""
         pass
 
@@ -375,7 +388,6 @@ class HMMSurrogate():
         else:
             raise ValueError("kind '{}' not understood!".format(kind))
 
-        np.random.seed(self._random_state)
         out = copy.deepcopy(bst) # should this be deep?
         data = out._data
         edges = np.insert(np.cumsum(bst.lengths),0,0)

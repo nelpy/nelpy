@@ -183,8 +183,7 @@ class TuningCurve2D:
             sparsity (in percent) for each unit
         """
 
-        return utils.spatial_information(occupancy=self.occupancy,
-                                         ratemap=self.ratemap)
+        return utils.spatial_information(ratemap=self.ratemap)
 
     def spatial_sparsity(self):
         """Compute the spatial information and firing sparsity...
@@ -229,8 +228,39 @@ class TuningCurve2D:
         sparsity: array of shape (n_units,)
             sparsity (in percent) for each unit
         """
-        return utils.spatial_sparsity(occupancy=self.occupancy,
-                                      ratemap=self.ratemap)
+        return utils.spatial_sparsity(ratemap=self.ratemap)
+
+    def __add__(self, other):
+        out = copy.copy(self)
+
+        if isinstance(other, numbers.Number):
+            out._ratemap = out.ratemap + other
+        elif isinstance(other, TuningCurve2D):
+            # TODO: this should merge two TuningCurve2D objects
+            raise NotImplementedError
+        else:
+            raise TypeError("unsupported operand type(s) for +: 'TuningCurve2D' and '{}'".format(str(type(other))))
+        return out
+
+    def __sub__(self, other):
+        out = copy.copy(self)
+        out._ratemap = out.ratemap - other
+        return out
+
+    def __mul__(self, other):
+        """overloaded * operator."""
+        out = copy.copy(self)
+        out._ratemap = out.ratemap * other
+        return out
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __truediv__(self, other):
+        """overloaded / operator."""
+        out = copy.copy(self)
+        out._ratemap = out.ratemap / other
+        return out
 
     def _init_from_ratemap(self, ratemap, occupancy=None, ext_xmin=0,
                            ext_xmax=1, ext_ymin=0, ext_ymax=1,
@@ -760,8 +790,7 @@ class TuningCurve1D:
 
         # sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
 
-        return utils.spatial_information(occupancy=self.occupancy,
-                                         ratemap=self.ratemap)
+        return utils.spatial_information(ratemap=self.ratemap)
 
     def spatial_sparsity(self):
         """Compute the spatial information and firing sparsity...
@@ -806,8 +835,7 @@ class TuningCurve1D:
         sparsity: array of shape (n_units,)
             sparsity (in percent) for each unit
         """
-        return utils.spatial_sparsity(occupancy=self.occupancy,
-                                      ratemap=self.ratemap)
+        return utils.spatial_sparsity(ratemap=self.ratemap)
 
     def _init_from_ratemap(self, ratemap, occupancy=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None):
         """Initialize a TuningCurve1D object from a ratemap.
