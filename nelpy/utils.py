@@ -45,7 +45,7 @@ def frange(start, stop, step):
     num_steps = np.floor((stop-start)/step)
     return np.linspace(start, stop, num=num_steps, endpoint=False)
 
-def spatial_information(occupancy, ratemap):
+def spatial_information(ratemap):
         """Compute the spatial information and firing sparsity...
 
         The specificity index examines the amount of information
@@ -98,7 +98,10 @@ def spatial_information(occupancy, ratemap):
         bkg_rate = ratemap[ratemap>0].min()
         ratemap[ratemap < bkg_rate] = bkg_rate
 
-        Pi = occupancy / np.sum(occupancy)
+        number_of_spatial_bins = np.prod(ratemap.shape[1:])
+        weight_per_bin = 1/number_of_spatial_bins
+        Pi = 1
+
         if len(ratemap.shape) == 3:
             # we have 2D tuning curve, (n_units, n_x, n_y)
             R = ratemap.mean(axis=1).mean(axis=1) # mean firing rate
@@ -112,9 +115,9 @@ def spatial_information(occupancy, ratemap):
         else:
             raise TypeError("rate map shape not supported / understood!")
 
-        return si
+        return si/number_of_spatial_bins
 
-def spatial_sparsity(occupancy, ratemap):
+def spatial_sparsity(ratemap):
         """Compute the firing sparsity...
 
         The specificity index examines the amount of information
@@ -161,7 +164,10 @@ def spatial_sparsity(occupancy, ratemap):
             sparsity (in percent) for each unit
         """
 
-        Pi = occupancy / np.sum(occupancy)
+        number_of_spatial_bins = np.prod(ratemap.shape[1:])
+        weight_per_bin = 1/number_of_spatial_bins
+        Pi = 1
+
         if len(ratemap.shape) == 3:
             # we have 2D tuning curve, (n_units, n_x, n_y)
             R = ratemap.mean(axis=1).mean(axis=1) # mean firing rate
@@ -175,7 +181,7 @@ def spatial_sparsity(occupancy, ratemap):
         else:
             raise TypeError("rate map shape not supported / understood!")
 
-        return sparsity
+        return sparsity/number_of_spatial_bins
 
 def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     """Compute the multiunit activity (MUA) from a spike train.

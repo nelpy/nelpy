@@ -617,7 +617,7 @@ class PoissonHMM(PHMM):
 
         Returns
         -------
-        logprob : float
+        logprob : float, or list of floats
             Log likelihood of ``X``; one scalar for each sequence in X.
 
         See Also
