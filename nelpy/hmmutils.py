@@ -902,10 +902,14 @@ class PoissonHMM(PHMM):
             # do old style decoding
             # TODO: this can be improved to be like the 2D case!
             state_posteriors, lengths = self.predict_proba(X=X, lengths=lengths, w=w, returnLengths=True)
-            fixy = np.mean(self._extern_ * np.arange(n_extern), axis=1)
-            mean_pth = np.sum(state_posteriors.T*fixy, axis=1) # range 0 to 1
+            # fixy = np.mean(self._extern_ * np.arange(n_extern), axis=1)
+            # mean_pth = np.sum(state_posteriors.T*fixy, axis=1) # range 0 to 1
             ext_posteriors = np.dot((self._extern_ * np.arange(n_extern)).T, state_posteriors)
+            # normalize ext_posterior distributions:
+            ext_posteriors = ext_posteriors / ext_posteriors.sum(axis=0)
+            mean_pth = (ext_posteriors.T*np.atleast_2d(np.linspace(0,1, n_extern))).sum(axis=1)
             mode_pth = np.argmax(ext_posteriors, axis=0)/n_extern # range 0 to n_extern
+
         elif len(ext_shape) == 2:
             ext_posteriors = np.zeros((ext_shape[0], ext_shape[1], X.n_bins))
             # get posterior distribution over states, of size (num_States, n_extern)
