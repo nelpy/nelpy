@@ -15,6 +15,8 @@ import copy
 import numpy as np
 
 from scipy import stats
+
+from ..core import SpikeTrainArray
 from .. import auxiliary
 from ..decoding import decode1D as decode
 from ..decoding import get_mode_pth_from_array, get_mean_pth_from_array
@@ -123,6 +125,86 @@ def time_swap_bst(bst):
         shuffled[edges[ii]:edges[ii+1]] = np.random.permutation(segment)
 
     out._data = out._data[:,shuffled]
+
+    return out
+
+def incoherent_shuffle_bst(bst):
+    """Incoherent shuffle on BinnedSpikeTrainArray, swapping only within each epoch."""
+    out = copy.deepcopy(bst) # should this be deep? YES! Oh my goodness, yes!
+    data = out._data
+    edges = np.insert(np.cumsum(bst.lengths),0,0)
+
+    for uu in range(bst.n_units):
+        for ii in range(bst.n_epochs):
+            segment = np.squeeze(data[uu, edges[ii]:edges[ii+1]])
+            segment = np.roll(segment, np.random.randint(len(segment)))
+            data[uu, edges[ii]:edges[ii+1]] = segment
+
+    return out
+
+def poisson_surrogate_bst(bst):
+    """Create a Poisson surrogate of BinnedSpikeTrainArray."""
+    firing_rates = bst.n_spikes / bst.support.duration # firing rates in Hz
+
+    spikes = []
+
+    for rate in firing_rates:
+        unit_spikes = []
+        for start, stop in bst.support.time:
+            evt_duration = stop - start
+            n_evt_spikes = np.random.poisson(rate * evt_duration)
+            spike_times = start + np.random.uniform(0, evt_duration, n_evt_spikes)
+            unit_spikes.extend(spike_times)
+
+        spikes.append(unit_spikes)
+
+    support = bst.support.expand(bst.ds/2, direction='stop')
+    poisson_st = SpikeTrainArray(timestamps=spikes, support=support)
+
+    out = poisson_st.bin(ds=bst.ds)
+    # out = out[bst.support]
+
+    return out
+
+def spike_id_shuffle_bst(bst, st_flat):
+    """Create a spike ID shuffled surrogate of BinnedSpikeTrainArray."""
+    all_spiketimes = st_flat.time.squeeze()
+    spike_ids = np.zeros(len(all_spiketimes))
+
+    n_spikes = np.ones(bst.n_units)* np.floor(st_flat.n_spikes[0] / bst.n_units)
+
+    pointer = 0
+    for uu, n_spikes in enumerate(n_spikes):
+        spike_ids[pointer:pointer+int(n_spikes)] = uu
+        pointer += int(n_spikes)
+
+    # permute spike IDs
+    spike_ids = np.random.permutation(spike_ids)
+
+    # now re-assign all spike times according to sampling above
+    spikes = []
+    for unit in range(bst.n_units):
+        spikes.append(all_spiketimes[spike_ids==unit])
+
+    support = bst.support.expand(bst.ds/2, direction='stop')
+    shuffled_st = SpikeTrainArray(timestamps=spikes, support=support)
+
+    out = shuffled_st.bin(ds=bst.ds)
+    # out = out[bst.support]
+
+    return out
+
+def unit_id_shuffle_bst(bst):
+    """Create a unit ID shuffled surrogate of BinnedSpikeTrainArray."""
+    out = copy.deepcopy(bst) # should this be deep?
+    data = out._data
+    edges = np.insert(np.cumsum(bst.lengths),0,0)
+
+    unit_list = np.arange(bst.n_units)
+
+    for ii in range(bst.n_epochs):
+        segment = data[:, edges[ii]:edges[ii+1]]
+        out._data[:, edges[ii]:edges[ii+1]] = segment[np.random.permutation(unit_list)]
 
     return out
 
@@ -432,7 +514,6 @@ def score_hmm_incoherent_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     scores : array of size (n_events,)
     shuffled : array of size (n_shuffles, n_events)
     """
-    raise NotImplementedError
 
     scores = score_hmm_logprob(bst=bst,
                                hmm=hmm,
@@ -440,7 +521,7 @@ def score_hmm_incoherent_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     n_events = bst.n_epochs
     shuffled = np.zeros((n_shuffles, n_events))
     for ii in range(n_shuffles):
-        bst_shuffled = time_swap_bst(bst=bst)
+        bst_shuffled = incoherent_shuffle_bst(bst=bst)
         shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
                                            hmm=hmm,
                                            normalize=normalize)
@@ -455,7 +536,6 @@ def score_hmm_poisson_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     scores : array of size (n_events,)
     shuffled : array of size (n_shuffles, n_events)
     """
-    raise NotImplementedError
 
     scores = score_hmm_logprob(bst=bst,
                                hmm=hmm,
@@ -463,14 +543,14 @@ def score_hmm_poisson_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     n_events = bst.n_epochs
     shuffled = np.zeros((n_shuffles, n_events))
     for ii in range(n_shuffles):
-        bst_shuffled = time_swap_bst(bst=bst)
+        bst_shuffled = poisson_surrogate_bst(bst=bst)
         shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
                                            hmm=hmm,
                                            normalize=normalize)
 
     return scores, shuffled
 
-def score_hmm_spike_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
+def score_hmm_spike_id_shuffle(bst, hmm, st_flat, n_shuffles=250, normalize=False):
     """Docstring goes here.
 
     Returns
@@ -478,7 +558,6 @@ def score_hmm_spike_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     scores : array of size (n_events,)
     shuffled : array of size (n_shuffles, n_events)
     """
-    raise NotImplementedError
 
     scores = score_hmm_logprob(bst=bst,
                                hmm=hmm,
@@ -486,7 +565,7 @@ def score_hmm_spike_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     n_events = bst.n_epochs
     shuffled = np.zeros((n_shuffles, n_events))
     for ii in range(n_shuffles):
-        bst_shuffled = time_swap_bst(bst=bst)
+        bst_shuffled = spike_id_shuffle_bst(bst=bst, st_flat=st_flat)
         shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
                                            hmm=hmm,
                                            normalize=normalize)
@@ -502,15 +581,13 @@ def score_hmm_unit_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     shuffled : array of size (n_shuffles, n_events)
     """
 
-    raise NotImplementedError
-
     scores = score_hmm_logprob(bst=bst,
                                hmm=hmm,
                                normalize=normalize)
     n_events = bst.n_epochs
     shuffled = np.zeros((n_shuffles, n_events))
     for ii in range(n_shuffles):
-        bst_shuffled = time_swap_bst(bst=bst)
+        bst_shuffled = unit_id_shuffle_bst(bst=bst)
         shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
                                            hmm=hmm,
                                            normalize=normalize)
