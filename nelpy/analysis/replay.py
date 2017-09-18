@@ -405,6 +405,32 @@ def shuffle_transmat(transmat):
 
     return shuffled
 
+def shuffle_transmat_Kourosh_breaks_stochasticity(transmat):
+    """Shuffle transition probability matrix within each column, leaving self transitions in tact.
+
+    It is assumed that the transmat is stochastic-row-wise, meaning that A_{ij} = Pr(S_{t+1}=j|S_t=i).
+
+    Parameters
+    ----------
+    transmat : array of size (n_states, n_states)
+        Transition probability matrix, where A_{ij} = Pr(S_{t+1}=j|S_t=i).
+
+    Returns
+    -------
+    shuffled : array of size (n_states, n_states)
+        Shuffled transition probability matrix.
+    """
+    shuffled = transmat.copy()
+
+    nrows, ncols = transmat.shape
+    for colidx in range(ncols):
+        all_but_diagonal = np.append(np.arange(colidx), np.arange(colidx+1, nrows))
+        shuffle_idx = np.random.permutation(all_but_diagonal)
+        shuffle_idx = np.insert(shuffle_idx, colidx, colidx)
+        shuffled[:, colidx] = shuffled[shuffle_idx, colidx]
+
+    return shuffled
+
 def score_hmm_logprob(bst, hmm, normalize=False):
     """Score events in a BinnedSpikeTrainArray by computing the log
     probability under the model.
