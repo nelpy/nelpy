@@ -224,10 +224,14 @@ class HMMSurrogate():
 
     def score_loglikelihood(self):
         # record log-likelihood on both train and validation sets after fitting model:
-        train_LL = np.array(self.hmm.score(self.PBEs_train)).sum() # one scalar for each sequence in training set
-        test_LL = np.array(self.hmm.score(self.PBEs_test)).sum() # one scalar for each sequence in training set
-        self.results['loglikelihood_train'].append(train_LL)
-        self.results['loglikelihood_test'].append(test_LL)
+
+        # train_LL = np.array(self.hmm.score(self.PBEs_train)).sum() # one scalar for each sequence in training set
+        # test_LL = np.array(self.hmm.score(self.PBEs_test)).sum() # one scalar for each sequence in training set
+        train_LL = self.hmm.score(self.PBEs_train) # one scalar for each sequence in training set
+        test_LL = self.hmm.score(self.PBEs_test) # one scalar for each sequence in training set
+
+        self.results['loglikelihood_train'].extend(train_LL)
+        self.results['loglikelihood_test'].extend(test_LL)
 
     def _gini(self, array):
         """Calculate the Gini coefficient of a numpy array."""
