@@ -551,8 +551,9 @@ class PoissonHMM(PHMM):
         state_sequence : array, shape (n_samples, )
             State sequence produced by the model.
         """
-        raise NotImplementedError(
-            "PoissonHMM.sample() has not been implemented yet.")
+        return self._sample(self, n_samples=n_samples, random_state=random_state)
+        # raise NotImplementedError(
+        #     "PoissonHMM.sample() has not been implemented yet.")
 
     def score_samples(self, X, lengths=None, w=None):
         """Compute the log probability under the model and compute posteriors.
