@@ -585,7 +585,7 @@ def rastercountplot(spiketrain, nbins=50, **kwargs):
     return ax1, ax2
 
 def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
-           vertstack=None, labels=None, **kwargs):
+           vertstack=None, labels=None, cmap_lo=0.25, cmap_hi=0.75, **kwargs):
     """Make a raster plot from a SpikeTrainArray object.
 
     Parameters
@@ -711,7 +711,7 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
         if cmap is not None:
             color_range = range(data.n_units)
             # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
-            colors = cmap(np.linspace(0.25, 0.75, data.n_units))
+            colors = cmap(np.linspace(cmap_lo, cmap_hi, data.n_units))
             for unit, spiketrain, color_idx in zip(unitlist, data.time, color_range):
                 ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[color_idx], lw=lw, **kwargs)
         else:  # use a constant color:
