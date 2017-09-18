@@ -78,19 +78,24 @@ def get_num_electrodes(sessiondir):
         raise ValueError('number of electrodes (shanks) could not be established...')
 
 #datatype = ['spikes', 'eeg', 'pos', '?']
-def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessiontime='11-26-53', datatype='spikes', channels='all', fs=32552,starttime=0, ctx=None, verbose=False, includeUnsortedSpikes=False):
+def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessiontime='11-26-53', track=None, datatype='spikes', channels='all', fs=32552,starttime=0, ctx=None, verbose=False, includeUnsortedSpikes=False):
 
     fileroot = os.path.normpath(fileroot)
-    anim_prefix = "{}-{}-{}".format(animal,month,day)
-    session_prefix = "{}-{}-{}_{}".format(year,month,day,sessiontime)
-    sessiondir = "{}/{}/{}".format(fileroot, anim_prefix, session_prefix)
+    if track is None:
+        anim_prefix = "{}-{}-{}".format(animal,month,day)
+        session_prefix = "{}-{}-{}_{}".format(year,month,day,sessiontime)
+        sessiondir = "{}/{}/{}".format(fileroot, anim_prefix, session_prefix)
+    else:
+        anim_prefix = "{}".format(animal)
+        session_prefix = "{}-{}-{}_{}".format(year,month,str(day).zfill(2),sessiontime)
+        sessiondir = "{}/{}/{}/{}".format(fileroot, anim_prefix, track, session_prefix) # track can be 'one', 'two', or 'sleep'
 
     if (datatype=='spikes'):
         # NOTE: st_array[0] always corresponds to unsortable spikes (not mechanical noise). However, when includeUnsortedSpikes==True, then it gets populated
         #       with spike times; else, it just remains an empty list []
 
         #filename = "{}/{}/{}/{}.clu.1".format(fileroot, anim_prefix, session_prefix, session_prefix)
-        filename = "{}/{}/{}/{}".format(fileroot, anim_prefix, session_prefix, session_prefix)
+        filename = "{}/{}".format(sessiondir, session_prefix)
         #print(filename)
         if verbose:
             print("Loading data for session in directory '{}'...".format(sessiondir))
@@ -151,7 +156,7 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
         # hence when extracting info, we must take all sessions in a recording day into account, and not just a specific recording session
 
     elif (datatype=='eeg'):
-        filename = "{}/{}/{}/{}.eeg".format(fileroot, anim_prefix, session_prefix, session_prefix)
+        filename = "{}/{}.eeg".format(sessiondir, session_prefix)
         if verbose:
             print("Loading EEG data from file '{}'".format(filename))
         num_elec = get_num_electrodes(sessiondir)
@@ -185,7 +190,7 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
         return eeg
 
     elif (datatype=='pos'):
-        filename = "{}/{}/{}/{}.whl".format(fileroot, anim_prefix, session_prefix, session_prefix)
+        filename = "{}/{}.whl".format(sessiondir, session_prefix)
         if verbose:
             print("reading {} Hz position data from '{}'".format(fs, filename))
         dfwhl = pd.read_table(filename,sep='\t', skiprows=0, names=['x1', 'y1', 'x2', 'y2'] )
