@@ -296,7 +296,7 @@ def trajectory_score_bst(bst, tuningcurve, w=None, n_shuffles=250,
     w bins around the line, ignoring bins that are NaNs. Even when w=0
     (only the sum of peak probabilities) this is different from the r^2
     coefficient of determination, in that here more concentrated
-    posterior probabilities contribute heavily than weaker ones.
+    posterior probabilities contribute more heavily than weaker ones.
 
     NOTE3: the returned scores are NOT normalized, but if desired, they
     can be normalized by dividing by the number of non-NaN bins in each
@@ -379,6 +379,145 @@ def trajectory_score_bst(bst, tuningcurve, w=None, n_shuffles=250,
         return scores, scores_time_swap, scores_col_cycle
     return scores
 
+def score_Davidson_Kloosterman_bst(bst, tuningcurve, w=None, n_shuffles=250, n_samples=50000):
+    """Compute the trajectory scores from Davidson et al. for each event
+    in the BinnedSpikeTrainArray.
+
+    This function returns the trajectory scores by decoding all the
+    events in the BinnedSpikeTrainArray, and then calling an external
+    function to determine the slope and intercept for each event, and
+    then finally computing the scores for those events.
+
+    If n_shuffles > 0, then in addition to the trajectory scores,
+    shuffled scores will be returned for both column cycle shuffling, as
+    well as posterior time bin shuffling (time swap).
+
+    Reference(s)
+    ------------
+    Davidson TJ, Kloosterman F, Wilson MA (2009)
+        Hippocampal replay of extended experience. Neuron 63:497–507
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing all the candidate events to
+        score.
+    tuningcurve : TuningCurve1D
+        Tuning curve to decode events in bst.
+    w : int, optional (default is 0)
+        Half band width for calculating the trajectory score. If w=0,
+        then only the probabilities falling directly under the line are
+        used. If w=1, then a total band of 2*w+1 = 3 will be used.
+    n_shuffles : int, optional (default is 250)
+        Number of times to perform both time_swap and column_cycle
+        shuffles.
+    weights : not yet used, but idea is to assign weights to the bands
+        surrounding the line
+    normalize : bool, optional (default is False)
+        If True, the scores will be normalized by the number of non-NaN
+        bins in each event.
+
+    Returns
+    -------
+    scores, scores_col_cycle
+        scores is of size (bst.n_epochs, )
+        scores_col_cycle are each of size (n_shuffles, bst.n_epochs)
+    """
+    def _score_line(posterior, slope, intercept, w=0):
+        NP, NT = posterior.shape
+        x = np.arange(NT)
+        line_y = np.round((slope*x + intercept)) # in nearest position bin #s
+        # reconfigure posterior matrix for score summation
+        # idea: cycle each column so that the top w rows are the band surrounding the regression line
+        temp = np.where(line_y>NP, 0, posterior)
+        temp = np.where(line_y<0, 0, temp)
+        temp = column_cycle_array(temp, -line_y+w) # remove any mass from bins that fall outside of track
+
+        score = np.nansum(temp[:2*w+1,:]) + np.median(posterior, axis=0)[line_y>NP].sum() + np.median(posterior, axis=0)[line_y<NP].sum()
+        return score
+
+    def find_best_line(posterior, phi_range, rho_range, t_mid, x_mid, dt, dx, w=0, n_samples=50000):
+        best_score = 0
+        best_phi = 0
+        best_rho = 0
+
+        NP, NT = posterior.shape
+
+        for nn in range(n_samples):
+            phi = phi_range[0] + np.random.rand()*(phi_range[1] - phi_range[0])
+            rho = rho_range[0] + np.random.rand()*(rho_range[1] - rho_range[0])
+            slope = - 1/np.tan(phi)*dx/dt
+            intercept = 1/np.tan(phi)*dx/dt *t_mid + rho/np.sin(phi)*dx + x_mid
+            score = _score_line(posterior, slope, intercept, w=w)
+            if score > best_score:
+                best_score = score
+                best_phi = phi
+                best_rho = rho
+
+        slope = - 1/np.tan(best_phi)*dx/dt
+        intercept = 1/np.tan(best_phi)*dx/dt *t_mid + best_rho/np.sin(best_phi)*dx + x_mid
+        score = _score_line(posterior, slope, intercept, w=w)/NT
+        return score, slope, intercept
+
+    if w is None:
+        w = 0
+    if not float(w).is_integer:
+        raise ValueError("w has to be an integer!")
+
+    if float(n_shuffles).is_integer:
+        n_shuffles = int(n_shuffles)
+    else:
+        raise ValueError("n_shuffles must be an integer!")
+
+    posterior, bdries, mode_pth, mean_pth = decode(bst=bst,
+                                                   ratemap=tuningcurve)
+
+    dt = 1    # time bin (not seconds!)
+    dx = 1    # spatial bin
+    NP, NT = posterior.shape
+
+    # ci_mid, ri_mid = (NT+1)/2, (NP+1)/2
+    t_mid, x_mid = (NT+0)/2, (dx*NP+0)/2
+
+    D = np.sqrt((NT-1)**2 + (NP-1)**2)
+    phi_range = (-0.5*np.pi, 0.5*np.pi)
+    rho_range = (-0.5*D, 0.5*D)
+
+    # idea: cycle each column so that the top w rows are the band
+    # surrounding the regression line
+
+    scores = np.zeros(bst.n_epochs)
+    if n_shuffles > 0:
+        scores_col_cycle = np.zeros((n_shuffles, bst.n_epochs))
+
+    for idx in range(bst.n_epochs):
+        posterior_array = posterior[:, bdries[idx]:bdries[idx+1]]
+        scores[idx], _, _ = find_best_line(posterior=posterior_array,
+                                     phi_range=phi_range,
+                                     rho_range=rho_range,
+                                     t_mid=t_mid,
+                                     x_mid=x_mid,
+                                     dt=dt,
+                                     dx=dx,
+                                     w=w,
+                                     n_samples=n_samples)
+        for shflidx in range(n_shuffles):
+
+            posterior_cs = column_cycle_array(posterior_array)
+            scores_col_cycle[shflidx, idx], _, _ = find_best_line(posterior=posterior_cs,
+                                     phi_range=phi_range,
+                                     rho_range=rho_range,
+                                     t_mid=t_mid,
+                                     x_mid=x_mid,
+                                     dt=dt,
+                                     dx=dx,
+                                     w=w,
+                                     n_samples=n_samples)
+
+    if n_shuffles > 0:
+        return scores, scores_col_cycle
+    return scores
+
 def shuffle_transmat(transmat):
     """Shuffle transition probability matrix within each row, leaving self transitions in tact.
 
@@ -409,6 +548,9 @@ def shuffle_transmat_Kourosh_breaks_stochasticity(transmat):
     """Shuffle transition probability matrix within each column, leaving self transitions in tact.
 
     It is assumed that the transmat is stochastic-row-wise, meaning that A_{ij} = Pr(S_{t+1}=j|S_t=i).
+
+    NOTE: this breaks stochasticity! To get back to a stochastic matrix, we should do:
+    transmat = transmat / np.tile(transmat.sum(axis=1), (hmm.n_components, 1)).T
 
     Parameters
     ----------
