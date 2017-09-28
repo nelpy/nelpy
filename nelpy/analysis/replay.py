@@ -190,10 +190,22 @@ def score_Davidson_final_bst(bst, tuningcurve, w=None, n_shuffles=2000, n_sample
 
     def _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci):
 
-        score_outside_track = np.median(posterior[:,(ri > NP - 1) | (ri < 0)], axis=0).sum()
+        scores_outside_track = np.nanmedian(posterior[:,(ri > NP - 1) | (ri < 0)], axis=0)
+
         coords = sub2ind(posterior.shape, ri, ci)
         coords = coords[(ri < NP) & (ri >= 0)]
-        score = np.take(precond_posterior, coords).sum() + score_outside_track
+        scores_within_track = np.take(precond_posterior, coords)
+
+        num_empty_bins = np.isnan(scores_outside_track).sum() + np.isnan(scores_within_track).sum()
+
+        score_within_track = np.nansum(scores_within_track)
+        if (score_within_track) > 0 & (num_empty_bins > 0):
+            temp = np.nanmedian(scores_within_track)*num_empty_bins
+        else:
+            temp = 0
+        score_outside_track = np.nansum(scores_outside_track) + temp
+
+        score = score_within_track + score_outside_track
 
         # we divide by NT later on to be more efficient
         # final_score = score/NT
