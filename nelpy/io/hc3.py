@@ -63,12 +63,14 @@ from ..core import *
 
 # from mymap import Map
 
-def get_num_electrodes(sessiondir):
+def get_num_electrodes(sessiondir, verbose=False):
     numelec = 0
     files = [f for f in os.listdir(sessiondir) if (os.path.isfile(os.path.join(sessiondir, f)))]
     for ff in files:
         try:
             found = re.search('\.clu\.[0-9]+$', ff).group(0)
+            if verbose:
+                print(found)
             numelec+=1
         except:
             found=''
@@ -99,7 +101,7 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
         #print(filename)
         if verbose:
             print("Loading data for session in directory '{}'...".format(sessiondir))
-        num_elec = get_num_electrodes(sessiondir)
+        num_elec = get_num_electrodes(sessiondir, verbose=verbose)
         if verbose:
             print('Number of electrode (.clu) files found:', num_elec)
         if includeUnsortedSpikes:
