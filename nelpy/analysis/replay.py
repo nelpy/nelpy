@@ -120,6 +120,7 @@ def get_line_of_best_Davidson_score(bst, tuningcurve, w=3, n_samples=50000):
     return score, ri, ci
 
 def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle='row-wise', verbose=False):
+    """scores all sequences in the entire bst"""
     if k_folds is None:
         k_folds = 5
 
@@ -170,7 +171,156 @@ def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle=
 
     return scores_hmm, scores_hmm_shuffled, scores_hmm_percentile
 
-def score_Davidson_final_bst(bst, tuningcurve, w=None, n_shuffles=2000, n_samples=25000, verbose=False):
+def score_Davidson_final_bst_fast(bst, tuningcurve, w=None, n_shuffles=2000, n_samples=35000, verbose=False):
+    """Compute the trajectory scores from Davidson et al. 2009 for each event
+    in the BinnedSpikeTrainArray. DO IT EVEN FASTER!!!
+    """
+
+    def sub2ind(n_cols, rows, cols):
+        return rows*n_cols + cols
+
+    def calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid):
+        """
+        Note: Not matrix dimensions! Think of dim0 as
+        x coordinate, dim1 as y coordinate, etc.
+        """
+        ri = (rho - (ci - ci_mid) * np.cos(phi)) / np.sin(phi) + ri_mid
+        ri = np.around(ri).astype(int) # Find nearest position bin
+
+        return ri
+
+    def _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci, ncols, median_post, nanbins, n_nanbins):
+
+        scores_outside_track = median_post[((ri > NP - 1) & ~nanbins) | ((ri < 0)& ~nanbins)]
+
+        coords = sub2ind(NT, ri, ci)
+        coords = coords[(ri < NP) & (ri >= 0) & (~nanbins)]
+        scores_within_track = np.take(precond_posterior, coords)
+
+        nanscore = 0
+        if n_nanbins > 0:
+            nanscore = n_nanbins * np.median(scores_within_track)
+
+        score_within_track = np.sum(scores_within_track)
+        score_outside_track = np.sum(scores_outside_track)
+
+        score = score_within_track + score_outside_track
+
+        # we divide by NT later on to be more efficient
+        # final_score = score/NT
+
+        return score
+
+    def find_best_line(posterior, precond_posterior, phis, rhos, NP, NT, median_post, nanbins, n_nanbins):
+        best_score = 0
+        best_ri = []
+
+        # n_rows, n_cols = posterior.shape
+#         NP, NT = posterior.shape
+
+        ci_mid = (NT + 1)/2 # CONST
+        ri_mid = (NP + 1)/2 # CONST
+        ci = np.arange(NT)  # CONST
+
+        for phi, rho in zip(phis, rhos):
+
+            # parameterize line
+            ri = calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid)
+
+            score = _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci, NT, median_post, nanbins, n_nanbins)
+            if score > best_score:
+                best_score = score
+                best_ri = ri
+
+        score = _score_line_ri_ci(posterior, precond_posterior, NT, NP, best_ri, ci, NT, median_post, nanbins, n_nanbins)/NT
+        return score, best_ri
+
+    if w is None:
+        w = 0
+    if not float(w).is_integer:
+        raise ValueError("w has to be an integer!")
+
+    if float(n_shuffles).is_integer:
+        n_shuffles = int(n_shuffles)
+    else:
+        raise ValueError("n_shuffles must be an integer!")
+
+    posterior, bdries, mode_pth, mean_pth = decode(bst=bst,
+                                                   ratemap=tuningcurve)
+
+    # precondition matrix kernel for banded summation
+    k = np.zeros((2*w+1, 3))
+    k[:,1] = 1
+
+    scores_bayes = np.zeros(bst.n_epochs)
+
+    if n_shuffles > 0:
+        scores_bayes_shuffled = np.zeros((n_shuffles, bst.n_epochs))
+
+    for idx in range(bst.n_epochs):
+        if verbose:
+            print("scoring event ", idx+1, "/", bst.n_epochs)
+
+        posterior_array = posterior[:, bdries[idx]:bdries[idx+1]]
+
+        # now we zero out all the nan bins (we compensate for them later...)
+        nanbins = np.isnan(np.max(posterior_array, axis=0))
+        n_nanbins = np.count_nonzero(nanbins)
+        posterior_array[:, nanbins] = 0
+
+        # now pre-compute median of entire array
+        posterior_median = np.median(posterior_array, axis=0)
+
+        NP, NT = posterior_array.shape
+
+        D = np.sqrt((NT-1)**2 + (NP-1)**2)
+        phi_range = (-0.5*np.pi, 0.5*np.pi)
+        rho_range = (-0.5*D, 0.5*D)
+
+        phis = phi_range[0] + np.random.rand(n_samples)*(phi_range[1] - phi_range[0])
+        phis[(phis < 0.0001) & (phis > -0.0001)] = 0.0001
+        rhos = rho_range[0] + np.random.rand(n_samples)*(rho_range[1] - rho_range[0])
+
+        precond_posterior = convolve(posterior_array, k, mode='constant', cval=0.0)
+
+        scores_bayes[idx], _ = find_best_line(posterior=posterior_array,
+                                        precond_posterior=precond_posterior,
+                                        phis=phis,
+                                        rhos=rhos,
+                                        NP=NP,
+                                        NT=NT,
+                                        median_post=posterior_median,
+                                        nanbins=nanbins,
+                                        n_nanbins=n_nanbins)
+        if n_shuffles > 0:
+            posterior_cs = copy.deepcopy(posterior_array)
+            precond_posterior_cs = copy.deepcopy(precond_posterior)
+
+            for shflidx in range(n_shuffles):
+
+                for col in range(NT):
+                    random_offset = np.random.randint(1, NP)
+                    posterior_cs[:,col] = np.roll(posterior_cs[:,col], random_offset)
+                    precond_posterior_cs[:,col] = np.roll(precond_posterior_cs[:,col], random_offset)
+
+                # ideally we should re-sample phi and rho here for every sequence, but to save time, we don't...
+                scores_bayes_shuffled[shflidx, idx], _ = find_best_line(posterior=posterior_cs,
+                                                                    precond_posterior=precond_posterior_cs,
+                                                                    phis=phis,
+                                                                    rhos=rhos,
+                                                                    NP=NP,
+                                                                    NT=NT,
+                                                                    median_post=posterior_median,
+                                                                    nanbins=nanbins,
+                                                                    n_nanbins=n_nanbins)
+    if n_shuffles > 0:
+        scores_bayes_shuffled = scores_bayes_shuffled.T
+        n_scores = len(scores_bayes)
+        scores_bayes_percentile = np.array([stats.percentileofscore(scores_bayes_shuffled[idx], scores_bayes[idx], kind='mean') for idx in range(n_scores)])
+        return scores_bayes, scores_bayes_shuffled, scores_bayes_percentile
+    return scores_bayes
+
+def score_Davidson_final_bst(bst, tuningcurve, w=None, n_shuffles=2000, n_samples=35000, verbose=False):
     """Compute the trajectory scores from Davidson et al. 2009 for each event
     in the BinnedSpikeTrainArray. DO IT FAST!!!
     """

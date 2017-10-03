@@ -424,6 +424,8 @@ def get_contiguous_segments(data, step=None, fs=None, sort=False, in_memory=True
         but also much slower.
     fs : sampling rate (Hz) used to extend half-open interval support by 1/fs
     """
+    if sort:
+        data = np.sort(data)  # algorithm assumes sorted list
     if in_memory:
         if step is None:
             step = np.median(np.diff(data))
@@ -449,8 +451,6 @@ def get_contiguous_segments(data, step=None, fs=None, sort=False, in_memory=True
         step_ = step
         if fs is not None:
             step_ = 1/fs
-        if sort:
-            data = np.sort(data)  # below groupby algorithm assumes sorted list
         if np.any(np.diff(data) < step):
             warnings.warn("some steps in the data are smaller than the requested step size.")
 
