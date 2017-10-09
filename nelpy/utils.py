@@ -424,6 +424,7 @@ def get_contiguous_segments(data, step=None, fs=None, sort=False, in_memory=True
         but also much slower.
     fs : sampling rate (Hz) used to extend half-open interval support by 1/fs
     """
+    data = np.asarray(data)
     if sort:
         data = np.sort(data)  # algorithm assumes sorted list
     if in_memory:
