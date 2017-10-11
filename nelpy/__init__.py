@@ -12,7 +12,7 @@ and inspired by the neuralensemble.org NEO project
 from .core import *
 from .auxiliary import *
 
-from . import analysis
+# from . import analysis
 from . import filtering
 from . import plotting
 from . import utils
