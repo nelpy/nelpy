@@ -82,7 +82,11 @@ class ResultsContainer(object):
             open = gzip.open
 
         with open(fname, "wb") as fid:
-            pickle.dump(self, fid)
+            try:
+                pickle.dump(self, fid)
+            except OverflowError:
+                print('writing to disk using protocol=4, which supports file sizes > 4 GiB')
+                pickle.dump(self, fid, protocol=4)
 
 
 def load_pkl(fname, zip=True):
