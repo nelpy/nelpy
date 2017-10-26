@@ -79,11 +79,16 @@ class ResultsContainer(object):
                 print('File "{}" already exists! Aborting...'.format(fname))
                 return
         if zip:
+            save_large_file_without_zip = False
             with gzip.open(fname, "wb") as fid:
                 try:
                     pickle.dump(self, fid)
                 except OverflowError:
-                    print('writing to disk using protocol=4, which supports file sizes > 4 GiB')
+                    print('writing to disk using protocol=4, which supports file sizes > 4 GiB, and ignoring zip=True (zip is not supported for large files yet)')
+                    save_large_file_without_zip = True
+                    pickle.dump(self, fid, protocol=4)
+            if save_large_file_without_zip:
+                with open(fname, "wb") as fid:
                     pickle.dump(self, fid, protocol=4)
         else:
             with open(fname, "wb") as fid:
