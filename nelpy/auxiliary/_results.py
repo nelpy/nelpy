@@ -79,22 +79,28 @@ class ResultsContainer(object):
                 print('File "{}" already exists! Aborting...'.format(fname))
                 return
         if zip:
-            open = gzip.open
-
-        with open(fname, "wb") as fid:
-            try:
-                pickle.dump(self, fid)
-            except OverflowError:
-                print('writing to disk using protocol=4, which supports file sizes > 4 GiB')
-                pickle.dump(self, fid, protocol=4)
-
+            with gzip.open(fname, "wb") as fid:
+                try:
+                    pickle.dump(self, fid)
+                except OverflowError:
+                    print('writing to disk using protocol=4, which supports file sizes > 4 GiB')
+                    pickle.dump(self, fid, protocol=4)
+        else:
+            with open(fname, "wb") as fid:
+                try:
+                    pickle.dump(self, fid)
+                except OverflowError:
+                    print('writing to disk using protocol=4, which supports file sizes > 4 GiB')
+                    pickle.dump(self, fid, protocol=4)
 
 def load_pkl(fname, zip=True):
     """Read pickled data from disk, possible decompressing."""
     if zip:
-        open = gzip.open
-    with open(fname, "rb") as fid:
-        res = pickle.load(fid)
+        with gzip.open(fname, "rb") as fid:
+            res = pickle.load(fid)
+    else:
+        with open(fname, "rb") as fid:
+            res = pickle.load(fid)
     return res
 
 def save_pkl(fname, res, zip=True, overwrite=False):
