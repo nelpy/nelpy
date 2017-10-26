@@ -753,6 +753,8 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
 def signal_envelope1D(data, *, sigma=None, fs=None):
     """Docstring goes here
 
+    TODO: this is not yet epoch-aware!
+
     sigma = 0 means no smoothing (default 4 ms)
     """
 
@@ -779,21 +781,38 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
     elif isinstance(data, core.AnalogSignalArray):
-        # Compute number of samples to compute fast FFTs:
-        padlen = nextfastpower(len(data.ydata)) - len(data.ydata)
-        # Pad data
-        paddeddata = np.pad(data.ydata, (0, padlen), 'constant')
-        # Use hilbert transform to get an envelope
-        envelope = np.absolute(hilbert(paddeddata))
-        # Truncate results back to original length
-        envelope = envelope[:len(data.ydata)]
-        if sigma:
-            # Smooth envelope with a gaussian (sigma = 4 ms default)
-            EnvelopeSmoothingSD = sigma*fs
-            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
-            envelope = smoothed_envelope
-        newasa = data.copy()
-        newasa._ydata = envelope
+        print('making cooy')
+        newasa = copy.copy(data)
+        print('done making copy')
+
+        print('computing lengths (this might take a while...)')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            cum_lengths = np.insert(np.cumsum(data.lengths), 0, 0)
+        print('done computing lengths')
+
+        # for segment in data:
+        for idx in range(data.n_epochs):
+            print('hilberting epoch {}/{}'.format(idx+1, data.n_epochs))
+            segment_data = data._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]]
+            n_signals, n_samples = segment_data.shape
+            assert n_signals == 1, 'only 1D signals supported!'
+            # Compute number of samples to compute fast FFTs:
+            padlen = nextfastpower(n_samples) - n_samples
+            # Pad data
+            paddeddata = np.pad(segment_data.squeeze(), (0, padlen), 'constant')
+            # Use hilbert transform to get an envelope
+            envelope = np.absolute(hilbert(paddeddata))
+            # free up memory
+            del paddeddata
+            # Truncate results back to original length
+            envelope = envelope[:n_samples]
+            if sigma:
+                # Smooth envelope with a gaussian (sigma = 4 ms default)
+                EnvelopeSmoothingSD = sigma*fs
+                smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
+                envelope = smoothed_envelope
+            newasa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.atleast_2d(envelope)
         return newasa
     return envelope
 
