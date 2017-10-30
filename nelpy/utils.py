@@ -402,69 +402,152 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
 
     return mua_epochs
 
-def get_contiguous_segments(data, step=None, fs=None, sort=False, in_memory=True):
+def get_contiguous_segments(data, *, step=None, assume_sorted=None,
+                            in_core=True, index=False, inclusive=False,
+                            fs=None, sort=None, in_memory=None):
     """Compute contiguous segments (seperated by step) in a list.
 
-    WARNING! This function assumes that a sorted list is passed.
-    If this is not the case (or if it is uncertain), use sort=True
-    to force the list to be sorted first.
+    Note! This function requires that a sorted list is passed.
+    It first checks if the list is sorted O(n), and only sorts O(n log(n))
+    if necessary. But if you know that the list is already sorted,
+    you can pass assume_sorted=True, in which case it will skip
+    the O(n) check.
 
     Returns an array of size (n_segments, 2), with each row
-    being of the form ([start, stop]) inclusive.
+    being of the form ([start, stop]) [inclusive, exclusive].
 
-    WARNING! Step is robustly computed in-core (i.e., when in-memory is
+    NOTE: when possible, use assume_sorted=True, and step=1 as explicit
+          arguments to function call.
+
+    WARNING! Step is robustly computed in-core (i.e., when in_core is
         True), but is assumed to be 1 when out-of-core.
+
+    Example
+    -------
+    >>> data = [1,2,3,4,10,11,12]
+    >>> get_contiguous_segments(data)
+    ([1,5], [10,13])
+    >>> get_contiguous_segments(data, index=True)
+    ([0,4], [4,7])
 
     Parameters
     ----------
-    in_memory : bool, optional
+    data : array-like
+        1D array of sequential data, typically assumed to be integral (sample
+        numbers).
+    step : float, optional
+        Expected step size for neighboring samples. Default uses numpy to find
+        the median, but it is much faster and memory efficient to explicitly
+        pass in step=1.
+    assume_sorted : bool, optional
+        If assume_sorted == True, then data is not inspected or re-ordered. This
+        can be significantly faster, especially for out-of-core computation, but
+        it should only be used when you are confident that the data is indeed
+        sorted, otherwise the results from get_contiguous_segments will not be
+        reliable.
+    in_core : bool, optional
         If True, then we use np.diff which requires all the data to fit
         into memory simultaneously, otherwise we use groupby, which uses
         a generator to process potentially much larger chunks of data,
         but also much slower.
+    index : bool, optional
+        If True, the indices of segment boundaries will be returned. Otherwise,
+        the segment boundaries will be returned in terms of the data itself.
+        Default is False.
+    inclusive : bool, optional
+        If True, the boundaries are returned as [(inclusive idx, inclusive idx)]
+        Default is False, and can only be used when index==True.
+
+    Deprecated
+    ----------
+    in_memory : bool, optional
+        This is equivalent to the new 'in-core'.
+    sort : bool, optional
+        This is equivalent to the new 'assume_sorted'
     fs : sampling rate (Hz) used to extend half-open interval support by 1/fs
     """
-    data = np.asarray(data)
-    if sort:
-        data = np.sort(data)  # algorithm assumes sorted list
+
+    # handle deprecated API calls:
     if in_memory:
+        in_core = in_memory
+        warnings.warn("'in_memory' has been deprecated; use 'in_core' instead",
+                      DeprecationWarning)
+    if sort:
+        assume_sorted = sort
+        warnings.warn("'sort' has been deprecated; use 'assume_sorted' instead",
+                      DeprecationWarning)
+    if fs:
+        step = 1/fs
+        warnings.warn("'fs' has been deprecated; use 'step' instead",
+                      DeprecationWarning)
+
+    if inclusive:
+        assert index, "option 'inclusive' can only be used with 'index=True'"
+    if in_core:
+        data = np.asarray(data)
+
+        if not assume_sorted:
+            if not is_sorted(data):
+                data = np.sort(data)  # algorithm assumes sorted list
+
         if step is None:
             step = np.median(np.diff(data))
-
-        step_ = step
-        if fs is not None:
-            step_ = 1/fs
 
         # assuming that data(t1) is sampled somewhere on [t, t+1/fs) we have a 'continuous' signal as long as
         # data(t2 = t1+1/fs) is sampled somewhere on [t+1/fs, t+2/fs). In the most extreme case, it could happen
         # that t1 = t and t2 = t + 2/fs, i.e. a difference of 2 steps.
 
+        if np.any(np.diff(data) < step):
+            warnings.warn("some steps in the data are smaller than the requested step size.")
+
         breaks = np.argwhere(np.diff(data)>=2*step)
         starts = np.insert(breaks+1, 0, 0)
         stops = np.append(breaks, len(data)-1)
-        bdries = np.vstack((data[starts], data[stops] + step_)).T
+        bdries = np.vstack((data[starts], data[stops] + step)).T
+        if index:
+            if inclusive:
+                indices = np.vstack((starts, stops)).T
+            else:
+                indices = np.vstack((starts, stops + 1)).T
+            return indices
     else:
         from itertools import groupby
         from operator import itemgetter
 
+        if not assume_sorted:
+            if not is_sorted(data):
+                # data = np.sort(data)  # algorithm assumes sorted list
+                raise NotImplementedError("out-of-core sorting has not been implemented yet...")
+
         if step is None:
             step = 1
-        step_ = step
-        if fs is not None:
-            step_ = 1/fs
-        if np.any(np.diff(data) < step):
-            warnings.warn("some steps in the data are smaller than the requested step size.")
 
         bdries = []
 
-        for k, g in groupby(enumerate(data), lambda ix: (ix[0] - ix[1])):
-            f = itemgetter(1)
-            gen = (f(x) for x in g)
-            start = next(gen)
-            stop = start
-            for stop in gen:
-                pass
-            bdries.append([start, stop + step_])
+        if not index:
+            for k, g in groupby(enumerate(data), lambda ix: (ix[0] - ix[1])):
+                f = itemgetter(1)
+                gen = (f(x) for x in g)
+                start = next(gen)
+                stop = start
+                for stop in gen:
+                    pass
+                bdries.append([start, stop + step])
+        else:
+            counter = 0
+            for k, g in groupby(enumerate(data), lambda ix: (ix[0] - ix[1])):
+                f = itemgetter(1)
+                gen = (f(x) for x in g)
+                _ = next(gen)
+                start = counter
+                stop = start
+                for _ in gen:
+                    stop +=1
+                if inclusive:
+                    bdries.append([start, stop])
+                else:
+                    bdries.append([start, stop + 1])
+                counter = stop + 1
 
     return np.asarray(bdries)
 
