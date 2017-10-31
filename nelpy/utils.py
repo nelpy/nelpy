@@ -551,6 +551,45 @@ def get_contiguous_segments(data, *, step=None, assume_sorted=None,
 
     return np.asarray(bdries)
 
+def get_direction(asa, *, sigma=None):
+    """Return epochs during which an animal was running left to right, or right
+    to left.
+
+    Parameters
+    ----------
+    asa : AnalogSignalArray 1D
+        AnalogSignalArray containing the 1D position data.
+    sigma : float, optional
+        Smoothing to apply to position (x) before computing gradient estimate.
+        Default is 0.
+
+    Returns
+    -------
+    l2r, r2l : EpochArrays
+        EpochArrays corresponding to left-to-right and right-to-left movement.
+    """
+    if sigma is None:
+        sigma = 0
+    if not isinstance(asa, core.AnalogSignalArray):
+        raise TypeError('AnalogSignalArray expected!')
+    assert asa.n_signals == 1, "1D AnalogSignalArray expected!"
+
+    direction = dxdt_AnalogSignalArray(asa.smooth(sigma=sigma),
+                                       rectify=False).ydata
+    direction[direction>=0] = 1
+    direction[direction<0] = -1
+    direction = direction.squeeze()
+
+    l2r = get_contiguous_segments(np.argwhere(direction>0).squeeze(), step=1)
+    l2r[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
+    l2r = core.EpochArray(asa.time[l2r])
+
+    r2l = get_contiguous_segments(np.argwhere(direction<0).squeeze(), step=1)
+    r2l[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
+    r2l = core.EpochArray(asa.time[r2l])
+
+    return l2r, r2l
+
 class PrettyBytes(int):
     """Prints number of bytes in a more readable format"""
 
