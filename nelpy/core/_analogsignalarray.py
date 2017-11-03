@@ -556,9 +556,14 @@ class AnalogSignalArray:
     @property
     def lengths(self):
         """(list) The number of samples in each epoch."""
-        # TODO: make this faster and better!
-        lengths = [segment.n_samples for segment in self]
-        return np.asanyarray(lengths).squeeze()
+        indices = []
+        for eptime in self.support.time:
+            t_start = eptime[0]
+            t_stop = eptime[1]
+            frm, to = np.searchsorted(self._time, (t_start, t_stop))
+            indices.append((frm, to))
+        indices = np.array(indices, ndmin=2)
+        return np.diff(indices).squeeze()
 
     @property
     def labels(self):
