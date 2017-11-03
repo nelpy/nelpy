@@ -910,7 +910,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
 
         # for segment in data:
         for idx in range(data.n_epochs):
-            print('hilberting epoch {}/{}'.format(idx+1, data.n_epochs))
+            # print('hilberting epoch {}/{}'.format(idx+1, data.n_epochs))
             segment_data = data._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]]
             n_signals, n_samples = segment_data.shape
             assert n_signals == 1, 'only 1D signals supported!'
