@@ -903,15 +903,10 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
     elif isinstance(data, core.AnalogSignalArray):
-        print('making cooy')
         newasa = copy.copy(data)
-        print('done making copy')
-
-        print('computing lengths (this might take a while...)')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             cum_lengths = np.insert(np.cumsum(data.lengths), 0, 0)
-        print('done computing lengths')
 
         # for segment in data:
         for idx in range(data.n_epochs):

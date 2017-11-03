@@ -638,6 +638,7 @@ class SpikeTrainArray(SpikeTrain):
             # array's support:
             self._support = support
 
+        # TODO: if sorted, we may as well use the fast restrict here as well?
         time = self._restrict_to_epoch_array(
             epocharray=self._support,
             time=time)
@@ -685,7 +686,7 @@ class SpikeTrainArray(SpikeTrain):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             support = self.support[index]
-            time = self._restrict_to_epoch_array(
+            time = self._restrict_to_epoch_array_fast(
                 epocharray=support,
                 time=self.time,
                 copyover=True
@@ -719,7 +720,7 @@ class SpikeTrainArray(SpikeTrain):
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                time = self._restrict_to_epoch_array(
+                time = self._restrict_to_epoch_array_fast(
                     epocharray=support,
                     time=self.time,
                     copyover=True
@@ -749,7 +750,7 @@ class SpikeTrainArray(SpikeTrain):
                 spiketrain.iloc = ItemGetter_iloc(spiketrain)
                 return spiketrain
             else:
-                time = self._restrict_to_epoch_array(
+                time = self._restrict_to_epoch_array_fast(
                         epocharray=support,
                         time=self.time,
                         copyover=True
@@ -764,7 +765,7 @@ class SpikeTrainArray(SpikeTrain):
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     support = self.support[idx]
-                    time = self._restrict_to_epoch_array(
+                    time = self._restrict_to_epoch_array_fast(
                         epocharray=support,
                         time=self.time,
                         copyover=True
@@ -861,8 +862,69 @@ class SpikeTrainArray(SpikeTrain):
         return spiketrainarray
 
     @staticmethod
+    def _restrict_to_epoch_array_fast(epocharray, time, copyover=True):
+        """Return time restricted to an EpochArray.
+
+        This function assumes sorted spike times, so that binary search can
+        be used to quickly identify slices that should be kept in the
+        restriction. It does not check every spike time.
+
+        Parameters
+        ----------
+        epocharray : EpochArray
+        time : array-like
+        """
+        # raise NotImplementedError
+
+        if epocharray.isempty:
+            n_units = len(time)
+            time = np.zeros((n_units,0))
+            return time
+
+        singleunit = len(time)==1  # bool
+
+        # TODO: is this copy even necessary?
+        if copyover:
+            time = copy.copy(time)
+
+        # NOTE: this used to assume multiple units for the enumeration to work
+        for unit, st_time in enumerate(time):
+            indices = []
+            for eptime in epocharray.time:
+                t_start = eptime[0]
+                t_stop = eptime[1]
+                frm, to = np.searchsorted(st_time, (t_start, t_stop))
+                indices.append((frm, to))
+            indices = np.array(indices, ndmin=2)
+            if np.diff(indices).sum() < len(st_time):
+                warnings.warn(
+                    'ignoring spikes outside of spiketrain support')
+            if singleunit:
+                time_list = []
+                for start, stop in indices:
+                    time_list.extend(st_time[start:stop])
+                time = np.array(time_list, ndmin=2)
+            else:
+                # here we have to do some annoying conversion between
+                # arrays and lists to fully support jagged array
+                # mutation
+                time_list = []
+                for start, stop in indices:
+                    time_list.extend(st_time[start:stop])
+                time_ = time.tolist()
+                time_[unit] = np.array(time_list)
+                time = np.array(time_)
+        return time
+
+    @staticmethod
     def _restrict_to_epoch_array(epocharray, time, copyover=True):
         """Return time restricted to an EpochArray.
+
+        This function is quite slow, as it checks each spike time for inclusion.
+        It does this in a vectorized form, which is fast for small or moderately
+        sized objects, but the memory penalty can be large, and it becomes very
+        slow for large objects. Consequently, _restrict_to_epoch_array_fast
+        should be used when possible.
 
         Parameters
         ----------

@@ -262,7 +262,7 @@ class AnalogSignalArray:
 
         # Alright, let's handle all the possible parameter cases!
         if support is not None:
-            self._restrict_to_epoch_array(epocharray=support)
+            self._restrict_to_epoch_array_fast(epocharray=support)
         else:
             warnings.warn("creating support from time and "
                             "sampling rate, fs!")
@@ -405,9 +405,73 @@ class AnalogSignalArray:
         self._labels = np.append(self._labels,label)
         return self
 
+    def _restrict_to_epoch_array_fast(self, *, epocharray=None, update=True):
+        """Restrict self._time and self._ydata to an EpochArray. If no
+        EpochArray is specified, self._support is used.
+
+        Parameters
+        ----------
+        epocharray : EpochArray, optional
+        	EpochArray on which to restrict AnalogSignal. Default is
+        	self._support
+        update : bool, optional
+        	Overwrite self._support with epocharray if True (default).
+        """
+        if epocharray is None:
+            epocharray = self._support
+            update = False # support did not change; no need to update
+
+        try:
+            if epocharray.isempty:
+                warnings.warn("Support specified is empty")
+                # self.__init__([],empty=True)
+                exclude = ['_support','_ydata','_fs','_step']
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    for attr in attrs:
+                        exec("self." + attr + " = None")
+                self._ydata = np.zeros([0,self._ydata.shape[0]])
+                self._ydata[:] = np.nan
+                self._support = epocharray
+                return
+        except AttributeError:
+            raise AttributeError("EpochArray expected")
+
+        indices = []
+        for eptime in epocharray.time:
+            t_start = eptime[0]
+            t_stop = eptime[1]
+            frm, to = np.searchsorted(self._time, (t_start, t_stop))
+            indices.append((frm, to))
+        indices = np.array(indices, ndmin=2)
+        if np.diff(indices).sum() < len(self._time):
+            warnings.warn(
+                'ignoring signal outside of support')
+        try:
+            ydata_list = []
+            for start, stop in indices:
+                ydata_list.extend(self._ydata[:,start:stop])
+            self._ydata = np.hstack(ydata_list)
+        except IndexError:
+            self._ydata = np.zeros([0,self._ydata.shape[0]])
+            self._ydata[:] = np.nan
+        time_list = []
+        for start, stop in indices:
+            time_list.extend(self._time[start:stop])
+        self._time = np.array(time_list)
+        if update:
+            self._support = epocharray
+
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
         """Restrict self._time and self._ydata to an EpochArray. If no
         EpochArray is specified, self._support is used.
+
+        This function is quite slow, as it checks each sample for inclusion.
+        It does this in a vectorized form, which is fast for small or moderately
+        sized objects, but the memory penalty can be large, and it becomes very
+        slow for large objects. Consequently, _restrict_to_epoch_array_fast
+        should be used when possible.
 
         Parameters
         ----------
@@ -649,7 +713,7 @@ class AnalogSignalArray:
             warnings.simplefilter("ignore")
             for attr in attrs:
                 exec("asa." + attr + " = self." + attr)
-        asa._restrict_to_epoch_array(epocharray=epoch)
+        asa._restrict_to_epoch_array_fast(epocharray=epoch)
         if(asa.support.isempty):
             warnings.warn("Support is empty. Empty AnalogSignalArray returned")
             asa = AnalogSignalArray([],empty=True)
@@ -683,7 +747,7 @@ class AnalogSignalArray:
             return AnalogSignalArray([], empty=True)
         ################################################################
 
-        asa._restrict_to_epoch_array(epocharray=newepochs)
+        asa._restrict_to_epoch_array_fast(epocharray=newepochs)
 
         return asa
 
