@@ -874,8 +874,6 @@ class SpikeTrainArray(SpikeTrain):
         epocharray : EpochArray
         time : array-like
         """
-        # raise NotImplementedError
-
         if epocharray.isempty:
             n_units = len(time)
             time = np.zeros((n_units,0))

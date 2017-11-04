@@ -235,6 +235,7 @@ class AnalogSignalArray:
             raise TypeError("time and ydata size mismatch! Note: ydata "
                             "is expected to have rows containing signals")
         #data is not sorted and user wants it to be
+        # TODO: use faster is_sort from jagular
         if not is_sorted(time):
             warnings.warn("Data is _not_ sorted! Data will be sorted "\
                             "automatically.")
@@ -451,7 +452,7 @@ class AnalogSignalArray:
         try:
             ydata_list = []
             for start, stop in indices:
-                ydata_list.extend(self._ydata[:,start:stop])
+                ydata_list.append(self._ydata[:,start:stop])
             self._ydata = np.hstack(ydata_list)
         except IndexError:
             self._ydata = np.zeros([0,self._ydata.shape[0]])
