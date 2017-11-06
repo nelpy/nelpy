@@ -1093,7 +1093,11 @@ class AnalogSignalArray:
         for ii, (start, stop) in enumerate(self.support.time):
             newxvals = frange(first_timestamps_per_epoch[ii], stop, step=ds).tolist()
             at.extend(newxvals)
-            if newxvals[-1] < last_timestamps_per_epoch[ii]:
+            try:
+                if newxvals[-1] < last_timestamps_per_epoch[ii]:
+                    at.append(last_timestamps_per_epoch[ii])
+            except IndexError:
+                at.append(first_timestamps_per_epoch[ii])
                 at.append(last_timestamps_per_epoch[ii])
 
         _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
