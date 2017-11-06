@@ -1050,6 +1050,10 @@ class AnalogSignalArray:
         of the supports are always included, even if this would cause
         n_points or ds to be violated.
 
+        WARNING! Simplify can create nan samples, when requesting a timestamp
+        within an epoch, but outside of the (first, last) timestamps within that
+        epoch, since we don't extrapolate, but only interpolate. # TODO: fix
+
         Parameters
         ----------
         ds : float, optional
@@ -1084,9 +1088,13 @@ class AnalogSignalArray:
 
         # build list of points at which to evaluate the AnalogSignalArray
         at = []
-        for start, stop in self.support.time:
-            newxvals = frange(start, stop, step=ds).tolist()
+        first_timestamps_per_epoch = self.time[np.insert(np.cumsum(self.lengths[:-1]),0,0)]
+        last_timestamps_per_epoch = self.time[np.cumsum(self.lengths)-1]
+        for ii, (start, stop) in enumerate(self.support.time):
+            newxvals = frange(first_timestamps_per_epoch[ii], stop, step=ds).tolist()
             at.extend(newxvals)
+            if newxvals[-1] < last_timestamps_per_epoch[ii]:
+                at.append(last_timestamps_per_epoch[ii])
 
         _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
         yvals = np.array(yvals, ndmin=2)
