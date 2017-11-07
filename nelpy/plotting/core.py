@@ -412,23 +412,71 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            for segment in npl_obj:
-                if color is not None:
-                    ax.plot(segment._time,
-                            segment._ydata_colsig,
-                            color=color,
-                            mec=mec,
-                            markerfacecolor='w',
-                            **kwargs
-                            )
-                else:
-                    ax.plot(segment._time,
-                            segment._ydata_colsig,
-                            # color=color,
-                            mec=mec,
-                            markerfacecolor='w',
-                            **kwargs
-                            )
+            if not npl_obj.labels:
+                for segment in npl_obj:
+                    if color is not None:
+                        ax.plot(segment._time,
+                                segment._ydata_colsig,
+                                color=color,
+                                mec=mec,
+                                markerfacecolor='w',
+                                **kwargs
+                                )
+                    else:
+                        ax.plot(segment._time,
+                                segment._ydata_colsig,
+                                # color=color,
+                                mec=mec,
+                                markerfacecolor='w',
+                                **kwargs
+                                )
+            else: # there are labels
+                if npl_obj.n_signals > 1:
+                    for ii, segment in enumerate(npl_obj):
+                        for signal, label in zip(segment._ydata_rowsig, npl_obj.labels):
+                            if color is not None:
+                                ax.plot(segment._time,
+                                        signal,
+                                        color=color,
+                                        mec=mec,
+                                        markerfacecolor='w',
+                                        label=label if ii == 0 else "_nolegend_",
+                                        **kwargs
+                                        )
+                            else:
+                                ax.plot(segment._time,
+                                        signal,
+                                        # color=color,
+                                        mec=mec,
+                                        markerfacecolor='w',
+                                        label=label if ii == 0 else "_nolegend_",
+                                        **kwargs
+                                        )
+                else: # only one signal
+                    for ii, segment in enumerate(npl_obj):
+                        if not npl_obj.labels:
+                            label = None
+                        else:
+                            label = npl_obj.labels
+                        if color is not None:
+                            ax.plot(segment._time,
+                                    segment._ydata_colsig,
+                                    color=color,
+                                    mec=mec,
+                                    markerfacecolor='w',
+                                    label=label if ii == 0 else "_nolegend_",
+                                    **kwargs
+                                    )
+                        else:
+                            ax.plot(segment._time,
+                                    segment._ydata_colsig,
+                                    # color=color,
+                                    mec=mec,
+                                    markerfacecolor='w',
+                                    label=label if ii == 0 else "_nolegend_",
+                                    **kwargs
+                                    )
+
 
     if isinstance(npl_obj, EpochArray):
         epocharray = npl_obj
