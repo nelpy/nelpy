@@ -92,7 +92,7 @@ def spatial_information(ratemap):
             sparsity (in percent) for each unit
         """
 
-        ratemap = copy.copy(ratemap)
+        ratemap = copy.deepcopy(ratemap)
         # ensure that the ratemap always has nonzero firing rates,
         # otherwise the spatial information might return NaNs:
         bkg_rate = ratemap[ratemap>0].min()
@@ -903,7 +903,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
     elif isinstance(data, core.AnalogSignalArray):
-        newasa = copy.copy(data)
+        newasa = copy.deepcopy(data)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             cum_lengths = np.insert(np.cumsum(data.lengths), 0, 0)
