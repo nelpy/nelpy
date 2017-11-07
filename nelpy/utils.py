@@ -183,6 +183,54 @@ def spatial_sparsity(ratemap):
 
         return sparsity/number_of_spatial_bins
 
+def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False):
+    # TODO add'l kwargs
+
+    if not isinstance(obj, core.AnalogSignalArray):
+        raise TypeError('obj is expected to be a nelpy.core.AnalogSignalArray!')
+
+    assert fs_out < obj.fs, "fs_out must be less than current sampling rate!"
+
+    if inplace:
+        out = obj
+    else:
+        from copy import deepcopy
+        out = deepcopy(obj)
+
+    if aafilter:
+        from scipy.signal import sosfiltfilt, iirdesign
+
+        fs = out.fs
+        overlap_len = int(fs*2)
+        buffer_len = 4194304
+        gpass = 0.1 # max loss in passband, dB
+        gstop = 30 # min attenuation in stopband (dB)
+        fso2 = fs/2.0
+        fh = fs_out/2
+        wp = fh/fso2
+        ws = 1.4*fh/fso2
+
+        sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype='cheby2', output='sos')
+
+        fei = np.insert(np.cumsum(obj.lengths), 0, 0) # filter epoch indices, fei
+
+        for ii in range(len(fei)-1):
+            start, stop = fei[ii], fei[ii+1]
+            for buff_st_idx in range(start, stop, buffer_len):
+                chk_st_idx = int(max(start, buff_st_idx - overlap_len))
+                buff_nd_idx = int(min(stop, buff_st_idx + buffer_len))
+                chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
+                rel_st_idx = int(buff_st_idx - chk_st_idx)
+                rel_nd_idx = int(buff_nd_idx - chk_st_idx)
+                this_y_chk = sosfiltfilt(sos, obj._ydata_rowsig[:,chk_st_idx:chk_nd_idx])
+                out._ydata[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
+
+    downsampled = out.simplify(ds=1/fs_out)
+    out._ydata = downsampled._ydata
+    out._time = downsampled.time
+    out._fs = fs_out
+    return out
+
 def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     """Compute the multiunit activity (MUA) from a spike train.
 

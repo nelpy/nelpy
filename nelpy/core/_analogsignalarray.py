@@ -16,7 +16,8 @@ from ..utils import is_sorted, \
                     PrettyDuration, \
                     PrettyBytes, \
                     PrettyInt, \
-                    gaussian_filter
+                    gaussian_filter, \
+                    downsample_analogsignalarray
 
 from ._epocharray import EpochArray
 
@@ -385,6 +386,9 @@ class AnalogSignalArray:
         if data is None:
             data = self.time
         return 1.0/np.median(np.diff(data))
+
+    def downsample(self, *, fs_out, aafilter=True, inplace=False):
+        return downsample_analogsignalarray(self, fs_out=fs_out, aafilter=True, inplace=inplace)
 
     def add_signal(self, signal, label=None):
         """Docstring goes here.
