@@ -7,12 +7,14 @@ import copy
 
 from abc import ABC, abstractmethod
 
-from ..utils import is_sorted, \
-                   linear_merge, \
-                   PrettyDuration, \
-                   PrettyInt, \
-                   swap_rows, \
-                   gaussian_filter
+# from ..utils import is_sorted, \
+#                    linear_merge, \
+#                    PrettyDuration, \
+#                    PrettyInt, \
+#                    swap_rows, \
+#                    gaussian_filter
+
+from .. import utils
 
 from ..utils_.decorators import deprecated
 
@@ -602,7 +604,7 @@ class SpikeTrainArray(SpikeTrain):
 
         #sort spike trains, but only if necessary:
         for ii, train in enumerate(time):
-            if not is_sorted(train):
+            if not utils.is_sorted(train):
                 time[ii] = np.sort(train)
 
         kwargs = {"fs": fs,
@@ -804,7 +806,7 @@ class SpikeTrainArray(SpikeTrain):
     def n_units(self):
         """(int) The number of units."""
         try:
-            return PrettyInt(len(self.time))
+            return utils.PrettyInt(len(self.time))
         except TypeError:
             return 0
 
@@ -816,7 +818,7 @@ class SpikeTrainArray(SpikeTrain):
         """
         if self.isempty:
             return 0
-        return PrettyInt(np.count_nonzero(self.n_spikes))
+        return utils.PrettyInt(np.count_nonzero(self.n_spikes))
 
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
@@ -854,7 +856,7 @@ class SpikeTrainArray(SpikeTrain):
 
         alltimes = self.time[0]
         for unit in range(1,self.n_units):
-            alltimes = linear_merge(alltimes, self.time[unit])
+            alltimes = utils.linear_merge(alltimes, self.time[unit])
 
         spiketrainarray._time = np.array(list(alltimes), ndmin=2)
         spiketrainarray.loc = ItemGetter_loc(spiketrainarray)
@@ -1012,7 +1014,7 @@ class SpikeTrainArray(SpikeTrain):
         if self.isempty:
             return True
         return np.array(
-            [is_sorted(spiketrain) for spiketrain in self.time]
+            [utils.is_sorted(spiketrain) for spiketrain in self.time]
             ).all()
 
     def _reorder_units_by_idx(self, neworder, inplace=False):
@@ -1034,7 +1036,7 @@ class SpikeTrainArray(SpikeTrain):
         for oi, ni in enumerate(neworder):
             frm = oldorder.index(ni)
             to = oi
-            swap_rows(out._time, frm, to)
+            utils.swap_rows(out._time, frm, to)
             out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
             out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
             # TODO: re-build unit tags (tag system not yet implemented)
@@ -1076,7 +1078,7 @@ class SpikeTrainArray(SpikeTrain):
         for oi, ni in enumerate(neworder):
             frm = oldorder.index(ni)
             to = oi
-            swap_rows(out._time, frm, to)
+            utils.swap_rows(out._time, frm, to)
             out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
             out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
             # TODO: re-build unit tags (tag system not yet implemented)
@@ -1185,7 +1187,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             dstr = ""
         else:
             bstr = " {} bins of width {}".format(self.n_bins, PrettyDuration(self.ds))
-            dstr = " for a total of {}".format(PrettyDuration(self.n_bins*self.ds))
+            dstr = " for a total of {}".format(utils.PrettyDuration(self.n_bins*self.ds))
         return "<BinnedSpikeTrainArray%s:%s%s%s>%s" % (address_str, ustr, epstr, bstr, dstr)
 
     def __iter__(self):
@@ -1329,7 +1331,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     def n_units(self):
         """(int) The number of units."""
         try:
-            return PrettyInt(self.data.shape[0])
+            return utils.PrettyInt(self.data.shape[0])
         except AttributeError:
             return 0
 
@@ -1405,7 +1407,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def n_bins(self):
         """(int) The number of bins."""
-        return PrettyInt(len(self.centers))
+        return utils.PrettyInt(len(self.centers))
 
     @property
     def ds(self):
@@ -1548,7 +1550,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         fs = 1 / self.ds
 
-        return gaussian_filter(self, fs=fs, sigma=sigma, inplace=inplace)
+        return utils.gaussian_filter(self, fs=fs, sigma=sigma, inplace=inplace)
 
     @staticmethod
     def _smooth_array(arr, w=None):
@@ -1710,7 +1712,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             newbst._ds = bst.ds*w
             newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
         else:
-            warnings.warn("No events are long enough to contain any bins of width {}".format(PrettyDuration(ds)))
+            warnings.warn("No events are long enough to contain any bins of width {}".format(utils.PrettyDuration(ds)))
             newbst._data = None
             newbst._support = None
             newbst._binnedSupport = None
@@ -1764,7 +1766,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         """
         if self.isempty:
             return 0
-        return PrettyInt(np.count_nonzero(self.n_spikes))
+        return utils.PrettyInt(np.count_nonzero(self.n_spikes))
 
     @property
     def n_active_per_bin(self):

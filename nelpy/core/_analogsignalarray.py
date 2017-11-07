@@ -10,16 +10,18 @@ from scipy import interpolate
 from sys import float_info
 from collections import namedtuple
 
-from ..utils import is_sorted, \
-                    frange, \
-                    get_contiguous_segments, \
-                    PrettyDuration, \
-                    PrettyBytes, \
-                    PrettyInt, \
-                    gaussian_filter, \
-                    downsample_analogsignalarray
+from .. import utils
 
-from ._epocharray import EpochArray
+# from ..utils import frange, \
+#                     get_contiguous_segments, \
+#                     PrettyDuration, \
+#                     PrettyBytes, \
+#                     PrettyInt, \
+#                     gaussian_filter, \
+#                     downsample_analogsignalarray
+
+# from ._epocharray import EpochArray
+from .. import core
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -37,7 +39,7 @@ class EpochSignalSlicer(object):
         signalslice = slice(None, None, None)
         if isinstance(*args, int):
             epochslice = args[0]
-        elif isinstance(*args, EpochArray):
+        elif isinstance(*args, core.EpochArray):
             epochslice = args[0]
         else:
             try:
@@ -209,7 +211,7 @@ class AnalogSignalArray:
         if(empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self._support = EpochArray(empty=True)
+            self._support = core.EpochArray(empty=True)
             return
 
         self._step = step
@@ -237,7 +239,7 @@ class AnalogSignalArray:
                             "is expected to have rows containing signals")
         #data is not sorted and user wants it to be
         # TODO: use faster is_sort from jagular
-        if not is_sorted(time):
+        if not utils.is_sorted(time):
             warnings.warn("Data is _not_ sorted! Data will be sorted "\
                             "automatically.")
             ind = np.argsort(time)
@@ -268,8 +270,8 @@ class AnalogSignalArray:
         else:
             warnings.warn("creating support from time and "
                             "sampling rate, fs!")
-            self._support = EpochArray(
-                get_contiguous_segments(
+            self._support = core.EpochArray(
+                utils.get_contiguous_segments(
                     self.time,
                     step=self._step,
                     fs=fs,
@@ -388,7 +390,7 @@ class AnalogSignalArray:
         return 1.0/np.median(np.diff(data))
 
     def downsample(self, *, fs_out, aafilter=True, inplace=False):
-        return downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, inplace=inplace)
+        return utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, inplace=inplace)
 
     def add_signal(self, signal, label=None):
         """Docstring goes here.
@@ -556,7 +558,7 @@ class AnalogSignalArray:
                 'sigma' : sigma,
                 'bw' : bw}
 
-        return gaussian_filter(self, **kwargs)
+        return utils.gaussian_filter(self, **kwargs)
 
     @property
     def lengths(self):
@@ -580,7 +582,7 @@ class AnalogSignalArray:
     def n_signals(self):
         """(int) The number of signals."""
         try:
-            return PrettyInt(self._ydata.shape[0])
+            return utils.PrettyInt(self._ydata.shape[0])
         except AttributeError:
             return 0
 
@@ -597,7 +599,7 @@ class AnalogSignalArray:
                 nstr = " %s signals%s" % (self.n_signals, epstr)
         except IndexError:
             nstr = " 1 signal%s" % epstr
-        dstr = " for a total of {}".format(PrettyDuration(self.support.duration))
+        dstr = " for a total of {}".format(utils.PrettyDuration(self.support.duration))
         return "<AnalogSignalArray%s:%s>%s" % (address_str, nstr, dstr)
 
     def partition(self, ds=None, n_epochs=None):
@@ -674,7 +676,7 @@ class AnalogSignalArray:
     @property
     def n_bytes(self):
         """Approximate number of bytes taken up by object."""
-        return PrettyBytes(self.ydata.nbytes + self.time.nbytes)
+        return utils.PrettyBytes(self.ydata.nbytes + self.time.nbytes)
 
     @property
     def n_epochs(self):
@@ -686,7 +688,7 @@ class AnalogSignalArray:
         """(int) number of time samples where signal is defined."""
         if self.isempty:
             return 0
-        return PrettyInt(len(self.time))
+        return utils.PrettyInt(len(self.time))
 
     def __iter__(self):
         """AnalogSignal iterator initialization"""
@@ -701,7 +703,7 @@ class AnalogSignalArray:
             raise StopIteration
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            epoch = EpochArray(empty=True)
+            epoch = core.EpochArray(empty=True)
             exclude = ["_time"]
             attrs = (x for x in self._support.__attributes__ if x not in exclude)
             with warnings.catch_warnings():
@@ -909,7 +911,7 @@ class AnalogSignalArray:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             epoch = self._support.intersect(
-                EpochArray(
+                core.EpochArray(
                     [start, stop],
                     fs=fs))
             if not epoch.isempty:
@@ -933,7 +935,7 @@ class AnalogSignalArray:
         """returns a scipy interp1d object"""
 
         if assume_sorted is None:
-            assume_sorted = is_sorted(self.time)
+            assume_sorted = utils.is_sorted(self.time)
 
         if self.n_signals > 1:
             axis = 1
@@ -1095,7 +1097,7 @@ class AnalogSignalArray:
         first_timestamps_per_epoch = self.time[np.insert(np.cumsum(self.lengths[:-1]),0,0)]
         last_timestamps_per_epoch = self.time[np.cumsum(self.lengths)-1]
         for ii, (start, stop) in enumerate(self.support.time):
-            newxvals = frange(first_timestamps_per_epoch[ii], stop, step=ds).tolist()
+            newxvals = utils.frange(first_timestamps_per_epoch[ii], stop, step=ds).tolist()
             at.extend(newxvals)
             try:
                 if newxvals[-1] < last_timestamps_per_epoch[ii]:

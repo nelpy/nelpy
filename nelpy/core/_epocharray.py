@@ -7,9 +7,11 @@ import numbers
 
 from sys import float_info
 
-from ..utils import is_sorted, \
-                   PrettyDuration, \
-                   PrettyInt
+# from ..utils import is_sorted, \
+#                    PrettyDuration, \
+#                    PrettyInt
+
+from .. import utils
 
 from ..utils_.decorators import deprecated
 
@@ -158,7 +160,7 @@ class EpochArray:
             nstr = "%s epochs" % (self.n_epochs)
         else:
             nstr = "1 epoch"
-        dstr = "of duration {}".format(PrettyDuration(self.duration))
+        dstr = "of duration {}".format(utils.PrettyDuration(self.duration))
         return "<EpochArray%s: %s> %s" % (address_str, nstr, dstr)
 
     def __iter__(self):
@@ -452,8 +454,8 @@ class EpochArray:
     def duration(self):
         """(float) The total duration of the epoch array."""
         if self.isempty:
-            return PrettyDuration(0)
-        return PrettyDuration(np.array(self.time[:, 1] - self.time[:, 0]).sum())
+            return utils.PrettyDuration(0)
+        return utils.PrettyDuration(np.array(self.time[:, 1] - self.time[:, 0]).sum())
 
     @property
     def starts(self):
@@ -488,7 +490,7 @@ class EpochArray:
         """(int) The number of epochs."""
         if self.isempty:
             return 0
-        return PrettyInt(len(self.time[:, 0]))
+        return utils.PrettyInt(len(self.time[:, 0]))
 
     def __len__(self):
         """(int) The number of epochs."""
@@ -503,7 +505,7 @@ class EpochArray:
             return True
         if not self.issorted:
             self._sort()
-        if not is_sorted(self.stops):
+        if not utils.is_sorted(self.stops):
             return False
 
         return np.all(self.time[1:,0] - self.time[:-1,1] > 0)
@@ -513,7 +515,7 @@ class EpochArray:
         """(bool) Left edges of epochs are sorted in ascending order."""
         if self.isempty:
             return True
-        return is_sorted(self.starts)
+        return utils.is_sorted(self.starts)
 
     @property
     def isempty(self):
