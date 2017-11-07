@@ -388,7 +388,7 @@ class AnalogSignalArray:
         return 1.0/np.median(np.diff(data))
 
     def downsample(self, *, fs_out, aafilter=True, inplace=False):
-        return downsample_analogsignalarray(self, fs_out=fs_out, aafilter=True, inplace=inplace)
+        return downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, inplace=inplace)
 
     def add_signal(self, signal, label=None):
         """Docstring goes here.
