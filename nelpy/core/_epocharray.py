@@ -437,6 +437,23 @@ class EpochArray:
         return self._time
 
     @property
+    def _human_readable_posix_epochs(self):
+        """Epoch start and stop times in human readable POSIX time.
+
+        This property is left private, because it has not been carefully
+        vetted for public API release yet.
+        """
+        import datetime
+        n_epochs_zfill = len(str(self.n_epochs))
+        for ii, (start, stop) in enumerate(self.time):
+            print('[ep ' + str(ii).zfill(n_epochs_zfill) + ']\t' +
+                  datetime.datetime.fromtimestamp(
+                    int(start)).strftime('%Y-%m-%d %H:%M:%S') + ' -- ' +
+                  datetime.datetime.fromtimestamp(
+                    int(stop)).strftime('%Y-%m-%d %H:%M:%S') + '\t(' +
+                  str(utils.PrettyDuration(stop-start)) + ')')
+
+    @property
     def centers(self):
         """(np.array) The center of each epoch."""
         if self.isempty:
