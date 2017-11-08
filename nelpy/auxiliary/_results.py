@@ -101,8 +101,14 @@ class ResultsContainer(object):
 def load_pkl(fname, zip=True):
     """Read pickled data from disk, possible decompressing."""
     if zip:
-        with gzip.open(fname, "rb") as fid:
-            res = pickle.load(fid)
+        try:
+            with gzip.open(fname, "rb") as fid:
+                res = pickle.load(fid)
+        except OSError:
+            # most likely, results were not saved using zip=True, so let's try
+            # to load without zip:
+            with open(fname, "rb") as fid:
+                res = pickle.load(fid)
     else:
         with open(fname, "rb") as fid:
             res = pickle.load(fid)
@@ -111,14 +117,29 @@ def load_pkl(fname, zip=True):
 def save_pkl(fname, res, zip=True, overwrite=False):
     """Write pickled data to disk, possible compressing."""
     if os.path.isfile(fname):
-        # file exists
+            # file exists
         if overwrite:
             pass
         else:
             print('File "{}" already exists! Aborting...'.format(fname))
             return
     if zip:
-        open = gzip.open
+        save_large_file_without_zip = False
+        with gzip.open(fname, "wb") as fid:
+            try:
+                pickle.dump(res, fid)
+            except OverflowError:
+                print('writing to disk using protocol=4, which supports file sizes > 4 GiB, and ignoring zip=True (zip is not supported for large files yet)')
+                save_large_file_without_zip = True
 
-    with open(fname, "wb") as fid:
-        pickle.dump(res, fid)
+        if save_large_file_without_zip:
+            with open(fname, "wb") as fid:
+                pickle.dump(res, fid, protocol=4)
+    else:
+        with open(fname, "wb") as fid:
+            try:
+                pickle.dump(res, fid)
+            except OverflowError:
+                print('writing to disk using protocol=4, which supports file sizes > 4 GiB')
+                pickle.dump(res, fid, protocol=4)
+
