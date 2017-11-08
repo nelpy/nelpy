@@ -1183,10 +1183,10 @@ class BinnedSpikeTrainArray(SpikeTrain):
         else:
             epstr = " in"
         if self.n_bins == 1:
-            bstr = " {} bin of width {}".format(self.n_bins, PrettyDuration(self.ds))
+            bstr = " {} bin of width {}".format(self.n_bins, utils.PrettyDuration(self.ds))
             dstr = ""
         else:
-            bstr = " {} bins of width {}".format(self.n_bins, PrettyDuration(self.ds))
+            bstr = " {} bins of width {}".format(self.n_bins, utils.PrettyDuration(self.ds))
             dstr = " for a total of {}".format(utils.PrettyDuration(self.n_bins*self.ds))
         return "<BinnedSpikeTrainArray%s:%s%s%s>%s" % (address_str, ustr, epstr, bstr, dstr)
 
