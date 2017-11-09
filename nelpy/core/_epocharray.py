@@ -402,7 +402,7 @@ class EpochArray:
         newtimes = newtimes[durations>0]
         complement = copy.copy(self)
         complement._time = newtimes
-        return complement
+        return complement[domain]
 
     @property
     def domain(self):
