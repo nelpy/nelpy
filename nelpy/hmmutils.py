@@ -838,18 +838,21 @@ class PoissonHMM(PHMM):
 
         return extern
 
-    def decode_ext(self, X, lengths=None, algorithm=None, w=None, ext_shape=None):
-        """Find most likely state sequence corresponding to ``X``, and
-        then map those states to an associated external representation
-        (e.g. position).
+    def decode_ext(self, X, lengths=None, w=None, ext_shape=None):
+        """Find memoryless most likely state sequence corresponding to ``X``,
+        (that is, the symbol-by-symbol MAP sequence) and then map those
+        states to an associated external representation (e.g. position).
 
-        WARNING! #TODO: This only works for 1D; otherwise the expected
-        path should be computed slightly differently. A workaround is to
-        create a virtual tuning curve using the HMM, and then to use
-        decoding.decode2D with that virtual tuning curve, where units
-        then become states. However, state (and similarly, unit-)
-        reordering then becomes a potential issue, since units have
-        persistent IDs, whereas states do not.
+        example 1d
+        ----------
+        posterior_pos, bdries, mode_pth, mean_pth = hmm.decode_ext(bst_no_ripple, ext_shape=(vtc.n_bins,))
+        mean_pth = vtc.bins[0] + mean_pth*(vtc.bins[-1] - vtc.bins[0])
+
+        example 2d
+        ----------
+        posterior_, bdries_, mode_pth_, mean_pth_ = hmm.decode_ext(bst, ext_shape=(ext_nx, ext_ny))
+        mean_pth_[0,:] = vtc2d.xbins[0] + mean_pth_[0,:]*(vtc2d.xbins[-1] - vtc2d.xbins[0])
+        mean_pth_[1,:] = vtc2d.ybins[0] + mean_pth_[1,:]*(vtc2d.ybins[-1] - vtc2d.ybins[0])
 
         Parameters
         ----------
@@ -862,17 +865,10 @@ class PoissonHMM(PHMM):
             these should be ``n_samples``. This is not used when X is
             a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
             automatically inferred.
-        algorithm : string, one of the ``DECODER_ALGORITHMS`` decoder
-            algorithm to be used.
 
         Returns
         -------
-        logprob : float
-            Log probability of the produced state sequence.
-
-        ext_sequences : array, shape (n_samples, )
-            External labels for each sample from ``X`` obtained via a
-            given decoder ``algorithm``.
+        ext_posteriors, bdries, mode_pth, mean_pth
 
         ext_posteriors : array, shape (n_extern, n_samples)
             State-membership probabilities for each sample in ``X``.
