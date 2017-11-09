@@ -458,7 +458,6 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
 
     # indices of training and validation epochs / events
 
-    n_bins = n_bins # number of bins for error histogram
     hist = np.zeros(n_bins)
     for training, validation in k_fold_cross_validation(bst.n_epochs, k=k):
         # estimate place fields using bst[training]
