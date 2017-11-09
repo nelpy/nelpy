@@ -758,6 +758,10 @@ class EpochArray:
             join_starts[..., np.newaxis],
             join_stops[..., np.newaxis]
             ))
+        if not newepocharray.issorted:
+            newepocharray._sort()
+        if not newepocharray.ismerged:
+            newepocharray = newepocharray.merge()
         return newepocharray
 
     def contains(self, value):
