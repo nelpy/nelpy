@@ -383,6 +383,12 @@ class AnalogSignalArray:
     def __len__(self):
         return self.n_epochs
 
+    def _drop_empty_epochs(self):
+        """Drops empty epochs from support. In-place."""
+        keep_epoch_ids = np.argwhere(self.lengths).squeeze().tolist()
+        self._support = self.support[keep_epoch_ids]
+        return self
+
     def _estimate_fs(self, data=None):
         """Estimate the sampling rate of the data."""
         if data is None:
@@ -1094,10 +1100,21 @@ class AnalogSignalArray:
             ds = self.support.duration / (n_points-1)
 
         # build list of points at which to evaluate the AnalogSignalArray
+
+        # we exclude all empty epochs:
         at = []
-        first_timestamps_per_epoch = self.time[np.insert(np.cumsum(self.lengths[:-1]),0,0)]
-        last_timestamps_per_epoch = self.time[np.cumsum(self.lengths)-1]
+        lengths = self.lengths
+        empty_epoch_ids = np.argwhere(lengths==0).squeeze().tolist()
+        first_timestamps_per_epoch_idx = np.insert(np.cumsum(lengths[:-1]),0,0)
+        first_timestamps_per_epoch_idx[empty_epoch_ids] = 0
+        last_timestamps_per_epoch_idx = np.cumsum(lengths)-1
+        last_timestamps_per_epoch_idx[empty_epoch_ids] = 0
+        first_timestamps_per_epoch = self.time[first_timestamps_per_epoch_idx]
+        last_timestamps_per_epoch = self.time[last_timestamps_per_epoch_idx]
+
         for ii, (start, stop) in enumerate(self.support.time):
+            if lengths[ii] == 0:
+                continue
             newxvals = utils.frange(first_timestamps_per_epoch[ii], last_timestamps_per_epoch[ii], step=ds).tolist()
             at.extend(newxvals)
             try:
