@@ -570,7 +570,8 @@ class AnalogSignalArray:
             frm, to = np.searchsorted(self._time, (t_start, t_stop))
             indices.append((frm, to))
         indices = np.array(indices, ndmin=2)
-        return np.diff(indices).squeeze()
+        lengths = np.atleast_1d(np.diff(indices).squeeze())
+        return lengths
 
     @property
     def labels(self):
@@ -1097,7 +1098,7 @@ class AnalogSignalArray:
         first_timestamps_per_epoch = self.time[np.insert(np.cumsum(self.lengths[:-1]),0,0)]
         last_timestamps_per_epoch = self.time[np.cumsum(self.lengths)-1]
         for ii, (start, stop) in enumerate(self.support.time):
-            newxvals = utils.frange(first_timestamps_per_epoch[ii], stop, step=ds).tolist()
+            newxvals = utils.frange(first_timestamps_per_epoch[ii], last_timestamps_per_epoch[ii], step=ds).tolist()
             at.extend(newxvals)
             try:
                 if newxvals[-1] < last_timestamps_per_epoch[ii]:
