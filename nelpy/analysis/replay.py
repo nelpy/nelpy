@@ -14,10 +14,443 @@ import warnings
 import copy
 import numpy as np
 
+from scipy.ndimage import convolve
 from scipy import stats
+
+from ..hmmutils import PoissonHMM
+from ..core import SpikeTrainArray
 from .. import auxiliary
 from ..decoding import decode1D as decode
+from ..decoding import k_fold_cross_validation
 from ..decoding import get_mode_pth_from_array, get_mean_pth_from_array
+
+def get_line_of_best_Davidson_score(bst, tuningcurve, w=3, n_samples=50000):
+    tc = tuningcurve
+
+    if bst.n_epochs > 1:
+        raise TypeError('You can only pass one PBE at a time!')
+
+    def sub2ind(array_shape, rows, cols):
+        return rows*array_shape[1] + cols
+
+    def calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid):
+        """
+        Note: Not matrix dimensions! Think of dim0 as
+        x coordinate, dim1 as y coordinate, etc.
+        """
+        ri = (rho - (ci - ci_mid) * np.cos(phi)) / np.sin(phi) + ri_mid
+        ri = np.around(ri).astype(int) # Find nearest position bin
+
+        return ri
+
+    def _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci):
+        scores_outside_track = np.nanmedian(posterior[:,(ri > NP - 1) | (ri < 0)], axis=0)
+
+        coords = sub2ind(posterior.shape, ri, ci)
+        coords = coords[(ri < NP) & (ri >= 0)]
+        scores_within_track = np.take(precond_posterior, coords)
+
+        num_empty_bins = np.isnan(scores_outside_track).sum() + np.isnan(scores_within_track).sum()
+
+        score_within_track = np.nansum(scores_within_track)
+        if (score_within_track) > 0 & (num_empty_bins > 0):
+            temp = np.nanmedian(scores_within_track)*num_empty_bins
+        else:
+            temp = 0
+        score_outside_track = np.nansum(scores_outside_track) + temp
+
+        score = score_within_track + score_outside_track
+
+        # we divide by NT later on to be more efficient
+        # final_score = score/NT
+
+        return score
+
+    def find_best_line(posterior, precond_posterior, phis, rhos):
+        best_score = 0
+        best_ri = []
+
+        NP, NT = posterior.shape
+
+        ci_mid = (NT + 1)/2 # CONST
+        ri_mid = (NP + 1)/2 # CONST
+        ci = np.arange(NT)  # CONST
+
+        for phi, rho in zip(phis, rhos):
+
+            # parameterize line
+            ri = calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid)
+
+            score = _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci)
+
+            if score > best_score:
+                best_score = score
+                best_ri = ri
+
+        score = _score_line_ri_ci(posterior, precond_posterior, NT, NP, best_ri, ci)/NT
+
+        return score, best_ri
+
+    # decode neural activity
+    posterior_array, bdries, mode_pth, mean_pth = decode(bst=bst, ratemap=tc, xmax=310)
+
+    # precondition matrix kernel for banded summation
+    k = np.zeros((2*w+1, 3))
+    k[:,1] = 1
+
+    NP, NT = posterior_array.shape
+
+    D = np.sqrt((NT-1)**2 + (NP-1)**2)
+    phi_range = (-0.5*np.pi, 0.5*np.pi)
+    rho_range = (-0.5*D, 0.5*D)
+
+    phis = phi_range[0] + np.random.rand(n_samples)*(phi_range[1] - phi_range[0])
+    phis[(phis < 0.0001) & (phis > -0.0001)] = 0.0001
+    rhos = rho_range[0] + np.random.rand(n_samples)*(rho_range[1] - rho_range[0])
+
+    precond_posterior = convolve(posterior_array, k, mode='constant', cval=0.0)
+
+    score, ri = find_best_line(posterior=posterior_array,
+                                    precond_posterior=precond_posterior,
+                                    phis=phis,
+                                    rhos=rhos)
+
+    ci = np.arange(NT)
+
+    return score, ri, ci
+
+def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle='row-wise', verbose=False):
+    """scores all sequences in the entire bst"""
+    if k_folds is None:
+        k_folds = 5
+
+    if shuffle == 'row-wise':
+        rowwise = True
+    elif shuffle == 'col-wise':
+        rowwise = False
+    else:
+        raise ValueError("tmat must be either 'row-wise' or 'col-wise'")
+
+    X = [ii for ii in range(bst.n_epochs)]
+
+    scores_hmm = np.zeros(bst.n_epochs)
+    scores_hmm_shuffled = np.zeros((bst.n_epochs, n_shuffles))
+
+    for kk, (training, validation) in enumerate(k_fold_cross_validation(X, k=k_folds)):
+        if verbose:
+            print('  fold {}/{}'.format(kk+1, k_folds))
+
+        PBEs_train = bst[training]
+        PBEs_test = bst[validation]
+
+        # train HMM on all training PBEs
+        hmm = PoissonHMM(n_components=num_states, random_state=0, verbose=False)
+        hmm.fit(PBEs_train)
+
+        # reorder states according to transmat ordering
+        transmat_order = hmm.get_state_order('transmat')
+        hmm.reorder_states(transmat_order)
+
+        # compute scores_hmm (log likelihoods) of validation set:
+        scores_hmm[validation] = hmm.score(PBEs_test)
+
+        hmm_shuffled = copy.deepcopy(hmm)
+        for nn in range(n_shuffles):
+            # shuffle transition matrix:
+            if rowwise:
+                hmm_shuffled.transmat_ = shuffle_transmat(hmm_shuffled.transmat)
+            else:
+                hmm_shuffled.transmat_ = shuffle_transmat_Kourosh_breaks_stochasticity(hmm_shuffled.transmat)
+                hmm_shuffled.transmat_ = hmm_shuffled.transmat / np.tile(hmm_shuffled.transmat.sum(axis=1), (hmm_shuffled.n_components, 1)).T
+
+            # score validation set with shuffled HMM
+            scores_hmm_shuffled[validation, nn] = hmm_shuffled.score(PBEs_test)
+
+    n_scores = len(scores_hmm)
+    scores_hmm_percentile = np.array([stats.percentileofscore(scores_hmm_shuffled[idx], scores_hmm[idx], kind='mean') for idx in range(n_scores)])
+
+    return scores_hmm, scores_hmm_shuffled, scores_hmm_percentile
+
+def score_Davidson_final_bst_fast(bst, tuningcurve, w=None, n_shuffles=2000, n_samples=35000, verbose=False):
+    """Compute the trajectory scores from Davidson et al. 2009 for each event
+    in the BinnedSpikeTrainArray. DO IT EVEN FASTER!!!
+    """
+
+    def sub2ind(n_cols, rows, cols):
+        return rows*n_cols + cols
+
+    def calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid):
+        """
+        Note: Not matrix dimensions! Think of dim0 as
+        x coordinate, dim1 as y coordinate, etc.
+        """
+        ri = (rho - (ci - ci_mid) * np.cos(phi)) / np.sin(phi) + ri_mid
+        ri = np.around(ri).astype(int) # Find nearest position bin
+
+        return ri
+
+    def _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci, ncols, median_post, nanbins, n_nanbins):
+
+        scores_outside_track = median_post[((ri > NP - 1) & ~nanbins) | ((ri < 0)& ~nanbins)]
+
+        coords = sub2ind(NT, ri, ci)
+        coords = coords[(ri < NP) & (ri >= 0) & (~nanbins)]
+        scores_within_track = np.take(precond_posterior, coords)
+
+        nanscore = 0
+        if n_nanbins > 0:
+            nanscore = n_nanbins * np.median(scores_within_track)
+
+        score_within_track = np.sum(scores_within_track)
+        score_outside_track = np.sum(scores_outside_track)
+
+        score = score_within_track + score_outside_track
+
+        # we divide by NT later on to be more efficient
+        # final_score = score/NT
+
+        return score
+
+    def find_best_line(posterior, precond_posterior, phis, rhos, NP, NT, median_post, nanbins, n_nanbins):
+        best_score = 0
+        best_ri = []
+
+        # n_rows, n_cols = posterior.shape
+#         NP, NT = posterior.shape
+
+        ci_mid = (NT + 1)/2 # CONST
+        ri_mid = (NP + 1)/2 # CONST
+        ci = np.arange(NT)  # CONST
+
+        for phi, rho in zip(phis, rhos):
+
+            # parameterize line
+            ri = calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid)
+
+            score = _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci, NT, median_post, nanbins, n_nanbins)
+            if score > best_score:
+                best_score = score
+                best_ri = ri
+
+        score = _score_line_ri_ci(posterior, precond_posterior, NT, NP, best_ri, ci, NT, median_post, nanbins, n_nanbins)/NT
+        return score, best_ri
+
+    if w is None:
+        w = 0
+    if not float(w).is_integer:
+        raise ValueError("w has to be an integer!")
+
+    if float(n_shuffles).is_integer:
+        n_shuffles = int(n_shuffles)
+    else:
+        raise ValueError("n_shuffles must be an integer!")
+
+    posterior, bdries, mode_pth, mean_pth = decode(bst=bst,
+                                                   ratemap=tuningcurve)
+
+    # precondition matrix kernel for banded summation
+    k = np.zeros((2*w+1, 3))
+    k[:,1] = 1
+
+    scores_bayes = np.zeros(bst.n_epochs)
+
+    if n_shuffles > 0:
+        scores_bayes_shuffled = np.zeros((n_shuffles, bst.n_epochs))
+
+    for idx in range(bst.n_epochs):
+        if verbose:
+            print("scoring event ", idx+1, "/", bst.n_epochs)
+
+        posterior_array = posterior[:, bdries[idx]:bdries[idx+1]]
+
+        # now we zero out all the nan bins (we compensate for them later...)
+        nanbins = np.isnan(np.max(posterior_array, axis=0))
+        n_nanbins = np.count_nonzero(nanbins)
+        posterior_array[:, nanbins] = 0
+
+        # now pre-compute median of entire array
+        posterior_median = np.median(posterior_array, axis=0)
+
+        NP, NT = posterior_array.shape
+
+        D = np.sqrt((NT-1)**2 + (NP-1)**2)
+        phi_range = (-0.5*np.pi, 0.5*np.pi)
+        rho_range = (-0.5*D, 0.5*D)
+
+        phis = phi_range[0] + np.random.rand(n_samples)*(phi_range[1] - phi_range[0])
+        phis[(phis < 0.0001) & (phis > -0.0001)] = 0.0001
+        rhos = rho_range[0] + np.random.rand(n_samples)*(rho_range[1] - rho_range[0])
+
+        precond_posterior = convolve(posterior_array, k, mode='constant', cval=0.0)
+
+        scores_bayes[idx], _ = find_best_line(posterior=posterior_array,
+                                        precond_posterior=precond_posterior,
+                                        phis=phis,
+                                        rhos=rhos,
+                                        NP=NP,
+                                        NT=NT,
+                                        median_post=posterior_median,
+                                        nanbins=nanbins,
+                                        n_nanbins=n_nanbins)
+        if n_shuffles > 0:
+            posterior_cs = copy.deepcopy(posterior_array)
+            precond_posterior_cs = copy.deepcopy(precond_posterior)
+
+            for shflidx in range(n_shuffles):
+
+                for col in range(NT):
+                    random_offset = np.random.randint(1, NP)
+                    posterior_cs[:,col] = np.roll(posterior_cs[:,col], random_offset)
+                    precond_posterior_cs[:,col] = np.roll(precond_posterior_cs[:,col], random_offset)
+
+                # ideally we should re-sample phi and rho here for every sequence, but to save time, we don't...
+                scores_bayes_shuffled[shflidx, idx], _ = find_best_line(posterior=posterior_cs,
+                                                                    precond_posterior=precond_posterior_cs,
+                                                                    phis=phis,
+                                                                    rhos=rhos,
+                                                                    NP=NP,
+                                                                    NT=NT,
+                                                                    median_post=posterior_median,
+                                                                    nanbins=nanbins,
+                                                                    n_nanbins=n_nanbins)
+    if n_shuffles > 0:
+        scores_bayes_shuffled = scores_bayes_shuffled.T
+        n_scores = len(scores_bayes)
+        scores_bayes_percentile = np.array([stats.percentileofscore(scores_bayes_shuffled[idx], scores_bayes[idx], kind='mean') for idx in range(n_scores)])
+        return scores_bayes, scores_bayes_shuffled, scores_bayes_percentile
+    return scores_bayes
+
+def score_Davidson_final_bst(bst, tuningcurve, w=None, n_shuffles=2000, n_samples=35000, verbose=False):
+    """Compute the trajectory scores from Davidson et al. 2009 for each event
+    in the BinnedSpikeTrainArray. DO IT FAST!!!
+    """
+
+    def sub2ind(array_shape, rows, cols):
+        return rows*array_shape[1] + cols
+
+    def calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid):
+        """
+        Note: Not matrix dimensions! Think of dim0 as
+        x coordinate, dim1 as y coordinate, etc.
+        """
+        ri = (rho - (ci - ci_mid) * np.cos(phi)) / np.sin(phi) + ri_mid
+        ri = np.around(ri).astype(int) # Find nearest position bin
+
+        return ri
+
+    def _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci):
+
+        scores_outside_track = np.nanmedian(posterior[:,(ri > NP - 1) | (ri < 0)], axis=0)
+
+        coords = sub2ind(posterior.shape, ri, ci)
+        coords = coords[(ri < NP) & (ri >= 0)]
+        scores_within_track = np.take(precond_posterior, coords)
+
+        num_empty_bins = np.isnan(scores_outside_track).sum() + np.isnan(scores_within_track).sum()
+
+        score_within_track = np.nansum(scores_within_track)
+        if (score_within_track) > 0 & (num_empty_bins > 0):
+            temp = np.nanmedian(scores_within_track)*num_empty_bins
+        else:
+            temp = 0
+        score_outside_track = np.nansum(scores_outside_track) + temp
+
+        score = score_within_track + score_outside_track
+
+        # we divide by NT later on to be more efficient
+        # final_score = score/NT
+
+        return score
+
+    def find_best_line(posterior, precond_posterior, phis, rhos):
+        best_score = 0
+        best_ri = []
+
+        NP, NT = posterior.shape
+
+        ci_mid = (NT + 1)/2 # CONST
+        ri_mid = (NP + 1)/2 # CONST
+        ci = np.arange(NT)  # CONST
+
+        for phi, rho in zip(phis, rhos):
+
+            # parameterize line
+            ri = calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid)
+
+            score = _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci)
+            if score > best_score:
+                best_score = score
+                best_ri = ri
+
+        score = _score_line_ri_ci(posterior, precond_posterior, NT, NP, best_ri, ci)/NT
+        return score, best_ri
+
+    if w is None:
+        w = 0
+    if not float(w).is_integer:
+        raise ValueError("w has to be an integer!")
+
+    if float(n_shuffles).is_integer:
+        n_shuffles = int(n_shuffles)
+    else:
+        raise ValueError("n_shuffles must be an integer!")
+
+    posterior, bdries, mode_pth, mean_pth = decode(bst=bst,
+                                                   ratemap=tuningcurve)
+
+    # precondition matrix kernel for banded summation
+    k = np.zeros((2*w+1, 3))
+    k[:,1] = 1
+
+    scores_bayes = np.zeros(bst.n_epochs)
+
+    if n_shuffles > 0:
+        scores_bayes_shuffled = np.zeros((n_shuffles, bst.n_epochs))
+
+    for idx in range(bst.n_epochs):
+        if verbose:
+            print("scoring event ", idx+1, "/", bst.n_epochs)
+
+        posterior_array = posterior[:, bdries[idx]:bdries[idx+1]]
+
+        NP, NT = posterior_array.shape
+
+        D = np.sqrt((NT-1)**2 + (NP-1)**2)
+        phi_range = (-0.5*np.pi, 0.5*np.pi)
+        rho_range = (-0.5*D, 0.5*D)
+
+        phis = phi_range[0] + np.random.rand(n_samples)*(phi_range[1] - phi_range[0])
+        phis[(phis < 0.0001) & (phis > -0.0001)] = 0.0001
+        rhos = rho_range[0] + np.random.rand(n_samples)*(rho_range[1] - rho_range[0])
+
+        precond_posterior = convolve(posterior_array, k, mode='constant', cval=0.0)
+
+        scores_bayes[idx], _ = find_best_line(posterior=posterior_array,
+                                        precond_posterior=precond_posterior,
+                                        phis=phis,
+                                        rhos=rhos)
+        if n_shuffles > 0:
+            posterior_cs = copy.deepcopy(posterior_array)
+            precond_posterior_cs = copy.deepcopy(precond_posterior)
+
+            for shflidx in range(n_shuffles):
+
+                for col in range(NT):
+                    random_offset = np.random.randint(1, NP)
+                    posterior_cs[:,col] = np.roll(posterior_cs[:,col], random_offset)
+                    precond_posterior_cs[:,col] = np.roll(precond_posterior_cs[:,col], random_offset)
+
+                # ideally we should re-sample phi and rho here for every sequence, but to save time, we don't...
+                scores_bayes_shuffled[shflidx, idx], _ = find_best_line(posterior=posterior_cs,
+                                                                    precond_posterior=precond_posterior_cs,
+                                                                    phis=phis,
+                                                                    rhos=rhos)
+    if n_shuffles > 0:
+        scores_bayes_shuffled = scores_bayes_shuffled.T
+        n_scores = len(scores_bayes)
+        scores_bayes_percentile = np.array([stats.percentileofscore(scores_bayes_shuffled[idx], scores_bayes[idx], kind='mean') for idx in range(n_scores)])
+        return scores_bayes, scores_bayes_shuffled, scores_bayes_percentile
+    return scores_bayes
 
 def linregress_ting(bst, tuningcurve, n_shuffles=250):
     """perform linear regression on all the events in bst, and return the R^2 values"""
@@ -126,6 +559,86 @@ def time_swap_bst(bst):
 
     return out
 
+def incoherent_shuffle_bst(bst):
+    """Incoherent shuffle on BinnedSpikeTrainArray, swapping only within each epoch."""
+    out = copy.deepcopy(bst) # should this be deep? YES! Oh my goodness, yes!
+    data = out._data
+    edges = np.insert(np.cumsum(bst.lengths),0,0)
+
+    for uu in range(bst.n_units):
+        for ii in range(bst.n_epochs):
+            segment = np.squeeze(data[uu, edges[ii]:edges[ii+1]])
+            segment = np.roll(segment, np.random.randint(len(segment)))
+            data[uu, edges[ii]:edges[ii+1]] = segment
+
+    return out
+
+def poisson_surrogate_bst(bst):
+    """Create a Poisson surrogate of BinnedSpikeTrainArray."""
+    firing_rates = bst.n_spikes / bst.support.duration # firing rates in Hz
+
+    spikes = []
+
+    for rate in firing_rates:
+        unit_spikes = []
+        for start, stop in bst.support.time:
+            evt_duration = stop - start
+            n_evt_spikes = np.random.poisson(rate * evt_duration)
+            spike_times = start + np.random.uniform(0, evt_duration, n_evt_spikes)
+            unit_spikes.extend(spike_times)
+
+        spikes.append(unit_spikes)
+
+    support = bst.support.expand(bst.ds/2, direction='stop')
+    poisson_st = SpikeTrainArray(timestamps=spikes, support=support)
+
+    out = poisson_st.bin(ds=bst.ds)
+    # out = out[bst.support]
+
+    return out
+
+def spike_id_shuffle_bst(bst, st_flat):
+    """Create a spike ID shuffled surrogate of BinnedSpikeTrainArray."""
+    all_spiketimes = st_flat.time.squeeze()
+    spike_ids = np.zeros(len(all_spiketimes))
+
+    n_spikes = np.ones(bst.n_units)* np.floor(st_flat.n_spikes[0] / bst.n_units)
+
+    pointer = 0
+    for uu, n_spikes in enumerate(n_spikes):
+        spike_ids[pointer:pointer+int(n_spikes)] = uu
+        pointer += int(n_spikes)
+
+    # permute spike IDs
+    spike_ids = np.random.permutation(spike_ids)
+
+    # now re-assign all spike times according to sampling above
+    spikes = []
+    for unit in range(bst.n_units):
+        spikes.append(all_spiketimes[spike_ids==unit])
+
+    support = bst.support.expand(bst.ds/2, direction='stop')
+    shuffled_st = SpikeTrainArray(timestamps=spikes, support=support)
+
+    out = shuffled_st.bin(ds=bst.ds)
+    # out = out[bst.support]
+
+    return out
+
+def unit_id_shuffle_bst(bst):
+    """Create a unit ID shuffled surrogate of BinnedSpikeTrainArray."""
+    out = copy.deepcopy(bst) # should this be deep?
+    data = out._data
+    edges = np.insert(np.cumsum(bst.lengths),0,0)
+
+    unit_list = np.arange(bst.n_units)
+
+    for ii in range(bst.n_epochs):
+        segment = data[:, edges[ii]:edges[ii+1]]
+        out._data[:, edges[ii]:edges[ii+1]] = segment[np.random.permutation(unit_list)]
+
+    return out
+
 def column_cycle_array(posterior, amt=None):
     """Also called 'position cycle' by Kloosterman et al.
     If amt is an array of the same length as posterior, then
@@ -214,7 +727,7 @@ def trajectory_score_bst(bst, tuningcurve, w=None, n_shuffles=250,
     w bins around the line, ignoring bins that are NaNs. Even when w=0
     (only the sum of peak probabilities) this is different from the r^2
     coefficient of determination, in that here more concentrated
-    posterior probabilities contribute heavily than weaker ones.
+    posterior probabilities contribute more heavily than weaker ones.
 
     NOTE3: the returned scores are NOT normalized, but if desired, they
     can be normalized by dividing by the number of non-NaN bins in each
@@ -320,6 +833,35 @@ def shuffle_transmat(transmat):
         shuffle_idx = np.random.permutation(all_but_diagonal)
         shuffle_idx = np.insert(shuffle_idx, rowidx, rowidx)
         shuffled[rowidx,:] = shuffled[rowidx, shuffle_idx]
+
+    return shuffled
+
+def shuffle_transmat_Kourosh_breaks_stochasticity(transmat):
+    """Shuffle transition probability matrix within each column, leaving self transitions in tact.
+
+    It is assumed that the transmat is stochastic-row-wise, meaning that A_{ij} = Pr(S_{t+1}=j|S_t=i).
+
+    NOTE: this breaks stochasticity! To get back to a stochastic matrix, we should do:
+    transmat = transmat / np.tile(transmat.sum(axis=1), (hmm.n_components, 1)).T
+
+    Parameters
+    ----------
+    transmat : array of size (n_states, n_states)
+        Transition probability matrix, where A_{ij} = Pr(S_{t+1}=j|S_t=i).
+
+    Returns
+    -------
+    shuffled : array of size (n_states, n_states)
+        Shuffled transition probability matrix.
+    """
+    shuffled = transmat.copy()
+
+    nrows, ncols = transmat.shape
+    for colidx in range(ncols):
+        all_but_diagonal = np.append(np.arange(colidx), np.arange(colidx+1, nrows))
+        shuffle_idx = np.random.permutation(all_but_diagonal)
+        shuffle_idx = np.insert(shuffle_idx, colidx, colidx)
+        shuffled[:, colidx] = shuffled[shuffle_idx, colidx]
 
     return shuffled
 
@@ -432,7 +974,6 @@ def score_hmm_incoherent_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     scores : array of size (n_events,)
     shuffled : array of size (n_shuffles, n_events)
     """
-    raise NotImplementedError
 
     scores = score_hmm_logprob(bst=bst,
                                hmm=hmm,
@@ -440,7 +981,7 @@ def score_hmm_incoherent_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     n_events = bst.n_epochs
     shuffled = np.zeros((n_shuffles, n_events))
     for ii in range(n_shuffles):
-        bst_shuffled = time_swap_bst(bst=bst)
+        bst_shuffled = incoherent_shuffle_bst(bst=bst)
         shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
                                            hmm=hmm,
                                            normalize=normalize)
@@ -455,7 +996,6 @@ def score_hmm_poisson_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     scores : array of size (n_events,)
     shuffled : array of size (n_shuffles, n_events)
     """
-    raise NotImplementedError
 
     scores = score_hmm_logprob(bst=bst,
                                hmm=hmm,
@@ -463,14 +1003,14 @@ def score_hmm_poisson_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     n_events = bst.n_epochs
     shuffled = np.zeros((n_shuffles, n_events))
     for ii in range(n_shuffles):
-        bst_shuffled = time_swap_bst(bst=bst)
+        bst_shuffled = poisson_surrogate_bst(bst=bst)
         shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
                                            hmm=hmm,
                                            normalize=normalize)
 
     return scores, shuffled
 
-def score_hmm_spike_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
+def score_hmm_spike_id_shuffle(bst, hmm, st_flat, n_shuffles=250, normalize=False):
     """Docstring goes here.
 
     Returns
@@ -478,7 +1018,6 @@ def score_hmm_spike_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     scores : array of size (n_events,)
     shuffled : array of size (n_shuffles, n_events)
     """
-    raise NotImplementedError
 
     scores = score_hmm_logprob(bst=bst,
                                hmm=hmm,
@@ -486,7 +1025,7 @@ def score_hmm_spike_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     n_events = bst.n_epochs
     shuffled = np.zeros((n_shuffles, n_events))
     for ii in range(n_shuffles):
-        bst_shuffled = time_swap_bst(bst=bst)
+        bst_shuffled = spike_id_shuffle_bst(bst=bst, st_flat=st_flat)
         shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
                                            hmm=hmm,
                                            normalize=normalize)
@@ -502,15 +1041,13 @@ def score_hmm_unit_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     shuffled : array of size (n_shuffles, n_events)
     """
 
-    raise NotImplementedError
-
     scores = score_hmm_logprob(bst=bst,
                                hmm=hmm,
                                normalize=normalize)
     n_events = bst.n_epochs
     shuffled = np.zeros((n_shuffles, n_events))
     for ii in range(n_shuffles):
-        bst_shuffled = time_swap_bst(bst=bst)
+        bst_shuffled = unit_id_shuffle_bst(bst=bst)
         shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
                                            hmm=hmm,
                                            normalize=normalize)

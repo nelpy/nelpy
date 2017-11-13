@@ -110,6 +110,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
     assert w > 0, "w must be a positive integer!"
 
     n_units, t_bins = bst.data.shape
+    _, n_xbins = ratemap.shape
 
     # if we pass a TuningCurve1D object, extract the ratemap and re-order
     # units if necessary
@@ -120,8 +121,10 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
         # re-order units if necessary
         ratemap = ratemap.reorder_units_by_ids(bst.unit_ids)
         ratemap = ratemap.ratemap
-
-    _, n_xbins = ratemap.shape
+    else:
+        xmin = 0
+        xmax = n_xbins
+        bin_centers = np.arange(n_xbins)
 
     if nospk_prior is None:
         nospk_prior = np.full(n_xbins, np.nan)
@@ -458,7 +461,6 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
 
     # indices of training and validation epochs / events
 
-    n_bins = n_bins # number of bins for error histogram
     hist = np.zeros(n_bins)
     for training, validation in k_fold_cross_validation(bst.n_epochs, k=k):
         # estimate place fields using bst[training]

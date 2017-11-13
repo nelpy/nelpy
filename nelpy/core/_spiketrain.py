@@ -7,12 +7,14 @@ import copy
 
 from abc import ABC, abstractmethod
 
-from ..utils import is_sorted, \
-                   linear_merge, \
-                   PrettyDuration, \
-                   PrettyInt, \
-                   swap_rows, \
-                   gaussian_filter
+# from ..utils import is_sorted, \
+#                    linear_merge, \
+#                    PrettyDuration, \
+#                    PrettyInt, \
+#                    swap_rows, \
+#                    gaussian_filter
+
+from .. import utils
 
 from ..utils_.decorators import deprecated
 
@@ -602,7 +604,7 @@ class SpikeTrainArray(SpikeTrain):
 
         #sort spike trains, but only if necessary:
         for ii, train in enumerate(time):
-            if not is_sorted(train):
+            if not utils.is_sorted(train):
                 time[ii] = np.sort(train)
 
         kwargs = {"fs": fs,
@@ -638,6 +640,7 @@ class SpikeTrainArray(SpikeTrain):
             # array's support:
             self._support = support
 
+        # TODO: if sorted, we may as well use the fast restrict here as well?
         time = self._restrict_to_epoch_array(
             epocharray=self._support,
             time=time)
@@ -685,7 +688,7 @@ class SpikeTrainArray(SpikeTrain):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             support = self.support[index]
-            time = self._restrict_to_epoch_array(
+            time = self._restrict_to_epoch_array_fast(
                 epocharray=support,
                 time=self.time,
                 copyover=True
@@ -719,7 +722,7 @@ class SpikeTrainArray(SpikeTrain):
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                time = self._restrict_to_epoch_array(
+                time = self._restrict_to_epoch_array_fast(
                     epocharray=support,
                     time=self.time,
                     copyover=True
@@ -749,7 +752,7 @@ class SpikeTrainArray(SpikeTrain):
                 spiketrain.iloc = ItemGetter_iloc(spiketrain)
                 return spiketrain
             else:
-                time = self._restrict_to_epoch_array(
+                time = self._restrict_to_epoch_array_fast(
                         epocharray=support,
                         time=self.time,
                         copyover=True
@@ -764,7 +767,7 @@ class SpikeTrainArray(SpikeTrain):
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     support = self.support[idx]
-                    time = self._restrict_to_epoch_array(
+                    time = self._restrict_to_epoch_array_fast(
                         epocharray=support,
                         time=self.time,
                         copyover=True
@@ -803,7 +806,7 @@ class SpikeTrainArray(SpikeTrain):
     def n_units(self):
         """(int) The number of units."""
         try:
-            return PrettyInt(len(self.time))
+            return utils.PrettyInt(len(self.time))
         except TypeError:
             return 0
 
@@ -815,7 +818,7 @@ class SpikeTrainArray(SpikeTrain):
         """
         if self.isempty:
             return 0
-        return PrettyInt(np.count_nonzero(self.n_spikes))
+        return utils.PrettyInt(np.count_nonzero(self.n_spikes))
 
     def flatten(self, *, unit_id=None, unit_label=None):
         """Collapse spike trains across units.
@@ -853,7 +856,7 @@ class SpikeTrainArray(SpikeTrain):
 
         alltimes = self.time[0]
         for unit in range(1,self.n_units):
-            alltimes = linear_merge(alltimes, self.time[unit])
+            alltimes = utils.linear_merge(alltimes, self.time[unit])
 
         spiketrainarray._time = np.array(list(alltimes), ndmin=2)
         spiketrainarray.loc = ItemGetter_loc(spiketrainarray)
@@ -861,8 +864,67 @@ class SpikeTrainArray(SpikeTrain):
         return spiketrainarray
 
     @staticmethod
+    def _restrict_to_epoch_array_fast(epocharray, time, copyover=True):
+        """Return time restricted to an EpochArray.
+
+        This function assumes sorted spike times, so that binary search can
+        be used to quickly identify slices that should be kept in the
+        restriction. It does not check every spike time.
+
+        Parameters
+        ----------
+        epocharray : EpochArray
+        time : array-like
+        """
+        if epocharray.isempty:
+            n_units = len(time)
+            time = np.zeros((n_units,0))
+            return time
+
+        singleunit = len(time)==1  # bool
+
+        # TODO: is this copy even necessary?
+        if copyover:
+            time = copy.copy(time)
+
+        # NOTE: this used to assume multiple units for the enumeration to work
+        for unit, st_time in enumerate(time):
+            indices = []
+            for eptime in epocharray.time:
+                t_start = eptime[0]
+                t_stop = eptime[1]
+                frm, to = np.searchsorted(st_time, (t_start, t_stop))
+                indices.append((frm, to))
+            indices = np.array(indices, ndmin=2)
+            if np.diff(indices).sum() < len(st_time):
+                warnings.warn(
+                    'ignoring spikes outside of spiketrain support')
+            if singleunit:
+                time_list = []
+                for start, stop in indices:
+                    time_list.extend(st_time[start:stop])
+                time = np.array(time_list, ndmin=2)
+            else:
+                # here we have to do some annoying conversion between
+                # arrays and lists to fully support jagged array
+                # mutation
+                time_list = []
+                for start, stop in indices:
+                    time_list.extend(st_time[start:stop])
+                time_ = time.tolist()
+                time_[unit] = np.array(time_list)
+                time = np.array(time_)
+        return time
+
+    @staticmethod
     def _restrict_to_epoch_array(epocharray, time, copyover=True):
         """Return time restricted to an EpochArray.
+
+        This function is quite slow, as it checks each spike time for inclusion.
+        It does this in a vectorized form, which is fast for small or moderately
+        sized objects, but the memory penalty can be large, and it becomes very
+        slow for large objects. Consequently, _restrict_to_epoch_array_fast
+        should be used when possible.
 
         Parameters
         ----------
@@ -952,7 +1014,7 @@ class SpikeTrainArray(SpikeTrain):
         if self.isempty:
             return True
         return np.array(
-            [is_sorted(spiketrain) for spiketrain in self.time]
+            [utils.is_sorted(spiketrain) for spiketrain in self.time]
             ).all()
 
     def _reorder_units_by_idx(self, neworder, inplace=False):
@@ -974,7 +1036,7 @@ class SpikeTrainArray(SpikeTrain):
         for oi, ni in enumerate(neworder):
             frm = oldorder.index(ni)
             to = oi
-            swap_rows(out._time, frm, to)
+            utils.swap_rows(out._time, frm, to)
             out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
             out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
             # TODO: re-build unit tags (tag system not yet implemented)
@@ -1016,7 +1078,7 @@ class SpikeTrainArray(SpikeTrain):
         for oi, ni in enumerate(neworder):
             frm = oldorder.index(ni)
             to = oi
-            swap_rows(out._time, frm, to)
+            utils.swap_rows(out._time, frm, to)
             out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
             out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
             # TODO: re-build unit tags (tag system not yet implemented)
@@ -1121,11 +1183,11 @@ class BinnedSpikeTrainArray(SpikeTrain):
         else:
             epstr = " in"
         if self.n_bins == 1:
-            bstr = " {} bin of width {}".format(self.n_bins, PrettyDuration(self.ds))
+            bstr = " {} bin of width {}".format(self.n_bins, utils.PrettyDuration(self.ds))
             dstr = ""
         else:
-            bstr = " {} bins of width {}".format(self.n_bins, PrettyDuration(self.ds))
-            dstr = " for a total of {}".format(PrettyDuration(self.n_bins*self.ds))
+            bstr = " {} bins of width {}".format(self.n_bins, utils.PrettyDuration(self.ds))
+            dstr = " for a total of {}".format(utils.PrettyDuration(self.n_bins*self.ds))
         return "<BinnedSpikeTrainArray%s:%s%s%s>%s" % (address_str, ustr, epstr, bstr, dstr)
 
     def __iter__(self):
@@ -1269,7 +1331,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     def n_units(self):
         """(int) The number of units."""
         try:
-            return PrettyInt(self.data.shape[0])
+            return utils.PrettyInt(self.data.shape[0])
         except AttributeError:
             return 0
 
@@ -1345,7 +1407,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
     @property
     def n_bins(self):
         """(int) The number of bins."""
-        return PrettyInt(len(self.centers))
+        return utils.PrettyInt(len(self.centers))
 
     @property
     def ds(self):
@@ -1488,7 +1550,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         fs = 1 / self.ds
 
-        return gaussian_filter(self, fs=fs, sigma=sigma, inplace=inplace)
+        return utils.gaussian_filter(self, fs=fs, sigma=sigma, inplace=inplace)
 
     @staticmethod
     def _smooth_array(arr, w=None):
@@ -1650,7 +1712,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             newbst._ds = bst.ds*w
             newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
         else:
-            warnings.warn("No events are long enough to contain any bins of width {}".format(PrettyDuration(ds)))
+            warnings.warn("No events are long enough to contain any bins of width {}".format(utils.PrettyDuration(ds)))
             newbst._data = None
             newbst._support = None
             newbst._binnedSupport = None
@@ -1704,7 +1766,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         """
         if self.isempty:
             return 0
-        return PrettyInt(np.count_nonzero(self.n_spikes))
+        return utils.PrettyInt(np.count_nonzero(self.n_spikes))
 
     @property
     def n_active_per_bin(self):

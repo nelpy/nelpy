@@ -410,25 +410,85 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
     #each iteration?
     if(isinstance(npl_obj, AnalogSignalArray)):
 
+        # Get the colors from the current color cycle
+        if npl_obj.n_signals > 1:
+            colors = []
+            lines = []
+            for ii in range(npl_obj.n_signals):
+                line, = ax.plot(0, 0.5)
+                lines.append(line)
+                colors.append(line.get_color())
+                # line.remove()
+            for line in lines:
+                line.remove()
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            for segment in npl_obj:
-                if color is not None:
-                    ax.plot(segment._time,
-                            segment._ydata_colsig,
-                            color=color,
-                            mec=mec,
-                            markerfacecolor='w',
-                            **kwargs
-                            )
-                else:
-                    ax.plot(segment._time,
-                            segment._ydata_colsig,
-                            # color=color,
-                            mec=mec,
-                            markerfacecolor='w',
-                            **kwargs
-                            )
+            if not npl_obj.labels:
+                for segment in npl_obj:
+                    if color is not None:
+                        ax.plot(segment._time,
+                                segment._ydata_colsig,
+                                color=color,
+                                mec=mec,
+                                markerfacecolor='w',
+                                **kwargs
+                                )
+                    else:
+                        ax.plot(segment._time,
+                                segment._ydata_colsig,
+                                # color=colors[ii],
+                                mec=mec,
+                                markerfacecolor='w',
+                                **kwargs
+                                )
+            else: # there are labels
+                if npl_obj.n_signals > 1:
+                    for ii, segment in enumerate(npl_obj):
+                        for signal, label in zip(segment._ydata_rowsig, npl_obj.labels):
+                            if color is not None:
+                                ax.plot(segment._time,
+                                        signal,
+                                        color=color,
+                                        mec=mec,
+                                        markerfacecolor='w',
+                                        label=label if ii == 0 else "_nolegend_",
+                                        **kwargs
+                                        )
+                            else: # color(s) have not been specified, use color cycler
+                                ax.plot(segment._time,
+                                        signal,
+                                        # color=colors[ii],
+                                        mec=mec,
+                                        markerfacecolor='w',
+                                        label=label if ii == 0 else "_nolegend_",
+                                        **kwargs
+                                        )
+                else: # only one signal
+                    for ii, segment in enumerate(npl_obj):
+                        if not npl_obj.labels:
+                            label = None
+                        else:
+                            label = npl_obj.labels
+                        if color is not None:
+                            ax.plot(segment._time,
+                                    segment._ydata_colsig,
+                                    color=color,
+                                    mec=mec,
+                                    markerfacecolor='w',
+                                    label=label if ii == 0 else "_nolegend_",
+                                    **kwargs
+                                    )
+                        else:
+                            ax.plot(segment._time,
+                                    segment._ydata_colsig,
+                                    # color=color,
+                                    mec=mec,
+                                    markerfacecolor='w',
+                                    label=label if ii == 0 else "_nolegend_",
+                                    **kwargs
+                                    )
+
 
     if isinstance(npl_obj, EpochArray):
         epocharray = npl_obj
@@ -585,7 +645,7 @@ def rastercountplot(spiketrain, nbins=50, **kwargs):
     return ax1, ax2
 
 def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
-           vertstack=None, labels=None, **kwargs):
+           vertstack=None, labels=None, cmap_lo=0.25, cmap_hi=0.75, **kwargs):
     """Make a raster plot from a SpikeTrainArray object.
 
     Parameters
@@ -711,7 +771,7 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
         if cmap is not None:
             color_range = range(data.n_units)
             # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
-            colors = cmap(np.linspace(0.25, 0.75, data.n_units))
+            colors = cmap(np.linspace(cmap_lo, cmap_hi, data.n_units))
             for unit, spiketrain, color_idx in zip(unitlist, data.time, color_range):
                 ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[color_idx], lw=lw, **kwargs)
         else:  # use a constant color:

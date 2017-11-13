@@ -10,15 +10,18 @@ from scipy import interpolate
 from sys import float_info
 from collections import namedtuple
 
-from ..utils import is_sorted, \
-                    frange, \
-                    get_contiguous_segments, \
-                    PrettyDuration, \
-                    PrettyBytes, \
-                    PrettyInt, \
-                    gaussian_filter
+from .. import utils
 
-from ._epocharray import EpochArray
+# from ..utils import frange, \
+#                     get_contiguous_segments, \
+#                     PrettyDuration, \
+#                     PrettyBytes, \
+#                     PrettyInt, \
+#                     gaussian_filter, \
+#                     downsample_analogsignalarray
+
+# from ._epocharray import EpochArray
+from .. import core
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -36,7 +39,7 @@ class EpochSignalSlicer(object):
         signalslice = slice(None, None, None)
         if isinstance(*args, int):
             epochslice = args[0]
-        elif isinstance(*args, EpochArray):
+        elif isinstance(*args, core.EpochArray):
             epochslice = args[0]
         else:
             try:
@@ -52,6 +55,85 @@ class EpochSignalSlicer(object):
                 epochslice = slices
 
         return epochslice, signalslice
+
+class DataSlicer(object):
+
+    def __init__(self, parent):
+        self._parent = parent
+
+    def _data_generator(self, epoch_indices, signalslice):
+        for start, stop in epoch_indices:
+            yield self._parent._ydata[signalslice, start: stop]
+
+    def __getitem__(self, idx):
+        epochslice, signalslice = self._parent._epochsignalslicer[idx]
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = np.atleast_2d(epoch_indices[epochslice])
+
+        if len(epoch_indices) < 2:
+            start, stop = epoch_indices[0]
+            return self._parent._ydata[signalslice, start: stop]
+        else:
+            return self._data_generator(epoch_indices, signalslice)
+
+    def __iter__(self):
+        self._index = 0
+        return self
+
+    def __next__(self):
+        index = self._index
+
+        if index > self._parent.n_epochs - 1:
+            raise StopIteration
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = epoch_indices[index]
+        start, stop = epoch_indices
+
+        self._index +=1
+
+        return self._parent._ydata[:, start: stop]
+
+
+class TimestampSlicer(object):
+
+    def __init__(self, parent):
+        self._parent = parent
+
+    def _timestamp_generator(self, epoch_indices):
+        for start, stop in epoch_indices:
+            yield self._parent._time[start: stop]
+
+    def __getitem__(self, idx):
+        epochslice, signalslice = self._parent._epochsignalslicer[idx]
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = np.atleast_2d(epoch_indices[epochslice])
+
+        if len(epoch_indices) < 2:
+            start, stop = epoch_indices[0]
+            return self._parent._time[start: stop]
+        else:
+            return self._timestamp_generator(epoch_indices)
+
+    def __iter__(self):
+        self._index = 0
+        return self
+
+    def __next__(self):
+        index = self._index
+
+        if index > self._parent.n_epochs - 1:
+            raise StopIteration
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = epoch_indices[index]
+        start, stop = epoch_indices
+
+        self._index +=1
+
+        return self._parent._time[start: stop]
 
 
 def asa_init_wrapper(func):
@@ -131,7 +213,7 @@ def asa_init_wrapper(func):
 # class AnalogSignalArray
 ########################################################################
 class AnalogSignalArray:
-    """Continuous analog signal(s) with regular sampling rates (irregular 
+    """Continuous analog signal(s) with regular sampling rates (irregular
     sampling rates can be corrected with operations on the support) and same
     support. NOTE: ydata that is not equal dimensionality will NOT work
     and error/warning messages may/may not be sent out. Also, in this
@@ -147,8 +229,8 @@ class AnalogSignalArray:
         regularly in order to generate epochs. Irregular sampling rates can be
         corrected with operations on the support.
     fs : float, optional
-        Sampling rate in Hz. timestamps are still expected to be in units of 
-        time and fs is expected to be in the corresponding sampling rate (e.g. 
+        Sampling rate in Hz. timestamps are still expected to be in units of
+        time and fs is expected to be in the corresponding sampling rate (e.g.
         timestamps in seconds, fs in Hz)
     support : EpochArray, optional
         EpochArray array on which LFP is defined.
@@ -204,11 +286,13 @@ class AnalogSignalArray:
                  in_memory=True, labels=None, empty=False):
 
         self._epochsignalslicer = EpochSignalSlicer(self)
+        self._epochdata = DataSlicer(self)
+        self._epochtime = TimestampSlicer(self)
 
         if(empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self._support = EpochArray(empty=True)
+            self._support = core.EpochArray(empty=True)
             return
 
         self._step = step
@@ -235,7 +319,8 @@ class AnalogSignalArray:
             raise TypeError("time and ydata size mismatch! Note: ydata "
                             "is expected to have rows containing signals")
         #data is not sorted and user wants it to be
-        if not is_sorted(time):
+        # TODO: use faster is_sort from jagular
+        if not utils.is_sorted(time):
             warnings.warn("Data is _not_ sorted! Data will be sorted "\
                             "automatically.")
             ind = np.argsort(time)
@@ -262,12 +347,12 @@ class AnalogSignalArray:
 
         # Alright, let's handle all the possible parameter cases!
         if support is not None:
-            self._restrict_to_epoch_array(epocharray=support)
+            self._restrict_to_epoch_array_fast(epocharray=support)
         else:
             warnings.warn("creating support from time and "
                             "sampling rate, fs!")
-            self._support = EpochArray(
-                get_contiguous_segments(
+            self._support = core.EpochArray(
+                utils.get_contiguous_segments(
                     self.time,
                     step=self._step,
                     fs=fs,
@@ -277,6 +362,14 @@ class AnalogSignalArray:
 
         if np.abs((self.fs - self._estimate_fs())/self.fs) > 0.01:
             warnings.warn("estimated fs and provided fs differ by more than 1%")
+
+    def _data_epoch_indices(self):
+        """Docstring goes here.
+        We use this to get the indices of samples / timestamps within epochs
+        """
+        tmp = np.insert(np.cumsum(self.lengths),0,0)
+        indices = np.vstack((tmp[:-1], tmp[1:])).T
+        return indices
 
     @property
     def signals(self):
@@ -379,11 +472,20 @@ class AnalogSignalArray:
     def __len__(self):
         return self.n_epochs
 
+    def _drop_empty_epochs(self):
+        """Drops empty epochs from support. In-place."""
+        keep_epoch_ids = np.argwhere(self.lengths).squeeze().tolist()
+        self._support = self.support[keep_epoch_ids]
+        return self
+
     def _estimate_fs(self, data=None):
         """Estimate the sampling rate of the data."""
         if data is None:
             data = self.time
         return 1.0/np.median(np.diff(data))
+
+    def downsample(self, *, fs_out, aafilter=True, inplace=False):
+        return utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, inplace=inplace)
 
     def add_signal(self, signal, label=None):
         """Docstring goes here.
@@ -405,9 +507,73 @@ class AnalogSignalArray:
         self._labels = np.append(self._labels,label)
         return self
 
+    def _restrict_to_epoch_array_fast(self, *, epocharray=None, update=True):
+        """Restrict self._time and self._ydata to an EpochArray. If no
+        EpochArray is specified, self._support is used.
+
+        Parameters
+        ----------
+        epocharray : EpochArray, optional
+        	EpochArray on which to restrict AnalogSignal. Default is
+        	self._support
+        update : bool, optional
+        	Overwrite self._support with epocharray if True (default).
+        """
+        if epocharray is None:
+            epocharray = self._support
+            update = False # support did not change; no need to update
+
+        try:
+            if epocharray.isempty:
+                warnings.warn("Support specified is empty")
+                # self.__init__([],empty=True)
+                exclude = ['_support','_ydata','_fs','_step']
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    for attr in attrs:
+                        exec("self." + attr + " = None")
+                self._ydata = np.zeros([0,self._ydata.shape[0]])
+                self._ydata[:] = np.nan
+                self._support = epocharray
+                return
+        except AttributeError:
+            raise AttributeError("EpochArray expected")
+
+        indices = []
+        for eptime in epocharray.time:
+            t_start = eptime[0]
+            t_stop = eptime[1]
+            frm, to = np.searchsorted(self._time, (t_start, t_stop))
+            indices.append((frm, to))
+        indices = np.array(indices, ndmin=2)
+        if np.diff(indices).sum() < len(self._time):
+            warnings.warn(
+                'ignoring signal outside of support')
+        try:
+            ydata_list = []
+            for start, stop in indices:
+                ydata_list.append(self._ydata[:,start:stop])
+            self._ydata = np.hstack(ydata_list)
+        except IndexError:
+            self._ydata = np.zeros([0,self._ydata.shape[0]])
+            self._ydata[:] = np.nan
+        time_list = []
+        for start, stop in indices:
+            time_list.extend(self._time[start:stop])
+        self._time = np.array(time_list)
+        if update:
+            self._support = epocharray
+
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
         """Restrict self._time and self._ydata to an EpochArray. If no
         EpochArray is specified, self._support is used.
+
+        This function is quite slow, as it checks each sample for inclusion.
+        It does this in a vectorized form, which is fast for small or moderately
+        sized objects, but the memory penalty can be large, and it becomes very
+        slow for large objects. Consequently, _restrict_to_epoch_array_fast
+        should be used when possible.
 
         Parameters
         ----------
@@ -487,14 +653,20 @@ class AnalogSignalArray:
                 'sigma' : sigma,
                 'bw' : bw}
 
-        return gaussian_filter(self, **kwargs)
+        return utils.gaussian_filter(self, **kwargs)
 
     @property
     def lengths(self):
         """(list) The number of samples in each epoch."""
-        # TODO: make this faster and better!
-        lengths = [segment.n_samples for segment in self]
-        return np.asanyarray(lengths).squeeze()
+        indices = []
+        for eptime in self.support.time:
+            t_start = eptime[0]
+            t_stop = eptime[1]
+            frm, to = np.searchsorted(self._time, (t_start, t_stop))
+            indices.append((frm, to))
+        indices = np.array(indices, ndmin=2)
+        lengths = np.atleast_1d(np.diff(indices).squeeze())
+        return lengths
 
     @property
     def labels(self):
@@ -506,7 +678,7 @@ class AnalogSignalArray:
     def n_signals(self):
         """(int) The number of signals."""
         try:
-            return PrettyInt(self._ydata.shape[0])
+            return utils.PrettyInt(self._ydata.shape[0])
         except AttributeError:
             return 0
 
@@ -523,7 +695,7 @@ class AnalogSignalArray:
                 nstr = " %s signals%s" % (self.n_signals, epstr)
         except IndexError:
             nstr = " 1 signal%s" % epstr
-        dstr = " for a total of {}".format(PrettyDuration(self.support.duration))
+        dstr = " for a total of {}".format(utils.PrettyDuration(self.support.duration))
         return "<AnalogSignalArray%s:%s>%s" % (address_str, nstr, dstr)
 
     def partition(self, ds=None, n_epochs=None):
@@ -600,7 +772,7 @@ class AnalogSignalArray:
     @property
     def n_bytes(self):
         """Approximate number of bytes taken up by object."""
-        return PrettyBytes(self.ydata.nbytes + self.time.nbytes)
+        return utils.PrettyBytes(self.ydata.nbytes + self.time.nbytes)
 
     @property
     def n_epochs(self):
@@ -612,7 +784,7 @@ class AnalogSignalArray:
         """(int) number of time samples where signal is defined."""
         if self.isempty:
             return 0
-        return PrettyInt(len(self.time))
+        return utils.PrettyInt(len(self.time))
 
     def __iter__(self):
         """AnalogSignal iterator initialization"""
@@ -627,7 +799,7 @@ class AnalogSignalArray:
             raise StopIteration
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            epoch = EpochArray(empty=True)
+            epoch = core.EpochArray(empty=True)
             exclude = ["_time"]
             attrs = (x for x in self._support.__attributes__ if x not in exclude)
             with warnings.catch_warnings():
@@ -649,7 +821,7 @@ class AnalogSignalArray:
             warnings.simplefilter("ignore")
             for attr in attrs:
                 exec("asa." + attr + " = self." + attr)
-        asa._restrict_to_epoch_array(epocharray=epoch)
+        asa._restrict_to_epoch_array_fast(epocharray=epoch)
         if(asa.support.isempty):
             warnings.warn("Support is empty. Empty AnalogSignalArray returned")
             asa = AnalogSignalArray([],empty=True)
@@ -683,7 +855,7 @@ class AnalogSignalArray:
             return AnalogSignalArray([], empty=True)
         ################################################################
 
-        asa._restrict_to_epoch_array(epocharray=newepochs)
+        asa._restrict_to_epoch_array_fast(epocharray=newepochs)
 
         return asa
 
@@ -835,7 +1007,7 @@ class AnalogSignalArray:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             epoch = self._support.intersect(
-                EpochArray(
+                core.EpochArray(
                     [start, stop],
                     fs=fs))
             if not epoch.isempty:
@@ -859,7 +1031,7 @@ class AnalogSignalArray:
         """returns a scipy interp1d object"""
 
         if assume_sorted is None:
-            assume_sorted = is_sorted(self.time)
+            assume_sorted = utils.is_sorted(self.time)
 
         if self.n_signals > 1:
             axis = 1
@@ -964,6 +1136,9 @@ class AnalogSignalArray:
     def subsample(self, *, fs):
         """Returns an AnalogSignalArray where the ydata has been
         subsampled to a new rate of fs.
+
+        WARNING! Aliasing can occur! It is better to use downsample when
+        lowering the sampling rate substantially.
         """
         return self.simplify(ds=1/fs)
 
@@ -979,6 +1154,10 @@ class AnalogSignalArray:
         underlying support is propagated, and the first and last points
         of the supports are always included, even if this would cause
         n_points or ds to be violated.
+
+        WARNING! Simplify can create nan samples, when requesting a timestamp
+        within an epoch, but outside of the (first, last) timestamps within that
+        epoch, since we don't extrapolate, but only interpolate. # TODO: fix
 
         Parameters
         ----------
@@ -1013,10 +1192,29 @@ class AnalogSignalArray:
             ds = self.support.duration / (n_points-1)
 
         # build list of points at which to evaluate the AnalogSignalArray
+
+        # we exclude all empty epochs:
         at = []
-        for start, stop in self.support.time:
-            newxvals = frange(start, stop, step=ds).tolist()
+        lengths = self.lengths
+        empty_epoch_ids = np.argwhere(lengths==0).squeeze().tolist()
+        first_timestamps_per_epoch_idx = np.insert(np.cumsum(lengths[:-1]),0,0)
+        first_timestamps_per_epoch_idx[empty_epoch_ids] = 0
+        last_timestamps_per_epoch_idx = np.cumsum(lengths)-1
+        last_timestamps_per_epoch_idx[empty_epoch_ids] = 0
+        first_timestamps_per_epoch = self.time[first_timestamps_per_epoch_idx]
+        last_timestamps_per_epoch = self.time[last_timestamps_per_epoch_idx]
+
+        for ii, (start, stop) in enumerate(self.support.time):
+            if lengths[ii] == 0:
+                continue
+            newxvals = utils.frange(first_timestamps_per_epoch[ii], last_timestamps_per_epoch[ii], step=ds).tolist()
             at.extend(newxvals)
+            try:
+                if newxvals[-1] < last_timestamps_per_epoch[ii]:
+                    at.append(last_timestamps_per_epoch[ii])
+            except IndexError:
+                at.append(first_timestamps_per_epoch[ii])
+                at.append(last_timestamps_per_epoch[ii])
 
         _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
         yvals = np.array(yvals, ndmin=2)

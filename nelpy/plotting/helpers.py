@@ -29,3 +29,19 @@ class RasterLabelData(artist.Artist):
     @yrange.setter
     def yrange(self, val):
         self._yrange = val
+
+from matplotlib.axes import Axes
+
+class NelpyAxes(Axes):
+
+    def __init__(self, **kwargs):
+        Axes.__init__(self, **kwargs)
+
+        self._empty = None
+
+    @property
+    def isempty(self):
+        return self._empty
+
+    def _as_mpl_axes(self):
+        raise NotImplementedError ('converting back to pure matplotlib.axes.Axes not yet supported!')

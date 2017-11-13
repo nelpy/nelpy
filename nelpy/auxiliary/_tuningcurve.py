@@ -372,7 +372,7 @@ class TuningCurve2D:
         _, ext = extern.asarray(at=at)
         x, y = ext[0,:], ext[1,:]
 
-        return x, y
+        return np.atleast_1d(x), np.atleast_1d(y)
 
     def _compute_occupancy(self):
 
@@ -971,7 +971,7 @@ class TuningCurve1D:
 
         _, ext = extern.asarray(at=at)
 
-        return ext
+        return np.atleast_1d(ext)
 
     def _compute_occupancy(self):
 
