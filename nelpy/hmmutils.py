@@ -9,14 +9,16 @@ with hmmlearn.
 
 # see https://github.com/ckemere/hmmlearn
 from hmmlearn.hmm import PoissonHMM as PHMM
-from .core import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
-from .utils import swap_cols, swap_rows
 from warnings import warn
 import numpy as np
 from pandas import unique
-from . import plotting
 from matplotlib.pyplot import subplots
 import copy
+
+from .core import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
+from .utils import swap_cols, swap_rows
+from . import plotting
+from . decoding import decode1D
 
 __all__ = ['PoissonHMM']
 
@@ -452,7 +454,7 @@ class PoissonHMM(PHMM):
             # assume we have a feature matrix
             if w is not None:
                 raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
-            return self._decode(self, X=X, lengths=lengths), None
+            return self._decode(self, X=X, lengths=lengths, algorithm=algorithm), None
         else:
             # we have a BinnedSpikeTrainArray
             logprobs = []
@@ -465,6 +467,62 @@ class PoissonHMM(PHMM):
                 state_sequences.append(state_sequence)
                 centers.append(seq.centers)
             return logprobs, state_sequences, centers
+
+    def _decode_from_lambda_only(self, X, lengths=None):
+        """Decode using the observation (lambda) matrix only. That is, pure
+           memoryless decoding.
+
+        >>> posteriors, state_sequences = hmm._decode_from_lambda_only(bst)
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Feature matrix of individual samples.
+            OR
+            nelpy.BinnedSpikeTrainArray
+            WARNING! Each decoding window is assumed to be similar in
+            size to those used during training. If not, the tuning curves
+            have to be scaled appropriately!
+        lengths : array-like of integers, shape (n_sequences, ), optional
+            Lengths of the individual sequences in ``X``. The sum of
+            these should be ``n_samples``. This is not used when X is
+            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
+            automatically inferred.
+
+        Returns
+        -------
+        posteriors : array, shape (n_components, n_samples)
+            State-membership probabilities for each sample in ``X``;
+            one array for each sequence in X.
+        state_sequences : array, shape (n_samples, )
+            Labels for each sample from ``X``; one array for each sequence in X.
+        """
+        if not isinstance(X, BinnedSpikeTrainArray):
+            # assume we have a feature matrix
+            raise NotImplementedError ("Not yet implemented!")
+        else:
+            # we have a BinnedSpikeTrainArray
+            ratemap = copy.deepcopy(self.means_.T)
+            # make sure X and ratemap have same unit_id ordering!
+            neworder = [self.unit_ids.index(x) for x in X.unit_ids]
+            oldorder = list(range(len(neworder)))
+            for oi, ni in enumerate(neworder):
+                frm = oldorder.index(ni)
+                to = oi
+                swap_rows(ratemap, frm, to)
+                oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
+
+            posteriors = []
+            state_sequences = []
+            for seq in X:
+                posteriors_, cumlengths, mode_pth, mean_pth = decode1D(bst=seq, ratemap=ratemap)
+                # nanlocs = np.argwhere(np.isnan(mode_pth))
+                # state_sequences_ = mode_pth.astype(int)
+                state_sequences_ = mode_pth
+                posteriors.append(posteriors_)
+                state_sequences.append(state_sequences_)
+
+            return posteriors, state_sequences
 
     def predict_proba(self, X, lengths=None, w=None, returnLengths=False):
         """Compute the posterior probability for each state in the model.
@@ -589,7 +647,8 @@ class PoissonHMM(PHMM):
             # assume we have a feature matrix
             if w is not None:
                 raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
-            return self._score_samples(self, X, lengths=lengths)
+            logprobs, posteriors = self._score_samples(self, X, lengths=lengths)
+            return logprobs, posteriors.T
         else:
             # we have a BinnedSpikeTrainArray
             logprobs = []

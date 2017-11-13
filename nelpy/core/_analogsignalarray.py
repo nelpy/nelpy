@@ -1047,6 +1047,9 @@ class AnalogSignalArray:
     def subsample(self, *, fs):
         """Returns an AnalogSignalArray where the ydata has been
         subsampled to a new rate of fs.
+
+        WARNING! Aliasing can occur! It is better to use downsample when
+        lowering the sampling rate substantially.
         """
         return self.simplify(ds=1/fs)
 
