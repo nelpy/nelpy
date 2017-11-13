@@ -56,6 +56,85 @@ class EpochSignalSlicer(object):
 
         return epochslice, signalslice
 
+class DataSlicer(object):
+
+    def __init__(self, parent):
+        self._parent = parent
+
+    def _data_generator(self, epoch_indices, signalslice):
+        for start, stop in epoch_indices:
+            yield self._parent._ydata[signalslice, start: stop]
+
+    def __getitem__(self, idx):
+        epochslice, signalslice = self._parent._epochsignalslicer[idx]
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = np.atleast_2d(epoch_indices[epochslice])
+
+        if len(epoch_indices) < 2:
+            start, stop = epoch_indices[0]
+            return self._parent._ydata[signalslice, start: stop]
+        else:
+            return self._data_generator(epoch_indices, signalslice)
+
+    def __iter__(self):
+        self._index = 0
+        return self
+
+    def __next__(self):
+        index = self._index
+
+        if index > self._parent.n_epochs - 1:
+            raise StopIteration
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = epoch_indices[index]
+        start, stop = epoch_indices
+
+        self._index +=1
+
+        return self._parent._ydata[:, start: stop]
+
+
+class TimestampSlicer(object):
+
+    def __init__(self, parent):
+        self._parent = parent
+
+    def _timestamp_generator(self, epoch_indices):
+        for start, stop in epoch_indices:
+            yield self._parent._time[start: stop]
+
+    def __getitem__(self, idx):
+        epochslice, signalslice = self._parent._epochsignalslicer[idx]
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = np.atleast_2d(epoch_indices[epochslice])
+
+        if len(epoch_indices) < 2:
+            start, stop = epoch_indices[0]
+            return self._parent._time[start: stop]
+        else:
+            return self._timestamp_generator(epoch_indices)
+
+    def __iter__(self):
+        self._index = 0
+        return self
+
+    def __next__(self):
+        index = self._index
+
+        if index > self._parent.n_epochs - 1:
+            raise StopIteration
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = epoch_indices[index]
+        start, stop = epoch_indices
+
+        self._index +=1
+
+        return self._parent._time[start: stop]
+
 
 def asa_init_wrapper(func):
     """Decorator that helps figure out timestamps, fs, and sample numbers"""
@@ -134,7 +213,7 @@ def asa_init_wrapper(func):
 # class AnalogSignalArray
 ########################################################################
 class AnalogSignalArray:
-    """Continuous analog signal(s) with regular sampling rates (irregular 
+    """Continuous analog signal(s) with regular sampling rates (irregular
     sampling rates can be corrected with operations on the support) and same
     support. NOTE: ydata that is not equal dimensionality will NOT work
     and error/warning messages may/may not be sent out. Also, in this
@@ -150,8 +229,8 @@ class AnalogSignalArray:
         regularly in order to generate epochs. Irregular sampling rates can be
         corrected with operations on the support.
     fs : float, optional
-        Sampling rate in Hz. timestamps are still expected to be in units of 
-        time and fs is expected to be in the corresponding sampling rate (e.g. 
+        Sampling rate in Hz. timestamps are still expected to be in units of
+        time and fs is expected to be in the corresponding sampling rate (e.g.
         timestamps in seconds, fs in Hz)
     support : EpochArray, optional
         EpochArray array on which LFP is defined.
@@ -207,6 +286,8 @@ class AnalogSignalArray:
                  in_memory=True, labels=None, empty=False):
 
         self._epochsignalslicer = EpochSignalSlicer(self)
+        self._epochdata = DataSlicer(self)
+        self._epochtime = TimestampSlicer(self)
 
         if(empty):
             for attr in self.__attributes__:
@@ -281,6 +362,14 @@ class AnalogSignalArray:
 
         if np.abs((self.fs - self._estimate_fs())/self.fs) > 0.01:
             warnings.warn("estimated fs and provided fs differ by more than 1%")
+
+    def _data_epoch_indices(self):
+        """Docstring goes here.
+        We use this to get the indices of samples / timestamps within epochs
+        """
+        tmp = np.insert(np.cumsum(self.lengths),0,0)
+        indices = np.vstack((tmp[:-1], tmp[1:])).T
+        return indices
 
     @property
     def signals(self):
