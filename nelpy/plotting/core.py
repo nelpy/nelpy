@@ -410,6 +410,18 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
     #each iteration?
     if(isinstance(npl_obj, AnalogSignalArray)):
 
+        # Get the colors from the current color cycle
+        if npl_obj.n_signals > 1:
+            colors = []
+            lines = []
+            for ii in range(npl_obj.n_signals):
+                line, = ax.plot(0, 0.5)
+                lines.append(line)
+                colors.append(line.get_color())
+                # line.remove()
+            for line in lines:
+                line.remove()
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if not npl_obj.labels:
@@ -425,7 +437,7 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                     else:
                         ax.plot(segment._time,
                                 segment._ydata_colsig,
-                                # color=color,
+                                # color=colors[ii],
                                 mec=mec,
                                 markerfacecolor='w',
                                 **kwargs
@@ -443,10 +455,10 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                         label=label if ii == 0 else "_nolegend_",
                                         **kwargs
                                         )
-                            else:
+                            else: # color(s) have not been specified, use color cycler
                                 ax.plot(segment._time,
                                         signal,
-                                        # color=color,
+                                        # color=colors[ii],
                                         mec=mec,
                                         markerfacecolor='w',
                                         label=label if ii == 0 else "_nolegend_",
