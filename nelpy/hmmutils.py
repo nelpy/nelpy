@@ -648,7 +648,7 @@ class PoissonHMM(PHMM):
             if w is not None:
                 raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
             logprobs, posteriors = self._score_samples(self, X, lengths=lengths)
-            return logprobs, posteriors.T
+            return logprobs, posteriors#.T why does this transpose affect hmm.predict_proba!!!????
         else:
             # we have a BinnedSpikeTrainArray
             logprobs = []
