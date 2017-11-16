@@ -602,6 +602,7 @@ def spike_id_shuffle_bst(bst, st_flat):
     all_spiketimes = st_flat.time.squeeze()
     spike_ids = np.zeros(len(all_spiketimes))
 
+    # determine number of spikes per unit:
     n_spikes = np.ones(bst.n_units)* np.floor(st_flat.n_spikes[0] / bst.n_units)
 
     pointer = 0
@@ -618,7 +619,7 @@ def spike_id_shuffle_bst(bst, st_flat):
         spikes.append(all_spiketimes[spike_ids==unit])
 
     support = bst.support.expand(bst.ds/2, direction='stop')
-    shuffled_st = SpikeTrainArray(timestamps=spikes, support=support)
+    shuffled_st = SpikeTrainArray(timestamps=spikes, support=support, unit_ids=bst.unit_ids)
 
     out = shuffled_st.bin(ds=bst.ds)
     # out = out[bst.support]
@@ -627,7 +628,7 @@ def spike_id_shuffle_bst(bst, st_flat):
 
 def unit_id_shuffle_bst(bst):
     """Create a unit ID shuffled surrogate of BinnedSpikeTrainArray."""
-    out = copy.deepcopy(bst) # should this be deep?
+    out = copy.deepcopy(bst) # should this be deep? yes!
     data = out._data
     edges = np.insert(np.cumsum(bst.lengths),0,0)
 
