@@ -590,7 +590,7 @@ def poisson_surrogate_bst(bst):
         spikes.append(unit_spikes)
 
     support = bst.support.expand(bst.ds/2, direction='stop')
-    poisson_st = SpikeTrainArray(timestamps=spikes, support=support)
+    poisson_st = SpikeTrainArray(timestamps=spikes, support=support, unit_ids=bst.unit_ids)
 
     out = poisson_st.bin(ds=bst.ds)
     # out = out[bst.support]
