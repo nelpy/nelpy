@@ -431,7 +431,7 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                 segment._ydata_colsig,
                                 color=color,
                                 mec=mec,
-                                markerfacecolor='w',
+                                markerfacecolor=markerfacecolor,
                                 **kwargs
                                 )
                     else:
@@ -439,7 +439,7 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                 segment._ydata_colsig,
                                 # color=colors[ii],
                                 mec=mec,
-                                markerfacecolor='w',
+                                markerfacecolor=markerfacecolor,
                                 **kwargs
                                 )
             else: # there are labels
@@ -451,7 +451,7 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                         signal,
                                         color=color,
                                         mec=mec,
-                                        markerfacecolor='w',
+                                        markerfacecolor=markerfacecolor,
                                         label=label if ii == 0 else "_nolegend_",
                                         **kwargs
                                         )
@@ -460,7 +460,7 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                         signal,
                                         # color=colors[ii],
                                         mec=mec,
-                                        markerfacecolor='w',
+                                        markerfacecolor=markerfacecolor,
                                         label=label if ii == 0 else "_nolegend_",
                                         **kwargs
                                         )
@@ -475,7 +475,7 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                     segment._ydata_colsig,
                                     color=color,
                                     mec=mec,
-                                    markerfacecolor='w',
+                                    markerfacecolor=markerfacecolor,
                                     label=label if ii == 0 else "_nolegend_",
                                     **kwargs
                                     )
@@ -484,7 +484,7 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                     segment._ydata_colsig,
                                     # color=color,
                                     mec=mec,
-                                    markerfacecolor='w',
+                                    markerfacecolor=markerfacecolor,
                                     label=label if ii == 0 else "_nolegend_",
                                     **kwargs
                                     )
@@ -505,8 +505,8 @@ def plot(npl_obj, data=None, *, ax=None, mew=None, color=None,
                     color=color,
                     mec=mec,
                     markerfacecolor=markerfacecolor,
-                    lw=lw,
-                    mew=mew,
+                    # lw=lw,
+                    # mew=mew,
                     **kwargs)
 
         # ax.set_ylim([np.array(data).min()-0.5, np.array(data).max()+0.5])

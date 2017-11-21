@@ -843,6 +843,11 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
               events <==> PrimaryThreshold to PrimaryThreshold
     """
 
+    # TODO: x must be a numpy array
+    # TODO: ds is often used, but we have no default, and no check for when
+    #       it is left as None.
+    # TODO: the Docstring should equally be improved.
+
     x = x.squeeze()
     if x.ndim > 1:
         raise TypeError("multidimensional arrays not supported!")
