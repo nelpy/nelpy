@@ -1,11 +1,15 @@
 __all__ = ['EventArray']
 
 import warnings
-import numpy as np 
+import numpy as np
 import copy
 import numbers
 
 from ._epocharray import EpochArray
+
+# from .. import core
+# from .. import utils
+from .. import version
 
 def fsgetter(self):
     """(float) [generic getter] Sampling frequency"""
@@ -18,7 +22,7 @@ def fsgetter(self):
 ########################################################################
 class EventArray:
     """Stores time/timestamps (tdata) of events. EventArray is restricted in its
-    support by EpochArray and contains an optional state variable in order to 
+    support by EpochArray and contains an optional state variable in order to
     represent particular states at corresponding timestamps (tdata).
 
     Parameters
@@ -26,58 +30,58 @@ class EventArray:
     tdata : np.array(dtype=np.float,dimension=N)
         Timestamps at which events occur. tdata can either be sample numbers or
         time but if it's in units of time be weary of fs and tdata_in_timstamps.
-    
+
     state : np.array(dtype=np.float,dimension=N), optional
         State is to contain states associated with particular timestamps passed
         in from tdata (e.g. 0 or 1 associated with a correct or incorrect
-        trigger). By default this is None. 
-    
+        trigger). By default this is None.
+
     support : EpochArray, optional
         EpochArray on which tdata is restricted. Default is to cover all of
         tdata.
-    
+
     fs : float, scalar, optional
         Sampling rate in Hz. If fs is passed in as a parameter, by default, time
-        is assumed to be in sample numbers unless tdata_in_samples is set to 
+        is assumed to be in sample numbers unless tdata_in_samples is set to
         False. As such, time attribute will be calculated by dividing tdata by
         fs passed in. See fs_acquisition if timestamps are stored at a different
-        rate than what was sampled and marked by the system. By default this is 
+        rate than what was sampled and marked by the system. By default this is
         None.
-    
+
     fs_acquisition : float, scalar, optional
-        Optional to store sampling rate in Hz of the acquisition system. This 
-        should be used when tdata is passed in timestamps associated with the 
+        Optional to store sampling rate in Hz of the acquisition system. This
+        should be used when tdata is passed in timestamps associated with the
         acquisition system but is stored in step sizes that are of a different
-        sampling rate. E.g. times could be stamped at 30kHz but stored in a 
+        sampling rate. E.g. times could be stamped at 30kHz but stored in a
         decimated fashion at 3kHz so instead of 1,2,3,4,5,6,7,8,9,10,11,12,...,
         20,21,22,23,24,25,26,... it would be 1,10,20,30,40,50,60,70,80,90,100,
         110,120,...,200,210,220,230,240,250,260,... (get the idea?). In cases
-        like this, fs_acquisition as opposed to fs should be used to calculate 
+        like this, fs_acquisition as opposed to fs should be used to calculate
         time while fs should remain at the decimated sampling rate for further
-        uses. Note, this is of more importance to ``AnalogSignalArray`` than 
-        ``EventArray`` but still worth maintaining for consistency amongst 
+        uses. Note, this is of more importance to ``AnalogSignalArray`` than
+        ``EventArray`` but still worth maintaining for consistency amongst
         objects. Additionally, fs_acquisition can be used to just divide tdata
         without storing fs (not sure why anyone would want to do this though but
-        feel free to do it before I remove this functionality!) By default this 
+        feel free to do it before I remove this functionality!) By default this
         is None.
-    
+
     tdata_in_samples : bool, optional
         Boolean flag set to True by default. Determines if tdata is to be scaled
         by fs in order to generate time attribute.
-    
+
     labels : np.array(dtype=np.str,dimension=N)
-        Labeling each one of the states or timestamps. By default this is None 
+        Labeling each one of the states or timestamps. By default this is None
         but all signals must be labeled if any are labeled or else we will label
         in order of signals passed in and replace the others with Nones. If more
         labels are passed in than signals, we will truncate the remaining! If we
-        are nice (which we are for the most part), we will display a warning 
+        are nice (which we are for the most part), we will display a warning
         upon doing any of these things! :P Lastly, it is worth noting that most
-        logical and type error checking for this is expected to be done by the 
+        logical and type error checking for this is expected to be done by the
         user. Inputs are casted to strings and stored in a numpy array.
-    
+
     empty : bool
-        Return an empty ``EventArray`` if requested aka this flag is True. By 
-        default this will be set to False cuz who in their right minds would 
+        Return an empty ``EventArray`` if requested aka this flag is True. By
+        default this will be set to False cuz who in their right minds would
         want to instantiate an empty ``EventArray``, amirite?
 
     Attributes
@@ -89,19 +93,19 @@ class EventArray:
         Converts tdata to units of time. time can be equal to tdata if fs is not
         specified or if fs is one or if tdata_in_timestamps is set to False.
 
-    state : np.array 
+    state : np.array
         See ``Parameters``
-    
+
     support : EpochArray, optional
         See ``Parameters``
-    
+
     fs : float, scalar, optional
         See ``Parameters``
-    
+
     fs_acquisition : float, scalar, optional
         See ``Parameters``. Set equal to fs if fs is provided and this is None.
-    
-    labels : np.array 
+
+    labels : np.array
         See ``Parameters``
     """
     __attributes__ = ['_tdata','_time','_state','_support','_fs',\
@@ -110,6 +114,7 @@ class EventArray:
                  fs_acquisition=None, tdata_in_samples=True, labels=None, \
                  empty=None):
 
+        self.__version__ = version.__version__
         #if empty object is requested, give it to 'em one!
         if empty:
             for attr in self.__attributes__:
@@ -128,7 +133,7 @@ class EventArray:
         self._tdata = tdata #let's go ahead and just set tdata since we aren't
                             #going to need to change this later
 
-        #check if state array was provided. This must _exactly_ match shape of 
+        #check if state array was provided. This must _exactly_ match shape of
         #tdata
         if state is not None:
             state = np.squeeze(state).astype(float)
@@ -137,7 +142,7 @@ class EventArray:
                     state = np.array(state,ndmin=2).astype(float)
             except ValueError:
                 raise TypeError("Unsupported type! Integer or floating point "
-                                "expected for state") 
+                                "expected for state")
             if state.shape[0] != tdata.shape[0]:
                 raise IndexError("tdata and state dimensions must _exactly_"
                                  " match!")
@@ -145,7 +150,7 @@ class EventArray:
                 if len(state[i][:]) != len(tdata[i][:]):
                     raise IndexError("tdata and state dimensions must _exactly_"
                                      " match!")
-            
+
             self._state = state
         else:
             self._state = np.zeros([0,self._tdata.shape[0]])
@@ -165,7 +170,7 @@ class EventArray:
                 for i in range(labels.shape[0],tdata.shape[0]):
                     labels.append(None)
         self._labels = labels
-            
+
         #handle fs and fs_acquisition
         self._fs = None
         self._fs_acquisition = None
@@ -208,7 +213,7 @@ class EventArray:
                                         fs=self._fs_acquisition)
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
-        """Restrict self._time and self._state to an EpochArray. If no 
+        """Restrict self._time and self._state to an EpochArray. If no
         EpochArray is specified, self._support is used.
 
         Parameters
@@ -284,7 +289,7 @@ class EventArray:
     def n_arrays(self):
         """number of total events"""
         return self._tdata.shape[0]
-    
+
     @property
     def isempty(self):
         """(bool) checks length of tdata"""
@@ -324,13 +329,13 @@ class EventArray:
         """(float) Set sampling rate"""
         if self._fs == val:
             return
-        try: 
+        try:
             if val <= 0:
                 raise ValueError("Sampling rate must be positive")
         except:
             raise TypeError("Sampling rate must be a scalar!")
-        
-        # if it is the first time that a sampling rate is set, do not 
+
+        # if it is the first time that a sampling rate is set, do not
         # modify anything except for self._fs
         if self._fs is None:
             pass
@@ -355,7 +360,7 @@ class EventArray:
             if val > 0:
                 self._fs_acquisition = val
                 if(self._fs is not  None):
-                    self._time = self.tdata / val 
+                    self._time = self.tdata / val
             else:
                 raise ValueError("fs_acquisition must be positive")
         except TypeError:
@@ -378,7 +383,7 @@ class EventArray:
 
     @property
     def labels(self):
-        """(np.array 1D) Returns N labels 1 for each array of events. 
+        """(np.array 1D) Returns N labels 1 for each array of events.
         """
         return self._labels
 
@@ -419,4 +424,3 @@ class EventArray:
         raise NotImplementedError("flatten is pretty non-existent atm but"
                                     " it will in the future make all the"
                                     " tdata/time into a 1D array")
-        

@@ -7,14 +7,8 @@ import copy
 
 from abc import ABC, abstractmethod
 
-# from ..utils import is_sorted, \
-#                    linear_merge, \
-#                    PrettyDuration, \
-#                    PrettyInt, \
-#                    swap_rows, \
-#                    gaussian_filter
-
 from .. import utils
+from .. import version
 
 from ..utils_.decorators import deprecated
 
@@ -219,6 +213,8 @@ class SpikeTrain(ABC):
 
     def __init__(self, *, fs=None, unit_ids=None, unit_labels=None,
                  unit_tags=None, label=None, empty=False):
+
+        self.__version__ = version.__version__
 
         # if an empty object is requested, return it:
         if empty:

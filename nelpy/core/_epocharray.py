@@ -7,11 +7,8 @@ import numbers
 
 from sys import float_info
 
-# from ..utils import is_sorted, \
-#                    PrettyDuration, \
-#                    PrettyInt
-
 from .. import utils
+from .. import version
 
 from ..utils_.decorators import deprecated
 
@@ -53,6 +50,7 @@ class EpochArray:
     def __init__(self, time=None, *, duration=None,
                  meta=None, empty=False, domain=None, label=None):
 
+        self.__version__ = version.__version__
         # if an empty object is requested, return it:
         if empty:
             for attr in self.__attributes__:

@@ -10,18 +10,9 @@ from scipy import interpolate
 from sys import float_info
 from collections import namedtuple
 
-from .. import utils
-
-# from ..utils import frange, \
-#                     get_contiguous_segments, \
-#                     PrettyDuration, \
-#                     PrettyBytes, \
-#                     PrettyInt, \
-#                     gaussian_filter, \
-#                     downsample_analogsignalarray
-
-# from ._epocharray import EpochArray
 from .. import core
+from .. import utils
+from .. import version
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -288,6 +279,8 @@ class AnalogSignalArray:
         self._epochsignalslicer = EpochSignalSlicer(self)
         self._epochdata = DataSlicer(self)
         self._epochtime = TimestampSlicer(self)
+
+        self.__version__ = version.__version__
 
         if(empty):
             for attr in self.__attributes__:
