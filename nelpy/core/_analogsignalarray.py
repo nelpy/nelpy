@@ -149,6 +149,20 @@ def asa_init_wrapper(func):
             func(*args, **kwargs)
             return
 
+        # handle casting other nelpy objects to AnalogSignalArrays:
+        if isinstance(ydata, core.BinnedSpikeTrainArray):
+            timestamps = ydata.bin_centers
+            kwargs['timestamps'] = timestamps
+            support = ydata.support
+            kwargs['support'] = support
+            fs = 1/ydata.ds
+            kwargs['fs'] = fs
+            if ydata.unit_labels:
+                labels = ydata.unit_labels
+            else:
+                labels = ydata.unit_ids
+            ydata = ydata.data
+
         #check if single AnalogSignal or multiple AnalogSignals in array
         #and standardize ydata to 2D
         ydata = np.squeeze(ydata)
