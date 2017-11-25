@@ -1061,13 +1061,13 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
     else:
         out = obj
 
-    if isinstance(out, core.AnalogSignalArray):
+    if isinstance(out, core._analogsignalarray.AnalogSignalArray):
         asa = out
         if fs is None:
             fs = asa.fs
         if fs is None:
             raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
-    elif isinstance(out, core.BinnedSpikeTrainArray):
+    elif isinstance(out, core._spiketrain.BinnedSpikeTrainArray):
         bst = out
         if fs is None:
             fs = 1/bst.ds

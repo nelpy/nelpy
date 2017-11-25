@@ -7,12 +7,13 @@ import copy
 
 from abc import ABC, abstractmethod
 
+from .. import core
 from .. import utils
 from .. import version
 
 from ..utils_.decorators import deprecated
 
-from ._epocharray import EpochArray
+# from ._epocharray import EpochArray
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -30,7 +31,7 @@ class EpochUnitSlicer(object):
         unitslice = slice(None, None, None)
         if isinstance(*args, int):
             epochslice = args[0]
-        elif isinstance(*args, EpochArray):
+        elif isinstance(*args, core.EpochArray):
             epochslice = args[0]
         else:
             try:
@@ -220,7 +221,7 @@ class SpikeTrain(ABC):
         if empty:
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self._support = EpochArray(empty=True)
+            self._support = core.EpochArray(empty=True)
             self._slicer = EpochUnitSlicer(self)
             self.loc = ItemGetter_loc(self)
             self.iloc = ItemGetter_iloc(self)
@@ -522,7 +523,7 @@ class SpikeTrainArray(SpikeTrain):
             super().__init__(empty=True)
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self._support = EpochArray(empty=True)
+            self._support = core.EpochArray(empty=True)
             return
 
         # set default sampling rate
@@ -619,7 +620,7 @@ class SpikeTrainArray(SpikeTrain):
         # empty support:
         if np.sum([st.size for st in time]) == 0 and support is None:
             warnings.warn("no spikes; cannot automatically determine support")
-            support = EpochArray(empty=True)
+            support = core.EpochArray(empty=True)
 
         # determine spiketrain array support:
         if support is None:
@@ -629,7 +630,7 @@ class SpikeTrainArray(SpikeTrain):
             # FIX: list[-1] raises an IndexError for an empty list,
             # whereas list[-1:] returns an empty list.
             last_spk = np.array([unit[-1:] for unit in time if len(unit) !=0]).max()
-            self._support = EpochArray(np.array([first_spk, last_spk + 1/fs]))
+            self._support = core.EpochArray(np.array([first_spk, last_spk + 1/fs]))
             # in the above, there's no reason to restrict to support
         else:
             # restrict spikes to only those within the spiketrain
@@ -706,7 +707,7 @@ class SpikeTrainArray(SpikeTrain):
         # if self.isempty:
         #     return self
 
-        if isinstance(idx, EpochArray):
+        if isinstance(idx, core.EpochArray):
             if idx.isempty:
                 return SpikeTrainArray(empty=True)
             support = self.support.intersect(
@@ -1117,8 +1118,32 @@ class BinnedSpikeTrainArray(SpikeTrain):
             super().__init__(empty=True)
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self._support = EpochArray(empty=True)
+            self._support = core.EpochArray(empty=True)
             self._event_centers = None
+            return
+
+        # handle casting other nelpy objects to BinnedSpikeTrainArray:
+        if isinstance(spiketrainarray, core.AnalogSignalArray):
+            self._spiketrainarray = None
+            self._ds = 1/spiketrainarray.fs
+            self._unit_labels = spiketrainarray.labels
+            self._bin_centers = spiketrainarray.time
+            # self._bins = TODO
+            tmp = np.insert(np.cumsum(spiketrainarray.lengths),0,0)
+            self._binnedSupport = np.array((tmp[:-1], tmp[1:]-1)).T
+            self._support = spiketrainarray.support
+            try:
+                self._unit_ids = np.array(spiketrainarray.unit_labels).astype(int)
+            except ValueError:
+                self._unit_ids = (np.arange(spiketrainarray.n_signals) + 1).tolist()
+            self._data = spiketrainarray._ydata_rowsig
+
+            bins = []
+            for starti, stopi in self._binnedSupport:
+                bins_edges_in_epoch = (self._bin_centers[starti:stopi+1] - self._ds/2).tolist()
+                bins_edges_in_epoch.append(self._bin_centers[stopi] + self._ds/2)
+                bins.extend(bins_edges_in_epoch)
+            self._bins = np.array(bins)
             return
 
         if not isinstance(spiketrainarray, SpikeTrainArray):
@@ -1226,7 +1251,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         """BinnedSpikeTrainArray index access."""
         if self.isempty:
             return self
-        if isinstance(idx, EpochArray):
+        if isinstance(idx, core.EpochArray):
             # need to determine if there is any proper subset in self.support intersect EpochArray
             # next, we need to identify all the bins that would fall within the EpochArray
 
@@ -1513,7 +1538,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
         support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
         supportdata = np.vstack([support_starts, support_stops]).T
-        self._support = EpochArray(supportdata) # set support to TRUE bin support
+        self._support = core.EpochArray(supportdata) # set support to TRUE bin support
 
     def smooth(self, *, sigma=None, inplace=False,  bw=None):
         """Smooth BinnedSpikeTrainArray by convolving with a Gaussian kernel.
@@ -1702,7 +1727,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         newbst = copy.copy(bst)
         if newdata is not None:
             newbst._data = newdata
-            newbst._support = EpochArray(newsupport)
+            newbst._support = core.EpochArray(newsupport)
             newbst._bins = newbins
             newbst._bin_centers = newcenters
             newbst._ds = bst.ds*w

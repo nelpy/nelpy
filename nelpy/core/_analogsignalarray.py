@@ -161,6 +161,7 @@ def asa_init_wrapper(func):
                 labels = ydata.unit_labels
             else:
                 labels = ydata.unit_ids
+            kwargs['labels'] = labels
             ydata = ydata.data
 
         #check if single AnalogSignal or multiple AnalogSignals in array
