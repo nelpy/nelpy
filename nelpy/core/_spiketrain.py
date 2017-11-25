@@ -1113,9 +1113,11 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
     def __init__(self, spiketrainarray=None, *, ds=None, empty=False):
 
+        super().__init__(empty=True)
+
         # if an empty object is requested, return it:
         if empty:
-            super().__init__(empty=True)
+            # super().__init__(empty=True)
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._support = core.EpochArray(empty=True)
@@ -1124,6 +1126,12 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         # handle casting other nelpy objects to BinnedSpikeTrainArray:
         if isinstance(spiketrainarray, core.AnalogSignalArray):
+            if spiketrainarray.isempty:
+                for attr in self.__attributes__:
+                    exec("self." + attr + " = None")
+                self._support = core.EpochArray(empty=True)
+                self._event_centers = None
+                return
             self._spiketrainarray = None
             self._ds = 1/spiketrainarray.fs
             self._unit_labels = spiketrainarray.labels
