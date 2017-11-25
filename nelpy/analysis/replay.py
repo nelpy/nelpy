@@ -298,6 +298,7 @@ def score_Davidson_final_bst_fast(bst, tuningcurve, w=None, n_shuffles=2000, n_s
 
             for shflidx in range(n_shuffles):
 
+                # do column cycle shuffle on each column independently
                 for col in range(NT):
                     random_offset = np.random.randint(1, NP)
                     posterior_cs[:,col] = np.roll(posterior_cs[:,col], random_offset)

@@ -56,7 +56,9 @@ class TuningCurve2D:
             (2) n_extern, transform_func*
             (3) n_extern, x_min, x_max, transform_func*
 
-            transform_func operates on extern and returns a value that TuninCurve1D can interpret. If no transform is specified, the identity operator is assumed.
+            transform_func operates on extern and returns a value that
+            TuninCurve1D can interpret. If no transform is specified, the
+            identity operator is assumed.
         """
         # TODO: input validation
         if not empty:

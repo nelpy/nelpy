@@ -10,7 +10,7 @@ def GenerateSpikes(IntensityFunc, MaxRate, PositionFunc, TotalTime) :
       #  same length as the spike times.
       inhomogeneousRate = IntensityFunc( PositionFunc(tHomogeneousSpikeTimes),
                                           tHomogeneousSpikeTimes)
-      
+
       # Then we'll compare the ratio of the inhomogeneousRates and the MaximumRate
       #  to a random number generator to decide when/when-not to delete.
       rnd = np.random.uniform(0, 1, inhomogeneousRate.size)
@@ -61,7 +61,7 @@ def generate_spikes_from_traj(binned_runidx,truepos,pfs,pfbincenters,pos_fs,cons
             maxrate = pfs[nn,:].max()+25
 
             SpikeRasters[ii][nn] = np.round((t_offset + GenerateSpikes(lambda x,t : PlaceFieldRate(x), maxrate, posFun, TrajDuration))*fs);
-            
+
              # DEBUG:
             tempsum += len(SpikeRasters[ii][nn])
             tempdur += TrajDuration

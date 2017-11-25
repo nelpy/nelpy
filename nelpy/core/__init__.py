@@ -13,3 +13,4 @@ __all__ = ['EpochArray',
 from ._epocharray import EpochArray
 from ._analogsignalarray import AnalogSignalArray
 from ._spiketrain import SpikeTrainArray, BinnedSpikeTrainArray
+# from ._eventarray import EventArray
