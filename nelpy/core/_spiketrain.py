@@ -1128,12 +1128,11 @@ class BinnedSpikeTrainArray(SpikeTrain):
             self._ds = 1/spiketrainarray.fs
             self._unit_labels = spiketrainarray.labels
             self._bin_centers = spiketrainarray.time
-            # self._bins = TODO
             tmp = np.insert(np.cumsum(spiketrainarray.lengths),0,0)
             self._binnedSupport = np.array((tmp[:-1], tmp[1:]-1)).T
             self._support = spiketrainarray.support
             try:
-                self._unit_ids = np.array(spiketrainarray.labels).astype(int)
+                self._unit_ids = (np.array(spiketrainarray.labels).astype(int)).tolist()
             except ValueError:
                 self._unit_ids = (np.arange(spiketrainarray.n_signals) + 1).tolist()
             self._data = spiketrainarray._ydata_rowsig
