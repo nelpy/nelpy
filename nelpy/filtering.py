@@ -208,6 +208,67 @@ def spike_filtfilt(data, lowcut=None, highcut=None, *, fs=None, verbose=False):
         out._ydata = spikedata
         return out
 
+def ripple_filter(asa, *, fl=150, fh=250, inplace=False):
+    # TODO add'l kwargs
+
+    if not isinstance(asa, AnalogSignalArray):
+        raise TypeError('asa is expected to be a nelpy.core.AnalogSignalArray!')
+
+    assert fh < asa.fs, "fh must be less than current sampling rate!"
+    assert fl < fh, "fl must be less than fh!"
+
+    if inplace:
+        out = asa
+    else:
+        from copy import deepcopy
+        out = deepcopy(asa)
+
+    from scipy.signal import sosfiltfilt, iirdesign
+
+    fs = out.fs
+    overlap_len = int(fs*2)
+    buffer_len = 4194304
+    gpass = 0.1 # max loss in passband, dB
+    gstop = 30 # min attenuation in stopband (dB)
+    fso2 = fs/2.0
+    try:
+        if np.isinf(fh):
+            fh = None
+    except AttributeError:
+        pass
+    if fl == 0:
+        fl = None
+
+    if (fl is None) and (fh is None):
+        print('wut? nothing to filter, man!')
+        raise ValueError('nonsensical all-pass filter requested...')
+    elif fl is None: # lowpass
+        wp = fh/fso2
+        ws = 1.4*fh/fso2
+    elif fh is None: # highpass
+        wp = fl/fso2
+        ws = 0.8*fl/fso2
+    else: # bandpass
+        wp = [fl/fso2, fh/fso2]
+        ws = [0.8*fl/fso2,1.4*fh/fso2]
+
+    sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype='cheby2', output='sos')
+
+    fei = np.insert(np.cumsum(out.lengths), 0, 0) # filter epoch indices, fei
+
+    for ii in range(len(fei)-1):
+        start, stop = fei[ii], fei[ii+1]
+        for buff_st_idx in range(start, stop, buffer_len):
+            chk_st_idx = int(max(start, buff_st_idx - overlap_len))
+            buff_nd_idx = int(min(stop, buff_st_idx + buffer_len))
+            chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
+            rel_st_idx = int(buff_st_idx - chk_st_idx)
+            rel_nd_idx = int(buff_nd_idx - chk_st_idx)
+            this_y_chk = sosfiltfilt(sos, asa._ydata_rowsig[:,chk_st_idx:chk_nd_idx])
+            out._ydata[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
+
+    return out
+
 def ripple_band_filter(data, lowcut=None, highcut=None, *, numtaps=None,
                        fs=None, verbose=False):
     """Filter data to the ripple band (default 150--250 Hz).
@@ -228,6 +289,7 @@ def ripple_band_filter(data, lowcut=None, highcut=None, *, numtaps=None,
     -------
     filtered : same type as data
     """
+    raise DeprecationWarning('this filter is now deprecated! Use ripple_filter instead')
     if numtaps is None:
         if isinstance(data, (np.ndarray, list)):
             if fs is None:

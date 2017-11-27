@@ -624,12 +624,12 @@ class SpikeTrainArray(SpikeTrain):
 
         # determine spiketrain array support:
         if support is None:
-            first_spk = np.array([unit[0] for unit in time if len(unit) !=0]).min()
+            first_spk = np.nanmin(np.array([unit[0] for unit in time if len(unit) !=0]))
             # BUG: if spiketrain is empty np.array([]) then unit[-1]
             # raises an error in the following:
             # FIX: list[-1] raises an IndexError for an empty list,
             # whereas list[-1:] returns an empty list.
-            last_spk = np.array([unit[-1:] for unit in time if len(unit) !=0]).max()
+            last_spk = np.nanmax(np.array([unit[-1:] for unit in time if len(unit) !=0]))
             self._support = core.EpochArray(np.array([first_spk, last_spk + 1/fs]))
             # in the above, there's no reason to restrict to support
         else:
