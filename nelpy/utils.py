@@ -1157,7 +1157,7 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
                 # only single sample
                 out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
             else:
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
         else:
             raise TypeError("more than 2D position not currently supported!")
 
@@ -1275,6 +1275,16 @@ def find_nearest_idx(array, val):
     Returns
     -------
     Index into array that is closest to val
+
+    TODO: this is a better version that should be incorporated:
+    # Based on answer here: http://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
+    def find_nearest(array,values):
+        right_idxs = np.searchsorted(array, values, side="left")
+        left_idxs = np.where(right_idxs > 0, right_idxs-1, right_idxs)
+        right_idxs = np.where(right_idxs == len(array), len(array)-1, right_idxs)
+        closest_idx = np.where(np.abs(values - array[right_idxs]) < np.abs(values - array[left_idxs]),
+                            right_idxs, left_idxs)
+        return closest_idx
 
     """
     return (np.abs(array-val)).argmin()
@@ -1402,19 +1412,3 @@ def cartesian(xcenters, ycenters):
 
     """
     return np.transpose([np.tile(xcenters, len(ycenters)), np.repeat(ycenters, len(xcenters))])
-
-
-def epoch_position(position, epoch):
-    """Finds positions associated with epoch times
-
-    Parameters
-    ----------
-    position : vdmlab.Position
-    epoch : vdmlab.Epoch
-
-    Returns
-    -------
-    epoch_position : vdmlab.Position
-
-    """
-    return position.time_slices(epoch.starts, epoch.stops)
