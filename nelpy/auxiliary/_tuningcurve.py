@@ -37,7 +37,8 @@ class TuningCurve2D:
 
     """
 
-    __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
+    __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels",
+                      "_unit_tags", "_label", "_mask"]
 
     def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None,
                  bw=None, ext_nx=None, ext_ny=None, transform_func=None,
@@ -57,8 +58,22 @@ class TuningCurve2D:
             (3) n_extern, x_min, x_max, transform_func*
 
             transform_func operates on extern and returns a value that
-            TuninCurve1D can interpret. If no transform is specified, the
+            TuninCurve2D can interpret. If no transform is specified, the
             identity operator is assumed.
+
+        TODO: ext_xmin and ext_xmax (and same for y) should be inferred from
+        extern if not passed in explicitly.
+
+        e.g.
+            ext_xmin, ext_xmax = np.floor(pos[:,0].min()/10)*10, np.ceil(pos[:,0].max()/10)*10
+            ext_ymin, ext_ymax = np.floor(pos[:,1].min()/10)*10, np.ceil(pos[:,1].max()/10)*10
+
+        TODO: mask should be learned during constructor, or additionally
+        after-the-fact. If a mask is present, then smoothing should be applied
+        while respecting this mask. Similarly, decoding MAY be altered by
+        finding the closest point WITHIN THE MASK after doing mean decoding?
+        This way, if there's an outlier pulling us off of the track, we may
+        expect decoding accuracy to be improved.
         """
         # TODO: input validation
         if not empty:
@@ -90,6 +105,7 @@ class TuningCurve2D:
                                     label=label)
             return
 
+        self._mask = None # TODO: change this when we can learn a mask in __init__!
         self._bst = bst
         self._extern = extern
 
@@ -232,6 +248,23 @@ class TuningCurve2D:
         """
         return utils.spatial_sparsity(ratemap=self.ratemap)
 
+    def _initialize_mask_from_extern(self, extern):
+        """Attached a mask from extern.
+        TODO: improve docstring, add example.
+        Typically extern is an AnalogSignalArray or a PositionArray.
+        """
+        xpos, ypos = extern.asarray().yvals
+        mask_x = np.digitize(xpos, self._xbins) - 1 # spatial bin numbers
+        mask_y = np.digitize(ypos, self._ybins) - 1 # spatial bin numbers
+
+        mask = np.empty((self.n_xbins, self.n_xbins))
+        mask[:] = np.nan
+        mask[mask_x, mask_y] = 1
+
+        self._mask_x = mask_x # may not be useful or necessary to store?
+        self._mask_y = mask_y # may not be useful or necessary to store?
+        self._mask = mask
+
     def __add__(self, other):
         out = copy.copy(self)
 
@@ -324,6 +357,11 @@ class TuningCurve2D:
         """Detach bst and extern from tuning curve."""
         self._bst = None
         self._extern = None
+
+    @property
+    def mask(self):
+        """(n_xbins, n_ybins) Mask for tuning curve."""
+        return self._mask
 
     @property
     def n_bins(self):
@@ -520,10 +558,31 @@ class TuningCurve2D:
         else:
             out = self
 
-        if self.n_units > 1:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=bw)
-        else:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=bw)
+        if self.mask is None:
+            if self.n_units > 1:
+                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=bw)
+            else:
+                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=bw)
+        else: # we have a mask!
+            # smooth, dealing properly with NANs
+            # NB! see https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
+
+            masked_ratemap = self.ratemap.copy()*self.mask
+            V=masked_ratemap.copy()
+            V[masked_ratemap!=masked_ratemap]=0
+            W=0*masked_ratemap.copy()+1
+            W[masked_ratemap!=masked_ratemap]=0
+
+            if self.n_units > 1:
+                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(0, sigma_x, sigma_y), truncate=bw)
+                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(0, sigma_x, sigma_y), truncate=bw)
+                Z=VV/WW
+                out._ratemap = Z*self.mask
+            else:
+                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(sigma_x, sigma_y), truncate=bw)
+                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(sigma_x, sigma_y), truncate=bw)
+                Z=VV/WW
+                out._ratemap = Z*self.mask
 
         return out
 
@@ -654,7 +713,11 @@ class TuningCurve1D:
 
     __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
 
-    def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, min_duration=None, empty=False):
+    def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None,
+                 bw=None, n_extern=None, transform_func=None, minbgrate=None,
+                 extmin=0, extmax=1, extlabels=None, unit_ids=None,
+                 unit_labels=None, unit_tags=None, label=None,
+                 min_duration=None, empty=False):
         """
 
         If sigma is nonzero, then smoothing is applied.
