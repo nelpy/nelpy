@@ -337,7 +337,7 @@ class HMMSurrogate():
             spikes.append(unit_spikes)
 
         support = bst.support.expand(bst.ds/2, direction='stop')
-        poisson_st = SpikeTrainArray(timestamps=spikes, support=support)
+        poisson_st = SpikeTrainArray(timestamps=spikes, support=support, unit_ids=bst.unit_ids)
 
         if kind == 'train':
             self.PBEs_train = poisson_st.bin(ds=bst.ds)
@@ -353,7 +353,7 @@ class HMMSurrogate():
         """
 
         all_spiketimes = self._st_flat
-        spike_ids = np.zeros(len(all_spiketimes))
+        spike_ids = np.zeros(len(all_spiketimes)) # WARNING! if we don't have the same unit_ids, it could cause problems later on...
 
         if proportional:
             n_spikes = self._st.n_spikes
