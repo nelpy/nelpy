@@ -568,7 +568,7 @@ def incoherent_shuffle_bst(bst):
 
     for uu in range(bst.n_units):
         for ii in range(bst.n_epochs):
-            segment = np.squeeze(data[uu, edges[ii]:edges[ii+1]])
+            segment = np.atleast_1d(np.squeeze(data[uu, edges[ii]:edges[ii+1]]))
             segment = np.roll(segment, np.random.randint(len(segment)))
             data[uu, edges[ii]:edges[ii+1]] = segment
 
