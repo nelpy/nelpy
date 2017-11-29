@@ -773,7 +773,7 @@ class AnalogSignalArray:
     def isempty(self):
         """(bool) checks length of ydata input"""
         try:
-            return len(self._ydata) == 0
+            return self._ydata.shape[1] == 0
         except TypeError: #TypeError should happen if _ydata = []
             return True
 
