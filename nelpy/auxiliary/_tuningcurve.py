@@ -254,8 +254,8 @@ class TuningCurve2D:
         Typically extern is an AnalogSignalArray or a PositionArray.
         """
         xpos, ypos = extern.asarray().yvals
-        mask_x = np.digitize(xpos, self._xbins) - 1 # spatial bin numbers
-        mask_y = np.digitize(ypos, self._ybins) - 1 # spatial bin numbers
+        mask_x = np.digitize(xpos, self._xbins, right=True) - 1 # spatial bin numbers
+        mask_y = np.digitize(ypos, self._ybins, right=True) - 1 # spatial bin numbers
 
         mask = np.empty((self.n_xbins, self.n_xbins))
         mask[:] = np.nan
@@ -441,8 +441,8 @@ class TuningCurve2D:
 
         x, y = self.trans_func(self._extern, at=self._bst.bin_centers)
 
-        ext_bin_idx_x = np.digitize(x, self.xbins, True)
-        ext_bin_idx_y = np.digitize(y, self.ybins, True)
+        ext_bin_idx_x = np.digitize(x, self.xbins, right=True)
+        ext_bin_idx_y = np.digitize(y, self.ybins, right=True)
 
         # make sure that all the events fit between extmin and extmax:
         # TODO: this might rather be a warning, but it's a pretty serious warning...
@@ -1055,7 +1055,7 @@ class TuningCurve1D:
 
         ext = self.trans_func(self._extern, at=self._bst.bin_centers)
 
-        ext_bin_idx = np.digitize(ext, self.bins, True)
+        ext_bin_idx = np.digitize(ext, self.bins, right=True)
         # make sure that all the events fit between extmin and extmax:
         # TODO: this might rather be a warning, but it's a pretty serious warning...
         if ext_bin_idx.max() > self.n_bins:
