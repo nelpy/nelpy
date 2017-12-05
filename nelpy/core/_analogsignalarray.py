@@ -297,6 +297,8 @@ class AnalogSignalArray:
 
         self.__version__ = version.__version__
 
+        self._call = lambda x: self.asarray(at=x).yvals
+
         if(empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
@@ -370,6 +372,10 @@ class AnalogSignalArray:
 
         if np.abs((self.fs - self._estimate_fs())/self.fs) > 0.01:
             warnings.warn("estimated fs and provided fs differ by more than 1%")
+
+    def __call__(self, *args):
+        """AnalogSignalArray callable method; by default returns interpolated yvals"""
+        return self._call(args)
 
     def _data_epoch_indices(self):
         """Docstring goes here.
