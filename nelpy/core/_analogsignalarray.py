@@ -11,6 +11,7 @@ from sys import float_info
 from collections import namedtuple
 
 from .. import core
+from .. import auxiliary
 from .. import utils
 from .. import version
 
@@ -163,6 +164,10 @@ def asa_init_wrapper(func):
                 labels = ydata.unit_ids
             kwargs['labels'] = labels
             ydata = ydata.data
+        elif isinstance(ydata, auxiliary.PositionArray):
+            kwargs['ydata'] = ydata
+            func(args[0], **kwargs)
+            return
 
         #check if single AnalogSignal or multiple AnalogSignals in array
         #and standardize ydata to 2D
@@ -290,6 +295,10 @@ class AnalogSignalArray:
     def __init__(self, ydata=[], *, timestamps=None, fs=None,
                  step=None, merge_sample_gap=0, support=None,
                  in_memory=True, labels=None, empty=False):
+
+        if isinstance(ydata, auxiliary.PositionArray):
+            self.__dict__ = copy.deepcopy(ydata.__dict__)
+            return
 
         self._epochsignalslicer = EpochSignalSlicer(self)
         self._epochdata = DataSlicer(self)
