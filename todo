@@ -15,3 +15,12 @@
 
 Read and re-interpret https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2722652/
 and https://users.soe.ucsc.edu/~karplus/papers/nullmod.pdf
+
+
+[ ] append AnalogSignalArrays
+[ ] re-write EpochArray merge
+[ ] decouple EpochArray operations from merged (complement, duration, etc.)
+[ ] remove auto-merge for contiguous arrays (what was Josh's use case?)
+[ ] position linearization and idealization, given segments
+[ ] recompute interpolant only if hash has changed (consider adding other things to memoization)
+[ ]
