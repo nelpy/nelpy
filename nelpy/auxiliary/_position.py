@@ -1,6 +1,7 @@
 """Position class for 1D and 2D position AnalogSignalArrays"""
 
 import copy
+import numpy as np
 
 from ..core import _analogsignalarray, _epocharray #core._analogsignalarray import AnalogSignalArray
 from .. import utils
@@ -50,9 +51,6 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
             return "<2D PositionArray%s%s>%s" % (address_str, epstr, dstr)
         return "<1D PositionArray%s%s>%s" % (address_str, epstr, dstr)
 
-    def only_pos_has_this_function(self):
-        print("oh yeah!")
-
     @property
     def is_2d(self):
         try:
@@ -69,20 +67,22 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
     @property
     def x(self):
-        """return x values, as numpy array."""
+        """return x-values, as numpy array."""
         return self.ydata[0,:]
 
     @property
     def y(self):
-        """return y values, as numpy array."""
+        """return y-values, as numpy array."""
         if self.is_2d:
             return self.ydata[1,:]
-        raise ValueError("PositionArray is not 2 dimensional, so y vlaues are undefined!")
+        raise ValueError("PositionArray is not 2 dimensional, so y-values are undefined!")
 
     @property
     def path_length(self):
         """Return the path length along the trajectory."""
-        raise NotImplementedError
+        # raise NotImplementedError
+        lengths = np.sqrt(np.sum(np.diff(self._ydata_colsig, axis=0)**2, axis=1))
+        total_length = np.sum(lengths)
 
     def speed(self, sigma_pos=None, simga_spd=None):
         """Return the speed, as an AnalogSignalArray."""

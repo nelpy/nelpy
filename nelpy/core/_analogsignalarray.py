@@ -127,7 +127,6 @@ class TimestampSlicer(object):
 
         return self._parent._time[start: stop]
 
-
 def asa_init_wrapper(func):
     """Decorator that helps figure out timestamps, fs, and sample numbers"""
 
@@ -296,10 +295,6 @@ class AnalogSignalArray:
                  step=None, merge_sample_gap=0, support=None,
                  in_memory=True, labels=None, empty=False):
 
-        if isinstance(ydata, auxiliary.PositionArray):
-            self.__dict__ = copy.deepcopy(ydata.__dict__)
-            return
-
         self._epochsignalslicer = EpochSignalSlicer(self)
         self._epochdata = DataSlicer(self)
         self._epochtime = TimestampSlicer(self)
@@ -307,6 +302,13 @@ class AnalogSignalArray:
         self.__version__ = version.__version__
 
         self._call = lambda x: self.asarray(at=x).yvals
+
+        if isinstance(ydata, auxiliary.PositionArray):
+            self.__dict__ = copy.deepcopy(ydata.__dict__)
+            self._epochsignalslicer = EpochSignalSlicer(self)
+            self._epochdata = DataSlicer(self)
+            self._epochtime = TimestampSlicer(self)
+            return
 
         if(empty):
             for attr in self.__attributes__:
@@ -382,6 +384,12 @@ class AnalogSignalArray:
         if np.abs((self.fs - self._estimate_fs())/self.fs) > 0.01:
             warnings.warn("estimated fs and provided fs differ by more than 1%")
 
+    def __renew__(self):
+        """Re-attach data slicers."""
+        self._epochsignalslicer = EpochSignalSlicer(self)
+        self._epochdata = DataSlicer(self)
+        self._epochtime = TimestampSlicer(self)
+
     def __call__(self, *args):
         """AnalogSignalArray callable method; by default returns interpolated yvals"""
         return self._call(args)
@@ -430,6 +438,7 @@ class AnalogSignalArray:
         """AnalogSignalArray with absolute value of (potentially complex) data."""
         out = copy.copy(self)
         out._ydata = np.abs(self._ydata)
+        out.__renew__()
         return out
 
     @property
@@ -437,6 +446,7 @@ class AnalogSignalArray:
         """AnalogSignalArray with only phase angle (in radians) of data."""
         out = copy.copy(self)
         out._ydata = np.angle(self._ydata)
+        out.__renew__()
         return out
 
     @property
@@ -444,6 +454,7 @@ class AnalogSignalArray:
         """AnalogSignalArray with only imaginary part of data."""
         out = copy.copy(self)
         out._ydata = self._ydata.imag
+        out.__renew__()
         return out
 
     @property
@@ -451,6 +462,7 @@ class AnalogSignalArray:
         """AnalogSignalArray with only real part of data."""
         out = copy.copy(self)
         out._ydata = self._ydata.real
+        out.__renew__()
         return out
 
     def __mul__(self, other):
@@ -458,6 +470,7 @@ class AnalogSignalArray:
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._ydata = self._ydata * other
+            newasa.__renew__()
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for *: 'AnalogSignalArray' and '{}'".format(str(type(other))))
@@ -467,6 +480,7 @@ class AnalogSignalArray:
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._ydata = self._ydata + other
+            newasa.__renew__()
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for +: 'AnalogSignalArray' and '{}'".format(str(type(other))))
@@ -476,6 +490,7 @@ class AnalogSignalArray:
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._ydata = self._ydata - other
+            newasa.__renew__()
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for -: 'AnalogSignalArray' and '{}'".format(str(type(other))))
@@ -488,6 +503,7 @@ class AnalogSignalArray:
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._ydata = self._ydata / other
+            newasa.__renew__()
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for /: 'AnalogSignalArray' and '{}'".format(str(type(other))))
@@ -508,7 +524,9 @@ class AnalogSignalArray:
         return 1.0/np.median(np.diff(data))
 
     def downsample(self, *, fs_out, aafilter=True, inplace=False):
-        return utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, inplace=inplace)
+        out = utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, inplace=inplace)
+        out.__renew__()
+        return out
 
     def add_signal(self, signal, label=None):
         """Docstring goes here.
@@ -676,7 +694,9 @@ class AnalogSignalArray:
                 'sigma' : sigma,
                 'bw' : bw}
 
-        return utils.gaussian_filter(self, **kwargs)
+        out = utils.gaussian_filter(self, **kwargs)
+        out.__renew__()
+        return out
 
     @property
     def lengths(self):
@@ -746,6 +766,7 @@ class AnalogSignalArray:
 
         out = copy.copy(self)
         out._support = out.support.partition(ds=ds, n_epochs=n_epochs)
+        out.__renew__()
         return out
 
     @property
@@ -848,6 +869,8 @@ class AnalogSignalArray:
         if(asa.support.isempty):
             warnings.warn("Support is empty. Empty AnalogSignalArray returned")
             asa = AnalogSignalArray([],empty=True)
+
+        asa.__renew__()
         return asa
 
     def __getitem__(self, idx):
@@ -864,10 +887,12 @@ class AnalogSignalArray:
         asa = self._subset(signalslice)
 
         if asa.isempty:
+            asa.__renew__()
             return asa
 
         if isinstance(epochslice, slice):
             if epochslice.start == None and epochslice.stop == None and epochslice.step == None:
+                asa.__renew__()
                 return asa
 
         newepochs = self._support[epochslice]
@@ -879,7 +904,7 @@ class AnalogSignalArray:
         ################################################################
 
         asa._restrict_to_epoch_array_fast(epocharray=newepochs)
-
+        asa.__renew__()
         return asa
 
     def _subset(self, idx):
@@ -888,6 +913,7 @@ class AnalogSignalArray:
             asa._ydata = np.atleast_2d(self._ydata[idx,:])
         except IndexError:
             raise IndexError("index {} is out of bounds for n_signals with size {}".format(idx, self.n_signals))
+        asa.__renew__()
         return asa
 
     def copy(self):
@@ -902,6 +928,7 @@ class AnalogSignalArray:
             exec("asa._interp = self._interp")
         except AttributeError:
             pass
+        asa.__renew__()
         return asa
 
     def mean(self,*,axis=1):
@@ -964,6 +991,7 @@ class AnalogSignalArray:
         new_ydata = np.clip(self._ydata, min, max)
         newasa = self.copy()
         newasa._ydata = new_ydata
+        newasa.__renew__()
         return newasa
 
     def trim(self, start, stop=None, *, fs=None):
@@ -1037,6 +1065,7 @@ class AnalogSignalArray:
                 analogsignalarray = self[epoch]
             else:
                 analogsignalarray = AnalogSignalArray([],empty=True)
+        analogsignalarray.__renew__()
         return analogsignalarray
 
     @property
@@ -1163,6 +1192,7 @@ class AnalogSignalArray:
         WARNING! Aliasing can occur! It is better to use downsample when
         lowering the sampling rate substantially.
         """
+
         return self.simplify(ds=1/fs)
 
     def simplify(self, *, ds=None, n_points=None):
@@ -1254,6 +1284,7 @@ class AnalogSignalArray:
         asa._ydata = yvals
         asa._fs = 1/ds
 
+        asa.__renew__()
         return asa
 
 #----------------------------------------------------------------------#
