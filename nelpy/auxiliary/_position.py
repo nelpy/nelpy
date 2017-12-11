@@ -25,6 +25,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         # cast an AnalogSignalArray to a PositionArray:
         if isinstance(ydata, _analogsignalarray.AnalogSignalArray):
             self.__dict__ = copy.deepcopy(ydata.__dict__)
+            self.__renew__()
         else:
             kwargs = {"ydata": ydata,
                     "timestamps": timestamps,

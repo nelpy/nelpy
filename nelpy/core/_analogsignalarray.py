@@ -303,17 +303,19 @@ class AnalogSignalArray:
 
         self._call = lambda x: self.asarray(at=x).yvals
 
+        # cast PositionArray to AnalogSignalArray
         if isinstance(ydata, auxiliary.PositionArray):
             self.__dict__ = copy.deepcopy(ydata.__dict__)
-            self._epochsignalslicer = EpochSignalSlicer(self)
-            self._epochdata = DataSlicer(self)
-            self._epochtime = TimestampSlicer(self)
+            # if self._has_changed:
+                # self.__renew__()
+            self.__renew__()
             return
 
         if(empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._support = core.EpochArray(empty=True)
+            self.__bake__()
             return
 
         self._step = step
@@ -384,11 +386,30 @@ class AnalogSignalArray:
         if np.abs((self.fs - self._estimate_fs())/self.fs) > 0.01:
             warnings.warn("estimated fs and provided fs differ by more than 1%")
 
+    def __bake__(self):
+        """Fix object as-is, and bake a new hash.
+
+        For example, if a label has changed, or if an interp has been attached,
+        then the object's hash will change, and it needs to be baked
+        again for efficiency / consistency.
+        """
+        self._stored_hash_ = self.__hash__()
+
+    # def _has_changed_data(self):
+    #     """Compute hash on timestamps and ydata and compare to cached hash."""
+    #     return self.ydata.__hash__ elf._data_hash_
+
+    def _has_changed(self):
+        """Compute hash on current object, and compare to previously stored hash"""
+        return self.__hash__() == self._stored_hash_
+
     def __renew__(self):
         """Re-attach data slicers."""
         self._epochsignalslicer = EpochSignalSlicer(self)
         self._epochdata = DataSlicer(self)
         self._epochtime = TimestampSlicer(self)
+        self._interp = None
+        self.__bake__()
 
     def __call__(self, *args):
         """AnalogSignalArray callable method; by default returns interpolated yvals"""

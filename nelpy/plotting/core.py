@@ -7,7 +7,6 @@ from matplotlib.collections import LineCollection
 import warnings
 import itertools
 
-
 from scipy import signal
 
 from .helpers import RasterLabelData
