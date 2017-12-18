@@ -262,8 +262,9 @@ class SpikeTrain(ABC):
         address_str = " at " + str(hex(id(self)))
         return "<base SpikeTrain" + address_str + ">"
 
+    @abstractmethod
     def partition(self, ds=None, n_epochs=None):
-        """Returns an SpikeTrain whose support has been partitioned.
+        """Returns a SpikeTrain whose support has been partitioned.
 
         # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
         # underlying support is propagated, and the first and last points
@@ -283,12 +284,7 @@ class SpikeTrain(ABC):
         out : SpikeTrain
             SpikeTrain that has been partitioned.
         """
-
-        out = copy.copy(self)
-        out._support = out.support.partition(ds=ds, n_epochs=n_epochs)
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
-        return out
+        return
 
     @abstractmethod
     def isempty(self):
@@ -643,6 +639,37 @@ class SpikeTrainArray(SpikeTrain):
             time=time)
 
         self._time = time
+
+    def partition(self, ds=None, n_epochs=None):
+        """Returns a SpikeTrain whose support has been partitioned.
+
+        # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
+        # underlying support is propagated, and the first and last points
+        # of the supports are always included, even if this would cause
+        # n_points or ds to be violated.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Maximum duration (in seconds), for each epoch.
+        n_points : int, optional
+            Number of epochs. If ds is None and n_epochs is None, then
+            default is to use n_epochs = 100
+
+        Returns
+        -------
+        out : SpikeTrain
+            SpikeTrain that has been partitioned.
+        """
+
+        out = copy.copy(self)
+        out._support = out.support.partition(ds=ds, n_epochs=n_epochs)
+        out.loc = ItemGetter_loc(out)
+        out.iloc = ItemGetter_iloc(out)
+
+        #TODO: renew epoch slicers !
+
+        return out
 
     def copy(self):
         """Returns a copy of the SpikeTrainArray."""
@@ -1141,7 +1168,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             self._support = spiketrainarray.support
             try:
                 self._unit_ids = (np.array(spiketrainarray.labels).astype(int)).tolist()
-            except ValueError:
+            except (ValueError, TypeError):
                 self._unit_ids = (np.arange(spiketrainarray.n_signals) + 1).tolist()
             self._data = spiketrainarray._ydata_rowsig
 
@@ -1189,6 +1216,30 @@ class BinnedSpikeTrainArray(SpikeTrain):
             epochArray=spiketrainarray.support,
             ds=ds
             )
+
+    def partition(self, ds=None, n_epochs=None):
+        """Returns a SpikeTrain whose support has been partitioned.
+
+        # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
+        # underlying support is propagated, and the first and last points
+        # of the supports are always included, even if this would cause
+        # n_points or ds to be violated.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Maximum duration (in seconds), for each epoch.
+        n_points : int, optional
+            Number of epochs. If ds is None and n_epochs is None, then
+            default is to use n_epochs = 100
+
+        Returns
+        -------
+        out : SpikeTrain
+            SpikeTrain that has been partitioned.
+        """
+
+        raise NotImplementedError('workaround: cast to AnalogSignalArray, partition, and cast back to BinnedSpikeTrainArray')
 
     def copy(self):
         """Returns a copy of the BinnedSpikeTrainArray."""
