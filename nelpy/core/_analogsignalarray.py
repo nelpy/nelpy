@@ -69,6 +69,11 @@ class DataSlicer(object):
         else:
             return self._data_generator(epoch_indices, signalslice)
 
+    def plot_generator(self):
+        epoch_indices = self._parent._data_epoch_indices()
+        for start, stop in epoch_indices:
+            yield self._parent._ydata[:, start: stop]
+
     def __iter__(self):
         self._index = 0
         return self
@@ -108,6 +113,11 @@ class TimestampSlicer(object):
             return self._parent._time[start: stop]
         else:
             return self._timestamp_generator(epoch_indices)
+
+    def plot_generator(self):
+        epoch_indices = self._parent._data_epoch_indices()
+        for start, stop in epoch_indices:
+            yield self._parent._time[start: stop]
 
     def __iter__(self):
         self._index = 0

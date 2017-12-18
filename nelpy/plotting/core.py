@@ -363,7 +363,7 @@ def plot(obj, *args, **kwargs):
     if(isinstance(obj, AnalogSignalArray)):
         if obj.n_signals == 1:
             label = kwargs.pop('label', None)
-            for ii, (timestamps, data) in enumerate(zip(obj._epochtime[:], obj._epochdata[:])):
+            for ii, (timestamps, data) in enumerate(zip(obj._epochtime.plot_generator(), obj._epochdata.plot_generator())):
                 ax.plot(timestamps, data.T, label=label if ii == 0 else '_nolegend_', *args, **kwargs)
         elif obj.n_signals > 1:
             # TODO: intercept when any color is requested. This could happen
@@ -391,14 +391,14 @@ def plot(obj, *args, **kwargs):
                     colors.append(line.get_color())
                     line.remove()
 
-                for ee, (timestamps, data) in enumerate(zip(obj._epochtime[:], obj._epochdata[:])):
+                for ee, (timestamps, data) in enumerate(zip(obj._epochtime.plot_generator(), obj._epochdata.plot_generator())):
                     if ee > 0:
                         kwargs['label'] = '_nolegend_'
                     for ii, snippet in enumerate(data):
                         ax.plot(timestamps, snippet, *args, color=colors[ii], **kwargs)
             else:
                 kwargs['color'] = color
-                for ee, (timestamps, data) in enumerate(zip(obj._epochtime[:], obj._epochdata[:])):
+                for ee, (timestamps, data) in enumerate(zip(obj._epochtime.plot_generator(), obj._epochdata.plot_generator())):
                     if ee > 0:
                         kwargs['label'] = '_nolegend_'
                     for ii, snippet in enumerate(data):
