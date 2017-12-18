@@ -1013,6 +1013,8 @@ def nextfastpower(n):
     This is useful for ensuring fast FFT sizes.
 
     From https://gist.github.com/bhawkins/4479607 (Brian Hawkins)
+
+    See also http://scipy.github.io/devdocs/generated/scipy.fftpack.next_fast_len.html
     """
     if n < 7:
         return max (n, 1)

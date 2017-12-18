@@ -202,6 +202,28 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
         time = np.linspace(0,len(dfwhl)/fs,len(dfwhl)+1)
         dfwhl['time'] = time[:-1]
         return dfwhl
+    elif (datatype=='unit_map'):
+        # in each file, cluster 0 is discarded as mechanical noise;
+        # in each filr, cluster 1 is unsorted spikes; these are all pooled into unit 0
+        # the rest follows numerically...
+        unit_map = {}
+        filename = "{}/{}".format(sessiondir, session_prefix)
+        if verbose:
+            print("Loading data for session in directory '{}'...".format(sessiondir))
+        num_elec = get_num_electrodes(sessiondir, verbose=verbose)
+        if verbose:
+            print('Number of electrode (.clu) files found:', num_elec)
+        # note: using pandas.read_table is orders of magnitude faster here than using numpy.loadtxt
+        unit_id = 1
+        for ele in np.arange(num_elec):
+            with open(filename + '.clu.' + str(ele + 1)) as myfile:
+                n_units = int(myfile.readline())
+
+            for nn in range(2, n_units):
+                unit_map[ele+1, nn] = unit_id
+                unit_id += 1
+        return unit_map
+
     else:
         raise ValueError('datatype is not handled')
 
