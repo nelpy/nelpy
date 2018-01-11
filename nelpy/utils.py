@@ -891,7 +891,7 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
 
     # Find corresponding big windows for potential events
     #  Specifically, look for closest left edge that is just smaller
-    outer_boundary_indices = np.searchsorted(bounds[:,0], events[:,0])
+    outer_boundary_indices = np.searchsorted(bounds[:,0], events[:,0], side='right')
     #  searchsorted finds the index after, so subtract one to get index before
     outer_boundary_indices = outer_boundary_indices - 1
 
