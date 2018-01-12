@@ -1239,7 +1239,12 @@ class BinnedSpikeTrainArray(SpikeTrain):
             SpikeTrain that has been partitioned.
         """
 
-        raise NotImplementedError('workaround: cast to AnalogSignalArray, partition, and cast back to BinnedSpikeTrainArray')
+        partitioned = BinnedSpikeTrainArray(core.AnalogSignalArray(self).partition(ds=ds, n_epochs=n_epochs))
+        # partitioned.loc = ItemGetter_loc(partitioned)
+        # partitioned.iloc = ItemGetter_iloc(partitioned)
+        return partitioned
+
+        # raise NotImplementedError('workaround: cast to AnalogSignalArray, partition, and cast back to BinnedSpikeTrainArray')
 
     def copy(self):
         """Returns a copy of the BinnedSpikeTrainArray."""
