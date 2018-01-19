@@ -3,7 +3,7 @@
 import copy
 import numpy as np
 
-from ..core import _analogsignalarray, _epocharray #core._analogsignalarray import AnalogSignalArray
+from ..core import _analogsignalarray, _epocharray
 from .. import utils
 
 class PositionArray(_analogsignalarray.AnalogSignalArray):
