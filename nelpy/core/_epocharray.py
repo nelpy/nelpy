@@ -567,6 +567,11 @@ class EpochArray:
                 exec("newcopy." + attr + " = self." + attr)
         return newcopy
 
+    def _drop_empty_epochs(self):
+        """Drops empty epochs. Not in-place, i.e. returns a copy."""
+        keep_epoch_ids = np.argwhere(self.durations).squeeze().tolist()
+        return self[keep_epoch_ids]
+
     def intersect(self, epoch, *, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of epoch arrays.
         Sampling rates can be different.
