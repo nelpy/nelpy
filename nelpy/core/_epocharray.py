@@ -660,6 +660,9 @@ class EpochArray:
         if overlap < 0:
             raise ValueError("overlap cannot be negative")
 
+        if self.isempty:
+            return self
+
         if (self.ismerged) and (gap==0.0):
             # already merged
             return self

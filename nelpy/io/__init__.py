@@ -11,5 +11,6 @@ This is the nelpy IO module.
 
 from . import hc3
 from . import matlab
+from . import neuralynx
 
 __version__ = '0.0.3'
