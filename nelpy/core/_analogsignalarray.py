@@ -670,7 +670,7 @@ class AnalogSignalArray:
                     for attr in attrs:
                         exec("self." + attr + " = None")
                 self._ydata = np.zeros([0,self._ydata.shape[0]])
-                self._ydata[:] = np.NAN
+                self._ydata[:] = np.nan
                 self._support = epocharray
                 return
         except AttributeError:
@@ -689,7 +689,7 @@ class AnalogSignalArray:
             self._ydata = self._ydata[:,indices]
         except IndexError:
             self._ydata = np.zeros([0,self._ydata.shape[0]])
-            self._ydata[:] = np.NAN
+            self._ydata[:] = np.nan
         self._time = self._time[indices]
         if update:
             self._support = epocharray
