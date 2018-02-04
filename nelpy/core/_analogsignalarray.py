@@ -1304,7 +1304,10 @@ class AnalogSignalArray:
         yvals = np.array(yvals, ndmin=2)
 
         # now make a new simplified ASA:
-        asa = AnalogSignalArray([], empty=True)
+        if isinstance(self, auxiliary.PositionArray):
+            asa = auxiliary.PositionArray([], empty=True)
+        else:
+            asa = AnalogSignalArray([], empty=True)
         exclude = ['_interp', '_ydata', '_time']
         attrs = (x for x in self.__attributes__ if x not in exclude)
         with warnings.catch_warnings():
