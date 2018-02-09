@@ -4,7 +4,7 @@ __all__ = ['ResultsContainer', 'load_pkl', 'save_pkl']
 
 import gzip
 import os
-import pickle
+import dill as pickle
 # import inspect
 
 class ResultsContainer(object):
