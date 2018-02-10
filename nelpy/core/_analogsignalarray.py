@@ -311,8 +311,6 @@ class AnalogSignalArray:
 
         self.__version__ = version.__version__
 
-        self._call = lambda x: self.asarray(at=x).yvals
-
         # cast PositionArray to AnalogSignalArray
         if isinstance(ydata, auxiliary.PositionArray):
             self.__dict__ = copy.deepcopy(ydata.__dict__)
@@ -423,7 +421,8 @@ class AnalogSignalArray:
 
     def __call__(self, *args):
         """AnalogSignalArray callable method; by default returns interpolated yvals"""
-        return self._call(args)
+        f = lambda x: self.asarray(at=x).yvals
+        return f(args)
 
     def _data_epoch_indices(self):
         """Docstring goes here.
@@ -1111,7 +1110,9 @@ class AnalogSignalArray:
 
     def _get_interp1d(self,* , kind='linear', copy=True, bounds_error=False,
                       fill_value=np.nan, assume_sorted=None):
-        """returns a scipy interp1d object"""
+        """returns a scipy interp1d object, extended to have values at all epoch
+        boundaries!
+        """
 
         if assume_sorted is None:
             assume_sorted = utils.is_sorted(self.time)
@@ -1121,8 +1122,40 @@ class AnalogSignalArray:
         else:
             axis = -1
 
-        f = interpolate.interp1d(x=self.time,
-                                 y=self._ydata_rowsig,
+        time = self.time
+        yvals = self._ydata_rowsig
+        lengths = self.lengths
+        empty_epoch_ids = np.argwhere(lengths==0).squeeze().tolist()
+        first_timestamps_per_epoch_idx = np.insert(np.cumsum(lengths[:-1]),0,0)
+        first_timestamps_per_epoch_idx[empty_epoch_ids] = 0
+        last_timestamps_per_epoch_idx = np.cumsum(lengths)-1
+        last_timestamps_per_epoch_idx[empty_epoch_ids] = 0
+        first_timestamps_per_epoch = self.time[first_timestamps_per_epoch_idx]
+        last_timestamps_per_epoch = self.time[last_timestamps_per_epoch_idx]
+
+        boundary_times = []
+        boundary_vals = []
+        for ii, (start, stop) in enumerate(self.support.time):
+            if lengths[ii] == 0:
+                continue
+            if first_timestamps_per_epoch[ii] > start:
+                boundary_times.append(start)
+                boundary_vals.append(yvals[:,first_timestamps_per_epoch_idx[ii]])
+                # print('adding {} at time {}'.format(yvals[:,first_timestamps_per_epoch_idx[ii]], start))
+            if last_timestamps_per_epoch[ii] < stop:
+                boundary_times.append(stop)
+                boundary_vals.append(yvals[:,last_timestamps_per_epoch_idx[ii]])
+
+        if boundary_times:
+            insert_locs = np.searchsorted(time, boundary_times)
+            time = np.insert(time, insert_locs, boundary_times)
+            yvals = np.insert(yvals, insert_locs, np.array(boundary_vals).T, axis=1)
+
+            time, unique_idx = np.unique(time, return_index=True)
+            yvals = yvals[:,unique_idx]
+
+        f = interpolate.interp1d(x=time,
+                                 y=yvals,
                                  kind=kind,
                                  axis=axis,
                                  copy=copy,
