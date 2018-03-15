@@ -758,7 +758,8 @@ class PoissonHMM(PHMM):
             self.assume_attributes(X)
         return self
 
-    def fit_ext(self, X, ext, n_extern=None, lengths=None, save=True, w=None):
+    def fit_ext(self, X, ext, n_extern=None, lengths=None, save=True, w=None,
+                normalize=True, occupancy=1):
         """Learn a mapping from the internal state space, to an external
         augmented space (e.g. position).
 
@@ -771,12 +772,18 @@ class PoissonHMM(PHMM):
             array of external correlates (n_bins, )
         n_extern : int
             number of extern variables, with range 0,.. n_extern-1
-
         save : bool
             stores extern in PoissonHMM if true, discards it if not
+        w:
+        normalize : bool
+            If True, then normalize each state to have a distribution over ext.
+        occupancy : array of bin counts
+            Default is all ones (uniform).
 
         self.extern_ of size (n_components, n_extern)
         """
+
+        # occupancy # len n_extern
 
         ext_map = np.arange(n_extern)
         if n_extern is None:
@@ -786,7 +793,7 @@ class PoissonHMM(PHMM):
 
         # idea: here, ext can be anything, and n_extern should be range
         # we can e.g., define extern correlates {leftrun, rightrun} and
-        # fit the mapping. This is not expexted to be good at all for
+        # fit the mapping. This is not expected to be good at all for
         # most states, but it could allow us to identify a state or two
         # for which there *might* be a strong predictive relationship.
         # In this way, the binning, etc. should be done external to this
@@ -819,10 +826,13 @@ class PoissonHMM(PHMM):
             if not np.isnan(ext[ii]):
                 extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
 
-        # normalize extern tuning curves:
-        rowsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
-        rowsum = np.where(np.isclose(rowsum, 0), 1, rowsum)
-        extern = extern/rowsum
+        extern = extern / occupancy
+
+        if normalize:
+            # normalize extern tuning curves:
+            rowsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
+            rowsum = np.where(np.isclose(rowsum, 0), 1, rowsum)
+            extern = extern/rowsum
 
         if save:
             self._extern_ = extern
