@@ -7,6 +7,7 @@ import numbers
 
 from functools import wraps
 from scipy import interpolate
+from scipy.stats import zscore
 from sys import float_info
 from collections import namedtuple
 
@@ -524,6 +525,12 @@ class AnalogSignalArray:
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for -: 'AnalogSignalArray' and '{}'".format(str(type(other))))
+
+    def zscore(self):
+        """Returns an object where each signal has been normalized using z scores."""
+        out = copy.deepcopy(self)
+        out._ydata = zscore(out._ydata, axis=1)
+        return out
 
     def __rmul__(self, other):
         return self.__mul__(other)
