@@ -120,7 +120,7 @@ def get_line_of_best_Davidson_score(bst, tuningcurve, w=3, n_samples=50000):
     return score, ri, ci
 
 def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle='row-wise', verbose=False):
-    """scores all sequences in the entire bst"""
+    """score all sequences in the entire bst using the transition matrix shuffle and cross-validation"""
     if k_folds is None:
         k_folds = 5
 
@@ -129,7 +129,9 @@ def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle=
     elif shuffle == 'col-wise':
         rowwise = False
     else:
-        raise ValueError("tmat must be either 'row-wise' or 'col-wise'")
+        shuffle = 'timeswap'
+    # else:
+    #     raise ValueError("tmat must be either 'row-wise' or 'col-wise'")
 
     X = [ii for ii in range(bst.n_epochs)]
 
@@ -154,17 +156,24 @@ def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle=
         # compute scores_hmm (log likelihoods) of validation set:
         scores_hmm[validation] = hmm.score(PBEs_test)
 
-        hmm_shuffled = copy.deepcopy(hmm)
-        for nn in range(n_shuffles):
-            # shuffle transition matrix:
-            if rowwise:
-                hmm_shuffled.transmat_ = shuffle_transmat(hmm_shuffled.transmat)
-            else:
-                hmm_shuffled.transmat_ = shuffle_transmat_Kourosh_breaks_stochasticity(hmm_shuffled.transmat)
-                hmm_shuffled.transmat_ = hmm_shuffled.transmat / np.tile(hmm_shuffled.transmat.sum(axis=1), (hmm_shuffled.n_components, 1)).T
+        if shuffle == 'timeswap':
+            _, scores_tswap_hmm = score_hmm_timeswap_shuffle(bst=PBEs_test,
+                                                            hmm=hmm,
+                                                            n_shuffles=n_shuffles)
 
-            # score validation set with shuffled HMM
-            scores_hmm_shuffled[validation, nn] = hmm_shuffled.score(PBEs_test)
+            scores_hmm_shuffled[validation,:] = scores_tswap_hmm.T
+        else:
+            hmm_shuffled = copy.deepcopy(hmm)
+            for nn in range(n_shuffles):
+                # shuffle transition matrix:
+                if rowwise:
+                    hmm_shuffled.transmat_ = shuffle_transmat(hmm_shuffled.transmat)
+                else:
+                    hmm_shuffled.transmat_ = shuffle_transmat_Kourosh_breaks_stochasticity(hmm_shuffled.transmat)
+                    hmm_shuffled.transmat_ = hmm_shuffled.transmat / np.tile(hmm_shuffled.transmat.sum(axis=1), (hmm_shuffled.n_components, 1)).T
+
+                # score validation set with shuffled HMM
+                scores_hmm_shuffled[validation, nn] = hmm_shuffled.score(PBEs_test)
 
     n_scores = len(scores_hmm)
     scores_hmm_percentile = np.array([stats.percentileofscore(scores_hmm_shuffled[idx], scores_hmm[idx], kind='mean') for idx in range(n_scores)])
