@@ -415,6 +415,25 @@ class TuningCurve2D:
         return np.atleast_1d(x), np.atleast_1d(y)
 
     def _compute_occupancy(self):
+        """
+        """
+
+        # Make sure that self._bst_centers fall within not only the support
+        # of extern, but also within the extreme sample times; otherwise,
+        # interpolation will yield NaNs at the extremes. Indeed, when we have
+        # sample times within a support epoch, we can assume that the signal
+        # stayed roughly constant for that one sample duration.
+
+        if self._bst._bin_centers[0] < self._extern.time[0]:
+            self._extern = copy.copy(self._extern)
+            self._extern.time[0] = self._bst._bin_centers[0]
+            self._extern._interp = None
+            # raise ValueError('interpolated sample requested before first sample of extern!')
+        if self._bst._bin_centers[-1] > self._extern.time[-1]:
+            self._extern = copy.copy(self._extern)
+            self._extern.time[-1] = self._bst._bin_centers[-1]
+            self._extern._interp = None
+            # raise ValueError('interpolated sample requested after last sample of extern!')
 
         x, y = self.trans_func(self._extern, at=self._bst.bin_centers)
 
@@ -1039,6 +1058,23 @@ class TuningCurve1D:
         return np.atleast_1d(ext)
 
     def _compute_occupancy(self):
+
+        # Make sure that self._bst_centers fall within not only the support
+        # of extern, but also within the extreme sample times; otherwise,
+        # interpolation will yield NaNs at the extremes. Indeed, when we have
+        # sample times within a support epoch, we can assume that the signal
+        # stayed roughly constant for that one sample duration.
+
+        if self._bst._bin_centers[0] < self._extern.time[0]:
+            self._extern = copy.copy(self._extern)
+            self._extern.time[0] = self._bst._bin_centers[0]
+            self._extern._interp = None
+            # raise ValueError('interpolated sample requested before first sample of extern!')
+        if self._bst._bin_centers[-1] > self._extern.time[-1]:
+            self._extern = copy.copy(self._extern)
+            self._extern.time[-1] = self._bst._bin_centers[-1]
+            self._extern._interp = None
+            # raise ValueError('interpolated sample requested after last sample of extern!')
 
         ext = self.trans_func(self._extern, at=self._bst.bin_centers)
 
