@@ -1112,6 +1112,26 @@ class SpikeTrainArray(SpikeTrain):
         out.iloc = ItemGetter_iloc(out)
         return out
 
+    def get_spike_firing_order(self):
+        """Returns a list of unit_ids such that the units are ordered
+        by when they first fire in the SpikeTrainArray.
+
+        Return
+        ------
+        firing_order : list of unit_ids
+        """
+
+        first_spikes = [(ii, unit[0]) for (ii, unit) in enumerate(self.time) if len(unit) !=0]
+        first_spikes_unit_ids = np.array(self.unit_ids)[[fs[0] for fs in first_spikes]]
+        first_spikes_times = np.array([fs[1] for fs in first_spikes])
+        sortorder = np.argsort(first_spikes_times)
+        first_spikes_unit_ids = first_spikes_unit_ids[sortorder]
+        remaining_ids = list(set(self.unit_ids) - set(first_spikes_unit_ids))
+        firing_order = list(first_spikes_unit_ids)
+        firing_order.extend(remaining_ids)
+
+        return firing_order
+
 #----------------------------------------------------------------------#
 #======================================================================#
 
