@@ -759,7 +759,7 @@ class PoissonHMM(PHMM):
         return self
 
     def fit_ext(self, X, ext, n_extern=None, lengths=None, save=True, w=None,
-                normalize=True, occupancy=1):
+                normalize=True, normalize_by_occupancy=True):
         """Learn a mapping from the internal state space, to an external
         augmented space (e.g. position).
 
@@ -825,6 +825,13 @@ class PoissonHMM(PHMM):
         for ii, posterior in enumerate(posteriors):
             if not np.isnan(ext[ii]):
                 extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
+
+        if normalize_by_occupancy:
+            occupancy, _ = np.histogram(ext, bins=n_extern, range=[0,n_extern])
+            occupancy[occupancy==0] = 1
+            occupancy = np.atleast_2d(occupancy)
+        else:
+            occupancy = 1
 
         extern = extern / occupancy
 
