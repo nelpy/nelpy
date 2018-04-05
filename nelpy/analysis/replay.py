@@ -638,6 +638,21 @@ def pooled_time_swap_bst(bst):
     out._data = out._data[:,shuffled]
     return out
 
+def pooled_incoherent_shuffle_bst(bst):
+    """Incoherent shuffle on BinnedSpikeTrainArray, swapping within entire bst."""
+    raise NotImplementedError('function not done yet!')
+    out = copy.deepcopy(bst) # should this be deep? YES! Oh my goodness, yes!
+    data = out._data
+    edges = np.insert(np.cumsum(bst.lengths),0,0)
+
+    for uu in range(bst.n_units):
+        for ii in range(bst.n_epochs):
+            segment = np.atleast_1d(np.squeeze(data[uu, edges[ii]:edges[ii+1]]))
+            segment = np.roll(segment, np.random.randint(len(segment)))
+            data[uu, edges[ii]:edges[ii+1]] = segment
+
+    return out
+
 def incoherent_shuffle_bst(bst):
     """Incoherent shuffle on BinnedSpikeTrainArray, swapping only within each epoch."""
     out = copy.deepcopy(bst) # should this be deep? YES! Oh my goodness, yes!

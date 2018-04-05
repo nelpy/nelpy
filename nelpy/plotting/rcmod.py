@@ -108,6 +108,18 @@ def setup(context="notebook", style="ticks", palette="sweet",
     if rc is not None:
         mpl.rcParams.update(rc)
 
+def set_fontsize(fontsize=14):
+    """Set the fontsize for most plot elements."""
+
+    rc={"font.size":fontsize,
+        "axes.titlesize":fontsize,
+        "axes.labelsize":fontsize,
+        "xtick.labelsize":fontsize,
+        "ytick.labelsize":fontsize,
+        "legend.fontsize":fontsize}
+
+    mpl.rcParams.update(rc)
+
 def reset_defaults():
     """Restore all RC params to default settings."""
     mpl.rcParams.update(mpl.rcParamsDefault)

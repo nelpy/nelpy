@@ -1161,7 +1161,7 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
             else:
                 out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
         else:
-            raise TypeError("more than 2D position not currently supported!")
+            raise TypeError("more than 2D not currently supported!")
 
     out._ydata = out._ydata * fs
 
