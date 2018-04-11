@@ -15,12 +15,68 @@ from pandas import unique
 from matplotlib.pyplot import subplots
 import copy
 
-from .core import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
-from .utils import swap_cols, swap_rows
+from . core import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
+from . utils import swap_cols, swap_rows
 from . import plotting
 from . decoding import decode1D
+from . analysis import replay
 
-__all__ = ['PoissonHMM']
+
+__all__ = ['PoissonHMM',
+           'estimate_model_quality']
+
+def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_folds=5, verbose=False):
+    """Estimate the HMM 'model quality' associated with the set of events in bst.
+
+    TODO: finish docstring, and do some more consistency checking...
+
+    Params
+    ======
+
+    Returns
+    =======
+
+    quality :
+    scores :
+    shuffled :
+
+    """
+    from . decoding import k_fold_cross_validation
+    from scipy.stats import zmap
+
+    if hmm:
+        if not n_states:
+            n_states = hmm.n_components
+
+    X = [ii for ii in range(bst.n_epochs)]
+
+    scores = np.zeros(bst.n_epochs)
+    shuffled = np.zeros((bst.n_epochs, n_shuffles))
+
+    for kk, (training, validation) in enumerate(k_fold_cross_validation(X, k=k_folds)):
+        if verbose:
+            print('  fold {}/{}'.format(kk+1, k_folds))
+
+        PBEs_train = bst[training]
+        PBEs_test = bst[validation]
+
+        # train HMM on all training PBEs
+        hmm = PoissonHMM(n_components=n_states, verbose=False)
+        hmm.fit(PBEs_train)
+
+        # compute scores_hmm (log likelihoods) of validation set:
+        scores[validation] = hmm.score(PBEs_test)
+
+        for nn in range(n_shuffles):
+            # shuffle data coherently within events:
+            bst_test_shuffled = replay.pooled_time_swap_bst(PBEs_test)
+
+            # score validation set with shuffled-data HMM
+            shuffled[validation, nn] = hmm.score(bst_test_shuffled)
+
+    quality = zmap(scores.mean(), shuffled.mean(axis=0))
+
+    return quality, scores, shuffled
 
 class PoissonHMM(PHMM):
     """Nelpy extension of PoissonHMM: Hidden Markov Model with
@@ -125,6 +181,7 @@ class PoissonHMM(PHMM):
             exec("self." + attrib + " = None")
 
         self._extern_ = None
+        self._ds = None
         # self._extern_map = None
 
         # create shortcuts to super() methods that are overridden in
@@ -142,7 +199,7 @@ class PoissonHMM(PHMM):
         try:
             rep = super().__repr__()
         except:
-            warning.warn(
+            warn(
                 "couldn't access super().__repr__;"
                 " upgrade dependencies to resolve this issue."
                 )
@@ -1053,6 +1110,31 @@ class PoissonHMM(PHMM):
         fig.text(0.02, 0.5, 'normalized state distribution', va='center', rotation='vertical')
 
         return fig, ax
+
+    def estimate_model_quality(self, bst, *, n_shuffles=1000, k_folds=5, verbose=False):
+        """Estimate the HMM 'model quality' associated with the set of events in bst.
+
+        TODO: finish docstring, and do some more consistency checking...
+
+        Params
+        ======
+
+        Returns
+        =======
+
+        quality :
+        scores :
+        shuffled :
+
+        """
+        n_states = self.n_components
+        quality, scores, shuffles = estimate_model_quality(bst=bst,
+                                                           n_states=n_states,
+                                                           n_shuffles=n_shuffles,
+                                                           k_folds=k_folds,
+                                                           verbose=False)
+
+        return quality, scores, shuffles
 
 # def score_samples_ext(self, X, lengths=None):
 #         """Compute the log probability under the model and compute posteriors.

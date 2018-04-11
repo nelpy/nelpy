@@ -8,7 +8,8 @@ __all__ = ['linregress_ting',
            'get_significant_events',
            'three_consecutive_bins_above_q',
            'score_hmm_time_resolved',
-           'score_hmm_logprob_cumulative']
+           'score_hmm_logprob_cumulative',
+           'pooled_time_swap_bst']
 
 import warnings
 import copy
