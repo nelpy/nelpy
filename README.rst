@@ -75,7 +75,7 @@ To see the full code that was used to generate the figures above, take a look at
 Getting started
 ===============
 The best way to get started with using ``nelpy`` is probably to take a look at
-the `tutorials <https://github.com/nelpy/tutorials>`_ and
+the `tutorials <https://github.com/nelpy/tutorials>`_ (a work-in-progress) and
 `example analyses <https://github.com/nelpy/example-analyses>`_.
 
 The tutorials are still pretty bare-bones, but will hopefully be expanded soon!
