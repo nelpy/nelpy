@@ -1,242 +1,402 @@
 __all__ = ['EventArray']
 
+"""EventArray
+
+EventArray (supports binning)
+  |_ ValueEventArray (does not support binning, nor queries)
+    |_ StatefulEventArray (supports queries, casting to-and-from AnalogSignalArrays)
+
+eva, veva, seva
+"""
+
 import warnings
 import numpy as np
 import copy
 import numbers
 
-from ._epocharray import EpochArray
+from functools import wraps
+from scipy import interpolate
+from sys import float_info
+from collections import namedtuple
 
-# from .. import core
-# from .. import utils
+from .. import core
+from .. import utils
 from .. import version
 
-def fsgetter(self):
-    """(float) [generic getter] Sampling frequency"""
-    if self._fs is None:
-        warnings.warn("No sampling frequency has been specified!")
-    return self._fs
+# TODO: EpochArray from EventArray
+# TODO: casting any nelpy obj to EpochArray returns its support with
+#       proper domain
+
+# Force warnings.warn() to omit the source code line in the message
+formatwarning_orig = warnings.formatwarning
+warnings.formatwarning = lambda message, category, filename, lineno, \
+    line=None: formatwarning_orig(
+        message, category, filename, lineno, line='')
+
+class EpochSignalSlicer(object):
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, *args):
+        """epochs, signals"""
+        # by default, keep all signals
+        signalslice = slice(None, None, None)
+        if isinstance(*args, int):
+            epochslice = args[0]
+        elif isinstance(*args, core.EpochArray):
+            epochslice = args[0]
+        else:
+            try:
+                slices = np.s_[args]; slices = slices[0]
+                if len(slices) > 2:
+                    raise IndexError("only [epochs, signal] slicing is supported at this time!")
+                elif len(slices) == 2:
+                    epochslice, signalslice = slices
+                else:
+                    epochslice = slices[0]
+            except TypeError:
+                # only epoch to slice:
+                epochslice = slices
+
+        return epochslice, signalslice
+
+class DataSlicer(object):
+
+    def __init__(self, parent):
+        self._parent = parent
+
+    def _data_generator(self, epoch_indices, signalslice):
+        for start, stop in epoch_indices:
+            yield self._parent._ydata[signalslice, start: stop]
+
+    def __getitem__(self, idx):
+        epochslice, signalslice = self._parent._epochsignalslicer[idx]
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = np.atleast_2d(epoch_indices[epochslice])
+
+        if len(epoch_indices) < 2:
+            start, stop = epoch_indices[0]
+            return self._parent._ydata[signalslice, start: stop]
+        else:
+            return self._data_generator(epoch_indices, signalslice)
+
+    def __iter__(self):
+        self._index = 0
+        return self
+
+    def __next__(self):
+        index = self._index
+
+        if index > self._parent.n_epochs - 1:
+            raise StopIteration
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = epoch_indices[index]
+        start, stop = epoch_indices
+
+        self._index +=1
+
+        return self._parent._ydata[:, start: stop]
+
+class TimestampSlicer(object):
+
+    def __init__(self, parent):
+        self._parent = parent
+
+    def _timestamp_generator(self, epoch_indices):
+        for start, stop in epoch_indices:
+            yield self._parent._time[start: stop]
+
+    def __getitem__(self, idx):
+        epochslice, signalslice = self._parent._epochsignalslicer[idx]
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = np.atleast_2d(epoch_indices[epochslice])
+
+        if len(epoch_indices) < 2:
+            start, stop = epoch_indices[0]
+            return self._parent._time[start: stop]
+        else:
+            return self._timestamp_generator(epoch_indices)
+
+    def __iter__(self):
+        self._index = 0
+        return self
+
+    def __next__(self):
+        index = self._index
+
+        if index > self._parent.n_epochs - 1:
+            raise StopIteration
+
+        epoch_indices = self._parent._data_epoch_indices()
+        epoch_indices = epoch_indices[index]
+        start, stop = epoch_indices
+
+        self._index +=1
+
+        return self._parent._time[start: stop]
+
+
+def eva_init_wrapper(func):
+    """Decorator that helps figure out timestamps, and sample numbers"""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+
+        if kwargs.get('empty', False):
+            func(*args, **kwargs)
+            return
+
+        if len(args) > 2:
+            raise TypeError("__init__() takes 1 positional arguments but {} positional arguments (and {} keyword-only arguments) were given".format(len(args)-1, len(kwargs.items())))
+
+        ydata = kwargs.get('ydata', [])
+        if ydata == []:
+            ydata = args[1]
+
+        if ydata == []:
+            warnings.warn('No data! Returning empty EventArray.')
+            func(*args, **kwargs)
+            return
+
+        #check if single EventSignal or multiple EventSignals in array
+        #and standardize ydata to 2D
+        ydata = np.squeeze(ydata)
+        try:
+            if(ydata.shape[0] == ydata.size):
+                ydata = np.array(ydata,ndmin=2)
+        except ValueError:
+            raise TypeError("Unsupported ydata type!")
+
+        time = kwargs.get('timestamps', None)
+        if time is None:
+            time = np.linspace(0, ydata.shape[1]/fs, ydata.shape[1]+1)
+            time = time[:-1]
+
+        kwargs['ydata'] = ydata
+        kwargs['timestamps'] = np.squeeze(time)
+
+        func(args[0], **kwargs)
+        return
+
+    return wrapper
 
 ########################################################################
 # class EventArray
 ########################################################################
 class EventArray:
-    """Stores time/timestamps (tdata) of events. EventArray is restricted in its
-    support by EpochArray and contains an optional state variable in order to
-    represent particular states at corresponding timestamps (tdata).
+
+    raise NotImplementedError
+    """
+
+    Temp text: like spike train, in that EventSignals can have arbitrary
+    event times. Collapsing them then results in a single EventSignal with
+    categorical labels being the union of all signal labels.
+
+    Categorical event signal(s) with irregular sampling rates and same
+    support.
 
     Parameters
     ----------
-    tdata : np.array(dtype=np.float,dimension=N)
-        Timestamps at which events occur. tdata can either be sample numbers or
-        time but if it's in units of time be weary of fs and tdata_in_timstamps.
-
-    state : np.array(dtype=np.float,dimension=N), optional
-        State is to contain states associated with particular timestamps passed
-        in from tdata (e.g. 0 or 1 associated with a correct or incorrect
-        trigger). By default this is None.
-
-    support : EpochArray, optional
-        EpochArray on which tdata is restricted. Default is to cover all of
-        tdata.
-
-    fs : float, scalar, optional
-        Sampling rate in Hz. If fs is passed in as a parameter, by default, time
-        is assumed to be in sample numbers unless tdata_in_samples is set to
-        False. As such, time attribute will be calculated by dividing tdata by
-        fs passed in. See fs_acquisition if timestamps are stored at a different
-        rate than what was sampled and marked by the system. By default this is
-        None.
-
-    fs_acquisition : float, scalar, optional
-        Optional to store sampling rate in Hz of the acquisition system. This
-        should be used when tdata is passed in timestamps associated with the
-        acquisition system but is stored in step sizes that are of a different
-        sampling rate. E.g. times could be stamped at 30kHz but stored in a
-        decimated fashion at 3kHz so instead of 1,2,3,4,5,6,7,8,9,10,11,12,...,
-        20,21,22,23,24,25,26,... it would be 1,10,20,30,40,50,60,70,80,90,100,
-        110,120,...,200,210,220,230,240,250,260,... (get the idea?). In cases
-        like this, fs_acquisition as opposed to fs should be used to calculate
-        time while fs should remain at the decimated sampling rate for further
-        uses. Note, this is of more importance to ``AnalogSignalArray`` than
-        ``EventArray`` but still worth maintaining for consistency amongst
-        objects. Additionally, fs_acquisition can be used to just divide tdata
-        without storing fs (not sure why anyone would want to do this though but
-        feel free to do it before I remove this functionality!) By default this
-        is None.
-
-    tdata_in_samples : bool, optional
-        Boolean flag set to True by default. Determines if tdata is to be scaled
-        by fs in order to generate time attribute.
-
-    labels : np.array(dtype=np.str,dimension=N)
-        Labeling each one of the states or timestamps. By default this is None
-        but all signals must be labeled if any are labeled or else we will label
-        in order of signals passed in and replace the others with Nones. If more
-        labels are passed in than signals, we will truncate the remaining! If we
-        are nice (which we are for the most part), we will display a warning
-        upon doing any of these things! :P Lastly, it is worth noting that most
-        logical and type error checking for this is expected to be done by the
-        user. Inputs are casted to strings and stored in a numpy array.
-
-    empty : bool
-        Return an empty ``EventArray`` if requested aka this flag is True. By
-        default this will be set to False cuz who in their right minds would
-        want to instantiate an empty ``EventArray``, amirite?
+    XXX : np.array
+        With shape (M,N).
 
     Attributes
     ----------
-    tdata : np.array
-        See ``Parameters``
-
-    time : np.array
-        Converts tdata to units of time. time can be equal to tdata if fs is not
-        specified or if fs is one or if tdata_in_timestamps is set to False.
-
-    state : np.array
-        See ``Parameters``
-
-    support : EpochArray, optional
-        See ``Parameters``
-
-    fs : float, scalar, optional
-        See ``Parameters``
-
-    fs_acquisition : float, scalar, optional
-        See ``Parameters``. Set equal to fs if fs is provided and this is None.
-
-    labels : np.array
-        See ``Parameters``
+    XXX : np.array
+        With shape (M,N).
     """
-    __attributes__ = ['_tdata','_time','_state','_support','_fs',\
-                      '_fs_acquisition', '_labels']
-    def __init__(self, tdata, *, state=None, support=None, fs=None, \
-                 fs_acquisition=None, tdata_in_samples=True, labels=None, \
-                 empty=None):
+    raise NotImplementedError
+    __attributes__ = ['_ydata','_time', '_support', \
+                      '_interp', '_step', '_labels']
+
+    @eva_init_wrapper
+    def __init__(self, ydata=[], *, timestamps=None, fs=None,
+                 step=None, merge_sample_gap=0, support=None,
+                 in_memory=True, labels=None, empty=False):
+
+        raise NotImplementedError
+
+        self._epochsignalslicer = EpochSignalSlicer(self)
+        self._epochdata = DataSlicer(self)
+        self._epochtime = TimestampSlicer(self)
 
         self.__version__ = version.__version__
-        #if empty object is requested, give it to 'em one!
-        if empty:
+
+        if(empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self._support = EpochArray(empty=True)
+            self._support = core.EpochArray(empty=True)
             return
-        np.concatenate
-        #check if single Event or multiple events in array
-        tdata = np.squeeze(tdata).astype(float)
+
+        self._step = step
+        self._fs = fs
+
+        # Note; if we have an empty array of ydata with no dimension,
+        # then calling len(ydata) will return a TypeError
         try:
-            if tdata.shape[0] == tdata.size:
-                tdata = np.array(tdata,ndmin=2).astype(float)
-        except ValueError:
-            raise TypeError("Unsupported type! Integer or floating point "
-                            "expected for tdata")
-        self._tdata = tdata #let's go ahead and just set tdata since we aren't
-                            #going to need to change this later
+            # if no ydata are given return empty EventArray
+            if ydata.size == 0:
+                self.__init__(empty=True)
+                return
+        except TypeError:
+            warnings.warn("unsupported type; creating empty EventArray")
+            self.__init__(empty=True)
+            return
 
-        #check if state array was provided. This must _exactly_ match shape of
-        #tdata
-        if state is not None:
-            state = np.squeeze(state).astype(float)
-            try:
-                if state.shape[0] == state.size:
-                    state = np.array(state,ndmin=2).astype(float)
-            except ValueError:
-                raise TypeError("Unsupported type! Integer or floating point "
-                                "expected for state")
-            if state.shape[0] != tdata.shape[0]:
-                raise IndexError("tdata and state dimensions must _exactly_"
-                                 " match!")
-            for i in range(0,tdata.shape[0]):
-                if len(state[i][:]) != len(tdata[i][:]):
-                    raise IndexError("tdata and state dimensions must _exactly_"
-                                     " match!")
+        # Note: if both time and ydata are given and dimensionality does not
+        # match, then TypeError!
 
-            self._state = state
-        else:
-            self._state = np.zeros([0,self._tdata.shape[0]])
-            self._state[:] = np.NAN
+        time = np.squeeze(timestamps).astype(float)
+        if(time.shape[0] != ydata.shape[1]):
+            # self.__init__([],empty=True)
+            raise TypeError("time and ydata size mismatch! Note: ydata "
+                            "is expected to have rows containing signals")
+        #data is not sorted and user wants it to be
+        # TODO: use faster is_sort from jagular
+        if not utils.is_sorted(time):
+            warnings.warn("Data is _not_ sorted! Data will be sorted "\
+                            "automatically.")
+            ind = np.argsort(time)
+            time = time[ind]
+            ydata = np.take(a=ydata, indices=ind, axis=-1)
+
+        self._ydata = ydata
+        self._time = time
 
         #handle labels
         if labels is not None:
             labels = np.asarray(labels,dtype=np.str)
             #label size doesn't match
-            if labels.shape[0] > tdata.shape[0]:
-                warnings.warn("More labels than tdata! labels are sliced to "
-                              "size of tdata")
-                labels = labels[0:tdata.shape[0]]
-            elif labels.shape[0] < tdata.shape[0]:
-                warnings.warn("Less labels than tdata! labels are filled with "
-                              "Nones to match tdata shape")
-                for i in range(labels.shape[0],tdata.shape[0]):
+            if labels.shape[0] > ydata.shape[0]:
+                warnings.warn("More labels than ydata! labels are sliced to "
+                              "size of ydata")
+                labels = labels[0:ydata.shape[0]]
+            elif labels.shape[0] < ydata.shape[0]:
+                warnings.warn("Less labels than time! labels are filled with "
+                              "None to match ydata shape")
+                for i in range(labels.shape[0],ydata.shape[0]):
                     labels.append(None)
         self._labels = labels
 
-        #handle fs and fs_acquisition
-        self._fs = None
-        self._fs_acquisition = None
-        self.fs = fs
-        if fs is not None:
-            if fs_acquisition is not None:
-                self.fs_acquisition = fs_acquisition
-                if tdata_in_samples:
-                    self._time = self.tdata / self.fs_acquisition
-                else:
-                    self._time = self.tdata
-            else:
-                self.fs_acquisition = fs
-                if tdata_in_samples:
-                    self._time = self.tdata / self.fs_acquisition
-                else:
-                    self._time = self.tdata
-        elif fs_acquisition is not None:
-            warnings.warn("Why are you setting fs_acquisition to scale tdata to"
-                          " time as opposed to fs? Seriously, is there a reason"
-                          " for this? Contact me (Shayok) if there is or I'll"
-                          " probably remove this functionality!")
-            self.fs_acquisition = fs_acquisition
-            if tdata_in_samples:
-                self._time = self.tdata / self.fs_acquisition
-            else:
-                self._time = self.tdata
-        else:
-            self._time = self.tdata
-
-        #support restrictions
+        # Alright, let's handle all the possible parameter cases!
         if support is not None:
-            self._restrict_to_epoch_array(epocharray=support)
-            if self._support.isempty:
-                warnings.warn("Support is empty. Empty EventArray returned with"
-                              " specified sampling rate variables.")
+            self._restrict_to_epoch_array_fast(epocharray=support)
         else:
-            self._support = EpochArray([np.min(self._tdata),\
-                                        np.max(self._tdata)],\
-                                        fs=self._fs_acquisition)
+            warnings.warn("creating support from time and "
+                            "sampling rate, fs!")
+            self._support = core.EpochArray(
+                utils.get_contiguous_segments(
+                    self.time,
+                    step=self._step,
+                    fs=fs,
+                    in_memory=in_memory))
+            if merge_sample_gap > 0:
+                self._support = self._support.merge(gap=merge_sample_gap)
+
+        if np.abs((self.fs - self._estimate_fs())/self.fs) > 0.01:
+            warnings.warn("estimated fs and provided fs differ by more than 1%")
+
+    def _data_epoch_indices(self):
+        raise NotImplementedError
+        """Docstring goes here.
+        We use this to get the indices of samples / timestamps within epochs
+        """
+        tmp = np.insert(np.cumsum(self.lengths),0,0)
+        indices = np.vstack((tmp[:-1], tmp[1:])).T
+        return indices
+
+    @property
+    def signals(self):
+        raise NotImplementedError
+        """Returns a list of EventArrays, each array containing
+        a single signal (channel).
+
+        WARNING: this method creates a copy of each signal, so is not
+        particularly efficient at this time.
+
+        Example
+        =======
+        >>> for channel in lfp.signals:
+            print(channel)
+        """
+        signals = []
+        for ii in range(self.n_signals):
+            signals.append(self[:,ii])
+        return signals
+
+    def __mul__(self, other):
+        """overloaded * operator."""
+        raise NotImplementedError
+
+    def __add__(self, other):
+        """overloaded + operator."""
+        raise NotImplementedError
+
+    def __sub__(self, other):
+        """overloaded - operator."""
+        raise NotImplementedError
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        """overloaded / operator."""
+        raise NotImplementedError
+
+    def __len__(self):
+        raise NotImplementedError
+
+    def _drop_empty_epochs(self):
+        """Drops empty epochs from support. In-place."""
+        keep_epoch_ids = np.argwhere(self.lengths).squeeze().tolist()
+        self._support = self.support[keep_epoch_ids]
+        return self
+
+    def add_signal(self, signal, label=None):
+        """Docstring goes here.
+        Basically we add a signal, and we add a label
+        """
+        raise NotImplementedError
 
     def _restrict_to_epoch_array(self, *, epocharray=None, update=True):
-        """Restrict self._time and self._state to an EpochArray. If no
+        raise NotImplementedError
+        """Restrict self._time and self._ydata to an EpochArray. If no
         EpochArray is specified, self._support is used.
+
+        This function is quite slow, as it checks each sample for inclusion.
+        It does this in a vectorized form, which is fast for small or moderately
+        sized objects, but the memory penalty can be large, and it becomes very
+        slow for large objects. Consequently, _restrict_to_epoch_array_fast
+        should be used when possible.
 
         Parameters
         ----------
         epocharray : EpochArray, optional
-            EpochArray on which to restrict EventArray. Default is self._support
+        	EpochArray on which to restrict AnalogSignal. Default is
+        	self._support
         update : bool, optional
-            Overwrite self._support with epocharray if True (default)
+        	Overwrite self._support with epocharray if True (default).
         """
         if epocharray is None:
             epocharray = self._support
+            update = False # support did not change; no need to update
 
         try:
             if epocharray.isempty:
                 warnings.warn("Support specified is empty")
+                # self.__init__([],empty=True)
+                exclude = ['_support','_ydata','_fs','_step']
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    for attr in attrs:
+                        exec("self." + attr + " = None")
+                self._ydata = np.zeros([0,self._ydata.shape[0]])
+                self._ydata[:] = np.nan
                 self._support = epocharray
-                self._tdata = np.zeros([0,self._tdata.shape[0]])
-                self._tdata[:] = np.NAN
-                self._time = np.zeros([0,self._time.shape[0]])
-                self._time[:] = np.NAN
-                self._state = np.zeros([0,self._state.shape[0]])
-                self._state[:] = np.NAN
-                self._labels = None
                 return
         except AttributeError:
             raise AttributeError("EpochArray expected")
@@ -245,182 +405,227 @@ class EventArray:
         for eptime in epocharray.time:
             t_start = eptime[0]
             t_stop = eptime[1]
-            indices.append((self._time >= t_start) & (self._time <= t_stop))
+            indices.append((self._time >= t_start) & (self._time < t_stop))
         indices = np.any(np.column_stack(indices), axis=1)
         if np.count_nonzero(indices) < len(self._time):
-            warnings.warn("ignoring timestamps outside of support")
+            warnings.warn(
+                'ignoring signal outside of support')
         try:
-            self._tdata = self._tdata[:,indices]
+            self._ydata = self._ydata[:,indices]
         except IndexError:
-            self._tdata = np.zeros([0,self._tdata.shape[0]])
-            self._tdata[:] = np.NAN
-            self._time = np.zeros([0,self._time.shape[0]])
-            self._time[:] = np.NAN
-            self._state = np.zeros([0,self._state.shape[0]])
-            self._state = np.NAN
-            self._labels = None
+            self._ydata = np.zeros([0,self._ydata.shape[0]])
+            self._ydata[:] = np.nan
         self._time = self._time[indices]
-        self._tdata = self._tdata[indices]
         if update:
             self._support = epocharray
 
-    def __repr__(self):
-        warnings.warn("Rethink this. EventArray repr will change!")
-        address_str = " at " + str(hex(id(self)))
-        if self.isempty:
-            return "<empty EventArray" + address_str + ">"
-        epstr = " ({} events)".format(self.n_events)
-        try:
-            if(self.n_arrays > 0):
-                nstr = " %s event array(s)%s" % (self.n_arrays, epstr)
-        except IndexError:
-            nstr = " 1 event array%s" % epstr
-        return "<EventArray%s:%s>" % (address_str, nstr)
-
     @property
-    def n_events(self):
-        """number of total events"""
-        events = 0
-        for x in range(0,self._tdata.shape[0]):
-            events += len(self._tdata[x,:])
-        return events
-
-    @property
-    def n_arrays(self):
-        """number of total events"""
-        return self._tdata.shape[0]
-
-    @property
-    def isempty(self):
-        """(bool) checks length of tdata"""
-        try:
-            return len(self._tdata) == 0
-        except TypeError: #TypeError should happen if _tdata == []
-            return True
-
-    @property
-    def support(self):
-        """(nelpy.EpochArray) The support of the underlying EventArray
-        (in seconds).
-        """
-        return self._support
-
-    @property
-    def tdata(self):
-        if self._tdata is None:
-            warnings.warn("No tdata. The EventArray is empty?")
-        return self._tdata
-
-    @property
-    def time(self):
-        """(np.array N-D) Time calculated from tdata
-        """
-        if self._time is None:
-            warnings.warn("No time Calculated. Is the EventArray empty?")
-        return self._time
-
-    @property
-    def fs(self):
-        """(float) Sampling Frequency"""
-        return fsgetter(self)
-
-    @fs.setter
-    def fs(self, val):
-        """(float) Set sampling rate"""
-        if self._fs == val:
-            return
-        try:
-            if val <= 0:
-                raise ValueError("Sampling rate must be positive")
-        except:
-            raise TypeError("Sampling rate must be a scalar!")
-
-        # if it is the first time that a sampling rate is set, do not
-        # modify anything except for self._fs
-        if self._fs is None:
-            pass
-        else:
-            warnings.warn(
-                "Sampling frequency has been updated! This will modify time "
-                "but I'll assume you know what you're doing!"
-            )
-            self._time = self._tdata / val
-        self._fs = val
-
-    @property
-    def fs_acquisition(self):
-        """(float) Acquisition sampling rate"""
-        if self._fs_acquisition is None:
-            warnings.warn("No sampling rate specified")
-        return self._fs_acquisition
-
-    @fs_acquisition.setter
-    def fs_acquisition(self, val):
-        try:
-            if val > 0:
-                self._fs_acquisition = val
-                if(self._fs is not  None):
-                    self._time = self.tdata / val
-            else:
-                raise ValueError("fs_acquisition must be positive")
-        except TypeError:
-            raise TypeError("fs_acquisition expected to be a scalar")
-
-    @property
-    def state(self):
-        """(np.array N-D) States associated with timestamps passed in
-        """
-        if self._state is None:
-            warnings.warn("state variable is None")
-        return self._state
-
-    @property
-    def support(self):
-        """(nelpy.EpochArray) The support of the underlying EventArray
-        (in seconds).
-        """
-        return self._support
+    def lengths(self):
+        raise NotImplementedError
+        """(list) The number of samples in each epoch."""
+        indices = []
+        for eptime in self.support.time:
+            t_start = eptime[0]
+            t_stop = eptime[1]
+            frm, to = np.searchsorted(self._time, (t_start, t_stop))
+            indices.append((frm, to))
+        indices = np.array(indices, ndmin=2)
+        lengths = np.atleast_1d(np.diff(indices).squeeze())
+        return lengths
 
     @property
     def labels(self):
-        """(np.array 1D) Returns N labels 1 for each array of events.
-        """
+        raise NotImplementedError
+        """(list) The number of samples (events) in each epoch."""
+        # TODO: make this faster and better!
         return self._labels
 
-    def add_events(self, data, label=None):
-        """Docstring goes here.
-        Basically, we add another tdata.
-        Notes:
-        - tdata passed in must be same as what was initiall passed in.
-        - single array-like objects or EventArrays are accepted here
-        """
-        if isinstance(data, EventArray):
-            data = data.tdata
-        data = np.squeeze(data)
+    @property
+    def n_signals(self):
+        """(int) The number of signals."""
+        try:
+            return utils.PrettyInt(self._ydata.shape[0])
+        except AttributeError:
+            return 0
 
-        if data.ndmin > 1:
-            raise TypeError("Can only add 1 signal at a time!")
-        if self._tdata.ndmin == 1:
-            self._tdata = np.vstack([np.array(self._tdata, ndmin=2), \
-                                    np.array(data, ndmin=2)])
-            if fs is not None:
-                sampling_rate = self.fs_acquisition
-            else:
-                sampling_rate = 1
-            self._time = np.vstack([np.array(self._time, ndmin=2), \
-                                    np.array(data/sampling_rate, ndmin=2)])
+    def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
+        if self.isempty:
+            return "<empty EventArray" + address_str + ">"
+        if self.n_epochs > 1:
+            epstr = " ({} segments)".format(self.n_epochs)
         else:
-            self._tdata = np.vstack([self._tdata, np.array(data, ndmin=2)])
-            if fs is not None:
-                sampling_rate = self.fs_acquisition
-            else:
-                sampling_rate = 1
-            self._time = np.vstack([self._time, \
-                                    np.array(data/sampling_rate, ndmin=2)])
+            epstr = ""
+        try:
+            if(self.n_signals > 0):
+                nstr = " %s signals%s" % (self.n_signals, epstr)
+        except IndexError:
+            nstr = " 1 signal%s" % epstr
+        dstr = " for a total of {}".format(utils.PrettyDuration(self.support.duration))
+        return "<EventArray%s:%s>%s" % (address_str, nstr, dstr)
 
-    def flatten(self):
-        """Docstring goes here.
+    def partition(self, ds=None, n_epochs=None):
+        """Returns an EventArray whose support has been
+        partitioned.
+
+        # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
+        # underlying support is propagated, and the first and last points
+        # of the supports are always included, even if this would cause
+        # n_points or ds to be violated.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Maximum duration (in seconds), for each epoch.
+        n_points : int, optional
+            Number of epochs. If ds is None and n_epochs is None, then
+            default is to use n_epochs = 100
+
+        Returns
+        -------
+        out : EventArray
+            EventArray that has been partitioned.
         """
-        raise NotImplementedError("flatten is pretty non-existent atm but"
-                                    " it will in the future make all the"
-                                    " tdata/time into a 1D array")
+
+        out = copy.copy(self)
+        out._support = out.support.partition(ds=ds, n_epochs=n_epochs)
+        return out
+
+    @property
+    def ydata(self):
+        raise NotImplementedError
+        """(np.array N-Dimensional) ydata that was initially passed in but transposed
+        """
+        return self._ydata
+
+    @property
+    def support(self):
+        """(nelpy.EpochArray) The support of the underlying EventArray
+        (in seconds).
+         """
+        return self._support
+
+    @property
+    def time(self):
+        raise NotImplementedError
+        """(np.array 1D) Time in seconds."""
+        return self._time
+
+    @property
+    def isempty(self):
+        raise NotImplementedError
+        """(bool) checks length of ydata input"""
+        try:
+            return len(self._ydata) == 0
+        except TypeError: #TypeError should happen if _ydata = []
+            return True
+
+    @property
+    def n_epochs(self):
+        """(int) number of epochs in EventArray"""
+        return self._support.n_epochs
+
+    @property
+    def n_samples(self):
+        raise NotImplementedError
+        """(int) number of time samples where signal is defined."""
+        if self.isempty:
+            return 0
+        return utils.PrettyInt(len(self.time))
+
+    def __iter__(self):
+        """EventArray iterator initialization"""
+        # initialize the internal index to zero when used as iterator
+        self._index = 0
+        return self
+
+    def __next__(self):
+        raise NotImplementedError
+        """EventArray iterator advancer."""
+        index = self._index
+        if index > self.n_epochs - 1:
+            raise StopIteration
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            epoch = core.EpochArray(empty=True)
+            exclude = ["_time"]
+            attrs = (x for x in self._support.__attributes__ if x not in exclude)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("epoch." + attr + " = self._support." + attr)
+                try:
+                    epoch._time = self._support.time[[index], :]  # use np integer indexing! Cool!
+                except IndexError:
+                    # index is out of bounds, so return an empty EpochArray
+                    pass
+
+        self._index += 1
+
+        eva = EventArray([],empty=True)
+        exclude = ['_interp','_support']
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("eva." + attr + " = self." + attr)
+        eva._restrict_to_epoch_array_fast(epocharray=epoch)
+        if(eva.support.isempty):
+            warnings.warn("Support is empty. Empty EventArray returned")
+            eva = EventArray([],empty=True)
+        return eva
+
+    def __getitem__(self, idx):
+        raise NotImplementedError
+        """EventArray index access.
+        Parameters
+        Parameters
+        ----------
+        idx : EpochArray, int, slice
+            intersect passed epocharray with support,
+            index particular a singular epoch or multiple epochs with slice
+        """
+        epochslice, signalslice = self._epochsignalslicer[idx]
+
+        eva = self._subset(signalslice)
+
+        if eva.isempty:
+            return eva
+
+        if isinstance(epochslice, slice):
+            if epochslice.start == None and epochslice.stop == None and epochslice.step == None:
+                return eva
+
+        newepochs = self._support[epochslice]
+        # TODO: this needs to change so that n_signals etc. are preserved
+        ################################################################
+        if newepochs.isempty:
+            warnings.warn("Index resulted in empty epoch array")
+            return EventArray([], empty=True)
+        ################################################################
+
+        eva._restrict_to_epoch_array_fast(epocharray=newepochs)
+
+        return eva
+
+    def _subset(self, idx):
+        raise NotImplementedError
+        eva = self.copy()
+        try:
+            eva._ydata = np.atleast_2d(self._ydata[idx,:])
+        except IndexError:
+            raise IndexError("index {} is out of bounds for n_signals with size {}".format(idx, self.n_signals))
+        return eva
+
+    def copy(self):
+        eva = EventArray([], empty=True)
+        exclude = []
+        attrs = (x for x in self.__attributes__ if x not in exclude)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for attr in attrs:
+                exec("eva." + attr + " = self." + attr)
+        return eva
+
+#----------------------------------------------------------------------#
+#======================================================================#
