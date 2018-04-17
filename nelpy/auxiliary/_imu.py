@@ -22,6 +22,7 @@ class IMUSensorArray(_analogsignalarray.AnalogSignalArray):
 
         if isinstance(ydata, _analogsignalarray.AnalogSignalArray):
             self.__dict__ = copy.deepcopy(ydata.__dict__)
+            self.__renew__()
         else:
             kwargs = {"ydata": ydata,
                     "timestamps": timestamps,

@@ -7,13 +7,8 @@ import numbers
 
 from sys import float_info
 
-# from ..utils import is_sorted, \
-#                    PrettyDuration, \
-#                    PrettyInt
-
 from .. import utils
-
-from ..utils_.decorators import deprecated
+from .. import version
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -53,6 +48,7 @@ class EpochArray:
     def __init__(self, time=None, *, duration=None,
                  meta=None, empty=False, domain=None, label=None):
 
+        self.__version__ = version.__version__
         # if an empty object is requested, return it:
         if empty:
             for attr in self.__attributes__:
@@ -279,7 +275,8 @@ class EpochArray:
         """join and merge epoch array; set union"""
         if isinstance(other, EpochArray):
             new = copy.copy(self)
-            return (new.join(other)).merge()
+            # return (new.join(other)).merge()
+            return new.join(other)
         else:
             raise TypeError("unsupported operand type(s) for |: 'EpochArray' and {}".format(str(type(other))))
 
@@ -468,11 +465,17 @@ class EpochArray:
         return self.time[:, 1] - self.time[:, 0]
 
     @property
+    def range(self):
+        """return EpochArray containing range of current EpochArray."""
+        return EpochArray([self.start, self.stop])
+
+    @property
     def duration(self):
-        """(float) The total duration of the epoch array."""
+        """(float) The total duration of the [merged] epoch array."""
         if self.isempty:
             return utils.PrettyDuration(0)
-        return utils.PrettyDuration(np.array(self.time[:, 1] - self.time[:, 0]).sum())
+        merged = self.merge()
+        return utils.PrettyDuration(np.array(merged.time[:, 1] - merged.time[:, 0]).sum())
 
     @property
     def starts(self):
@@ -527,6 +530,19 @@ class EpochArray:
 
         return np.all(self.time[1:,0] - self.time[:-1,1] > 0)
 
+    def _ismerged(self, overlap=0.0):
+        """(bool) No overlapping epochs with overlap >= overlap exist."""
+        if self.isempty:
+            return True
+        if self.n_epochs == 1:
+            return True
+        if not self.issorted:
+            self._sort()
+        if not utils.is_sorted(self.stops):
+            return False
+
+        return np.all(self.time[1:,0] - self.time[:-1,1] > -overlap)
+
     @property
     def issorted(self):
         """(bool) Left edges of epochs are sorted in ascending order."""
@@ -550,6 +566,11 @@ class EpochArray:
             for attr in self.__attributes__:
                 exec("newcopy." + attr + " = self." + attr)
         return newcopy
+
+    def _drop_empty_epochs(self):
+        """Drops empty epochs. Not in-place, i.e. returns a copy."""
+        keep_epoch_ids = np.argwhere(self.durations).squeeze().tolist()
+        return self[keep_epoch_ids]
 
     def intersect(self, epoch, *, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of epoch arrays.
@@ -613,8 +634,95 @@ class EpochArray:
 
         return epoch_a
 
-    def merge(self, *, gap=0.0):
-        """Merges epochs that are close or overlapping.
+    def merge(self, *, gap=0.0, overlap=0.0):
+        """Merge epochs that are close or overlapping.
+
+        if gap == 0 and overlap == 0:
+            [a, b) U [b, c) = [a, c)
+        if gap == None and overlap > 0:
+            [a, b) U [b, c) = [a, b) U [b, c)
+            [a, b + overlap) U [b, c) = [a, c)
+            [a, b) U [b - overlap, c) = [a, c)
+        if gap > 0 and overlap == None:
+            [a, b) U [b, c) = [a, c)
+            [a, b) U [b + gap, c) = [a, c)
+            [a, b - gap) U [b, c) = [a, c)
+
+        WARNING! Algorithm only works on SORTED epochs.
+
+        Parameters
+        ----------
+        gap : float, optional
+            Amount (in time) to consider epochs close enough to merge.
+            Defaults to 0.0 (no gap).
+        Returns
+        -------
+        merged_epochs : nelpy.EpochArray
+        """
+
+        if gap < 0:
+            raise ValueError("gap cannot be negative")
+        if overlap < 0:
+            raise ValueError("overlap cannot be negative")
+
+        if self.isempty:
+            return self
+
+        if (self.ismerged) and (gap==0.0):
+            # already merged
+            return self
+
+        newepocharray = copy.copy(self)
+
+        if not newepocharray.issorted:
+            newepocharray._sort()
+
+        overlap_ = overlap
+
+        while not newepocharray._ismerged(overlap=overlap) or gap>0:
+            stops = newepocharray.stops[:-1] + gap
+            starts = newepocharray.starts[1:] + overlap_
+            to_merge = (stops - starts) >= 0
+
+            new_starts = [newepocharray.starts[0]]
+            new_stops = []
+
+            next_stop = newepocharray.stops[0]
+            for i in range(newepocharray.time.shape[0] - 1):
+                this_stop = newepocharray.stops[i]
+                next_stop = max(next_stop, this_stop)
+                if not to_merge[i]:
+                    new_stops.append(next_stop)
+                    new_starts.append(newepocharray.starts[i + 1])
+
+            new_stops.append(newepocharray.stops[-1])
+
+            new_starts = np.array(new_starts)
+            new_stops = np.array(new_stops)
+
+            newepocharray._time = np.vstack([new_starts, new_stops]).T
+
+            # after one pass, all the gap offsets have been added, and
+            # then we just need to keep merging...
+            gap = 0.0
+            overlap_ = 0.0
+
+        return newepocharray
+
+    def merge_old(self, *, gap=0.0, overlap=0.0):
+        """Merge epochs that are close or overlapping.
+
+        if gap == 0 and overlap == 0:
+            [a, b) U [b, c) = [a, c)
+        if gap == None and overlap > 0:
+            [a, b) U [b, c) = [a, b) U [b, c)
+            [a, b + overlap) U [b, c) = [a, c)
+            [a, b) U [b - overlap, c) = [a, c)
+        if gap > 0 and overlap == None:
+            [a, b) U [b, c) = [a, c)
+            [a, b) U [b + gap, c) = [a, c)
+            [a, b - gap) U [b, c) = [a, c)
+
 
         WARNING! Algorithm only works on SORTED epochs.
 
@@ -760,8 +868,8 @@ class EpochArray:
             ))
         if not newepocharray.issorted:
             newepocharray._sort()
-        if not newepocharray.ismerged:
-            newepocharray = newepocharray.merge()
+        # if not newepocharray.ismerged:
+        #     newepocharray = newepocharray.merge()
         return newepocharray
 
     def contains(self, value):

@@ -15,3 +15,16 @@
 
 Read and re-interpret https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2722652/
 and https://users.soe.ucsc.edu/~karplus/papers/nullmod.pdf
+
+
+[ ] append AnalogSignalArrays
+[ ] re-write EpochArray merge
+[ ] decouple EpochArray operations from merged (complement, duration, etc.)
+[ ] remove auto-merge for contiguous arrays (what was Josh's use case?)
+[ ] position linearization and idealization, given segments
+[ ] recompute interpolant only if hash has changed (consider adding other things to memoization)
+[ ] https://stackoverflow.com/questions/1574458/python-object-that-monitors-changes-in-objects
+[ ] https://stackoverflow.com/questions/22878220/looking-for-a-solution-to-detect-value-change-in-class-attribute-with-a-list-and
+[ ] https://stackoverflow.com/questions/6190468/how-to-trigger-function-on-value-change
+[ ] https://gist.github.com/Jim-Holmstroem/1875766
+[ ] https://stackoverflow.com/questions/5386694/fast-way-to-hash-numpy-objects-for-caching

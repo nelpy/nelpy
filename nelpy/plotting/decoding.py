@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from mpl_toolkits.axes_grid.inset_locator import inset_axes
 import itertools
+
 from . import palettes
 # colors = itertools.cycle(npl.palettes.color_palette(palette="sweet", n_colors=15))
 

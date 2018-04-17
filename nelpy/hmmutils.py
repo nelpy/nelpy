@@ -15,12 +15,68 @@ from pandas import unique
 from matplotlib.pyplot import subplots
 import copy
 
-from .core import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
-from .utils import swap_cols, swap_rows
+from . core import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
+from . utils import swap_cols, swap_rows
 from . import plotting
 from . decoding import decode1D
+from . analysis import replay
 
-__all__ = ['PoissonHMM']
+
+__all__ = ['PoissonHMM',
+           'estimate_model_quality']
+
+def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_folds=5, verbose=False):
+    """Estimate the HMM 'model quality' associated with the set of events in bst.
+
+    TODO: finish docstring, and do some more consistency checking...
+
+    Params
+    ======
+
+    Returns
+    =======
+
+    quality :
+    scores :
+    shuffled :
+
+    """
+    from . decoding import k_fold_cross_validation
+    from scipy.stats import zmap
+
+    if hmm:
+        if not n_states:
+            n_states = hmm.n_components
+
+    X = [ii for ii in range(bst.n_epochs)]
+
+    scores = np.zeros(bst.n_epochs)
+    shuffled = np.zeros((bst.n_epochs, n_shuffles))
+
+    for kk, (training, validation) in enumerate(k_fold_cross_validation(X, k=k_folds)):
+        if verbose:
+            print('  fold {}/{}'.format(kk+1, k_folds))
+
+        PBEs_train = bst[training]
+        PBEs_test = bst[validation]
+
+        # train HMM on all training PBEs
+        hmm = PoissonHMM(n_components=n_states, verbose=False)
+        hmm.fit(PBEs_train)
+
+        # compute scores_hmm (log likelihoods) of validation set:
+        scores[validation] = hmm.score(PBEs_test)
+
+        for nn in range(n_shuffles):
+            # shuffle data coherently within events:
+            bst_test_shuffled = replay.pooled_time_swap_bst(PBEs_test)
+
+            # score validation set with shuffled-data HMM
+            shuffled[validation, nn] = hmm.score(bst_test_shuffled)
+
+    quality = zmap(scores.mean(), shuffled.mean(axis=0))
+
+    return quality, scores, shuffled
 
 class PoissonHMM(PHMM):
     """Nelpy extension of PoissonHMM: Hidden Markov Model with
@@ -125,6 +181,7 @@ class PoissonHMM(PHMM):
             exec("self." + attrib + " = None")
 
         self._extern_ = None
+        self._ds = None
         # self._extern_map = None
 
         # create shortcuts to super() methods that are overridden in
@@ -142,7 +199,7 @@ class PoissonHMM(PHMM):
         try:
             rep = super().__repr__()
         except:
-            warning.warn(
+            warn(
                 "couldn't access super().__repr__;"
                 " upgrade dependencies to resolve this issue."
                 )
@@ -648,7 +705,7 @@ class PoissonHMM(PHMM):
             if w is not None:
                 raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
             logprobs, posteriors = self._score_samples(self, X, lengths=lengths)
-            return logprobs, posteriors.T
+            return logprobs, posteriors#.T why does this transpose affect hmm.predict_proba!!!????
         else:
             # we have a BinnedSpikeTrainArray
             logprobs = []
@@ -758,7 +815,8 @@ class PoissonHMM(PHMM):
             self.assume_attributes(X)
         return self
 
-    def fit_ext(self, X, ext, n_extern=None, lengths=None, save=True, w=None):
+    def fit_ext(self, X, ext, n_extern=None, lengths=None, save=True, w=None,
+                normalize=True, normalize_by_occupancy=True):
         """Learn a mapping from the internal state space, to an external
         augmented space (e.g. position).
 
@@ -771,12 +829,18 @@ class PoissonHMM(PHMM):
             array of external correlates (n_bins, )
         n_extern : int
             number of extern variables, with range 0,.. n_extern-1
-
         save : bool
             stores extern in PoissonHMM if true, discards it if not
+        w:
+        normalize : bool
+            If True, then normalize each state to have a distribution over ext.
+        occupancy : array of bin counts
+            Default is all ones (uniform).
 
         self.extern_ of size (n_components, n_extern)
         """
+
+        # occupancy # len n_extern
 
         ext_map = np.arange(n_extern)
         if n_extern is None:
@@ -786,7 +850,7 @@ class PoissonHMM(PHMM):
 
         # idea: here, ext can be anything, and n_extern should be range
         # we can e.g., define extern correlates {leftrun, rightrun} and
-        # fit the mapping. This is not expexted to be good at all for
+        # fit the mapping. This is not expected to be good at all for
         # most states, but it could allow us to identify a state or two
         # for which there *might* be a strong predictive relationship.
         # In this way, the binning, etc. should be done external to this
@@ -819,10 +883,20 @@ class PoissonHMM(PHMM):
             if not np.isnan(ext[ii]):
                 extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
 
-        # normalize extern tuning curves:
-        rowsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
-        rowsum = np.where(np.isclose(rowsum, 0), 1, rowsum)
-        extern = extern/rowsum
+        if normalize_by_occupancy:
+            occupancy, _ = np.histogram(ext, bins=n_extern, range=[0,n_extern])
+            occupancy[occupancy==0] = 1
+            occupancy = np.atleast_2d(occupancy)
+        else:
+            occupancy = 1
+
+        extern = extern / occupancy
+
+        if normalize:
+            # normalize extern tuning curves:
+            rowsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
+            rowsum = np.where(np.isclose(rowsum, 0), 1, rowsum)
+            extern = extern/rowsum
 
         if save:
             self._extern_ = extern
@@ -1036,6 +1110,31 @@ class PoissonHMM(PHMM):
         fig.text(0.02, 0.5, 'normalized state distribution', va='center', rotation='vertical')
 
         return fig, ax
+
+    def estimate_model_quality(self, bst, *, n_shuffles=1000, k_folds=5, verbose=False):
+        """Estimate the HMM 'model quality' associated with the set of events in bst.
+
+        TODO: finish docstring, and do some more consistency checking...
+
+        Params
+        ======
+
+        Returns
+        =======
+
+        quality :
+        scores :
+        shuffled :
+
+        """
+        n_states = self.n_components
+        quality, scores, shuffles = estimate_model_quality(bst=bst,
+                                                           n_states=n_states,
+                                                           n_shuffles=n_shuffles,
+                                                           k_folds=k_folds,
+                                                           verbose=False)
+
+        return quality, scores, shuffles
 
 # def score_samples_ext(self, X, lengths=None):
 #         """Compute the log probability under the model and compute posteriors.

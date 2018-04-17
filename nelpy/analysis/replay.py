@@ -8,7 +8,8 @@ __all__ = ['linregress_ting',
            'get_significant_events',
            'three_consecutive_bins_above_q',
            'score_hmm_time_resolved',
-           'score_hmm_logprob_cumulative']
+           'score_hmm_logprob_cumulative',
+           'pooled_time_swap_bst']
 
 import warnings
 import copy
@@ -120,7 +121,7 @@ def get_line_of_best_Davidson_score(bst, tuningcurve, w=3, n_samples=50000):
     return score, ri, ci
 
 def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle='row-wise', verbose=False):
-    """scores all sequences in the entire bst"""
+    """score all sequences in the entire bst using the transition matrix shuffle and cross-validation"""
     if k_folds is None:
         k_folds = 5
 
@@ -128,8 +129,15 @@ def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle=
         rowwise = True
     elif shuffle == 'col-wise':
         rowwise = False
+    elif shuffle == 'timeswap':
+        pass
+    elif shuffle == 'pooled-timeswap':
+        pass
     else:
-        raise ValueError("tmat must be either 'row-wise' or 'col-wise'")
+        raise ValueError('unknown shuffle')
+
+    # else:
+    #     raise ValueError("tmat must be either 'row-wise' or 'col-wise'")
 
     X = [ii for ii in range(bst.n_epochs)]
 
@@ -154,6 +162,70 @@ def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle=
         # compute scores_hmm (log likelihoods) of validation set:
         scores_hmm[validation] = hmm.score(PBEs_test)
 
+        if shuffle == 'timeswap':
+            _, scores_tswap_hmm = score_hmm_timeswap_shuffle(bst=PBEs_test,
+                                                            hmm=hmm,
+                                                            n_shuffles=n_shuffles)
+
+            scores_hmm_shuffled[validation,:] = scores_tswap_hmm.T
+
+        elif shuffle == 'row-wise' or shuffle == 'col-wise':
+            hmm_shuffled = copy.deepcopy(hmm)
+            for nn in range(n_shuffles):
+                # shuffle transition matrix:
+                if rowwise:
+                    hmm_shuffled.transmat_ = shuffle_transmat(hmm_shuffled.transmat)
+                else:
+                    hmm_shuffled.transmat_ = shuffle_transmat_Kourosh_breaks_stochasticity(hmm_shuffled.transmat)
+                    hmm_shuffled.transmat_ = hmm_shuffled.transmat / np.tile(hmm_shuffled.transmat.sum(axis=1), (hmm_shuffled.n_components, 1)).T
+
+                # score validation set with shuffled HMM
+                scores_hmm_shuffled[validation, nn] = hmm_shuffled.score(PBEs_test)
+        elif shuffle == 'pooled-timeswap':
+            _, scores_tswap_hmm = score_hmm_pooled_timeswap_shuffle(bst=PBEs_test,
+                                                            hmm=hmm,
+                                                            n_shuffles=n_shuffles)
+
+            scores_hmm_shuffled[validation,:] = scores_tswap_hmm.T
+
+    n_scores = len(scores_hmm)
+    scores_hmm_percentile = np.array([stats.percentileofscore(scores_hmm_shuffled[idx], scores_hmm[idx], kind='mean') for idx in range(n_scores)])
+
+    return scores_hmm, scores_hmm_shuffled, scores_hmm_percentile
+
+def score_hmm_events_no_xval(bst, training=None, validation=None, num_states=30, n_shuffles=5000, shuffle='row-wise', verbose=False):
+    """same as score_hmm_events, but train on training set, and only score validation set..."""
+    if shuffle == 'row-wise':
+        rowwise = True
+    elif shuffle == 'col-wise':
+        rowwise = False
+    else:
+        shuffle = 'timeswap'
+
+    scores_hmm = np.zeros(len(validation))
+    scores_hmm_shuffled = np.zeros((len(validation), n_shuffles))
+
+    PBEs_train = bst[training]
+    PBEs_test = bst[validation]
+
+    # train HMM on all training PBEs
+    hmm = PoissonHMM(n_components=num_states, random_state=0, verbose=False)
+    hmm.fit(PBEs_train)
+
+    # reorder states according to transmat ordering
+    transmat_order = hmm.get_state_order('transmat')
+    hmm.reorder_states(transmat_order)
+
+    # compute scores_hmm (log likelihoods) of validation set:
+    scores_hmm[:] = hmm.score(PBEs_test)
+
+    if shuffle == 'timeswap':
+        _, scores_tswap_hmm = score_hmm_timeswap_shuffle(bst=PBEs_test,
+                                                        hmm=hmm,
+                                                        n_shuffles=n_shuffles)
+
+        scores_hmm_shuffled[:,:] = scores_tswap_hmm.T
+    else:
         hmm_shuffled = copy.deepcopy(hmm)
         for nn in range(n_shuffles):
             # shuffle transition matrix:
@@ -164,7 +236,7 @@ def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle=
                 hmm_shuffled.transmat_ = hmm_shuffled.transmat / np.tile(hmm_shuffled.transmat.sum(axis=1), (hmm_shuffled.n_components, 1)).T
 
             # score validation set with shuffled HMM
-            scores_hmm_shuffled[validation, nn] = hmm_shuffled.score(PBEs_test)
+            scores_hmm_shuffled[:, nn] = hmm_shuffled.score(PBEs_test)
 
     n_scores = len(scores_hmm)
     scores_hmm_percentile = np.array([stats.percentileofscore(scores_hmm_shuffled[idx], scores_hmm[idx], kind='mean') for idx in range(n_scores)])
@@ -298,6 +370,7 @@ def score_Davidson_final_bst_fast(bst, tuningcurve, w=None, n_shuffles=2000, n_s
 
             for shflidx in range(n_shuffles):
 
+                # do column cycle shuffle on each column independently
                 for col in range(NT):
                     random_offset = np.random.randint(1, NP)
                     posterior_cs[:,col] = np.roll(posterior_cs[:,col], random_offset)
@@ -559,6 +632,28 @@ def time_swap_bst(bst):
 
     return out
 
+def pooled_time_swap_bst(bst):
+    """Time swap on BinnedSpikeTrainArray, swapping within entire bst."""
+    out = copy.deepcopy(bst) # should this be deep? YES! Oh my goodness, yes!
+    shuffled = np.random.permutation(bst.n_bins)
+    out._data = out._data[:,shuffled]
+    return out
+
+def pooled_incoherent_shuffle_bst(bst):
+    """Incoherent shuffle on BinnedSpikeTrainArray, swapping within entire bst."""
+    raise NotImplementedError('function not done yet!')
+    out = copy.deepcopy(bst) # should this be deep? YES! Oh my goodness, yes!
+    data = out._data
+    edges = np.insert(np.cumsum(bst.lengths),0,0)
+
+    for uu in range(bst.n_units):
+        for ii in range(bst.n_epochs):
+            segment = np.atleast_1d(np.squeeze(data[uu, edges[ii]:edges[ii+1]]))
+            segment = np.roll(segment, np.random.randint(len(segment)))
+            data[uu, edges[ii]:edges[ii+1]] = segment
+
+    return out
+
 def incoherent_shuffle_bst(bst):
     """Incoherent shuffle on BinnedSpikeTrainArray, swapping only within each epoch."""
     out = copy.deepcopy(bst) # should this be deep? YES! Oh my goodness, yes!
@@ -567,7 +662,7 @@ def incoherent_shuffle_bst(bst):
 
     for uu in range(bst.n_units):
         for ii in range(bst.n_epochs):
-            segment = np.squeeze(data[uu, edges[ii]:edges[ii+1]])
+            segment = np.atleast_1d(np.squeeze(data[uu, edges[ii]:edges[ii+1]]))
             segment = np.roll(segment, np.random.randint(len(segment)))
             data[uu, edges[ii]:edges[ii+1]] = segment
 
@@ -590,7 +685,7 @@ def poisson_surrogate_bst(bst):
         spikes.append(unit_spikes)
 
     support = bst.support.expand(bst.ds/2, direction='stop')
-    poisson_st = SpikeTrainArray(timestamps=spikes, support=support)
+    poisson_st = SpikeTrainArray(timestamps=spikes, support=support, unit_ids=bst.unit_ids)
 
     out = poisson_st.bin(ds=bst.ds)
     # out = out[bst.support]
@@ -602,6 +697,7 @@ def spike_id_shuffle_bst(bst, st_flat):
     all_spiketimes = st_flat.time.squeeze()
     spike_ids = np.zeros(len(all_spiketimes))
 
+    # determine number of spikes per unit:
     n_spikes = np.ones(bst.n_units)* np.floor(st_flat.n_spikes[0] / bst.n_units)
 
     pointer = 0
@@ -618,7 +714,7 @@ def spike_id_shuffle_bst(bst, st_flat):
         spikes.append(all_spiketimes[spike_ids==unit])
 
     support = bst.support.expand(bst.ds/2, direction='stop')
-    shuffled_st = SpikeTrainArray(timestamps=spikes, support=support)
+    shuffled_st = SpikeTrainArray(timestamps=spikes, support=support, unit_ids=bst.unit_ids)
 
     out = shuffled_st.bin(ds=bst.ds)
     # out = out[bst.support]
@@ -627,7 +723,7 @@ def spike_id_shuffle_bst(bst, st_flat):
 
 def unit_id_shuffle_bst(bst):
     """Create a unit ID shuffled surrogate of BinnedSpikeTrainArray."""
-    out = copy.deepcopy(bst) # should this be deep?
+    out = copy.deepcopy(bst) # should this be deep? yes!
     data = out._data
     edges = np.insert(np.cumsum(bst.lengths),0,0)
 
@@ -960,6 +1056,41 @@ def score_hmm_timeswap_shuffle(bst, hmm, n_shuffles=250, normalize=False):
     shuffled = np.zeros((n_shuffles, n_events))
     for ii in range(n_shuffles):
         bst_shuffled = time_swap_bst(bst=bst)
+        shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
+                                           hmm=hmm,
+                                           normalize=normalize)
+
+    return scores, shuffled
+
+def score_hmm_pooled_timeswap_shuffle(bst, hmm, n_shuffles=250, normalize=False):
+    """Description goes here.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing all the candidate events to
+        score.
+    hmm : PoissonHMM
+        Trained hidden markov model to score sequences.
+    n_shuffles : int, optional (default is 250)
+        Number of times to perform both time_swap and column_cycle
+        shuffles.
+    normalize : bool, optional (default is False)
+        If True, the scores will be normalized by event lengths.
+
+    Returns
+    -------
+    scores : array of size (n_events,)
+    shuffled : array of size (n_shuffles, n_events)
+    """
+
+    scores = score_hmm_logprob(bst=bst,
+                               hmm=hmm,
+                               normalize=normalize)
+    n_events = bst.n_epochs
+    shuffled = np.zeros((n_shuffles, n_events))
+    for ii in range(n_shuffles):
+        bst_shuffled = pooled_time_swap_bst(bst=bst)
         shuffled[ii,:] = score_hmm_logprob(bst=bst_shuffled,
                                            hmm=hmm,
                                            normalize=normalize)

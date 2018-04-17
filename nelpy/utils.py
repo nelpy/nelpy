@@ -843,6 +843,11 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
               events <==> PrimaryThreshold to PrimaryThreshold
     """
 
+    # TODO: x must be a numpy array
+    # TODO: ds is often used, but we have no default, and no check for when
+    #       it is left as None.
+    # TODO: the Docstring should equally be improved.
+
     x = x.squeeze()
     if x.ndim > 1:
         raise TypeError("multidimensional arrays not supported!")
@@ -886,7 +891,7 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
 
     # Find corresponding big windows for potential events
     #  Specifically, look for closest left edge that is just smaller
-    outer_boundary_indices = np.searchsorted(bounds[:,0], events[:,0])
+    outer_boundary_indices = np.searchsorted(bounds[:,0], events[:,0], side='right')
     #  searchsorted finds the index after, so subtract one to get index before
     outer_boundary_indices = outer_boundary_indices - 1
 
@@ -1008,6 +1013,8 @@ def nextfastpower(n):
     This is useful for ensuring fast FFT sizes.
 
     From https://gist.github.com/bhawkins/4479607 (Brian Hawkins)
+
+    See also http://scipy.github.io/devdocs/generated/scipy.fftpack.next_fast_len.html
     """
     if n < 7:
         return max (n, 1)
@@ -1056,13 +1063,13 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
     else:
         out = obj
 
-    if isinstance(out, core.AnalogSignalArray):
+    if isinstance(out, core._analogsignalarray.AnalogSignalArray):
         asa = out
         if fs is None:
             fs = asa.fs
         if fs is None:
             raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
-    elif isinstance(out, core.BinnedSpikeTrainArray):
+    elif isinstance(out, core._spiketrain.BinnedSpikeTrainArray):
         bst = out
         if fs is None:
             fs = 1/bst.ds
@@ -1152,9 +1159,9 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
                 # only single sample
                 out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
             else:
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
         else:
-            raise TypeError("more than 2D position not currently supported!")
+            raise TypeError("more than 2D not currently supported!")
 
     out._ydata = out._ydata * fs
 
@@ -1270,6 +1277,16 @@ def find_nearest_idx(array, val):
     Returns
     -------
     Index into array that is closest to val
+
+    TODO: this is a better version that should be incorporated:
+    # Based on answer here: http://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
+    def find_nearest(array,values):
+        right_idxs = np.searchsorted(array, values, side="left")
+        left_idxs = np.where(right_idxs > 0, right_idxs-1, right_idxs)
+        right_idxs = np.where(right_idxs == len(array), len(array)-1, right_idxs)
+        closest_idx = np.where(np.abs(values - array[right_idxs]) < np.abs(values - array[left_idxs]),
+                            right_idxs, left_idxs)
+        return closest_idx
 
     """
     return (np.abs(array-val)).argmin()
@@ -1397,19 +1414,3 @@ def cartesian(xcenters, ycenters):
 
     """
     return np.transpose([np.tile(xcenters, len(ycenters)), np.repeat(ycenters, len(xcenters))])
-
-
-def epoch_position(position, epoch):
-    """Finds positions associated with epoch times
-
-    Parameters
-    ----------
-    position : vdmlab.Position
-    epoch : vdmlab.Epoch
-
-    Returns
-    -------
-    epoch_position : vdmlab.Position
-
-    """
-    return position.time_slices(epoch.starts, epoch.stops)

@@ -4,7 +4,7 @@ __all__ = ['ResultsContainer', 'load_pkl', 'save_pkl']
 
 import gzip
 import os
-import pickle
+import dill as pickle
 # import inspect
 
 class ResultsContainer(object):
@@ -66,7 +66,7 @@ class ResultsContainer(object):
 
     @property
     def n_objects(self):
-        """(int) Number of objects in Results."""
+        """(int) Number of objects in ResultsContainer."""
         return len(list(self.__dict__.values())) - 1
 
     def save_pkl(self, fname, zip=True, overwrite=False):
