@@ -1249,7 +1249,13 @@ class AnalogSignalArray:
             self._interp = interpobj
 
         # do the actual interpolation
-        out = interpobj(at)
+        try:
+            out = interpobj(at)
+        except SystemError:
+            interpobj = self._get_interp1d(**kwargs)
+            if store_interp:
+                self._interp = interpobj
+            out = interpobj(at)
 
         # TODO: set all values outside of self.support to fill_value
 
