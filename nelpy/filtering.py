@@ -10,7 +10,7 @@ import warnings
 
 from .core import AnalogSignalArray
 
-def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandpass=True,
+def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False,
                 gpass=None, gstop=None, ftype='cheby2', buffer_len=4194304,
                 overlap_len=None, max_len=None, **kwargs):
     """Zero-phase forward backward second-order-segment Chebyshev II filter.
@@ -44,9 +44,9 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandpass=True,
         Lower cut-off frequency (in Hz), 0 or None to ignore. Default is None.
     fh : float, optional
         Upper cut-off frequency (in Hz), 0 or None to ignore. Default is None.
-    bandpass : boolean, optional
-        If True, passband is between fl and fh. If False, stopband is between
-        fl and fh. Default is True.
+    bandstop : boolean, optional
+        If False, passband is between fl and fh. If True, stopband is between
+        fl and fh. Default is False.
     gpass : float, optional
         The maximum loss in the passband (dB). Default is 0.1 dB.
     gstop : float, optional
@@ -132,7 +132,7 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandpass=True,
     else: # bandpass
         wp = [fl/fso2, fh/fso2]
         ws = [0.8*fl/fso2,1.4*fh/fso2]
-    if not bandpass: # notch / bandstop filter
+    if bandstop: # notch / bandstop filter
         wp, ws = ws, wp
 
     sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype='cheby2', output='sos')
