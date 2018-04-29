@@ -912,7 +912,7 @@ class AnalogSignalArray:
 
     def __getitem__(self, idx):
         """AnalogSignalArray index access.
-        Parameters
+
         Parameters
         ----------
         idx : EpochArray, int, slice
@@ -954,19 +954,22 @@ class AnalogSignalArray:
         return asa
 
     def copy(self):
-        asa = AnalogSignalArray([], empty=True)
-        exclude = ['_interp']
-        attrs = (x for x in self.__attributes__ if x not in exclude)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("asa." + attr + " = self." + attr)
-        try:
-            exec("asa._interp = self._interp")
-        except AttributeError:
-            pass
-        asa.__renew__()
-        return asa
+        """Return a copy of the current object."""
+        out = copy.deepcopy(self)
+        out.__renew__()
+        # asa = AnalogSignalArray([], empty=True)
+        # exclude = ['_interp']
+        # attrs = (x for x in self.__attributes__ if x not in exclude)
+        # with warnings.catch_warnings():
+        #     warnings.simplefilter("ignore")
+        #     for attr in attrs:
+        #         exec("asa." + attr + " = self." + attr)
+        # try:
+        #     exec("asa._interp = self._interp")
+        # except AttributeError:
+        #     pass
+        # asa.__renew__()
+        return out
 
     def mean(self,*,axis=1):
         """Returns the mean of each signal in AnalogSignalArray."""
@@ -1349,17 +1352,7 @@ class AnalogSignalArray:
         _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
         yvals = np.array(yvals, ndmin=2)
 
-        # now make a new simplified ASA:
-        if isinstance(self, auxiliary.PositionArray):
-            asa = auxiliary.PositionArray([], empty=True)
-        else:
-            asa = AnalogSignalArray([], empty=True)
-        exclude = ['_interp', '_ydata', '_time']
-        attrs = (x for x in self.__attributes__ if x not in exclude)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("asa." + attr + " = self." + attr)
+        asa = copy.copy(self)
         asa._time = np.asanyarray(at)
         asa._ydata = yvals
         asa._fs = 1/ds
