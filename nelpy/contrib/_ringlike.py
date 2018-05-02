@@ -33,6 +33,8 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
             assert ydata.n_signals == 1, \
                 "only 1D AnalogSignalArrays can be cast to RinglikeTrajectories!"
             self.__dict__ = copy.deepcopy(ydata.__dict__)
+            self._track_length = None
+            self._is_wrapped = None
             self.__renew__()
         else:
             kwargs = {"ydata": ydata,
