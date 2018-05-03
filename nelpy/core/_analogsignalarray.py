@@ -1391,6 +1391,7 @@ class AnalogSignalArray:
 
         if self.support.merge()[other.support.merge()].isempty:
             # do a simple-as-butter join (concat) and sort
+            pass
 
 #----------------------------------------------------------------------#
 #======================================================================#
