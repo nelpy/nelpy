@@ -1382,7 +1382,6 @@ class AnalogSignalArray:
             Copy of AnalogSignalArray where the new AnalogSignalArray has been
             joined to the current AnalogSignalArray.
         """
-
         raise NotImplementedError("asa.join() has not yet been implemented!")
 
         if kind is None:
