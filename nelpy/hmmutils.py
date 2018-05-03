@@ -21,7 +21,6 @@ from . import plotting
 from . decoding import decode1D
 from . analysis import replay
 
-
 __all__ = ['PoissonHMM',
            'estimate_model_quality']
 
