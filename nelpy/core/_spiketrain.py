@@ -1339,18 +1339,21 @@ class BinnedSpikeTrainArray(SpikeTrain):
             # next, we need to identify all the bins that would fall within the EpochArray
 
             if idx.isempty:
+                # TODO: issue 229
                 return BinnedSpikeTrainArray(empty=True)
             support = self.support.intersect(
                     epoch=idx,
                     boundaries=True
                     ) # what if fs of slicing epoch is different?
             if support.isempty:
+                # TODO: issue 229
                 return BinnedSpikeTrainArray(empty=True)
             # next we need to determine the binnedSupport:
 
             raise NotImplementedError("EpochArray indexing for BinnedSpikeTrainArrays not supported yet")
 
         elif isinstance(idx, int):
+            # TODO: issue 229
             binnedspiketrain = BinnedSpikeTrainArray(empty=True)
             exclude = ["_data", "_bins", "_support", "_bin_centers", "_spiketrainarray", "_binnedSupport"]
             with warnings.catch_warnings():
@@ -1380,6 +1383,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         else:  # most likely a slice
             try:
                 # have to be careful about re-indexing binnedSupport
+                # TODO: issue 229
                 binnedspiketrain = BinnedSpikeTrainArray(empty=True)
                 exclude = ["_data", "_bins", "_support", "_bin_centers", "_spiketrainarray", "_binnedSupport"]
                 with warnings.catch_warnings():

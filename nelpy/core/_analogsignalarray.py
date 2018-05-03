@@ -1360,5 +1360,38 @@ class AnalogSignalArray:
         asa.__renew__()
         return asa
 
+    def join(self, other, *, kind=None, inplace=False):
+        """Join another AnalogSignalArray to this one.
+
+        Parameters
+        ----------
+        other : AnalogSignalArray
+            AnalogSignalArray (or derived type) to join to the current
+            AnalogSignalArray. Other must have the same number of signals as
+            the current AnalogSignalArray.
+        kind : string, optional
+            One of ['max', 'min', 'left', 'right', 'mean']. Specifies how the
+            signals are merged inside overlapping epochs. Default is 'left'.
+        inplace : boolean, optional
+            If True, then current AnalogSignalArray is modified. If False, then
+            a copy with the joined result is returned. Default is False.
+
+        Returns
+        -------
+        out : AnalogSignalArray
+            Copy of AnalogSignalArray where the new AnalogSignalArray has been
+            joined to the current AnalogSignalArray.
+        """
+
+        raise NotImplementedError("asa.join() has not yet been implemented!")
+
+        if kind is None:
+            kind = 'left'
+
+        # TODO: do input validation for kind
+
+        if self.support.merge()[other.support.merge()].isempty:
+            # do a simple-as-butter join (concat) and sort
+
 #----------------------------------------------------------------------#
 #======================================================================#

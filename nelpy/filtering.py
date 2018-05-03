@@ -1,5 +1,5 @@
 #encoding : utf-8
-"""This module implements filtering functionailty for core nelpy objects
+"""This module implements filtering functionailty for core nelpy objects. 
 """
 
 __all__ = ['sosfiltfilt']

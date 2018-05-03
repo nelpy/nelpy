@@ -215,7 +215,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
             If True, recompute the filter parameters using EM. Default is False.
         n_iter : int, optional
             Number of iterations to use in EM when finding filter parameters.
-            Default is 10.
+            Default is 5.
 
         Returns
         ----------
@@ -238,7 +238,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         assert self.n_epochs == 1, 'multi-epoch Kalman smoothing not supported yet!'
 
         if not n_iter:
-            n_iter = 10
+            n_iter = 5
 
         # transition matrix:
         F = [[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]]
