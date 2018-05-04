@@ -1142,6 +1142,9 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
     out = copy.deepcopy(asa)
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
 
+    # ensure that datatype is float
+    out._ydata = out.ydata.astype(float)
+
     if asa.n_signals == 2:
         out._ydata = out._ydata[[0],:]
 

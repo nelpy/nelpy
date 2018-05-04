@@ -173,7 +173,7 @@ def asa_init_wrapper(func):
             else:
                 labels = ydata.unit_ids
             kwargs['labels'] = labels
-            ydata = ydata.data
+            ydata = ydata.data.astype(float)
         elif isinstance(ydata, auxiliary.PositionArray):
             kwargs['ydata'] = ydata
             func(args[0], **kwargs)
@@ -181,7 +181,7 @@ def asa_init_wrapper(func):
 
         #check if single AnalogSignal or multiple AnalogSignals in array
         #and standardize ydata to 2D
-        ydata = np.squeeze(ydata)
+        ydata = np.squeeze(ydata).astype(float)
         try:
             if(ydata.shape[0] == ydata.size):
                 ydata = np.array(ydata,ndmin=2)
@@ -1392,6 +1392,10 @@ class AnalogSignalArray:
         if self.support.merge()[other.support.merge()].isempty:
             # do a simple-as-butter join (concat) and sort
             pass
+
+        # if 'left': simple join left with right[~left]
+        # if 'right': simple join left[~right] with right
+        # if 
 
 #----------------------------------------------------------------------#
 #======================================================================#

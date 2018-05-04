@@ -121,7 +121,8 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         """Bin position into grid."""
         raise NotImplementedError
 
-    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False, Kalman=False):
+    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False,
+               Kalman=False):
         """Smooths the regularly sampled PositionArray with a Gaussian kernel.
 
         Smoothing is applied in time, and the same smoothing is applied to each
@@ -154,7 +155,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         """
 
         if Kalman:
-            position, speed = self.kalman_smoother()
+            position, speed = self._kalman_smoother()
             if inplace:
                 out = self
             else:
@@ -172,7 +173,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         out.__renew__()
         return out
 
-    def kalman_smoother(self, recompute=False, n_iter=None):
+    def _kalman_smoother(self, Q=None, R=None, recompute=False, n_iter=None):
         """
         Use a Kalman smoother to estimate the trajectory of a particle moving
         in 2D at constant velocity.
@@ -193,14 +194,14 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
              [0 1 0 0]]
 
         X(t+1) = F X(t) + noise(Q)  {noise(Q) ~ N(0,Q)}
-        Y(t) = H X(t) + noise(R)    {noise(V) ~ N(0,Q)}
+        Y(t) = H X(t) + noise(R)    {noise(R) ~ N(0,R)}
 
         ss = 4; # state size
         os = 2; # observation size
         F = [1 0 1 0; 0 1 0 1; 0 0 1 0; 0 0 0 1]
         H = [1 0 0 0; 0 1 0 0]
-        Q = 1*eye(ss)
-        R = 10*eye(os)
+        Q = 1*eye(ss)  # transition_covariance
+        R = 10*eye(os) # observation_covariance
         initx = [10 10 1 0].T
         initV = 10*eye(ss)
 
@@ -211,6 +212,12 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
         Parameters
         ----------
+        Q : float, optional
+            Transition noise scalar: noise(Q) ~ N(0,Q). Default is 1.
+        R : float, optional
+            Observation noise scalar: noise(R) ~ N(0,R). Default is 100.
+            Larger values of R put higher trust in the model than in the [noisy]
+            observations, leading to smoother estimates.
         recompute : bool, optional
             If True, recompute the filter parameters using EM. Default is False.
         n_iter : int, optional
@@ -234,17 +241,33 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
         from pykalman import KalmanFilter
 
-        assert self.is_2d, "currently only 2D PositionArrays can be smoothed with a Kalman filter!"
+        # assert self.is_2d, "currently only 2D PositionArrays can be smoothed with a Kalman filter!"
         assert self.n_epochs == 1, 'multi-epoch Kalman smoothing not supported yet!'
 
         if not n_iter:
             n_iter = 5
 
-        # transition matrix:
-        F = [[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]]
+        if self.is_1d:
+            ss = 2 # state size (x, dx)
+            os = 1 # observation size, (x)
+            # transition matrix:
+            F = [[1, 1], [0, 1]]
+            # observation matrix:
+            H = [[1, 0]]
+        elif self.is_2d:
+            ss = 4 # state size (x, y, dx, dy)
+            os = 2 # observation size, (x, y)
+            # transition matrix:
+            F = [[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]]
+            # observation matrix:
+            H = [[1, 0, 0, 0], [0, 1, 0, 0]]
+        else:
+            raise ValueError('Only 1D or 2D PositionArrays supported!')
 
-        # observation matrix:
-        H = [[1, 0, 0, 0], [0, 1, 0, 0]]
+        if Q is None:
+            Q = 1
+        if R is None:
+            R = 100 #TODO: maybe a better default is self.fs * 10 ???
 
         measurements = self.ydata.T
 
@@ -255,14 +278,21 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         else:
             if self._kalmanfilter is None:
                 kf = KalmanFilter(transition_matrices=F, observation_matrices=H)
-                kf = kf.em(measurements, n_iter=n_iter)
                 self._kalmanfilter = kf
+            self._kalmanfilter.transition_covariance = Q*np.eye(ss)
+            self._kalmanfilter.observation_covariance = R*np.eye(os)
+
+        if self.is_1d:
+            self._kalmanfilter.initial_state_mean = np.append(self.ydata[0,0], 0)
+        elif self.is_2d:
+            self._kalmanfilter.initial_state_mean = np.append(self.ydata[:,0], (0, 0))
 
         kf = self._kalmanfilter
 
         smoothed_state_means, smoothed_state_covariances = kf.smooth(measurements)
 
-        position = smoothed_state_means[:,:2].T
-        speed = smoothed_state_means[:,2:].T
+        position = smoothed_state_means[:,:os].T
+        speed = smoothed_state_means[:,os:].T
+        speed = self.fs*np.sqrt(np.sum(speed**2, axis=0))
 
         return position, speed
