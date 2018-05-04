@@ -120,6 +120,19 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
         self._is_wrapped = False
         # self._interp = None
 
+    def _wraptimes(self):
+            """Return timestamps when trajectory wraps around."""
+        lin = copy.deepcopy(self._ydata.squeeze())
+        wraptimes = []
+        for ii in range(1, len(lin)):
+            if lin[ii] - lin[ii-1] >= self.track_length/2:
+                lin[ii:] = lin[ii:] - self.track_length
+                wraptimes.append(self.time[ii])
+            elif lin[ii] - lin[ii-1] < - self.track_length/2:
+                lin[ii:] = lin[ii:] + self.track_length
+                wraptimes.append(self.time[ii])
+        return np.asarray(wraptimes)
+
     def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False):
         """Smooths the regularly sampled RinglikeTrajectory with a Gaussian kernel.
 
