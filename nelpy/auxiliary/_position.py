@@ -226,9 +226,9 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
         Returns
         ----------
-        position : array with shape (2, n_samples)
+        position : array with shape (ndim, n_samples), where ndim is 1D or 2D.
             Array of smoothed position estimates.
-        speed : array with shape (2, n_samples)
+        speed : array with shape (ndim, n_samples), where ndim is 1D or 2D.
             Array of smoothed speed estimates.
         """
 
@@ -241,7 +241,6 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
         from pykalman import KalmanFilter
 
-        # assert self.is_2d, "currently only 2D PositionArrays can be smoothed with a Kalman filter!"
         assert self.n_epochs == 1, 'multi-epoch Kalman smoothing not supported yet!'
 
         if not n_iter:
