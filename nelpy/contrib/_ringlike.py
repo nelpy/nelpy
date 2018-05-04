@@ -121,8 +121,8 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
         # self._interp = None
 
     def _wraptimes(self):
-            """Return timestamps when trajectory wraps around."""
-        lin = copy.deepcopy(self._ydata.squeeze())
+        """Return timestamps when trajectory wraps around."""
+        lin = copy.deepcopy(self.ydata.squeeze())
         wraptimes = []
         for ii in range(1, len(lin)):
             if lin[ii] - lin[ii-1] >= self.track_length/2:
