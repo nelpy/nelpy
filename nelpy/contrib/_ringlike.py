@@ -133,6 +133,19 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
                 wraptimes.append(self.time[ii])
         return np.asarray(wraptimes)
 
+    def shift(self, amount, *, inplace=False):
+        """"""
+        is_wrapped = self.is_wrapped
+        if inplace:
+            out = self
+        else:
+            out = copy.deepcopy(self)
+        out.unwrap()
+        out = out + amount
+        if is_wrapped:
+            out.wrap()
+        return out
+
     def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False):
         """Smooths the regularly sampled RinglikeTrajectory with a Gaussian kernel.
 
