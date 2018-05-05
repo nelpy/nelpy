@@ -122,6 +122,9 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
 
     def _wraptimes(self):
         """Return timestamps when trajectory wraps around."""
+        is_wrapped = self.is_wrapped
+        if not is_wrapped:
+            self.wrap()
         lin = copy.deepcopy(self.ydata.squeeze())
         wraptimes = []
         for ii in range(1, len(lin)):
@@ -131,6 +134,8 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
             elif lin[ii] - lin[ii-1] < - self.track_length/2:
                 lin[ii:] = lin[ii:] + self.track_length
                 wraptimes.append(self.time[ii])
+        if not is_wrapped:
+            self.unwrap()
         return np.asarray(wraptimes)
 
     def shift(self, amount, *, inplace=False):
