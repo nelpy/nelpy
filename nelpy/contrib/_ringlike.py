@@ -138,6 +138,16 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
             self.unwrap()
         return np.asarray(wraptimes)
 
+    def _wrapepochs(self):
+        """Return an epoch (trial-like) for each time the trajectory wraps around."""
+
+        trial_bds = self._wraptimes()
+        trial_bds = np.insert(trial_bds, 0, self.support.start)
+        np.append(trial_bds, self.support.stop)
+        trial_epochs = _epocharray.EpochArray(np.vstack((trial_bds[:-1], trial_bds[1:])).T)
+
+        return trial_epochs
+
     def shift(self, amount, *, inplace=False):
         """"""
         is_wrapped = self.is_wrapped
