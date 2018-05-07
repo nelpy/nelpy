@@ -174,7 +174,8 @@ def asa_init_wrapper(func):
                 labels = ydata.unit_ids
             kwargs['labels'] = labels
             ydata = ydata.data.astype(float)
-        elif isinstance(ydata, auxiliary.PositionArray):
+        # elif isinstance(ydata, auxiliary.PositionArray):
+        elif isinstance(ydata, AnalogSignalArray):
             kwargs['ydata'] = ydata
             func(args[0], **kwargs)
             return
@@ -312,8 +313,9 @@ class AnalogSignalArray:
 
         self.__version__ = version.__version__
 
-        # cast PositionArray to AnalogSignalArray
-        if isinstance(ydata, auxiliary.PositionArray):
+        # cast derivatives of AnalogSignalArray back into AnalogSignalArray:
+        # if isinstance(ydata, auxiliary.PositionArray):
+        if isinstance(ydata, AnalogSignalArray):
             self.__dict__ = copy.deepcopy(ydata.__dict__)
             # if self._has_changed:
                 # self.__renew__()

@@ -215,7 +215,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         Q : float, optional
             Transition noise scalar: noise(Q) ~ N(0,Q). Default is 1.
         R : float, optional
-            Observation noise scalar: noise(R) ~ N(0,R). Default is 100.
+            Observation noise scalar: noise(R) ~ N(0,R). Default is 10*self.fs.
             Larger values of R put higher trust in the model than in the [noisy]
             observations, leading to smoother estimates.
         recompute : bool, optional
@@ -266,7 +266,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         if Q is None:
             Q = 1
         if R is None:
-            R = 100 #TODO: maybe a better default is self.fs * 10 ???
+            R = 10*self.fs #TODO: maybe a better default is self.fs * 10 ???
 
         measurements = self.ydata.T
 
