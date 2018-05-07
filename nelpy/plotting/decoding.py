@@ -11,15 +11,13 @@ import itertools
 from . import palettes
 # colors = itertools.cycle(npl.palettes.color_palette(palette="sweet", n_colors=15))
 
-# from ..core import *
-# from ..auxiliary import *
 from .. import decoding
-# from . import utils  # import plotting/utils
 from . import utils as plotutils
 from ..utils import is_sorted, collapse_time
 from .core import rasterplot, imagesc
 
-def decode_and_plot_events1D(*, bst, tc, raster=True, st=None, st_order='track', evt_subset=None):
+def decode_and_plot_events1D(*, bst, tc, raster=True, st=None, st_order='track',
+                             evt_subset=None, **kwargs):
     """
     bst : BinnedSpikeTrainArray
     tc : TuningCurve1D
@@ -30,6 +28,9 @@ def decode_and_plot_events1D(*, bst, tc, raster=True, st=None, st_order='track',
     evt_subset : list, optional
         List of integer indices. If the list is not sorted, it will be sorted first.
     """
+
+    #TODO: add **kwargs
+    #   fig size, cmap, raster lw, raster color, other axes props, ...
 
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
