@@ -573,6 +573,10 @@ class TuningCurve2D:
             sigma = 0.1 # in units of extern
         if bw is None:
             bw = 4
+        if mode is None:
+            mode = 'reflect'
+        if cval is None:
+            cval = 0.0
 
         ds_x = (self.xbins[-1] - self.xbins[0])/self.n_xbins
         ds_y = (self.ybins[-1] - self.ybins[0])/self.n_ybins
@@ -1252,6 +1256,10 @@ class TuningCurve1D:
             sigma = 0.1 # in units of extern
         if bw is None:
             bw = 4
+        if mode is None:
+            mode = 'reflect'
+        if cval is None:
+            cval = 0.0
 
         ds = (self.bins[-1] - self.bins[0])/self.n_bins
         sigma = sigma / ds

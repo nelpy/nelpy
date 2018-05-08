@@ -569,7 +569,7 @@ class AnalogSignalArray:
 
     def add_signal(self, signal, label=None):
         """Docstring goes here.
-        Basically we add a signal, and we add a label
+        Basically we add a signal, and we add a label. THIS HAPPENS IN PLACE?
         """
         # TODO: add functionality to check that supports are the same, etc.
         if isinstance(signal, AnalogSignalArray):
