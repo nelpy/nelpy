@@ -573,10 +573,13 @@ class EpochArray:
         return self[keep_epoch_ids]
 
     def intersect(self, epoch, *, boundaries=True):
-        """docstring goes here."""
+        """Returns intersection (overlap) between current EpochArray (self) and 
+           other epoch array ('epoch').
+        """
 
+        this = copy.deepcopy(self)
         new_epochs = []
-        for epa in self:
+        for epa in this:
             for epb in epoch:
                 new_epoch = self._intersect(epa,epb, boundaries=boundaries)
                 if not new_epoch.isempty:
@@ -586,7 +589,6 @@ class EpochArray:
 
     def _intersect(self, epocha, epochb, *, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of epoch arrays.
-        Sampling rates can be different.
 
         TODO: verify if this requires a merged EpochArray to work properly?
 

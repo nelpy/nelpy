@@ -1362,7 +1362,7 @@ class AnalogSignalArray:
         asa.__renew__()
         return asa
 
-    def join(self, other, *, kind=None, inplace=False):
+    def join(self, other, *, mode=None, inplace=False):
         """Join another AnalogSignalArray to this one.
 
         Parameters
@@ -1384,20 +1384,66 @@ class AnalogSignalArray:
             Copy of AnalogSignalArray where the new AnalogSignalArray has been
             joined to the current AnalogSignalArray.
         """
-        raise NotImplementedError("asa.join() has not yet been implemented!")
 
-        if kind is None:
-            kind = 'left'
+        if mode is None:
+            mode = 'left'
 
-        # TODO: do input validation for kind
+        asa = copy.deepcopy(self)
 
-        if self.support.merge()[other.support.merge()].isempty:
+        times = np.zeros((1,0))
+        ydata = np.zeros((asa.n_signals,0))
+
+        # if ASAs are disjoint:
+        if self.support[other.support].isempty:
             # do a simple-as-butter join (concat) and sort
-            pass
+            times = np.append(times, self.time)
+            ydata = np.hstack((ydata, self.ydata))
+            times = np.append(times, other.time)
+            ydata = np.hstack((ydata, other.ydata))
+        else: # not disjoint
+            both_eps = self.support[other.support]
+            self_eps = self.support - both_eps - other.support
+            other_eps = other.support - both_eps - self.support
+
+            if mode=='left':
+                self_eps += both_eps
+                print(self_eps)
+
+                tmp = self[self_eps]
+                times = np.append(times, tmp.time)
+                ydata = np.hstack((ydata, tmp.ydata))
+
+                if not other_eps.isempty:
+                    tmp = other[other_eps]
+                    times = np.append(times, tmp.time)
+                    ydata = np.hstack((ydata, tmp.ydata))
+            elif mode=='right':
+                other_eps += both_eps
+
+                tmp = other[other_eps]
+                times = np.append(times, tmp.time)
+                ydata = np.hstack((ydata, tmp.ydata))
+
+                if not self_eps.isempty:
+                    tmp = self[self_eps]
+                    times = np.append(times, tmp.time)
+                    ydata = np.hstack((ydata, tmp.ydata))
+            else:
+                raise NotImplementedError("asa.join() has not yet been implemented for mode '{}'!".format(mode))
+
+        sample_order = np.argsort(times)
+        times = times[sample_order]
+        ydata = ydata[:,sample_order]
+
+        asa._ydata = ydata
+        asa._time = times
+        asa._support = (self.support + other.support).merge()
 
         # if 'left': simple join left with right[~left]
         # if 'right': simple join left[~right] with right
-        # if 
+        # in general, int
+
+        return asa
 
 #----------------------------------------------------------------------#
 #======================================================================#
