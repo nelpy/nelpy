@@ -707,7 +707,7 @@ class EpochArray:
                     new_stops.append(next_stop)
                     new_starts.append(newepocharray.starts[i + 1])
 
-            new_stops.append(newepocharray.stops[-1])
+            new_stops.append(max(newepocharray.stops[-1], next_stop))
 
             new_starts = np.array(new_starts)
             new_stops = np.array(new_stops)
