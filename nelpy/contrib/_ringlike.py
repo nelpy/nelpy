@@ -10,6 +10,7 @@ from scipy import interpolate
 from collections import namedtuple
 
 from ..core import _analogsignalarray, _epocharray
+from ..auxiliary import _position
 from .. import utils
 
 class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):

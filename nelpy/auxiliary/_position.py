@@ -176,7 +176,31 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
     def _kalman_smoother(self, Q=None, R=None, recompute=False, n_iter=None):
         """
         Use a Kalman smoother to estimate the trajectory of a particle moving
-        in 2D at constant velocity.
+        with a constant velocity.
+
+        Parameters
+        ----------
+        Q : float, optional
+            Transition noise scalar: noise(Q) ~ N(0,Q). Default is 1.
+        R : float, optional
+            Observation noise scalar: noise(R) ~ N(0,R). Default is 10*self.fs.
+            Larger values of R put higher trust in the model than in the [noisy]
+            observations, leading to smoother estimates.
+        recompute : bool, optional
+            If True, recompute the filter parameters using EM. Default is False.
+        n_iter : int, optional
+            Number of iterations to use in EM when finding filter parameters.
+            Default is 5.
+
+        Returns
+        ----------
+        position : array with shape (ndim, n_samples), where ndim is 1D or 2D.
+            Array of smoothed position estimates.
+        speed : array with shape (ndim, n_samples), where ndim is 1D or 2D.
+            Array of smoothed speed estimates.
+
+        General information
+        ===================
 
         see https://statweb.stanford.edu/~candes/acm116/Handouts/Kalman.pdf
 
@@ -210,26 +234,18 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
             smooth: compute (X_t | Y_0=y_0,...,Y_T=y_T), t < T; post-processing,
                 given all data.
 
-        Parameters
-        ----------
-        Q : float, optional
-            Transition noise scalar: noise(Q) ~ N(0,Q). Default is 1.
-        R : float, optional
-            Observation noise scalar: noise(R) ~ N(0,R). Default is 10*self.fs.
-            Larger values of R put higher trust in the model than in the [noisy]
-            observations, leading to smoother estimates.
-        recompute : bool, optional
-            If True, recompute the filter parameters using EM. Default is False.
-        n_iter : int, optional
-            Number of iterations to use in EM when finding filter parameters.
-            Default is 5.
+        NOTE: multi-epoch smoothing
+        ===========================
+            Currently each epoch is smoothed INDEPENDENTLY (and if parameters are
+            recomputed, they are recomputed within each epoch). The alternative
+            would have been to use masked arrays, but there are downsides to that
+            approach, as well.
 
-        Returns
-        ----------
-        position : array with shape (ndim, n_samples), where ndim is 1D or 2D.
-            Array of smoothed position estimates.
-        speed : array with shape (ndim, n_samples), where ndim is 1D or 2D.
-            Array of smoothed speed estimates.
+        NOTE: uniform sampling
+        ======================
+            The Kalman smoother assumes uniform sampling _within each epoch_. This
+            is not checked explicitly.
+
         """
 
         # TODO: implement masking within epochs
@@ -241,7 +257,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
         from pykalman import KalmanFilter
 
-        assert self.n_epochs == 1, 'multi-epoch Kalman smoothing not supported yet!'
+        # assert self.n_epochs == 1, 'multi-epoch Kalman smoothing not supported yet!'
 
         if not n_iter:
             n_iter = 5
@@ -268,30 +284,42 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         if R is None:
             R = 10*self.fs #TODO: maybe a better default is self.fs * 10 ???
 
-        measurements = self.ydata.T
-
-        if recompute:
-            kf = KalmanFilter(transition_matrices=F, observation_matrices=H)
-            kf = kf.em(measurements, n_iter=n_iter)
-            self._kalmanfilter = kf
-        else:
-            if self._kalmanfilter is None:
-                kf = KalmanFilter(transition_matrices=F, observation_matrices=H)
-                self._kalmanfilter = kf
-            self._kalmanfilter.transition_covariance = Q*np.eye(ss)
-            self._kalmanfilter.observation_covariance = R*np.eye(os)
-
         if self.is_1d:
-            self._kalmanfilter.initial_state_mean = np.append(self.ydata[0,0], 0)
+            posdata = np.zeros((1,0))
+            speeddata = np.zeros((1,0))
         elif self.is_2d:
-            self._kalmanfilter.initial_state_mean = np.append(self.ydata[:,0], (0, 0))
+            posdata = np.zeros((2,0))
+            speeddata = np.zeros((2,0))
 
-        kf = self._kalmanfilter
+        for snippet in self:
+            measurements = snippet.ydata.T
 
-        smoothed_state_means, smoothed_state_covariances = kf.smooth(measurements)
+            if recompute:
+                kf = KalmanFilter(transition_matrices=F, observation_matrices=H)
+                kf = kf.em(measurements, n_iter=n_iter)
+                snippet._kalmanfilter = kf
+            else:
+                if self._kalmanfilter is None:
+                    kf = KalmanFilter(transition_matrices=F, observation_matrices=H)
+                    self._kalmanfilter = kf
+                self._kalmanfilter.transition_covariance = Q*np.eye(ss)
+                self._kalmanfilter.observation_covariance = R*np.eye(os)
 
-        position = smoothed_state_means[:,:os].T
-        speed = smoothed_state_means[:,os:].T
-        speed = self.fs*np.sqrt(np.sum(speed**2, axis=0))
+            if self.is_1d:
+                self._kalmanfilter.initial_state_mean = np.append(snippet.ydata[0,0], 0)
+            elif self.is_2d:
+                self._kalmanfilter.initial_state_mean = np.append(snippet.ydata[:,0], (0, 0))
 
-        return position, speed
+            kf = self._kalmanfilter
+
+            smoothed_state_means, smoothed_state_covariances = kf.smooth(measurements)
+
+            position = smoothed_state_means[:,:os].T
+            speed = smoothed_state_means[:,os:].T
+
+            posdata = np.hstack((posdata, position))
+            speeddata = np.hstack((speeddata, speed))
+
+        speeddata = self.fs*np.sqrt(np.sum(speeddata**2, axis=0))
+
+        return posdata, speeddata
