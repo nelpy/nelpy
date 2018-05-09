@@ -11,10 +11,6 @@ from .. import core
 from .. import utils
 from .. import version
 
-from ..utils_.decorators import deprecated
-
-# from ._epocharray import EpochArray
-
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -295,14 +291,6 @@ class SpikeTrain(ABC):
     def n_units(self):
         """(int) The number of units."""
         return
-
-    @property
-    def n_sequences(self):
-        warnings.warn("n_sequences is deprecated---use n_epochs instead", DeprecationWarning)
-        if self.isempty:
-            return 0
-        """(int) The number of sequences."""
-        return self.support.n_epochs
 
     @property
     def n_epochs(self):
@@ -671,13 +659,17 @@ class SpikeTrainArray(SpikeTrain):
 
         return out
 
+    def _copy_without_data(self):
+        """Return a copy of self, without event times."""
+        out = copy.copy(self) # shallow copy
+        out._time = None
+        out = copy.deepcopy(self) # just to be on the safe side, but at least now we are not copying the data!
+
+        return out
+
     def copy(self):
         """Returns a copy of the SpikeTrainArray."""
-        newcopy = SpikeTrainArray(empty=True)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in self.__attributes__:
-                exec("newcopy." + attr + " = self." + attr)
+        newcopy = copy.deepcopy(self)
         newcopy.loc = ItemGetter_loc(newcopy)
         newcopy.iloc = ItemGetter_iloc(newcopy)
         return newcopy
@@ -865,27 +857,20 @@ class SpikeTrainArray(SpikeTrain):
         if unit_label is None:
             unit_label = "flattened"
 
-        spiketrainarray = SpikeTrainArray(empty=True)
+        flattened = self._copy_without_data()
 
-        exclude = ["_time", "unit_ids", "unit_labels", "unit_tags"]
-        attrs = (x for x in self.__attributes__ if x not in exclude)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("spiketrainarray." + attr + " = self." + attr)
-        spiketrainarray._unit_ids = [unit_id]
-        spiketrainarray._unit_labels = [unit_label]
-        spiketrainarray._unit_tags = None
+        flattened._unit_ids = [unit_id]
+        flattened._unit_labels = [unit_label]
+        flattened._unit_tags = None
 
         alltimes = self.time[0]
         for unit in range(1,self.n_units):
             alltimes = utils.linear_merge(alltimes, self.time[unit])
 
-        spiketrainarray._time = np.array(list(alltimes), ndmin=2)
-        spiketrainarray.loc = ItemGetter_loc(spiketrainarray)
-        spiketrainarray.iloc = ItemGetter_iloc(spiketrainarray)
-        return spiketrainarray
+        flattened._time = np.array(list(alltimes), ndmin=2)
+        flattened.loc = ItemGetter_loc(flattened)
+        flattened.iloc = ItemGetter_iloc(flattened)
+        return flattened
 
     @staticmethod
     def _restrict_to_epoch_array_fast(epocharray, time, copyover=True):
@@ -1015,12 +1000,6 @@ class SpikeTrainArray(SpikeTrain):
         return BinnedSpikeTrainArray(self, ds=ds)
 
     @property
-    def time(self):
-        """Spike times in seconds."""
-        return self._time
-
-    @property
-    @deprecated
     def time(self):
         """Spike times in seconds."""
         return self._time
@@ -1268,11 +1247,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
     def copy(self):
         """Returns a copy of the BinnedSpikeTrainArray."""
-        newcopy = BinnedSpikeTrainArray(empty=True)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in self.__attributes__:
-                exec("newcopy." + attr + " = self." + attr)
+        newcopy = copy.deepcopy(self)
         newcopy.loc = ItemGetter_loc(newcopy)
         newcopy.iloc = ItemGetter_iloc(newcopy)
         return newcopy
