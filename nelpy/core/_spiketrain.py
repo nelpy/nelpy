@@ -1807,6 +1807,64 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         return newbst
 
+    def bst_from_indices(self, idx):
+        """
+        Return a BinnedSpikeTrainArray from a list of indices.
+
+        bst : BinnedSpikeTrainArray
+        idx : list of sample (bin) numbers with shape (n_epochs, 2) INCLUSIVE
+
+        Example
+        =======
+        idx = [[10, 20]
+            [25, 50]]
+        bst_from_indices(bst, idx=idx)
+        """
+
+        idx = np.atleast_2d(idx)
+
+        newbst = copy.copy(self)
+        ds = self.ds
+        bin_centers_ = []
+        bins_ = []
+        binnedSupport_ = []
+        support_ = []
+        all_timestamps = []
+
+        n_preceding_bins = 0
+
+        for frm, to in idx:
+            idx_array = np.arange(frm, to+1).astype(int)
+            all_timestamps.append(idx_array)
+            bin_centers = self.bin_centers[idx_array]
+            bins = np.append(bin_centers - ds/2, bin_centers[-1] + ds/2)
+
+            binnedSupport = [n_preceding_bins, n_preceding_bins + len(bins)-2]
+            n_preceding_bins += len(bins)-1
+            support = core.EpochArray((bins[0], bins[-1]))
+
+            bin_centers_.append(bin_centers)
+            bins_.append(bins)
+            binnedSupport_.append(binnedSupport)
+            support_.append(support)
+
+        bin_centers = np.concatenate(bin_centers_)
+        bins = np.concatenate(bins_)
+        binnedSupport = np.array(binnedSupport_)
+        support = np.sum(support_)
+        all_timestamps = np.concatenate(all_timestamps)
+
+        newbst._bin_centers = bin_centers
+        newbst._bins = bins
+        newbst._binnedSupport = binnedSupport
+        newbst._support = support
+        newbst._data = newbst.data[:,all_timestamps]
+
+        newbst.loc = ItemGetter_loc(newbst)
+        newbst.iloc = ItemGetter_iloc(newbst)
+
+        return newbst
+
     def _bin_spikes_old(self, spiketrainarray, epochArray, ds):
         b = []  # bin list
         c = []  # centers list
