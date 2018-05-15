@@ -168,7 +168,7 @@ def asa_init_wrapper(func):
             kwargs['support'] = support
             fs = 1/ydata.ds
             kwargs['fs'] = fs
-            if ydata.unit_labels:
+            if np.any(ydata.unit_labels):
                 labels = ydata.unit_labels
             else:
                 labels = ydata.unit_ids
@@ -912,6 +912,19 @@ class AnalogSignalArray:
         asa.__renew__()
         return asa
 
+    def empty(self, inplace=True):
+        """Remove data (but not metadata) from AnalogSignalArray."""
+        if not inplace:
+            out = self._copy_without_data()
+            out._support = core.EpochArray(empty=True)
+            return out
+        out = self
+        out._ydata = np.zeros((out.n_signals,0))
+        out._support = core.EpochArray(empty=True)
+        out._time = []
+        out.__renew__()
+        return out
+
     def __getitem__(self, idx):
         """AnalogSignalArray index access.
 
@@ -939,7 +952,7 @@ class AnalogSignalArray:
         ################################################################
         if newepochs.isempty:
             warnings.warn("Index resulted in empty epoch array")
-            return AnalogSignalArray([], empty=True)
+            return self.empty(inplace=False)
         ################################################################
 
         asa._restrict_to_epoch_array_fast(epocharray=newepochs)
@@ -954,6 +967,15 @@ class AnalogSignalArray:
             raise IndexError("index {} is out of bounds for n_signals with size {}".format(idx, self.n_signals))
         asa.__renew__()
         return asa
+
+    def _copy_without_data(self):
+        """Return a copy of self, without data."""
+        out = copy.copy(self) # shallow copy
+        out._time = None
+        out._ydata = np.zeros((self.n_signals,0))
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out.__renew__()
+        return out
 
     def copy(self):
         """Return a copy of the current object."""

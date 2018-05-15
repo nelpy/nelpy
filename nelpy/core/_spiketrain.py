@@ -1245,11 +1245,26 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         # raise NotImplementedError('workaround: cast to AnalogSignalArray, partition, and cast back to BinnedSpikeTrainArray')
 
+    def _copy_without_data(self):
+        """Returns a copy of the BinnedSpikeTrainArray, without data."""
+        out = copy.copy(self) # shallow copy
+        out._bin_centers = None
+        out._binnedSupport = None
+        out._bins = None
+        out._data = np.zeros((self.n_units,0))
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out.__renew__()
+        return out
+
+    def __renew__(self):
+        """Re-attach slicers and indexers."""
+        self.loc = ItemGetter_loc(self)
+        self.iloc = ItemGetter_iloc(self)
+
     def copy(self):
         """Returns a copy of the BinnedSpikeTrainArray."""
         newcopy = copy.deepcopy(self)
-        newcopy.loc = ItemGetter_loc(newcopy)
-        newcopy.iloc = ItemGetter_iloc(newcopy)
+        newcopy.__renew__()
         return newcopy
 
     def __repr__(self):
@@ -1305,6 +1320,21 @@ class BinnedSpikeTrainArray(SpikeTrain):
         binnedspiketrain.iloc = ItemGetter_iloc(binnedspiketrain)
         return binnedspiketrain
 
+    def empty(self, inplace=True):
+        """Remove data (but not metadata) from BinnedSpikeTrainArray."""
+        if not inplace:
+            out = self._copy_without_data()
+            out._support = core.EpochArray(empty=True)
+            return out
+        out = self
+        out._data = np.zeros((out.n_units,0))
+        out._support = core.EpochArray(empty=True)
+        out._binnedSupport = None
+        out._bin_centers = None
+        out._bins = None
+        out.__renew__()
+        return out
+
     def __getitem__(self, idx):
         """BinnedSpikeTrainArray index access."""
         if self.isempty:
@@ -1314,18 +1344,25 @@ class BinnedSpikeTrainArray(SpikeTrain):
             # next, we need to identify all the bins that would fall within the EpochArray
 
             if idx.isempty:
-                # TODO: issue 229
-                return BinnedSpikeTrainArray(empty=True)
-            support = self.support.intersect(
-                    epoch=idx,
-                    boundaries=True
-                    ) # what if fs of slicing epoch is different?
-            if support.isempty:
-                # TODO: issue 229
-                return BinnedSpikeTrainArray(empty=True)
-            # next we need to determine the binnedSupport:
+                return self.empty(inplace=False)
 
-            raise NotImplementedError("EpochArray indexing for BinnedSpikeTrainArrays not supported yet")
+            # TODO: code this more directly:
+            asa = core.AnalogSignalArray(self)
+            asa = asa[idx]
+            if asa.isempty:
+                return self.empty(inplace=False)
+            out = BinnedSpikeTrainArray(asa[idx])
+            return out
+            # support = self.support.intersect(
+            #         epoch=idx,
+            #         boundaries=True
+            #         ) # what if fs of slicing epoch is different?
+            # if support.isempty:
+            #     # TODO: issue 229
+            #     return BinnedSpikeTrainArray(empty=True)
+            # # next we need to determine the binnedSupport:
+
+            # raise NotImplementedError("EpochArray indexing for BinnedSpikeTrainArrays not supported yet")
 
         elif isinstance(idx, int):
             # TODO: issue 229

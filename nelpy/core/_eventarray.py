@@ -846,7 +846,7 @@ class EventArray(EventBase):
         """Return a copy of self, without event times."""
         out = copy.copy(self) # shallow copy
         out._time = None
-        out = copy.deepcopy(self) # just to be on the safe side, but at least now we are not copying the data!
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
 
         return out
 
