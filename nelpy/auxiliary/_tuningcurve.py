@@ -590,9 +590,9 @@ class TuningCurve2D:
 
         if self.mask is None:
             if self.n_units > 1:
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=bw, mode=None, cval=None)
+                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
             else:
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=bw, mode=None, cval=None)
+                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
         else: # we have a mask!
             # smooth, dealing properly with NANs
             # NB! see https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
@@ -604,13 +604,13 @@ class TuningCurve2D:
             W[masked_ratemap!=masked_ratemap]=0
 
             if self.n_units > 1:
-                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(0, sigma_x, sigma_y), truncate=bw, mode=None, cval=None)
-                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(0, sigma_x, sigma_y), truncate=bw, mode=None, cval=None)
+                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(0, sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
+                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(0, sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
                 Z=VV/WW
                 out._ratemap = Z*self.mask
             else:
-                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(sigma_x, sigma_y), truncate=bw, mode=None, cval=None)
-                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(sigma_x, sigma_y), truncate=bw, mode=None, cval=None)
+                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
+                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
                 Z=VV/WW
                 out._ratemap = Z*self.mask
 
