@@ -19,13 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-Licensed code
-=============
-
-Nelpy relies on several open source libraries, including:
-
-- [NumPy](http://www.numpy.org/) - Used under [BSD license](http://www.numpy.org/license.html)
-- [SciPy](https://www.scipy.org/) - Used under [BSD license](https://www.scipy.org/scipylib/license.html)
-- [matplotlib](http://matplotlib.org/) - Used under [BSD license](http://matplotlib.org/users/license.html)
-- [pytest](http://docs.pytest.org/en/latest/) - Used under [MIT license](http://docs.pytest.org/en/latest/license.html)
