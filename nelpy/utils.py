@@ -9,7 +9,8 @@ __all__ = ['spatial_information',
            'linear_merge',
            'PrettyDuration',
            'get_contiguous_segments',
-           'get_events_boundaries']
+           'get_events_boundaries',
+           'get_threshold_crossing_epochs']
 
 import numpy as np
 import warnings
