@@ -1,5 +1,5 @@
 #encoding : utf-8
-"""This module implements filtering functionailty for core nelpy objects
+"""This module implements filtering functionailty for core nelpy objects. 
 """
 
 __all__ = ['sosfiltfilt']
@@ -10,9 +10,9 @@ import warnings
 
 from .core import AnalogSignalArray
 
-def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, gpass=None,
-                    gstop=None, ftype='cheby2', buffer_len=4194304,
-                    overlap_len=None, max_len=None, **kwargs):
+def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False,
+                gpass=None, gstop=None, ftype='cheby2', buffer_len=4194304,
+                overlap_len=None, max_len=None, **kwargs):
     """Zero-phase forward backward second-order-segment Chebyshev II filter.
 
     # spike  600--6000
@@ -44,6 +44,9 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, gpass=None,
         Lower cut-off frequency (in Hz), 0 or None to ignore. Default is None.
     fh : float, optional
         Upper cut-off frequency (in Hz), 0 or None to ignore. Default is None.
+    bandstop : boolean, optional
+        If False, passband is between fl and fh. If True, stopband is between
+        fl and fh. Default is False.
     gpass : float, optional
         The maximum loss in the passband (dB). Default is 0.1 dB.
     gstop : float, optional
@@ -119,7 +122,6 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, gpass=None,
         fl = None
 
     if (fl is None) and (fh is None):
-        print('wut? nothing to filter, man!')
         raise ValueError('nonsensical all-pass filter requested...')
     elif fl is None: # lowpass
         wp = fh/fso2
@@ -130,6 +132,8 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, gpass=None,
     else: # bandpass
         wp = [fl/fso2, fh/fso2]
         ws = [0.8*fl/fso2,1.4*fh/fso2]
+    if bandstop: # notch / bandstop filter
+        wp, ws = ws, wp
 
     sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype='cheby2', output='sos')
 

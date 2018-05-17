@@ -168,20 +168,21 @@ def asa_init_wrapper(func):
             kwargs['support'] = support
             fs = 1/ydata.ds
             kwargs['fs'] = fs
-            if ydata.unit_labels:
+            if np.any(ydata.unit_labels):
                 labels = ydata.unit_labels
             else:
                 labels = ydata.unit_ids
             kwargs['labels'] = labels
-            ydata = ydata.data
-        elif isinstance(ydata, auxiliary.PositionArray):
+            ydata = ydata.data.astype(float)
+        # elif isinstance(ydata, auxiliary.PositionArray):
+        elif isinstance(ydata, AnalogSignalArray):
             kwargs['ydata'] = ydata
             func(args[0], **kwargs)
             return
 
         #check if single AnalogSignal or multiple AnalogSignals in array
         #and standardize ydata to 2D
-        ydata = np.squeeze(ydata)
+        ydata = np.squeeze(ydata).astype(float)
         try:
             if(ydata.shape[0] == ydata.size):
                 ydata = np.array(ydata,ndmin=2)
@@ -312,8 +313,9 @@ class AnalogSignalArray:
 
         self.__version__ = version.__version__
 
-        # cast PositionArray to AnalogSignalArray
-        if isinstance(ydata, auxiliary.PositionArray):
+        # cast derivatives of AnalogSignalArray back into AnalogSignalArray:
+        # if isinstance(ydata, auxiliary.PositionArray):
+        if isinstance(ydata, AnalogSignalArray):
             self.__dict__ = copy.deepcopy(ydata.__dict__)
             # if self._has_changed:
                 # self.__renew__()
@@ -567,7 +569,7 @@ class AnalogSignalArray:
 
     def add_signal(self, signal, label=None):
         """Docstring goes here.
-        Basically we add a signal, and we add a label
+        Basically we add a signal, and we add a label. THIS HAPPENS IN PLACE?
         """
         # TODO: add functionality to check that supports are the same, etc.
         if isinstance(signal, AnalogSignalArray):
@@ -910,9 +912,22 @@ class AnalogSignalArray:
         asa.__renew__()
         return asa
 
+    def empty(self, inplace=True):
+        """Remove data (but not metadata) from AnalogSignalArray."""
+        if not inplace:
+            out = self._copy_without_data()
+            out._support = core.EpochArray(empty=True)
+            return out
+        out = self
+        out._ydata = np.zeros((out.n_signals,0))
+        out._support = core.EpochArray(empty=True)
+        out._time = []
+        out.__renew__()
+        return out
+
     def __getitem__(self, idx):
         """AnalogSignalArray index access.
-        Parameters
+
         Parameters
         ----------
         idx : EpochArray, int, slice
@@ -937,7 +952,7 @@ class AnalogSignalArray:
         ################################################################
         if newepochs.isempty:
             warnings.warn("Index resulted in empty epoch array")
-            return AnalogSignalArray([], empty=True)
+            return self.empty(inplace=False)
         ################################################################
 
         asa._restrict_to_epoch_array_fast(epocharray=newepochs)
@@ -953,20 +968,32 @@ class AnalogSignalArray:
         asa.__renew__()
         return asa
 
+    def _copy_without_data(self):
+        """Return a copy of self, without data."""
+        out = copy.copy(self) # shallow copy
+        out._time = None
+        out._ydata = np.zeros((self.n_signals,0))
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out.__renew__()
+        return out
+
     def copy(self):
-        asa = AnalogSignalArray([], empty=True)
-        exclude = ['_interp']
-        attrs = (x for x in self.__attributes__ if x not in exclude)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("asa." + attr + " = self." + attr)
-        try:
-            exec("asa._interp = self._interp")
-        except AttributeError:
-            pass
-        asa.__renew__()
-        return asa
+        """Return a copy of the current object."""
+        out = copy.deepcopy(self)
+        out.__renew__()
+        # asa = AnalogSignalArray([], empty=True)
+        # exclude = ['_interp']
+        # attrs = (x for x in self.__attributes__ if x not in exclude)
+        # with warnings.catch_warnings():
+        #     warnings.simplefilter("ignore")
+        #     for attr in attrs:
+        #         exec("asa." + attr + " = self." + attr)
+        # try:
+        #     exec("asa._interp = self._interp")
+        # except AttributeError:
+        #     pass
+        # asa.__renew__()
+        return out
 
     def mean(self,*,axis=1):
         """Returns the mean of each signal in AnalogSignalArray."""
@@ -1249,7 +1276,13 @@ class AnalogSignalArray:
             self._interp = interpobj
 
         # do the actual interpolation
-        out = interpobj(at)
+        try:
+            out = interpobj(at)
+        except SystemError:
+            interpobj = self._get_interp1d(**kwargs)
+            if store_interp:
+                self._interp = interpobj
+            out = interpobj(at)
 
         # TODO: set all values outside of self.support to fill_value
 
@@ -1343,22 +1376,95 @@ class AnalogSignalArray:
         _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
         yvals = np.array(yvals, ndmin=2)
 
-        # now make a new simplified ASA:
-        if isinstance(self, auxiliary.PositionArray):
-            asa = auxiliary.PositionArray([], empty=True)
-        else:
-            asa = AnalogSignalArray([], empty=True)
-        exclude = ['_interp', '_ydata', '_time']
-        attrs = (x for x in self.__attributes__ if x not in exclude)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("asa." + attr + " = self." + attr)
+        asa = copy.copy(self)
         asa._time = np.asanyarray(at)
         asa._ydata = yvals
         asa._fs = 1/ds
 
         asa.__renew__()
+        return asa
+
+    def join(self, other, *, mode=None, inplace=False):
+        """Join another AnalogSignalArray to this one.
+
+        Parameters
+        ----------
+        other : AnalogSignalArray
+            AnalogSignalArray (or derived type) to join to the current
+            AnalogSignalArray. Other must have the same number of signals as
+            the current AnalogSignalArray.
+        kind : string, optional
+            One of ['max', 'min', 'left', 'right', 'mean']. Specifies how the
+            signals are merged inside overlapping epochs. Default is 'left'.
+        inplace : boolean, optional
+            If True, then current AnalogSignalArray is modified. If False, then
+            a copy with the joined result is returned. Default is False.
+
+        Returns
+        -------
+        out : AnalogSignalArray
+            Copy of AnalogSignalArray where the new AnalogSignalArray has been
+            joined to the current AnalogSignalArray.
+        """
+
+        if mode is None:
+            mode = 'left'
+
+        asa = copy.deepcopy(self)
+
+        times = np.zeros((1,0))
+        ydata = np.zeros((asa.n_signals,0))
+
+        # if ASAs are disjoint:
+        if self.support[other.support].isempty:
+            # do a simple-as-butter join (concat) and sort
+            times = np.append(times, self.time)
+            ydata = np.hstack((ydata, self.ydata))
+            times = np.append(times, other.time)
+            ydata = np.hstack((ydata, other.ydata))
+        else: # not disjoint
+            both_eps = self.support[other.support]
+            self_eps = self.support - both_eps - other.support
+            other_eps = other.support - both_eps - self.support
+
+            if mode=='left':
+                self_eps += both_eps
+                print(self_eps)
+
+                tmp = self[self_eps]
+                times = np.append(times, tmp.time)
+                ydata = np.hstack((ydata, tmp.ydata))
+
+                if not other_eps.isempty:
+                    tmp = other[other_eps]
+                    times = np.append(times, tmp.time)
+                    ydata = np.hstack((ydata, tmp.ydata))
+            elif mode=='right':
+                other_eps += both_eps
+
+                tmp = other[other_eps]
+                times = np.append(times, tmp.time)
+                ydata = np.hstack((ydata, tmp.ydata))
+
+                if not self_eps.isempty:
+                    tmp = self[self_eps]
+                    times = np.append(times, tmp.time)
+                    ydata = np.hstack((ydata, tmp.ydata))
+            else:
+                raise NotImplementedError("asa.join() has not yet been implemented for mode '{}'!".format(mode))
+
+        sample_order = np.argsort(times)
+        times = times[sample_order]
+        ydata = ydata[:,sample_order]
+
+        asa._ydata = ydata
+        asa._time = times
+        asa._support = (self.support + other.support).merge()
+
+        # if 'left': simple join left with right[~left]
+        # if 'right': simple join left[~right] with right
+        # in general, int
+
         return asa
 
 #----------------------------------------------------------------------#

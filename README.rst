@@ -36,7 +36,7 @@ Let's give it a try. Create a ``SpikeTrainArray``:
 
 Do something:
 
-.. code-block::
+.. code-block:: python
 
     >>> print(st.n_spikes) # print out how many spikes there are in st
     5
@@ -138,9 +138,23 @@ Where
  download             https://pypi.python.org/pypi/nelpy
  tutorials            https://github.com/nelpy/tutorials
  example analyses     https://github.com/nelpy/example-analyses
- docs                 coming soon!
+ docs                 coming soon! summer 2018
  code                 https://github.com/nelpy/nelpy
 ===================   ========================================================
+
+Cite
+====
+
+If you use nelpy in your research, please cite it:
+
+.. code-block::
+
+    @misc{nelpy17,
+      author =   {Etienne Ackermann},
+      title =    {Nelpy: Neuroelectrophysiology object model, data exploration, and analysis in Python},
+      howpublished = {\url{https://github.com/nelpy/nelpy/}},
+      year = {2017--2018}
+    }
 
 License
 =======

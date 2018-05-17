@@ -8,7 +8,7 @@ from .. import utils
 
 class PositionArray(_analogsignalarray.AnalogSignalArray):
 
-    __attributes__ = [] # PositionArray-specific attributes
+    __attributes__ = ['_kalmanfilter'] # PositionArray-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
     def __init__(self, ydata=[], *, timestamps=None, fs=None,
                  step=None, merge_sample_gap=0, support=None,
@@ -38,6 +38,8 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
             # initialize super:
             super().__init__(**kwargs)
+
+        self._kalmanfilter = None
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
@@ -118,3 +120,206 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
     def bin(self, **kwargs):
         """Bin position into grid."""
         raise NotImplementedError
+
+    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False,
+               Kalman=False):
+        """Smooths the regularly sampled PositionArray with a Gaussian kernel.
+
+        Smoothing is applied in time, and the same smoothing is applied to each
+        signal in the PositionArray.
+
+        Smoothing is applied within each epoch.
+
+        Optionally, a Kalman smoother can be used by setting Kalman=True.
+
+        Parameters
+        ----------
+        fs : float, optional
+            Sampling rate (in Hz) of RinglikeTrajectory. If not provided, it will
+            be obtained from asa.fs
+        sigma : float, optional
+            Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+        bw : float, optional
+            Bandwidth outside of which the filter value will be zero. Default is 4.0
+        inplace : bool
+            If True the data will be replaced with the smoothed data.
+            Default is False.
+        Kalman : bool, optional
+            If True, smooth with a Kalman smoother instead of a Gaussian kernel.
+            Default is False.
+
+        Returns
+        -------
+        out : PositionArray
+            A PositionArray with smoothed data is returned.
+        """
+
+        if Kalman:
+            position, speed = self._kalman_smoother()
+            if inplace:
+                out = self
+            else:
+                out = copy.deepcopy(self)
+            out._ydata = position
+            out.__renew__()
+            return out
+
+        kwargs = {'inplace' : inplace,
+                'fs' : fs,
+                'sigma' : sigma,
+                'bw' : bw}
+
+        out = utils.gaussian_filter(self, **kwargs)
+        out.__renew__()
+        return out
+
+    def _kalman_smoother(self, Q=None, R=None, recompute=False, n_iter=None):
+        """
+        Use a Kalman smoother to estimate the trajectory of a particle moving
+        with a constant velocity.
+
+        Parameters
+        ----------
+        Q : float, optional
+            Transition noise scalar: noise(Q) ~ N(0,Q). Default is 1.
+        R : float, optional
+            Observation noise scalar: noise(R) ~ N(0,R). Default is 10*self.fs.
+            Larger values of R put higher trust in the model than in the [noisy]
+            observations, leading to smoother estimates.
+        recompute : bool, optional
+            If True, recompute the filter parameters using EM. Default is False.
+        n_iter : int, optional
+            Number of iterations to use in EM when finding filter parameters.
+            Default is 5.
+
+        Returns
+        ----------
+        position : array with shape (ndim, n_samples), where ndim is 1D or 2D.
+            Array of smoothed position estimates.
+        speed : array with shape (ndim, n_samples), where ndim is 1D or 2D.
+            Array of smoothed speed estimates.
+
+        General information
+        ===================
+
+        see https://statweb.stanford.edu/~candes/acm116/Handouts/Kalman.pdf
+
+        X(t) = [x1(t)
+                x2(t)
+                dx1(t)
+                dx2(t)]
+
+        F = [[1 0 1 0]
+             [0 1 0 1]
+             [0 0 1 0]
+             [0 0 0 1]]
+
+        H = [[1 0 0 0]
+             [0 1 0 0]]
+
+        X(t+1) = F X(t) + noise(Q)  {noise(Q) ~ N(0,Q)}
+        Y(t) = H X(t) + noise(R)    {noise(R) ~ N(0,R)}
+
+        ss = 4; # state size
+        os = 2; # observation size
+        F = [1 0 1 0; 0 1 0 1; 0 0 1 0; 0 0 0 1]
+        H = [1 0 0 0; 0 1 0 0]
+        Q = 1*eye(ss)  # transition_covariance
+        R = 10*eye(os) # observation_covariance
+        initx = [10 10 1 0].T
+        initV = 10*eye(ss)
+
+        NOTE: filtering vs smoothing...
+            filter: compute (X_t | Y_0=y_0,...,Y_t=y_t); real-time
+            smooth: compute (X_t | Y_0=y_0,...,Y_T=y_T), t < T; post-processing,
+                given all data.
+
+        NOTE: multi-epoch smoothing
+        ===========================
+            Currently each epoch is smoothed INDEPENDENTLY (and if parameters are
+            recomputed, they are recomputed within each epoch). The alternative
+            would have been to use masked arrays, but there are downsides to that
+            approach, as well.
+
+        NOTE: uniform sampling
+        ======================
+            The Kalman smoother assumes uniform sampling _within each epoch_. This
+            is not checked explicitly.
+
+        """
+
+        # TODO: implement masking within epochs
+
+        # >>> from numpy import ma
+        # >>> X = ma.array([1,2,3])
+        # >>> X[1] = ma.masked  # hide measurement at time step 1
+        # >>> kf.em(X).smooth(X)
+
+        from pykalman import KalmanFilter
+
+        # assert self.n_epochs == 1, 'multi-epoch Kalman smoothing not supported yet!'
+
+        if not n_iter:
+            n_iter = 5
+
+        if self.is_1d:
+            ss = 2 # state size (x, dx)
+            os = 1 # observation size, (x)
+            # transition matrix:
+            F = [[1, 1], [0, 1]]
+            # observation matrix:
+            H = [[1, 0]]
+        elif self.is_2d:
+            ss = 4 # state size (x, y, dx, dy)
+            os = 2 # observation size, (x, y)
+            # transition matrix:
+            F = [[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]]
+            # observation matrix:
+            H = [[1, 0, 0, 0], [0, 1, 0, 0]]
+        else:
+            raise ValueError('Only 1D or 2D PositionArrays supported!')
+
+        if Q is None:
+            Q = 1
+        if R is None:
+            R = 10*self.fs #TODO: maybe a better default is self.fs * 10 ???
+
+        if self.is_1d:
+            posdata = np.zeros((1,0))
+            speeddata = np.zeros((1,0))
+        elif self.is_2d:
+            posdata = np.zeros((2,0))
+            speeddata = np.zeros((2,0))
+
+        for snippet in self:
+            measurements = snippet.ydata.T
+
+            if recompute:
+                kf = KalmanFilter(transition_matrices=F, observation_matrices=H)
+                kf = kf.em(measurements, n_iter=n_iter)
+                snippet._kalmanfilter = kf
+            else:
+                if self._kalmanfilter is None:
+                    kf = KalmanFilter(transition_matrices=F, observation_matrices=H)
+                    self._kalmanfilter = kf
+                self._kalmanfilter.transition_covariance = Q*np.eye(ss)
+                self._kalmanfilter.observation_covariance = R*np.eye(os)
+
+            if self.is_1d:
+                self._kalmanfilter.initial_state_mean = np.append(snippet.ydata[0,0], 0)
+            elif self.is_2d:
+                self._kalmanfilter.initial_state_mean = np.append(snippet.ydata[:,0], (0, 0))
+
+            kf = self._kalmanfilter
+
+            smoothed_state_means, smoothed_state_covariances = kf.smooth(measurements)
+
+            position = smoothed_state_means[:,:os].T
+            speed = smoothed_state_means[:,os:].T
+
+            posdata = np.hstack((posdata, position))
+            speeddata = np.hstack((speeddata, speed))
+
+        speeddata = self.fs*np.sqrt(np.sum(speeddata**2, axis=0))
+
+        return posdata, speeddata

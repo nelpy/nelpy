@@ -19,6 +19,8 @@ class ResultsContainer(object):
         for key, val in kwargs.items():
             setattr(self, key, val)
 
+        self._index = 0
+
     # def __init__(self, *args, description=None, **kwargs):
     #     kwargs['description'] = description
 
@@ -59,6 +61,23 @@ class ResultsContainer(object):
             descr_str = "\n**Description:** " + str(self.description)
         return "<ResultsContainer" + address_str + n_str + ">" + descr_str
 
+    # def __iter__(self):
+    #     self._index = 0
+    #     return self
+
+    # def __next__(self):
+    #     index = self._index
+
+    #     if index > self.n_objects - 1:
+    #         raise StopIteration
+    #     self._index += 1
+    #     return self[index]
+
+    # def __getitem__(self, idx):
+    #     keys = [key for key in self.__dict__ if key not in ['description', '_index']]
+    #     keys.sort()
+    #     return keys[idx]
+
     @property
     def isempty(self):
         """Empty ResultsContainer."""
@@ -67,7 +86,14 @@ class ResultsContainer(object):
     @property
     def n_objects(self):
         """(int) Number of objects in ResultsContainer."""
-        return len(list(self.__dict__.values())) - 1
+        return len(list(self.__dict__.values())) - 2
+
+    @property
+    def keys(self):
+        """(list) Key names in ResultsContainer."""
+        keys = [key for key in self.__dict__ if key not in ['description', '_index']]
+        keys.sort()
+        return keys
 
     def save_pkl(self, fname, zip=True, overwrite=False):
         """Write pickled data to disk, possible compressing."""

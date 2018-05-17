@@ -21,14 +21,14 @@ from . import plotting
 from . decoding import decode1D
 from . analysis import replay
 
-
 __all__ = ['PoissonHMM',
            'estimate_model_quality']
 
-def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_folds=5, verbose=False):
+def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_folds=5, mode='timeswap-pooled', verbose=False):
     """Estimate the HMM 'model quality' associated with the set of events in bst.
 
     TODO: finish docstring, and do some more consistency checking...
+    TODO: add other modes of shuffling
 
     Params
     ======
@@ -53,6 +53,17 @@ def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_f
     scores = np.zeros(bst.n_epochs)
     shuffled = np.zeros((bst.n_epochs, n_shuffles))
 
+    if mode == 'timeswap-pooled':
+        # shuffle data coherently, pooled over all events:
+        shuffle_func = replay.pooled_time_swap_bst
+    elif mode == 'timeswap-within-event':
+        # shuffle data coherently within events:
+        shuffle_func = replay.time_swap_bst
+    elif mode == 'temporal-within-event':
+        shuffle_func = replay.incoherent_shuffle_bst
+    else:
+        raise NotImplementedError
+
     for kk, (training, validation) in enumerate(k_fold_cross_validation(X, k=k_folds)):
         if verbose:
             print('  fold {}/{}'.format(kk+1, k_folds))
@@ -68,8 +79,8 @@ def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_f
         scores[validation] = hmm.score(PBEs_test)
 
         for nn in range(n_shuffles):
-            # shuffle data coherently within events:
-            bst_test_shuffled = replay.pooled_time_swap_bst(PBEs_test)
+            # shuffle data:
+            bst_test_shuffled = shuffle_func(PBEs_test)
 
             # score validation set with shuffled-data HMM
             shuffled[validation, nn] = hmm.score(bst_test_shuffled)

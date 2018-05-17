@@ -11,10 +11,6 @@ from .. import core
 from .. import utils
 from .. import version
 
-from ..utils_.decorators import deprecated
-
-# from ._epocharray import EpochArray
-
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -295,14 +291,6 @@ class SpikeTrain(ABC):
     def n_units(self):
         """(int) The number of units."""
         return
-
-    @property
-    def n_sequences(self):
-        warnings.warn("n_sequences is deprecated---use n_epochs instead", DeprecationWarning)
-        if self.isempty:
-            return 0
-        """(int) The number of sequences."""
-        return self.support.n_epochs
 
     @property
     def n_epochs(self):
@@ -671,13 +659,17 @@ class SpikeTrainArray(SpikeTrain):
 
         return out
 
+    def _copy_without_data(self):
+        """Return a copy of self, without event times."""
+        out = copy.copy(self) # shallow copy
+        out._time = None
+        out = copy.deepcopy(self) # just to be on the safe side, but at least now we are not copying the data!
+
+        return out
+
     def copy(self):
         """Returns a copy of the SpikeTrainArray."""
-        newcopy = SpikeTrainArray(empty=True)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in self.__attributes__:
-                exec("newcopy." + attr + " = self." + attr)
+        newcopy = copy.deepcopy(self)
         newcopy.loc = ItemGetter_loc(newcopy)
         newcopy.iloc = ItemGetter_iloc(newcopy)
         return newcopy
@@ -865,27 +857,20 @@ class SpikeTrainArray(SpikeTrain):
         if unit_label is None:
             unit_label = "flattened"
 
-        spiketrainarray = SpikeTrainArray(empty=True)
+        flattened = self._copy_without_data()
 
-        exclude = ["_time", "unit_ids", "unit_labels", "unit_tags"]
-        attrs = (x for x in self.__attributes__ if x not in exclude)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("spiketrainarray." + attr + " = self." + attr)
-        spiketrainarray._unit_ids = [unit_id]
-        spiketrainarray._unit_labels = [unit_label]
-        spiketrainarray._unit_tags = None
+        flattened._unit_ids = [unit_id]
+        flattened._unit_labels = [unit_label]
+        flattened._unit_tags = None
 
         alltimes = self.time[0]
         for unit in range(1,self.n_units):
             alltimes = utils.linear_merge(alltimes, self.time[unit])
 
-        spiketrainarray._time = np.array(list(alltimes), ndmin=2)
-        spiketrainarray.loc = ItemGetter_loc(spiketrainarray)
-        spiketrainarray.iloc = ItemGetter_iloc(spiketrainarray)
-        return spiketrainarray
+        flattened._time = np.array(list(alltimes), ndmin=2)
+        flattened.loc = ItemGetter_loc(flattened)
+        flattened.iloc = ItemGetter_iloc(flattened)
+        return flattened
 
     @staticmethod
     def _restrict_to_epoch_array_fast(epocharray, time, copyover=True):
@@ -1015,12 +1000,6 @@ class SpikeTrainArray(SpikeTrain):
         return BinnedSpikeTrainArray(self, ds=ds)
 
     @property
-    def time(self):
-        """Spike times in seconds."""
-        return self._time
-
-    @property
-    @deprecated
     def time(self):
         """Spike times in seconds."""
         return self._time
@@ -1266,15 +1245,26 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
         # raise NotImplementedError('workaround: cast to AnalogSignalArray, partition, and cast back to BinnedSpikeTrainArray')
 
+    def _copy_without_data(self):
+        """Returns a copy of the BinnedSpikeTrainArray, without data."""
+        out = copy.copy(self) # shallow copy
+        out._bin_centers = None
+        out._binnedSupport = None
+        out._bins = None
+        out._data = np.zeros((self.n_units,0))
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out.__renew__()
+        return out
+
+    def __renew__(self):
+        """Re-attach slicers and indexers."""
+        self.loc = ItemGetter_loc(self)
+        self.iloc = ItemGetter_iloc(self)
+
     def copy(self):
         """Returns a copy of the BinnedSpikeTrainArray."""
-        newcopy = BinnedSpikeTrainArray(empty=True)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in self.__attributes__:
-                exec("newcopy." + attr + " = self." + attr)
-        newcopy.loc = ItemGetter_loc(newcopy)
-        newcopy.iloc = ItemGetter_iloc(newcopy)
+        newcopy = copy.deepcopy(self)
+        newcopy.__renew__()
         return newcopy
 
     def __repr__(self):
@@ -1330,6 +1320,21 @@ class BinnedSpikeTrainArray(SpikeTrain):
         binnedspiketrain.iloc = ItemGetter_iloc(binnedspiketrain)
         return binnedspiketrain
 
+    def empty(self, inplace=True):
+        """Remove data (but not metadata) from BinnedSpikeTrainArray."""
+        if not inplace:
+            out = self._copy_without_data()
+            out._support = core.EpochArray(empty=True)
+            return out
+        out = self
+        out._data = np.zeros((out.n_units,0))
+        out._support = core.EpochArray(empty=True)
+        out._binnedSupport = None
+        out._bin_centers = None
+        out._bins = None
+        out.__renew__()
+        return out
+
     def __getitem__(self, idx):
         """BinnedSpikeTrainArray index access."""
         if self.isempty:
@@ -1339,18 +1344,28 @@ class BinnedSpikeTrainArray(SpikeTrain):
             # next, we need to identify all the bins that would fall within the EpochArray
 
             if idx.isempty:
-                return BinnedSpikeTrainArray(empty=True)
-            support = self.support.intersect(
-                    epoch=idx,
-                    boundaries=True
-                    ) # what if fs of slicing epoch is different?
-            if support.isempty:
-                return BinnedSpikeTrainArray(empty=True)
-            # next we need to determine the binnedSupport:
+                return self.empty(inplace=False)
 
-            raise NotImplementedError("EpochArray indexing for BinnedSpikeTrainArrays not supported yet")
+            # TODO: code this more directly:
+            asa = core.AnalogSignalArray(self)
+            asa = asa[idx]
+            if asa.isempty:
+                return self.empty(inplace=False)
+            out = BinnedSpikeTrainArray(asa[idx])
+            return out
+            # support = self.support.intersect(
+            #         epoch=idx,
+            #         boundaries=True
+            #         ) # what if fs of slicing epoch is different?
+            # if support.isempty:
+            #     # TODO: issue 229
+            #     return BinnedSpikeTrainArray(empty=True)
+            # # next we need to determine the binnedSupport:
+
+            # raise NotImplementedError("EpochArray indexing for BinnedSpikeTrainArrays not supported yet")
 
         elif isinstance(idx, int):
+            # TODO: issue 229
             binnedspiketrain = BinnedSpikeTrainArray(empty=True)
             exclude = ["_data", "_bins", "_support", "_bin_centers", "_spiketrainarray", "_binnedSupport"]
             with warnings.catch_warnings():
@@ -1380,6 +1395,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         else:  # most likely a slice
             try:
                 # have to be careful about re-indexing binnedSupport
+                # TODO: issue 229
                 binnedspiketrain = BinnedSpikeTrainArray(empty=True)
                 exclude = ["_data", "_bins", "_support", "_bin_centers", "_spiketrainarray", "_binnedSupport"]
                 with warnings.catch_warnings():
@@ -1822,6 +1838,64 @@ class BinnedSpikeTrainArray(SpikeTrain):
             newbst._binnedSupport = None
             newbst._bin_centers = None
             newbst._bins = None
+
+        newbst.loc = ItemGetter_loc(newbst)
+        newbst.iloc = ItemGetter_iloc(newbst)
+
+        return newbst
+
+    def bst_from_indices(self, idx):
+        """
+        Return a BinnedSpikeTrainArray from a list of indices.
+
+        bst : BinnedSpikeTrainArray
+        idx : list of sample (bin) numbers with shape (n_epochs, 2) INCLUSIVE
+
+        Example
+        =======
+        idx = [[10, 20]
+            [25, 50]]
+        bst_from_indices(bst, idx=idx)
+        """
+
+        idx = np.atleast_2d(idx)
+
+        newbst = copy.copy(self)
+        ds = self.ds
+        bin_centers_ = []
+        bins_ = []
+        binnedSupport_ = []
+        support_ = []
+        all_timestamps = []
+
+        n_preceding_bins = 0
+
+        for frm, to in idx:
+            idx_array = np.arange(frm, to+1).astype(int)
+            all_timestamps.append(idx_array)
+            bin_centers = self.bin_centers[idx_array]
+            bins = np.append(bin_centers - ds/2, bin_centers[-1] + ds/2)
+
+            binnedSupport = [n_preceding_bins, n_preceding_bins + len(bins)-2]
+            n_preceding_bins += len(bins)-1
+            support = core.EpochArray((bins[0], bins[-1]))
+
+            bin_centers_.append(bin_centers)
+            bins_.append(bins)
+            binnedSupport_.append(binnedSupport)
+            support_.append(support)
+
+        bin_centers = np.concatenate(bin_centers_)
+        bins = np.concatenate(bins_)
+        binnedSupport = np.array(binnedSupport_)
+        support = np.sum(support_)
+        all_timestamps = np.concatenate(all_timestamps)
+
+        newbst._bin_centers = bin_centers
+        newbst._bins = bins
+        newbst._binnedSupport = binnedSupport
+        newbst._support = support
+        newbst._data = newbst.data[:,all_timestamps]
 
         newbst.loc = ItemGetter_loc(newbst)
         newbst.iloc = ItemGetter_iloc(newbst)

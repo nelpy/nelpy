@@ -62,8 +62,8 @@ Notes:
 The IMUSensorArray class is meant to make using the IMU data easier.
 It is fundamentally still an AnalogSignalArray (hence the inheritance), but
 it should have all the specialized convenience functions built in, such as
-complementary filtering, orientation, unit-awareness, position estimation, and
-whatnot. The labels should also be set in a meaningful way.
+complementary filtering, orientation, SI unit-awareness, position estimation,
+and whatnot. The labels should also be set in a meaningful way.
 
 I think it is permissible to include a kind==['magnetometer', 'accelerometer', 'gyroscope']
 attribute, and to do specialized things depending on the type. However, for some

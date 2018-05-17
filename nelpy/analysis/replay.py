@@ -18,7 +18,7 @@ import numpy as np
 from scipy.ndimage import convolve
 from scipy import stats
 
-from ..hmmutils import PoissonHMM
+from .. import hmmutils
 from ..core import SpikeTrainArray
 from .. import auxiliary
 from ..decoding import decode1D as decode
@@ -152,7 +152,7 @@ def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle=
         PBEs_test = bst[validation]
 
         # train HMM on all training PBEs
-        hmm = PoissonHMM(n_components=num_states, random_state=0, verbose=False)
+        hmm = hmmutils.PoissonHMM(n_components=num_states, random_state=0, verbose=False)
         hmm.fit(PBEs_train)
 
         # reorder states according to transmat ordering
@@ -209,7 +209,7 @@ def score_hmm_events_no_xval(bst, training=None, validation=None, num_states=30,
     PBEs_test = bst[validation]
 
     # train HMM on all training PBEs
-    hmm = PoissonHMM(n_components=num_states, random_state=0, verbose=False)
+    hmm = hmmutils.PoissonHMM(n_components=num_states, random_state=0, verbose=False)
     hmm.fit(PBEs_train)
 
     # reorder states according to transmat ordering

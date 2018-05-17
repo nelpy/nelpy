@@ -202,7 +202,7 @@ class EpochArray:
         if isinstance(idx, EpochArray):
             if idx.isempty:  # case 0:
                 return EpochArray(empty=True)
-            return self.intersect(epoch=idx, boundaries=True)
+            return self.intersect(epoch=idx)
         else:
             try: # works for ints, lists, and slices
                 out = copy.copy(self)
@@ -572,9 +572,23 @@ class EpochArray:
         keep_epoch_ids = np.argwhere(self.durations).squeeze().tolist()
         return self[keep_epoch_ids]
 
-    def intersect(self, epoch, *, boundaries=True, meta=None):
+    def intersect(self, epoch, *, boundaries=True):
+        """Returns intersection (overlap) between current EpochArray (self) and 
+           other epoch array ('epoch').
+        """
+
+        this = copy.deepcopy(self)
+        new_epochs = []
+        for epa in this:
+            for epb in epoch:
+                new_epoch = self._intersect(epa,epb, boundaries=boundaries)
+                if not new_epoch.isempty:
+                    new_epochs.append([new_epoch.start, new_epoch.stop])
+
+        return EpochArray(new_epochs)
+
+    def _intersect(self, epocha, epochb, *, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of epoch arrays.
-        Sampling rates can be different.
 
         TODO: verify if this requires a merged EpochArray to work properly?
 
@@ -590,14 +604,14 @@ class EpochArray:
         -------
         intersect_epochs : nelpy.EpochArray
         """
-        if self.isempty or epoch.isempty:
+        if epocha.isempty or epochb.isempty:
             warnings.warn('epoch intersection is empty')
             return EpochArray(empty=True)
 
         new_starts = []
         new_stops = []
-        epoch_a = self.copy().merge()
-        epoch_b = epoch.copy().merge()
+        epoch_a = epocha.copy().merge()
+        epoch_b = epochb.copy().merge()
 
         for aa in epoch_a.time:
             for bb in epoch_b.time:
@@ -695,7 +709,7 @@ class EpochArray:
                     new_stops.append(next_stop)
                     new_starts.append(newepocharray.starts[i + 1])
 
-            new_stops.append(newepocharray.stops[-1])
+            new_stops.append(max(newepocharray.stops[-1], next_stop))
 
             new_starts = np.array(new_starts)
             new_stops = np.array(new_stops)
@@ -872,8 +886,10 @@ class EpochArray:
         #     newepocharray = newepocharray.merge()
         return newepocharray
 
-    def contains(self, value):
+    def __contains__(self, value):
         """Checks whether value is in any epoch.
+
+        #TODO: add support for when value is an EpochArray (could be easy with intersection)
 
         Parameters
         ----------

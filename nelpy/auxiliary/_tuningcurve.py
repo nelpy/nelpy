@@ -559,13 +559,24 @@ class TuningCurve2D:
     def __len__(self):
         return self.n_units
 
-    def smooth(self, *, sigma=None, bw=None, inplace=False):
-        """Smooths the tuning curve
+    def smooth(self, *, sigma=None, bw=None, inplace=False, mode=None, cval=None):
+        """Smooths the tuning curve with a Gaussian kernel.
+
+        mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+            The mode parameter determines how the array borders are handled,
+            where cval is the value when mode is equal to ‘constant’. Default is
+            ‘reflect’
+        cval : scalar, optional
+            Value to fill past edges of input if mode is ‘constant’. Default is 0.0
         """
         if sigma is None:
             sigma = 0.1 # in units of extern
         if bw is None:
             bw = 4
+        if mode is None:
+            mode = 'reflect'
+        if cval is None:
+            cval = 0.0
 
         ds_x = (self.xbins[-1] - self.xbins[0])/self.n_xbins
         ds_y = (self.ybins[-1] - self.ybins[0])/self.n_ybins
@@ -579,9 +590,9 @@ class TuningCurve2D:
 
         if self.mask is None:
             if self.n_units > 1:
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=bw)
+                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
             else:
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=bw)
+                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
         else: # we have a mask!
             # smooth, dealing properly with NANs
             # NB! see https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
@@ -593,13 +604,13 @@ class TuningCurve2D:
             W[masked_ratemap!=masked_ratemap]=0
 
             if self.n_units > 1:
-                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(0, sigma_x, sigma_y), truncate=bw)
-                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(0, sigma_x, sigma_y), truncate=bw)
+                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(0, sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
+                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(0, sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
                 Z=VV/WW
                 out._ratemap = Z*self.mask
             else:
-                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(sigma_x, sigma_y), truncate=bw)
-                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(sigma_x, sigma_y), truncate=bw)
+                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
+                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
                 Z=VV/WW
                 out._ratemap = Z*self.mask
 
@@ -1231,13 +1242,24 @@ class TuningCurve1D:
     def __len__(self):
         return self.n_units
 
-    def smooth(self, *, sigma=None, bw=None, inplace=False):
-        """Smooths the tuning curve
+    def smooth(self, *, sigma=None, bw=None, inplace=False, mode=None, cval=None):
+        """Smooths the tuning curve with a Gaussian kernel.
+
+        mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+            The mode parameter determines how the array borders are handled,
+            where cval is the value when mode is equal to ‘constant’. Default is
+            ‘reflect’
+        cval : scalar, optional
+            Value to fill past edges of input if mode is ‘constant’. Default is 0.0
         """
         if sigma is None:
             sigma = 0.1 # in units of extern
         if bw is None:
             bw = 4
+        if mode is None:
+            mode = 'reflect'
+        if cval is None:
+            cval = 0.0
 
         ds = (self.bins[-1] - self.bins[0])/self.n_bins
         sigma = sigma / ds
@@ -1248,9 +1270,9 @@ class TuningCurve1D:
             out = self
 
         if self.n_units > 1:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma), truncate=bw)
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma), truncate=bw, mode=mode, cval=cval)
         else:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=sigma, truncate=bw)
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=sigma, truncate=bw, mode=mode, cval=cval)
 
         return out
 

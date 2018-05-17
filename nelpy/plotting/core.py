@@ -658,15 +658,36 @@ def occupancy():
     """Docstring goes here. TODO: complete me."""
     raise NotImplementedError("occupancy() not implemented yet")
 
-def overviewstrip():
+def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None):
     """Plot an epoch array similar to vscode scrollbar, to show gaps in e.g.
     matshow plots. TODO: complete me.
 
     This can also be nice, for example, to implement the Kloosterman 2012
     online vs offline strips above several of the plots.
-
     """
-    raise NotImplementedError("overviewstripplot() not implemented yet")
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+    if ax is None:
+        ax = plt.gca()
+
+    divider = make_axes_locatable(ax)
+    ax_ = divider.append_axes("top", size=0.2, pad=0.05)
+
+    for epoch in epochs:
+        ax_.plot([epoch.start, epoch.stop], [1,1], lw=lw, solid_capstyle=solid_capstyle)
+
+    if label is not None:
+        ax_.set_yticks([1])
+        ax_.set_yticklabels([label])
+    else:
+        ax_.set_yticks([])
+
+    utils.no_yticks(ax_)
+    utils.clear_left(ax_)
+    utils.clear_right(ax_)
+    utils.clear_top_bottom(ax_)
+
+    ax_.set_xlim(ax.get_xlim())
 
 def rastercountplot(spiketrain, nbins=50, **kwargs):
     fig = plt.figure(figsize=(14, 6))
@@ -852,12 +873,28 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
             "plotting {} not yet supported".format(str(type(data))))
     return ax
 
-def epochplot(epochs, *, ax=None, height=None, fc='0.5', ec='0.5',
+def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
                       alpha=0.5, hatch='////', label=None, hc=None,**kwargs):
     """Docstring goes here.
     """
     if ax is None:
         ax = plt.gca()
+
+    # do fixed-value-on-epoch plot if data is not None
+    if data is not None:
+        if epochs.n_epochs != len(data):
+            raise ValueError("epocharray and data must have the same length")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for epoch, val in zip(epochs, data):
+                ax.plot(
+                    [epoch.start, epoch.stop],
+                    [val, val],
+                    '-o',
+                    **kwargs)
+        return ax
+
     ymin, ymax = ax.get_ylim()
     xmin, xmax = ax.get_xlim()
     if height is None:

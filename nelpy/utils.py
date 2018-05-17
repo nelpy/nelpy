@@ -9,7 +9,8 @@ __all__ = ['spatial_information',
            'linear_merge',
            'PrettyDuration',
            'get_contiguous_segments',
-           'get_events_boundaries']
+           'get_events_boundaries',
+           'get_threshold_crossing_epochs']
 
 import numpy as np
 import warnings
@@ -931,6 +932,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
     """Docstring goes here
 
     TODO: this is not yet epoch-aware!
+    UPDATE: this is actually epoch-aware by now!
 
     sigma = 0 means no smoothing (default 4 ms)
     """
@@ -1142,6 +1144,9 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
     out = copy.deepcopy(asa)
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
 
+    # ensure that datatype is float
+    out._ydata = out.ydata.astype(float)
+
     if asa.n_signals == 2:
         out._ydata = out._ydata[[0],:]
 
@@ -1173,6 +1178,60 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
 
     return out
 
+def get_threshold_crossing_epochs(asa, t1=None, t2=None, mode='above'):
+    """Return epochs where a signal crosses a compound threshold specified by t1
+    and t2.
+
+    Parameters
+    ----------
+    asa : AnalogSignalArray
+        AnalogSignalArray containing a single channel
+    t1 : float, optional
+        Primary threshold. Minimum signal value that has to be reached /
+        exceeded during an event. Default is 3 standard deviations above signal
+        mean.
+    t2 : float, optional
+        Secondary threshold. Signal value that defines the event boundaries.
+        Default is signal mean.
+    mode : string, optional
+        Mode of operation. One of ['above', 'below']. If 'above', then return
+        epochs where the signal exceeds the compound threshold, and if 'below',
+        then return epochs where the signal falls below the compound threshold.
+        Default is 'above'.
+
+    Returns
+    -------
+    epochs : EpochArray
+        EpochArray with all the epochs where the signal satisfied the criteria.
+    """
+
+    if asa.n_signals > 1:
+        raise TypeError("multidimensional AnalogSignalArrays not supported!")
+    x = asa.ydata.squeeze()
+
+    if t1 is None: # by default, threshold is 3 SDs above mean of x
+        t1 = np.mean(x) + 3*np.std(x)
+
+    if t2 is None: # by default, revert back to mean of x
+        t2 = np.mean(x)
+
+    # compute periods where signal exceeds compound threshold
+    epoch_bounds, _, _ = get_events_boundaries(
+        x=x,
+        PrimaryThreshold=t1,
+        SecondaryThreshold=t2,
+        mode=mode
+    )
+    # convert bounds to time in seconds
+    epoch_bounds = asa.time[epoch_bounds]
+    if len(epoch_bounds) == 0:
+        return core.EpochArray(empty=True)
+    # add 1/fs to stops for open interval
+    epoch_bounds[:,1] += 1/asa.fs
+    # create EpochArray with threshould exceeding bounds
+    epochs = core.EpochArray(epoch_bounds)
+    return epochs
+
 def get_run_epochs(speed, v1=10, v2=8):
     """Return epochs where animal is running at least as fast as
     specified by v1 and v2.
@@ -1186,26 +1245,15 @@ def get_run_epochs(speed, v1=10, v2=8):
         exceeded during an event. Default is 10 [units/sec]
     v2 : float, optional
         Speed that defines the event boundaries. Default is 8 [units/sec]
+
     Returns
     -------
-    out : EpochArray
+    run_epochs : EpochArray
         EpochArray with all the epochs where speed satisfied the criteria.
     """
-    # compute periods of activity (sustained running of > 10 cm /s and peak velocity of at least 15 cm/s)
-    RUN_bounds, _, _ = get_events_boundaries(
-        x=speed.ydata,
-        PrimaryThreshold=v1,   # cm/s
-        SecondaryThreshold=v2  # cm/s
-    )
 
-    # convert bounds to time in seconds
-    RUN_bounds = speed.time[RUN_bounds]
-    if len(RUN_bounds) == 0:
-        return core.EpochArray(empty=True)
-    # add 1/fs to stops for open interval
-    RUN_bounds[:,1] += 1/speed.fs
-    # create EpochArray with running bounds
-    run_epochs = core.EpochArray(RUN_bounds)
+    run_epochs = get_threshold_crossing_epochs(asa=speed, t1=v1, t2=v2, mode='above')
+
     return run_epochs
 
 def get_inactive_epochs(speed, v1=5, v2=7):
@@ -1223,25 +1271,10 @@ def get_inactive_epochs(speed, v1=5, v2=7):
         Speed that defines the event boundaries. Default is 8 [units/sec]
     Returns
     -------
-    out : EpochArray
+    inactive_epochs : EpochArray
         EpochArray with all the epochs where speed satisfied the criteria.
     """
-    # compute periods of inactivity (< 5 cm/s)
-    INACTIVE_bounds, _, _ = get_events_boundaries(
-        x=speed.ydata,
-        PrimaryThreshold=v1,   # cm/s
-        SecondaryThreshold=v2, # cm/s
-        mode='below'
-    )
-
-    # convert bounds to time in seconds
-    INACTIVE_bounds = speed.time[INACTIVE_bounds]
-    if len(INACTIVE_bounds) == 0:
-        return core.EpochArray(empty=True)
-    # add 1/fs to stops for open interval
-    INACTIVE_bounds[:,1] += 1/speed.fs
-    # create EpochArray with inactive bounds
-    inactive_epochs = core.EpochArray(INACTIVE_bounds)
+    inactive_epochs = get_threshold_crossing_epochs(asa=speed, t1=v1, t2=v2, mode='below')
     return inactive_epochs
 
 def spiketrain_union(st1, st2):

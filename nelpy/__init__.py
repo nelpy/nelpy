@@ -17,6 +17,7 @@ from . import filtering
 from . import plotting
 from . import utils
 from . import utils_
+from .utils_ import metrics
 # from . import io
 
 from . version import __version__
