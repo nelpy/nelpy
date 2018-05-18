@@ -435,6 +435,29 @@ class AnalogSignalArray:
         indices = np.vstack((tmp[:-1], tmp[1:])).T
         return indices
 
+    def dxdt(self, rectify=False):
+        """Returns the time derivative of each signal in the AnalogSignalArray.
+
+        Parameters
+        ----------
+        rectify : boolean, optional
+            If True, the absolute value of the time derivative will be returned.
+            Default is False.
+
+        Returns
+        -------
+        dxdt : AnalogSignalArray
+            Time derivative of each signal in the AnalogSignalArray.
+
+        Note
+        ----
+        Central differences are used here, and it is assumed that the signals
+        are sampled uniformly. If the signals are not uniformly sampled, it is
+        recommended to resample the signal before computing the time derivative.
+        """
+        dxdt = utils.dxdt_asa(self, rectify=rectify)
+        return dxdt
+
     @property
     def signals(self):
         """Returns a list of AnalogSignalArrays, each array containing

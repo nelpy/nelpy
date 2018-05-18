@@ -1102,6 +1102,81 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
 
     return out
 
+def dxdt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
+    """Numerical differentiation of a regularly sampled AnalogSignalArray.
+
+    Optionally also smooths result with a Gaussian kernel.
+
+    Smoothing is applied in time, and the same smoothing is applied to each
+    signal in the AnalogSignalArray.
+
+    Differentiation, (and if requested, smoothing) is applied within each epoch.
+
+    Parameters
+    ----------
+    asa : AnalogSignalArray
+    fs : float, optional
+        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+        be obtained from asa.fs
+    smooth : bool, optional
+        If true, result will be smoothed. Default is False
+    rectify : bool, optional
+        If True, absolute value of derivative is computed. Default is True.
+    sigma : float, optional
+        Standard deviation of Gaussian kernel, in seconds. Default is 0.05
+        (50 ms).
+    bw : float, optional
+        Bandwidth outside of which the filter value will be zero. Default is 4.0
+
+    Returns
+    -------
+    out : AnalogSignalArray
+        An AnalogSignalArray with derivative data (in units per second) is returned.
+
+    Notes
+    -----
+    Central differences are used here.
+    """
+
+    if fs is None:
+        fs = asa.fs
+    if fs is None:
+        raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    if sigma is None:
+        sigma = 0.05 # 50 ms default
+
+    out = copy.deepcopy(asa)
+    cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
+
+    # ensure that datatype is float
+    out._ydata = out.ydata.astype(float)
+
+    # now obtain the derivative for each epoch separately
+    for idx in range(asa.n_epochs):
+        # if 1D:
+        if asa.n_signals == 1:
+            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+                # only single sample
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+            else:
+                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+        else:
+            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+                # only single sample
+                out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = 0
+            else:
+                out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+
+    out._ydata = out._ydata * fs
+
+    if rectify:
+        out._ydata = np.abs(out._ydata)
+
+    if smooth:
+        out = gaussian_filter(out, fs=fs, sigma=sigma, bw=bw)
+
+    return out
+
 def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
     """Numerical differentiation of a regularly sampled AnalogSignalArray.
 
@@ -1133,6 +1208,8 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
     out : AnalogSignalArray
         An AnalogSignalArray with derivative data (in units per second) is returned.
     """
+
+    raise DeprecationWarning('use dxdt_asa instead!')
 
     if fs is None:
         fs = asa.fs
