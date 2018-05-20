@@ -8,6 +8,7 @@ __all__ = ['spatial_information',
            'is_sorted',
            'linear_merge',
            'PrettyDuration',
+           'ddt_asa',
            'get_contiguous_segments',
            'get_events_boundaries',
            'get_threshold_crossing_epochs']
@@ -223,11 +224,11 @@ def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False):
                 chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
                 rel_st_idx = int(buff_st_idx - chk_st_idx)
                 rel_nd_idx = int(buff_nd_idx - chk_st_idx)
-                this_y_chk = sosfiltfilt(sos, obj._ydata_rowsig[:,chk_st_idx:chk_nd_idx])
-                out._ydata[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
+                this_y_chk = sosfiltfilt(sos, obj._data_rowsig[:,chk_st_idx:chk_nd_idx])
+                out._data[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
 
     downsampled = out.simplify(ds=1/fs_out)
-    out._ydata = downsampled._ydata
+    out._data = downsampled._data
     out._time = downsampled.time
     out._fs = fs_out
     return out
@@ -271,7 +272,7 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
         mua = core.AnalogSignalArray([], empty=True)
         mua._support = mua_binned.support
         mua._time = mua_binned.bin_centers
-        mua._ydata = mua_binned.data
+        mua._data = mua_binned.data
     else:
         mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
 
@@ -434,7 +435,7 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
 
     # determine MUA event bounds:
     mua_bounds_idx, maxes, _ = get_events_boundaries(
-        x = mua.ydata,
+        x = mua.data,
         PrimaryThreshold = PrimaryThreshold,
         SecondaryThreshold = SecondaryThreshold,
         minThresholdLength = minThresholdLength,
@@ -624,7 +625,7 @@ def get_direction(asa, *, sigma=None):
     assert asa.n_signals == 1, "1D AnalogSignalArray expected!"
 
     direction = dxdt_AnalogSignalArray(asa.smooth(sigma=sigma),
-                                       rectify=False).ydata
+                                       rectify=False).data
     direction[direction>=0] = 1
     direction[direction<0] = -1
     direction = direction.squeeze()
@@ -968,7 +969,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
         # for segment in data:
         for idx in range(data.n_epochs):
             # print('hilberting epoch {}/{}'.format(idx+1, data.n_epochs))
-            segment_data = data._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]]
+            segment_data = data._data[:,cum_lengths[idx]:cum_lengths[idx+1]]
             n_signals, n_samples = segment_data.shape
             assert n_signals == 1, 'only 1D signals supported!'
             # Compute number of samples to compute fast FFTs:
@@ -986,7 +987,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
                 EnvelopeSmoothingSD = sigma*fs
                 smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
                 envelope = smoothed_envelope
-            newasa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.atleast_2d(envelope)
+            newasa._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.atleast_2d(envelope)
         return newasa
     return envelope
 
@@ -1092,7 +1093,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
     if isinstance(out, core.AnalogSignalArray):
         # now smooth each epoch separately
         for idx in range(asa.n_epochs):
-            out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+            out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
     elif isinstance(out, core.BinnedSpikeTrainArray):
         out._data = out._data.astype(float)
         # now smooth each epoch separately
@@ -1102,7 +1103,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
 
     return out
 
-def dxdt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
+def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
     """Numerical differentiation of a regularly sampled AnalogSignalArray.
 
     Optionally also smooths result with a Gaussian kernel.
@@ -1149,7 +1150,8 @@ def dxdt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
 
     # ensure that datatype is float
-    out._ydata = out.ydata.astype(float)
+    # TODO: this will break complex data
+    out._data = out.data.astype(float)
 
     # now obtain the derivative for each epoch separately
     for idx in range(asa.n_epochs):
@@ -1157,20 +1159,20 @@ def dxdt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
         if asa.n_signals == 1:
             if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
                 # only single sample
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
             else:
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
         else:
             if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
                 # only single sample
-                out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = 0
             else:
-                out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
 
-    out._ydata = out._ydata * fs
+    out._data = out._data * fs
 
     if rectify:
-        out._ydata = np.abs(out._ydata)
+        out._data = np.abs(out._data)
 
     if smooth:
         out = gaussian_filter(out, fs=fs, sigma=sigma, bw=bw)
@@ -1222,10 +1224,10 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
 
     # ensure that datatype is float
-    out._ydata = out.ydata.astype(float)
+    out._data = out.data.astype(float)
 
     if asa.n_signals == 2:
-        out._ydata = out._ydata[[0],:]
+        out._data = out._data[[0],:]
 
     # now obtain the derivative for each epoch separately
     for idx in range(asa.n_epochs):
@@ -1233,22 +1235,22 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
         if asa.n_signals == 1:
             if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
                 # only single sample
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
             else:
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
         elif asa.n_signals == 2:
             if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
                 # only single sample
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
             else:
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
         else:
             raise TypeError("more than 2D not currently supported!")
 
-    out._ydata = out._ydata * fs
+    out._data = out._data * fs
 
     if rectify:
-        out._ydata = np.abs(out._ydata)
+        out._data = np.abs(out._data)
 
     if smooth:
         out = gaussian_filter(out, fs=fs, sigma=sigma, bw=bw)
@@ -1284,7 +1286,7 @@ def get_threshold_crossing_epochs(asa, t1=None, t2=None, mode='above'):
 
     if asa.n_signals > 1:
         raise TypeError("multidimensional AnalogSignalArrays not supported!")
-    x = asa.ydata.squeeze()
+    x = asa.data.squeeze()
 
     if t1 is None: # by default, threshold is 3 SDs above mean of x
         t1 = np.mean(x) + 3*np.std(x)
@@ -1463,7 +1465,7 @@ def collapse_time(obj, gap=0):
 
     if isinstance(obj, core.AnalogSignalArray):
         new_obj = core.AnalogSignalArray(empty=True)
-        new_obj._ydata = obj._ydata
+        new_obj._data = obj._data
 
         durations = obj.support.durations
         starts = np.insert(np.cumsum(durations + gap),0,0)[:-1]

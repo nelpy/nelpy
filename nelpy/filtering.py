@@ -166,6 +166,6 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
                 chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
                 rel_st_idx = int(buff_st_idx - chk_st_idx)
                 rel_nd_idx = int(buff_nd_idx - chk_st_idx)
-                this_y_chk = sosfiltfilt(sos, out._ydata_rowsig[:,chk_st_idx:chk_nd_idx])
-                out._ydata[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
+                this_y_chk = sosfiltfilt(sos, out._data_rowsig[:,chk_st_idx:chk_nd_idx])
+                out._data[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
     return out

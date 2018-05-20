@@ -8,7 +8,7 @@ class IMUSensorArray(_analogsignalarray.AnalogSignalArray):
 
     __attributes__ = [] # IMUSensorArray-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
-    def __init__(self, ydata=[], *, timestamps=None, fs=None,
+    def __init__(self,data=[], *, timestamps=None, fs=None,
                  step=None, merge_sample_gap=0, support=None,
                  in_memory=True, labels=None, empty=False):
 
@@ -20,11 +20,11 @@ class IMUSensorArray(_analogsignalarray.AnalogSignalArray):
             self._support = _epocharray.EpochArray(empty=True)
             return
 
-        if isinstance(ydata, _analogsignalarray.AnalogSignalArray):
-            self.__dict__ = copy.deepcopy(ydata.__dict__)
+        if isinstance(data, _analogsignalarray.AnalogSignalArray):
+            self.__dict__ = copy.deepcopy(data.__dict__)
             self.__renew__()
         else:
-            kwargs = {"ydata": ydata,
+            kwargs = {"data":data,
                     "timestamps": timestamps,
                     "fs": fs,
                     "step": step,

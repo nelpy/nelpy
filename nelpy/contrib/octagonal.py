@@ -56,10 +56,10 @@ def excise_disk(pos, midpoint, radius, radius_pct=None):
     if radius_pct is None:
         radius_pct = 0.65
 
-    dist_to_midpoint = np.sqrt(((pos.ydata.T - midpoint)**2).sum(axis=1))
+    dist_to_midpoint = np.sqrt(((pos.data.T - midpoint)**2).sum(axis=1))
     indisk_idx = np.argwhere(dist_to_midpoint > radius_pct*radius).squeeze()
 
-    local_pos = _position.PositionArray(pos.ydata[:,indisk_idx], timestamps=pos.time[indisk_idx])
+    local_pos = _position.PositionArray(pos.data[:,indisk_idx], timestamps=pos.time[indisk_idx])
 
     return local_pos
 
@@ -67,7 +67,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
 
     __attributes__ = ['_vertices'] # PositionArray-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
-    def __init__(self, ydata=[], *, timestamps=None, fs=None,
+    def __init__(self,data=[], *, timestamps=None, fs=None,
                  step=None, merge_sample_gap=0, support=None,
                  in_memory=True, labels=None, empty=False):
 
@@ -80,11 +80,11 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
             return
 
         # cast an AnalogSignalArray to a PositionArray:
-        if isinstance(ydata, _analogsignalarray.AnalogSignalArray):
-            self.__dict__ = copy.deepcopy(ydata.__dict__)
+        if isinstance(data, _analogsignalarray.AnalogSignalArray):
+            self.__dict__ = copy.deepcopy(data.__dict__)
             self.__renew__()
         else:
-            kwargs = {"ydata": ydata,
+            kwargs = {"data":data,
                     "timestamps": timestamps,
                     "fs": fs,
                     "step": step,
@@ -135,20 +135,20 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
     @property
     def x(self):
         """return x-values, as numpy array."""
-        return self.ydata[0,:]
+        return self.data[0,:]
 
     @property
     def y(self):
         """return y-values, as numpy array."""
         if self.is_2d:
-            return self.ydata[1,:]
+            return self.data[1,:]
         raise ValueError("OctagonalMazeTrajectory is not 2 dimensional, so y-values are undefined!")
 
     @property
     def path_length(self):
         """Return the path length along the trajectory."""
         raise NotImplementedError
-        lengths = np.sqrt(np.sum(np.diff(self._ydata_colsig, axis=0)**2, axis=1))
+        lengths = np.sqrt(np.sum(np.diff(self._data_colsig, axis=0)**2, axis=1))
         total_length = np.sum(lengths)
         return total_length
 
@@ -237,7 +237,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         return arr % self.track_length
 
     def _compute_segment_assignments(self):
-        segment_assignments = self._get_closest_segments(self.ydata.T, self.segments)
+        segment_assignments = self._get_closest_segments(self.data.T, self.segments)
         self._segment_assignments = segment_assignments
 
     def _compute_segments(self):
@@ -317,7 +317,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         fig, ax = plt.subplots()
 
         if show_points:
-            x, y = self.ydata
+            x, y = self.data
             plt.plot(x, y, '.', color='0.3', markersize=1)
         else:
             xmin, ymin = self.min()
@@ -392,7 +392,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         # TODO: warning not yet issued on ties
 
         if isinstance(pts, _analogsignalarray.AnalogSignalArray):
-            pts = pts.ydata.T
+            pts = pts.data.T
 
         n_pts = len(pts)
         n_segments = len(segments)
@@ -426,7 +426,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         """
 
         if isinstance(points, _analogsignalarray.AnalogSignalArray):
-            pts = points.ydata.T
+            pts = points.data.T
         else:
             pts = points
 
@@ -462,7 +462,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         if isinstance(points, _analogsignalarray.AnalogSignalArray):
             from copy import deepcopy
             out = deepcopy(points)
-            out._ydata = idealized.T
+            out._data = idealized.T
             idealized = out
 
         return idealized
@@ -471,7 +471,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         """transform points in the linearized space to points in the idealized (segment-bound) space."""
 
         if isinstance(points, _analogsignalarray.AnalogSignalArray):
-            pts = points.ydata.T.squeeze()
+            pts = points.data.T.squeeze()
         else:
             pts = points.squeeze()
 
@@ -499,7 +499,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
     def linear_to_ideal(self, inplace=False):
         new_coords = self._linear_to_ideal(self.linearized, self.segments)
         out = copy.deepcopy(self)
-        out._ydata = new_coords.T
+        out._data = new_coords.T
         out._support = self.linearized.support
 
         if inplace:
@@ -511,7 +511,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         """transform points in the idealized (segment-based) space to points in the linearized space."""
 
         if isinstance(points, _analogsignalarray.AnalogSignalArray):
-            pts = points.ydata.T
+            pts = points.data.T
         else:
             pts = points
 
@@ -530,7 +530,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
 
         if isinstance(points, _analogsignalarray.AnalogSignalArray):
             out = copy.deepcopy(points)
-            out._ydata = np.atleast_2d(linearized)
+            out._data = np.atleast_2d(linearized)
             linearized = out
 
         return linearized
@@ -582,11 +582,11 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
                 'sigma' : sigma,
                 'bw' : bw}
         out = copy.deepcopy(self)
-        out._ydata = np.atleast_2d(out._unwrap(out.ydata.squeeze()))
+        out._data = np.atleast_2d(out._unwrap(out.data.squeeze()))
         out = utils.gaussian_filter(out, **kwargs)
-        out._ydata = np.atleast_2d(out._wrap(out.ydata.squeeze()))
+        out._data = np.atleast_2d(out._wrap(out.data.squeeze()))
         if inplace:
-            self._ydata = out._ydata
+            self._data = out._data
         out.__renew__()
         self.__renew__()
 
@@ -594,16 +594,16 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         #         'fs' : fs,
         #         'sigma' : sigma,
         #         'bw' : bw}
-        # ydata = copy.deepcopy(self.ydata)
-        # self._ydata = np.atleast_2d(self._unwrap(self.ydata.squeeze()))
+        #data = copy.deepcopy(self.data)
+        # self._data = np.atleast_2d(self._unwrap(self.data.squeeze()))
         # out = utils.gaussian_filter(self, **kwargs)
-        # out._ydata = np.atleast_2d(self._wrap(out.ydata.squeeze()))
+        # out._data = np.atleast_2d(self._wrap(out.data.squeeze()))
         # out.__renew__()
 
         # if inplace:
-        #     self._ydata = out._ydata
+        #     self._data = out._data
         # else:
-        #     self._ydata = ydata
+        #     self._data =data
         # self.__renew__()
 
         return out

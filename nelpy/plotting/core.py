@@ -198,7 +198,7 @@ def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
     TODO: Here we have to be careful: AnalogSignalArray is not guaranteed
           to have a working / accurate asa.fs parameter :/
 
-          Also, we should probably collapse all the samples, (as ydata
+          Also, we should probably collapse all the samples, (asdata
           should be already) and then assume a fixed sampling rate.
 
     TODO: Should we speed up FFTs by zero padding, or is this done
@@ -253,7 +253,7 @@ def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
         if data.n_signals > 1:
             raise NotImplementedError("more than one signal is not yet supported for psdplot!")
         else:
-            data = data.ydata.squeeze()
+            data = data.data.squeeze()
     else:
         raise NotImplementedError("datatype {} not yet supported by psdplot!".format(str(type(data))))
 
@@ -481,7 +481,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                 for segment in npl_obj:
                     if color is not None:
                         ax.plot(segment._time,
-                                segment._ydata_colsig,
+                                segment._data_colsig,
                                 color=color,
                                 mec=mec,
                                 markerfacecolor=markerfacecolor,
@@ -489,7 +489,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                 )
                     else:
                         ax.plot(segment._time,
-                                segment._ydata_colsig,
+                                segment._data_colsig,
                                 # color=colors[ii],
                                 mec=mec,
                                 markerfacecolor=markerfacecolor,
@@ -498,7 +498,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
             else: # there are labels
                 if npl_obj.n_signals > 1:
                     for ii, segment in enumerate(npl_obj):
-                        for signal, label in zip(segment._ydata_rowsig, npl_obj.labels):
+                        for signal, label in zip(segment._data_rowsig, npl_obj.labels):
                             if color is not None:
                                 ax.plot(segment._time,
                                         signal,
@@ -525,7 +525,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                             label = npl_obj.labels
                         if color is not None:
                             ax.plot(segment._time,
-                                    segment._ydata_colsig,
+                                    segment._data_colsig,
                                     color=color,
                                     mec=mec,
                                     markerfacecolor=markerfacecolor,
@@ -534,7 +534,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                     )
                         else:
                             ax.plot(segment._time,
-                                    segment._ydata_colsig,
+                                    segment._data_colsig,
                                     # color=color,
                                     mec=mec,
                                     markerfacecolor=markerfacecolor,
@@ -591,16 +591,16 @@ def plot2d(npl_obj, data=None, *, ax=None, mew=None, color=None,
             warnings.simplefilter("ignore")
             for segment in npl_obj:
                 if color is not None:
-                    ax.plot(segment[:,0]._ydata_colsig,
-                            segment[:,1]._ydata_colsig,
+                    ax.plot(segment[:,0]._data_colsig,
+                            segment[:,1]._data_colsig,
                             color=color,
                             mec=mec,
                             markerfacecolor='w',
                             **kwargs
                             )
                 else:
-                    ax.plot(segment[:,0]._ydata_colsig,
-                            segment[:,1]._ydata_colsig,
+                    ax.plot(segment[:,0]._data_colsig,
+                            segment[:,1]._data_colsig,
                             # color=color,
                             mec=mec,
                             markerfacecolor='w',

@@ -1320,7 +1320,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
         binnedspiketrain.iloc = ItemGetter_iloc(binnedspiketrain)
         return binnedspiketrain
 
-    def empty(self, inplace=True):
+    def empty(self, inplace=False):
         """Remove data (but not metadata) from BinnedSpikeTrainArray."""
         if not inplace:
             out = self._copy_without_data()
@@ -1495,7 +1495,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
 
     @property
     def data(self):
-        """(np.array) The spike counts in all the bins.
+        """(np.array) Spike counts in all bins, with shape (n_units, n_bins).
         See also BinnedSpikeTrain.centers
         """
         return self._data

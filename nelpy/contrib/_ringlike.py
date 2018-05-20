@@ -17,7 +17,7 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
 
     __attributes__ = ['_track_length', '_is_wrapped'] # RinglikeTrajectory-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
-    def __init__(self, ydata=[], *, timestamps=None, fs=None, step=None,
+    def __init__(self,data=[], *, timestamps=None, fs=None, step=None,
                  merge_sample_gap=0, support=None, in_memory=True, labels=None,
                  track_length=None, empty=False):
 
@@ -30,15 +30,15 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
             return
 
         # cast an AnalogSignalArray to a RinglikeTrajectory:
-        if isinstance(ydata, _analogsignalarray.AnalogSignalArray):
-            assert ydata.n_signals == 1, \
+        if isinstance(data, _analogsignalarray.AnalogSignalArray):
+            assertdata.n_signals == 1, \
                 "only 1D AnalogSignalArrays can be cast to RinglikeTrajectories!"
-            self.__dict__ = copy.deepcopy(ydata.__dict__)
+            self.__dict__ = copy.deepcopy(data.__dict__)
             self._track_length = None
             self._is_wrapped = None
             self.__renew__()
         else:
-            kwargs = {"ydata": ydata,
+            kwargs = {"data":data,
                     "timestamps": timestamps,
                     "fs": fs,
                     "step": step,
@@ -111,13 +111,13 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
 
     def wrap(self):
         """Wrap trajectory around ring."""
-        self._ydata = np.atleast_2d(self._wrap(self._ydata.squeeze()))
+        self._data = np.atleast_2d(self._wrap(self._data.squeeze()))
         self._is_wrapped = True
         # self._interp = None
 
     def unwrap(self):
         """Unwrap trajectory to winding distance."""
-        self._ydata = np.atleast_2d(self._unwrap(self._ydata.squeeze()))
+        self._data = np.atleast_2d(self._unwrap(self._data.squeeze()))
         self._is_wrapped = False
         # self._interp = None
 
@@ -126,7 +126,7 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
         is_wrapped = self.is_wrapped
         if not is_wrapped:
             self.wrap()
-        lin = copy.deepcopy(self.ydata.squeeze())
+        lin = copy.deepcopy(self.data.squeeze())
         wraptimes = []
         for ii in range(1, len(lin)):
             if lin[ii] - lin[ii-1] >= self.track_length/2:
@@ -221,7 +221,7 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
             axis = -1
 
         time = self.time
-        yvals = self._unwrap(self._ydata_rowsig)
+        yvals = self._unwrap(self._data_rowsig)
         lengths = self.lengths
         empty_epoch_ids = np.argwhere(lengths==0).squeeze().tolist()
         first_timestamps_per_epoch_idx = np.insert(np.cumsum(lengths[:-1]),0,0)
@@ -266,13 +266,13 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
                 bounds_error=False, fill_value=np.nan, assume_sorted=None,
                 recalculate=False, store_interp=True, n_points=None,
                 split_by_epoch=False):
-        """returns a ydata_like array at requested points.
+        """returns adata_like array at requested points.
 
         Parameters
         ----------
         where : array_like or tuple, optional
             array corresponding to np where condition
-            e.g., where=(ydata[1,:]>5) or tuple where=(speed>5,tspeed)
+            e.g., where=(data[1,:]>5) or tuple where=(speed>5,tspeed)
         at : array_like, optional
             Array of oints to evaluate array at. If none given, use
             self.time together with 'where' if applicable.
@@ -285,7 +285,7 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
         -------
         out : (array, array)
             namedtuple tuple (xvals, yvals) of arrays, where xvals is an
-            array of time points for which (interpolated) ydata are
+            array of time points for which (interpolated)data are
             returned.
         """
 
@@ -297,7 +297,7 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
         XYArray = namedtuple('XYArray', ['xvals', 'yvals'])
 
         if at is None and where is None and split_by_epoch is False and n_points is None:
-            xyarray = XYArray(self.time, self._ydata_rowsig.squeeze())
+            xyarray = XYArray(self.time, self._data_rowsig.squeeze())
             return xyarray
 
         if where is not None:
