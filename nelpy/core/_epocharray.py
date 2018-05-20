@@ -45,10 +45,16 @@ class EpochArray:
 
     __attributes__ = ["_time", "_meta", "_domain"]
 
-    def __init__(self, time=None, *, duration=None,
+    def __init__(self, time=None, *args, duration=None,
                  meta=None, empty=False, domain=None, label=None):
 
         self.__version__ = version.__version__
+
+        if len(args) > 1:
+            raise TypeError("__init__() takes from 1 to 3 positional arguments but 4 were given")
+        elif len(args) == 1:
+            time = [time, args[0]]
+
         # if an empty object is requested, return it:
         if empty:
             for attr in self.__attributes__:
