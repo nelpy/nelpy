@@ -281,8 +281,9 @@ class EpochArray:
         """join and merge epoch array; set union"""
         if isinstance(other, EpochArray):
             new = copy.copy(self)
-            # return (new.join(other)).merge()
-            return new.join(other)
+            joined = new.join(other)
+            union = joined.merge()
+            return union
         else:
             raise TypeError("unsupported operand type(s) for |: 'EpochArray' and {}".format(str(type(other))))
 
