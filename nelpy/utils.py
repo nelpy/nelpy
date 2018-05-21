@@ -712,13 +712,39 @@ class PrettyDuration(float):
                 # in this case, represent milliseconds in terms of
                 # seconds (i.e. a decimal)
                 sstr = str(s/1000).lstrip('0')
-                if sstr == "1.0":
+                if s >= 999.5:
                     ss += 1
+                    s = 0
                     sstr = ""
+                    # now propagate the carry:
+                    if ss == 60:
+                        mm += 1
+                        ss = 0
+                    if mm == 60:
+                        hh +=1
+                        mm = 0
+                    if hh == 24:
+                        dd += 1
+                        hh = 0
             else:
                 # for all other cases, milliseconds will be represented
                 # as an integer
-                sstr = ":{:03d}".format(int(s))
+                if s >= 999.5:
+                    ss += 1
+                    s = 0
+                    sstr = ""
+                    # now propagate the carry:
+                    if ss == 60:
+                        mm += 1
+                        ss = 0
+                    if mm == 60:
+                        hh +=1
+                        mm = 0
+                    if hh == 24:
+                        dd += 1
+                        hh = 0
+                else:
+                    sstr = ":{:03d}".format(int(s))
         else:
             sstr = ""
         if dd > 0:
@@ -764,6 +790,7 @@ class PrettyDuration(float):
     def __truediv__(self, other):
         """a / b"""
         return PrettyDuration(self.duration / other)
+
 
 def shrinkMatColsTo(mat, numCols):
     """ Docstring goes here
