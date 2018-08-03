@@ -295,6 +295,10 @@ class EpochArray:
         """(bool) Empty EventArray"""
         return not self.isempty
 
+    def remove_duplicates(self, inplace=False):
+        """Remove duplicate epochs."""
+        raise NotImplementedError
+
     def partition(self, *, ds=None, n_epochs=None):
         """Returns an EpochArray that has been partitioned.
 
