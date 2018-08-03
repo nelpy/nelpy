@@ -494,20 +494,20 @@ class AnalogSignalArray:
     @property
     def isreal(self):
         """Returns True if entire signal is real."""
-        return np.all(np.isreal(self._data))
+        return np.all(np.isreal(self.data))
         # return np.isrealobj(self._data)
 
     @property
     def iscomplex(self):
         """Returns True if any part of the signal is complex."""
-        return np.any(np.iscomplex(self._data))
+        return np.any(np.iscomplex(self.data))
         # return np.iscomplexobj(self._data)
 
     @property
     def abs(self):
         """AnalogSignalArray with absolute value of (potentially complex) data."""
         out = copy.copy(self)
-        out._data = np.abs(self._data)
+        out._data = np.abs(self.data)
         out.__renew__()
         return out
 
@@ -515,7 +515,7 @@ class AnalogSignalArray:
     def angle(self):
         """AnalogSignalArray with only phase angle (in radians) of data."""
         out = copy.copy(self)
-        out._data = np.angle(self._data)
+        out._data = np.angle(self.data)
         out.__renew__()
         return out
 
@@ -523,7 +523,7 @@ class AnalogSignalArray:
     def imag(self):
         """AnalogSignalArray with only imaginary part of data."""
         out = copy.copy(self)
-        out._data = self._data.imag
+        out._data = self.data.imag
         out.__renew__()
         return out
 
@@ -531,7 +531,7 @@ class AnalogSignalArray:
     def real(self):
         """AnalogSignalArray with only real part of data."""
         out = copy.copy(self)
-        out._data = self._data.real
+        out._data = self.data.real
         out.__renew__()
         return out
 
@@ -539,7 +539,7 @@ class AnalogSignalArray:
         """overloaded * operator."""
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
-            newasa._data = self._data * other
+            newasa._data = self.data * other
             newasa.__renew__()
             return newasa
         else:
@@ -549,7 +549,7 @@ class AnalogSignalArray:
         """overloaded + operator."""
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
-            newasa._data = self._data + other
+            newasa._data = self.data + other
             newasa.__renew__()
             return newasa
         else:
@@ -559,7 +559,7 @@ class AnalogSignalArray:
         """overloaded - operator."""
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
-            newasa._data = self._data - other
+            newasa._data = self.data - other
             newasa.__renew__()
             return newasa
         else:
@@ -578,7 +578,7 @@ class AnalogSignalArray:
         """overloaded / operator."""
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
-            newasa._data = self._data / other
+            newasa._data = self.data / other
             newasa.__renew__()
             return newasa
         else:
@@ -615,10 +615,10 @@ class AnalogSignalArray:
         signal = np.squeeze(signal)
         if signal.ndim > 1:
             raise TypeError("Can only add one signal at a time!")
-        if self._data.ndim==1:
-            self._data = np.vstack([np.array(self._data, ndmin=2), np.array(signal, ndmin=2)])
+        if self.data.ndim==1:
+            self._data = np.vstack([np.array(self.data, ndmin=2), np.array(signal, ndmin=2)])
         else:
-            self._data = np.vstack([self._data, np.array(signal, ndmin=2)])
+            self._data = np.vstack([self.data, np.array(signal, ndmin=2)])
         if label == None:
             warnings.warn("None label appended")
         self._labels = np.append(self._labels,label)
@@ -650,7 +650,7 @@ class AnalogSignalArray:
                     warnings.simplefilter("ignore")
                     for attr in attrs:
                         exec("self." + attr + " = None")
-                self._data = np.zeros([0,self._data.shape[0]])
+                self._data = np.zeros([0,self.data.shape[0]])
                 self._data[:] = np.nan
                 self._support = epocharray
                 return
@@ -673,7 +673,7 @@ class AnalogSignalArray:
                 data_list.append(self._data[:,start:stop])
             self._data = np.hstack(data_list)
         except IndexError:
-            self._data = np.zeros([0,self._data.shape[0]])
+            self._data = np.zeros([0,self.data.shape[0]])
             self._data[:] = np.nan
         time_list = []
         for start, stop in indices:
@@ -714,7 +714,7 @@ class AnalogSignalArray:
                     warnings.simplefilter("ignore")
                     for attr in attrs:
                         exec("self." + attr + " = None")
-                self._data = np.zeros([0,self._data.shape[0]])
+                self._data = np.zeros([0,self.data.shape[0]])
                 self._data[:] = np.nan
                 self._support = epocharray
                 return
@@ -731,9 +731,9 @@ class AnalogSignalArray:
             warnings.warn(
                 'ignoring signal outside of support')
         try:
-            self._data = self._data[:,indices]
+            self._data = self.data[:,indices]
         except IndexError:
-            self._data = np.zeros([0,self._data.shape[0]])
+            self._data = np.zeros([0,self.data.shape[0]])
             self._data[:] = np.nan
         self._time = self._time[indices]
         if update:
@@ -797,7 +797,7 @@ class AnalogSignalArray:
     def n_signals(self):
         """(int) The number of signals."""
         try:
-            return utils.PrettyInt(self._data.shape[0])
+            return utils.PrettyInt(self.data.shape[0])
         except AttributeError:
             return 0
 
@@ -849,11 +849,16 @@ class AnalogSignalArray:
     def ydata(self):
         """(np.array N-Dimensional) data with shape (n_signals, n_samples)."""
         # LEGACY
-        return self._data
+        return self.data
 
     @property
     def data(self):
         """(np.array N-Dimensional) data with shape (n_signals, n_samples)."""
+        try:
+            return self._data
+        except AttributeError:
+            # legacy support:
+            self._data = self._ydata
         return self._data
 
     @property
@@ -890,7 +895,7 @@ class AnalogSignalArray:
     def isempty(self):
         """(bool) checks length of data input"""
         try:
-            return self._data.shape[1] == 0
+            return self.data.shape[1] == 0
         except TypeError: #TypeError should happen if _data = []
             return True
 
@@ -1004,7 +1009,7 @@ class AnalogSignalArray:
     def _subset(self, idx):
         asa = self.copy()
         try:
-            asa._data = np.atleast_2d(self._data[idx,:])
+            asa._data = np.atleast_2d(self.data[idx,:])
         except IndexError:
             raise IndexError("index {} is out of bounds for n_signals with size {}".format(idx, self.n_signals))
         asa.__renew__()
@@ -1040,7 +1045,7 @@ class AnalogSignalArray:
     def mean(self,*,axis=1):
         """Returns the mean of each signal in AnalogSignalArray."""
         try:
-            means = np.mean(self._data, axis=axis).squeeze()
+            means = np.mean(self.data, axis=axis).squeeze()
             if means.size == 1:
                 return np.asscalar(means)
             return means
@@ -1050,7 +1055,7 @@ class AnalogSignalArray:
     def std(self,*,axis=1):
         """Returns the standard deviation of each signal in AnalogSignalArray."""
         try:
-            stds = np.std(self._data,axis=axis).squeeze()
+            stds = np.std(self.data,axis=axis).squeeze()
             if stds.size == 1:
                 return np.asscalar(stds)
             return stds
@@ -1060,7 +1065,7 @@ class AnalogSignalArray:
     def max(self,*,axis=1):
         """Returns the maximum of each signal in AnalogSignalArray"""
         try:
-            maxes = np.amax(self._data,axis=axis).squeeze()
+            maxes = np.amax(self.data,axis=axis).squeeze()
             if maxes.size == 1:
                 return np.asscalar(maxes)
             return maxes
@@ -1070,7 +1075,7 @@ class AnalogSignalArray:
     def min(self,*,axis=1):
         """Returns the minimum of each signal in AnalogSignalArray"""
         try:
-            mins = np.amin(self._data,axis=axis).squeeze()
+            mins = np.amin(self.data,axis=axis).squeeze()
             if mins.size == 1:
                 return np.asscalar(mins)
             return mins
@@ -1094,7 +1099,7 @@ class AnalogSignalArray:
             min are replaced with min and the values > max are replaced
             with max.
         """
-        new_data = np.clip(self._data, min, max)
+        new_data = np.clip(self.data, min, max)
         newasa = self.copy()
         newasa._data = new_data
         newasa.__renew__()
@@ -1178,23 +1183,23 @@ class AnalogSignalArray:
     def _ydata_rowsig(self):
         """returns wide-format data s.t. each row is a signal."""
         # LEGACY
-        return self._data
+        return self.data
 
     @property
     def _ydata_colsig(self):
         # LEGACY
         """returns skinny-format data s.t. each column is a signal."""
-        return self._data.T
+        return self.data.T
 
     @property
     def _data_rowsig(self):
         """returns wide-format data s.t. each row is a signal."""
-        return self._data
+        return self.data
 
     @property
     def _data_colsig(self):
         """returns skinny-format data s.t. each column is a signal."""
-        return self._data.T
+        return self.data.T
 
     def _get_interp1d(self,* , kind='linear', copy=True, bounds_error=False,
                       fill_value=np.nan, assume_sorted=None):
@@ -1211,7 +1216,7 @@ class AnalogSignalArray:
             axis = -1
 
         time = self.time
-        yvals = self._data_rowsig
+        yvals = self.data_rowsig
         lengths = self.lengths
         empty_epoch_ids = np.argwhere(lengths==0).squeeze().tolist()
         first_timestamps_per_epoch_idx = np.insert(np.cumsum(lengths[:-1]),0,0)
