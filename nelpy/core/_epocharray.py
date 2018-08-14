@@ -410,7 +410,13 @@ class EpochArray:
         newtimes = newtimes[durations>0]
         complement = copy.copy(self)
         complement._time = newtimes
-        return complement[domain]
+
+        if domain.n_epochs > 1:
+            return complement[domain]
+
+        complement._time[0,0] = np.max((complement._time[0,0], domain.start))
+        complement._time[-1,-1] = np.min((complement._time[-1,-1], domain.stop))
+        return complement
 
     @property
     def domain(self):
