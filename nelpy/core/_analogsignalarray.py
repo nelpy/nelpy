@@ -177,7 +177,7 @@ def asa_init_wrapper(func):
             kwargs['support'] = support
             fs = 1/data.ds
             kwargs['fs'] = fs
-            if np.any(data.unit_labels):
+            if list(data.unit_labels):
                 labels = data.unit_labels
             else:
                 labels = data.unit_ids

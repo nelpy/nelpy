@@ -608,6 +608,7 @@ class EpochArray:
         """Finds intersection (overlap) between two sets of epoch arrays.
 
         TODO: verify if this requires a merged EpochArray to work properly?
+        ISSUE_261: not fixed yet
 
         Parameters
         ----------
@@ -627,8 +628,8 @@ class EpochArray:
 
         new_starts = []
         new_stops = []
-        epoch_a = epocha.copy().merge()
-        epoch_b = epochb.copy().merge()
+        epoch_a = epocha.merge().copy()
+        epoch_b = epochb.merge().copy()
 
         for aa in epoch_a.time:
             for bb in epoch_b.time:

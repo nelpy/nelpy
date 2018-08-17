@@ -276,6 +276,7 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     # make sure data type is float, so that smoothing works, and convert to rate
     mua_binned._data = mua_binned._data.astype(float) / ds
 
+    # TODO: now that we can simply cast from BST to ASA and back, the following logic could be simplified:
     # put mua rate inside an AnalogSignalArray
     if _fast:
         mua = core.AnalogSignalArray([], empty=True)
@@ -461,7 +462,8 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
     )
 
     if len(mua_bounds_idx) == 0:
-        raise ValueError("no mua events detected")
+        warnings.warn("no mua events detected")
+        return core.EpochArray(empty=True)
 
     # store MUA bounds in an EpochArray
     mua_epochs = core.EpochArray(mua.time[mua_bounds_idx])
@@ -526,6 +528,11 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
     PBE_epochs = get_PBEs(binnedspiketrain, min_active=5)
     """
 
+    if sigma is None:
+        sigma = 0.01 # 10 ms standard deviation
+    if bw is None:
+        bw = 6
+
     if isinstance(data, core.AnalogSignalArray):
         # if we have only mua, then we cannot set (ds, unsorted_id, min_active)
         if ds is not None:
@@ -535,14 +542,14 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
         if min_active is not None:
             raise ValueError('if data is an AnalogSignalArray then min_active cannot be specified!')
         mua = data
+        mua._data = mua._data.astype(float)
+        if (sigma != 0) and (bw > 0):
+            mua = gaussian_filter(mua, sigma=sigma, bw=bw)
+
     elif isinstance(data, (core.SpikeTrainArray, core.BinnedSpikeTrainArray)):
         # set default parameter values:
         if ds is None:
             ds = 0.001 # default 1 ms
-        if sigma is None:
-            sigma = 0.01 # 10 ms standard deviation
-        if bw is None:
-            bw = 6
         if min_active is None:
             min_active = 5
         mua = get_mua(data, ds=ds, sigma=sigma, bw=bw, _fast=True)
@@ -569,6 +576,24 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
                                 PrimaryThreshold=PrimaryThreshold,
                                 minThresholdLength=minThresholdLength,
                                 SecondaryThreshold=SecondaryThreshold)
+
+    # now require min_active number of sorted cells
+    if isinstance(data, (core.SpikeTrainArray, core.BinnedSpikeTrainArray)):
+        if min_active > 0:
+            if unsorted_id is not None:
+                # remove unsorted unit, if present:
+                unit_ids = copy.deepcopy(data.unit_ids)
+                try:
+                    unit_ids.remove(unsorted_id)
+                except ValueError:
+                    pass
+                data_ = data._unit_subset(unit_ids)
+            # determine number of active units per epoch:
+            n_active = np.array([snippet.n_active for snippet in data_[PBE_epochs]])
+            active_epochs_idx = np.argwhere(n_active > min_active).squeeze()
+            # only keep those epochs where sufficiently many units are active:
+            PBE_epochs = PBE_epochs[active_epochs_idx]
+    return PBE_epochs
 
 def get_contiguous_segments(data, *, step=None, assume_sorted=None,
                             in_core=True, index=False, inclusive=False,

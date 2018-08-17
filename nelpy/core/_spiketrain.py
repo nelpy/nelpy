@@ -105,8 +105,13 @@ class ItemGetter_loc(object):
         if not isinstance(unit_idx_list, list):
             unit_idx_list = list(unit_idx_list)
         out = copy.copy(self.obj)
-        out._time = out._time[unit_idx_list]
-        singleunit = len(out._time)==1
+        try:
+            out._time = out._time[unit_idx_list]
+            singleunit = len(out._time)==1
+        except AttributeError:
+            out._data = out._data[unit_idx_list]
+            singleunit = len(out._data)==1
+
         if singleunit:
             out._time = np.array(out._time[0], ndmin=2)
         out._unit_ids = list(np.atleast_1d(np.atleast_1d(out._unit_ids)[unit_idx_list]))
@@ -251,6 +256,11 @@ class SpikeTrain(ABC):
         self.label = label
 
         self._slicer = EpochUnitSlicer(self)
+        self.loc = ItemGetter_loc(self)
+        self.iloc = ItemGetter_iloc(self)
+
+    def __renew__(self):
+        """Re-attach slicers and indexers."""
         self.loc = ItemGetter_loc(self)
         self.iloc = ItemGetter_iloc(self)
 
@@ -1256,11 +1266,6 @@ class BinnedSpikeTrainArray(SpikeTrain):
         out.__renew__()
         return out
 
-    def __renew__(self):
-        """Re-attach slicers and indexers."""
-        self.loc = ItemGetter_loc(self)
-        self.iloc = ItemGetter_iloc(self)
-
     def copy(self):
         """Returns a copy of the BinnedSpikeTrainArray."""
         newcopy = copy.deepcopy(self)
@@ -1351,7 +1356,7 @@ class BinnedSpikeTrainArray(SpikeTrain):
             asa = asa[idx]
             if asa.isempty:
                 return self.empty(inplace=False)
-            out = BinnedSpikeTrainArray(asa[idx])
+            out = BinnedSpikeTrainArray(asa)
             return out
             # support = self.support.intersect(
             #         epoch=idx,
