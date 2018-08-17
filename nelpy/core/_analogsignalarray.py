@@ -1216,7 +1216,7 @@ class AnalogSignalArray:
             axis = -1
 
         time = self.time
-        yvals = self.data_rowsig
+        yvals = self._data_rowsig
         lengths = self.lengths
         empty_epoch_ids = np.argwhere(lengths==0).squeeze().tolist()
         first_timestamps_per_epoch_idx = np.insert(np.cumsum(lengths[:-1]),0,0)
