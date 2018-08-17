@@ -1406,7 +1406,7 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
         An AnalogSignalArray with derivative data (in units per second) is returned.
     """
 
-    raise DeprecationWarning('use dxdt_asa instead!')
+    raise DeprecationWarning('use ddt_asa instead!')
 
     if fs is None:
         fs = asa.fs
