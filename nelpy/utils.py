@@ -240,6 +240,9 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     ----------
     st : SpikeTrainArray
         SpikeTrainArray containing one or more units.
+     -- OR --
+    st : BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing multiunit activity.
     ds : float, optional
         Time step in which to bin spikes. Default is 1 ms.
     sigma : float, optional
@@ -261,8 +264,14 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     if bw is None:
         bw = 6
 
-    # bin spikes, so that we can count the spikes
-    mua_binned = st.bin(ds=ds).flatten()
+    if isinstance(st, core.SpikeTrainArray):
+        # bin spikes, so that we can count the spikes
+        mua_binned = st.bin(ds=ds).flatten()
+    elif isinstance(st, core.BinnedSpikeTrainArray):
+        mua_binned = st.flatten()
+        ds = mua_binned.ds
+    else:
+        raise TypeError('st has to be one of (SpikeTrainArray, BinnedSpikeTrainArray)')
 
     # make sure data type is float, so that smoothing works, and convert to rate
     mua_binned._data = mua_binned._data.astype(float) / ds
@@ -415,6 +424,13 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
     -------
     mua_epochs : EpochArray
         EpochArray containing all the MUA events / PBEs.
+
+    Example
+    -------
+    mua = get_mua(spiketrain)
+    mua_epochs = get_mua_events(mua)
+    PBEs = get_PBEs(spiketrain, min_active=5)
+         = get_PBEs(get_mua_events(get_mua(*)), spiketrain, min_active=5)
     """
 
     if fs is None:
@@ -451,6 +467,108 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
     mua_epochs = core.EpochArray(mua.time[mua_bounds_idx])
 
     return mua_epochs
+
+def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
+             min_active=None, minLength=None, maxLength=None,
+             PrimaryThreshold=None, minThresholdLength=None,
+             SecondaryThreshold=None):
+    """Determine PBEs from multiunit activity or spike trains.
+
+    MUA : multiunit activity
+    PBE : population burst event
+
+    Parameters
+    ----------
+    data : AnalogSignalArray
+        AnalogSignalArray with one signal, namely the multiunit firing rate [in Hz].
+     -- OR --
+    data : SpikeTrainArray
+        SpikeTrainArray with multiple units, including unsorted unit(s), but
+        excluding any noise artifects.
+     -- OR --
+    data : BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing multiunit activity.
+    fs : float, optional
+        Sampling frequency of mua, in Hz. If not specified, it will be inferred
+        from data.
+    ds : float, optional
+        Time step in which to bin spikes. Default is 1 ms.
+    sigma : float, optional
+        Standard deviation (in seconds) of Gaussian smoothing kernel.
+        Default is 10 ms. If sigma==0 then no smoothing is applied.
+    bw : float, optional
+        Bandwidth of the Gaussian filter. Default is 6.
+    unsorted_id : int, optional
+        unit_id of the unsorted unit. Default is 0. If no unsorted unit is
+        present, then set unsorted_id = None
+    min_active : int, optional
+        Minimum number of active units per event, excluding unsorted unit.
+        Default is 5.
+    minLength : float, optional
+        Minimum event duration in milliseconds. Default is 50 ms.
+    maxLength : float, optional
+        Maximum event duration in milliseconds. Default is 750 ms.
+    PrimaryThreshold : float, optional
+        Primary threshold to exceed. Default is mean() + 3*std()
+    SecondaryThreshold : float, optional
+        Secondary threshold to fall back to. Default is mean().
+    minThresholdLength : float, optional
+        Minimum duration to stay above PrimaryThreshold. Default is 0 ms.
+    Returns
+    -------
+    PBE_epochs : EpochArray
+        EpochArray containing all the PBEs.
+
+    Example
+    -------
+    PBE_epochs = get_PBEs(mua_asa)
+    PBE_epochs = get_PBEs(spiketrain, min_active=5)
+    PBE_epochs = get_PBEs(binnedspiketrain, min_active=5)
+    """
+
+    if isinstance(data, core.AnalogSignalArray):
+        # if we have only mua, then we cannot set (ds, unsorted_id, min_active)
+        if ds is not None:
+            raise ValueError('if data is an AnalogSignalArray then ds cannot be specified!')
+        if unsorted_id:
+            raise ValueError('if data is an AnalogSignalArray then unsorted_id cannot be specified!')
+        if min_active is not None:
+            raise ValueError('if data is an AnalogSignalArray then min_active cannot be specified!')
+        mua = data
+    elif isinstance(data, (core.SpikeTrainArray, core.BinnedSpikeTrainArray)):
+        # set default parameter values:
+        if ds is None:
+            ds = 0.001 # default 1 ms
+        if sigma is None:
+            sigma = 0.01 # 10 ms standard deviation
+        if bw is None:
+            bw = 6
+        if min_active is None:
+            min_active = 5
+        mua = get_mua(data, ds=ds, sigma=sigma, bw=bw, _fast=True)
+    else:
+        raise TypeError('data has to be one of (AnalogSignalArray, SpikeTrainArray, BinnedSpikeTrainArray)')
+
+    # set default parameter values:
+    if fs is None:
+        fs = mua.fs
+    if minLength is None:
+        minLength =  0.050 # 50 ms minimum event duration
+    if maxLength is None:
+        maxLength = 0.750 # 750 ms maximum event duration
+    if minThresholdLength is None:
+        minThresholdLength = 0.0
+    # if PrimaryThreshold is None:
+    #         PrimaryThreshold = 
+    # if SecondaryThreshold is None:
+    #     SecondaryThreshold = 
+    PBE_epochs = get_mua_events(mua=mua,
+                                fs=fs,
+                                minLength=minLength,
+                                maxLength=maxLength,
+                                PrimaryThreshold=PrimaryThreshold,
+                                minThresholdLength=minThresholdLength,
+                                SecondaryThreshold=SecondaryThreshold)
 
 def get_contiguous_segments(data, *, step=None, assume_sorted=None,
                             in_core=True, index=False, inclusive=False,
