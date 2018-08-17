@@ -476,8 +476,32 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
              SecondaryThreshold=None):
     """Determine PBEs from multiunit activity or spike trains.
 
+    Definitions
+    -----------
     MUA : multiunit activity
     PBE : population burst event
+
+    Summary
+    -------
+    This function can be used to identify PBE epochs from spike trains, binned
+    spike trains, or multiunit activity (in the form of an AnalogSignalArray).
+
+    It is recommended to either pass in a SpikeTrainArray or a
+    BinnedSpikeTrainArray, so that a `min_active` number of sorted units can be
+    set.
+
+    It is also recommended that the unsorted units (but not noise artifacts!)
+    should be included in the spike train that is used to estimate the PBEs. By
+    default, unit_id=0 is assumed to be unsorted, but this can be changed, or if
+    no unsorted units are present, you can set unsorted_id=None. Equivalently,
+    if min_active=0, then no restriction will apply, and the unsorted_id will
+    have no effect on the final PBE epochs.
+
+    Examples
+    --------
+    PBE_epochs = get_PBEs(mua_asa)
+    PBE_epochs = get_PBEs(spiketrain, min_active=5)
+    PBE_epochs = get_PBEs(binnedspiketrain, min_active=5)
 
     Parameters
     ----------
@@ -516,16 +540,17 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
         Secondary threshold to fall back to. Default is mean().
     minThresholdLength : float, optional
         Minimum duration to stay above PrimaryThreshold. Default is 0 ms.
+
     Returns
     -------
     PBE_epochs : EpochArray
         EpochArray containing all the PBEs.
 
-    Example
-    -------
-    PBE_epochs = get_PBEs(mua_asa)
-    PBE_epochs = get_PBEs(spiketrain, min_active=5)
-    PBE_epochs = get_PBEs(binnedspiketrain, min_active=5)
+    Future improvements
+    -------------------
+    As of now, it is possible, but not easy to specify the Primary and Secondary
+    thresholds for event detection. A slight change in API might be needed to
+    make this specification more flexible.
     """
 
     if sigma is None:
