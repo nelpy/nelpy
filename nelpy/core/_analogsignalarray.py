@@ -1522,5 +1522,60 @@ class AnalogSignalArray:
 
         return asa
 
+    def _pdf(self, bins=None, n_points=None):
+        """Return the probability distribution function for each signal."""
+        from scipy import integrate
+
+        if bins is None:
+            bins = 100
+
+        if n_points is None:
+            n_points = 100
+
+        if self.n_signals > 1:
+            raise NotImplementedError('multiple signals not supported yet!')
+
+        # fx, bins = np.histogram(self.data.squeeze(), bins=bins, normed=True)
+        fx, bins = np.histogram(self.data.squeeze(), bins=bins)
+        bin_centers = (bins + (bins[1]-bins[0])/2)[:-1]
+
+        Ifx = integrate.simps(fx, bin_centers)
+
+        pdf = AnalogSignalArray(timestamps=bin_centers,
+                                data=fx/Ifx,
+                                fs=1/(bin_centers[1]-bin_centers[0]),
+                                support=core.EpochArray(self.data.min(), self.data.max())
+                               ).simplify(n_points=n_points)
+
+        return pdf
+
+        # data = []
+        # for signal in self.data:
+        #     fx, bins = np.histogram(signal, bins=bins)
+        #     bin_centers = (bins + (bins[1]-bins[0])/2)[:-1]
+
+
+
+    def _cdf(self, n_points=None):
+        """Return the probability distribution function for each signal."""
+
+        if n_points is None:
+            n_points = 100
+
+        if self.n_signals > 1:
+            raise NotImplementedError('multiple signals not supported yet!')
+
+        X = np.sort(self.data.squeeze())
+        F = np.array(range(self.n_samples))/float(self.n_samples)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            cdf = AnalogSignalArray(timestamps=X,
+                                     data=F,
+                                     support=core.EpochArray(self.data.min(), self.data.max())
+                                   ).simplify(n_points=n_points)
+
+        return cdf
+
 #----------------------------------------------------------------------#
 #======================================================================#
