@@ -20,7 +20,7 @@ from . import utils_
 from .utils_ import metrics
 # from . import io
 
-from . version import __version__
+from .version import __version__
 
 # TODO: decide on which utils to expose directly:
 # from .utils import (find_nearest_idx,
