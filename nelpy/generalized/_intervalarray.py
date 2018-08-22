@@ -49,7 +49,7 @@ class IntervalArray:
 
         self.__version__ = version.__version__
 
-        self.type_name = 'IntervalArray'
+        self.type_name = self.__class__.__name__
         self.interval_name = 'interval'
         self.formatter = formatters.ArbitraryFormatter
         self.base_unit = self.formatter.base_unit
@@ -116,7 +116,7 @@ class IntervalArray:
             except TypeError:
                 warnings.warn("unsupported type ("
                     + str(type(data))
-                    + "); creating empty IntervalArray")
+                    + "); creating empty {}".format(self.type_name))
                 self.__init__(empty=True)
                 return
 
@@ -138,7 +138,7 @@ class IntervalArray:
                 raise ValueError(
                     "must have the same number of start and stop values")
         except Exception:
-            raise Exception("Unhandled IntervalArray.__init__ case.")
+            raise Exception("Unhandled {}.__init__ case.".format(self.type_name))
 
         # TODO: what if start == stop? what will this break? This situation
         # can arise automatically when slicing a spike train with one or no
@@ -234,7 +234,7 @@ class IntervalArray:
         elif isinstance(other, type(self)):
             return self.join(other)
         else:
-            raise TypeError("unsupported operand type(s) for +: 'IntervalArray' and {}".format(str(type(other))))
+            raise TypeError("unsupported operand type(s) for +: {} and {}".format(str(type(self)), str(type(other))))
 
     def __sub__(self, other):
         """subtract length from start and stop of each interval"""
@@ -245,7 +245,7 @@ class IntervalArray:
             # A - B = A intersect ~B
             return self.intersect(~other)
         else:
-            raise TypeError("unsupported operand type(s) for +: 'IntervalArray' and {}".format(str(type(other))))
+            raise TypeError("unsupported operand type(s) for +: {} and {}".format(str(type(self)), str(type(other))))
 
     def __mul__(self, other):
         """expand (>1) or shrink (<1) interval lengths"""
@@ -262,7 +262,7 @@ class IntervalArray:
             new._data = new._data - other
             return new
         else:
-            raise TypeError("unsupported operand type(s) for <<: 'IntervalArray' and {}".format(str(type(other))))
+            raise TypeError("unsupported operand type(s) for <<: {} and {}".format(str(type(self)), str(type(other))))
 
     def __rshift__(self, other):
         """shift data to right"""
@@ -271,7 +271,7 @@ class IntervalArray:
             new._data = new._data + other
             return new
         else:
-            raise TypeError("unsupported operand type(s) for >>: 'IntervalArray' and {}".format(str(type(other))))
+            raise TypeError("unsupported operand type(s) for >>: {} and {}".format(str(type(self)), str(type(other))))
 
     def __and__(self, other):
         """intersection of interval arrays"""
@@ -279,7 +279,7 @@ class IntervalArray:
             new = copy.copy(self)
             return new.intersect(other, boundaries=True)
         else:
-            raise TypeError("unsupported operand type(s) for &: 'IntervalArray' and {}".format(str(type(other))))
+            raise TypeError("unsupported operand type(s) for &: {} and {}".format(str(type(self)), str(type(other))))
 
     def __or__(self, other):
         """join and merge interval array; set union"""
@@ -289,14 +289,14 @@ class IntervalArray:
             union = joined.merge()
             return union
         else:
-            raise TypeError("unsupported operand type(s) for |: 'IntervalArray' and {}".format(str(type(other))))
+            raise TypeError("unsupported operand type(s) for |: {} and {}".format(str(type(self)), str(type(other))))
 
     def __invert__(self):
         """complement within self.domain"""
         return self.complement()
 
     def __bool__(self):
-        """(bool) Empty EventArray"""
+        """(bool) Empty IntervalArray"""
         return not self.isempty
 
     def remove_duplicates(self, inplace=False):
@@ -945,7 +945,6 @@ class EpochArray(IntervalArray):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.type_name = 'EpochArray'
         self.interval_name = 'epoch'
         self.formatter = formatters.PrettyDuration
         self.base_unit = self.formatter.base_unit
@@ -996,7 +995,6 @@ class SpaceArray(IntervalArray):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.type_name = 'SpaceArray'
         self.formatter = formatters.PrettySpace
         self.base_unit = self.formatter.base_unit
 
