@@ -967,6 +967,30 @@ class EpochArray(IntervalArray):
     def n_epochs(self):
         return self.n_intervals
 
+    # override some functions for API backwards compatibility:
+    def partition(self, *, ds=None, n_epochs=None):
+        """Returns an EpochArray that has been partitioned.
+
+        # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
+        # underlying support is propagated, and the first and last points
+        # of the supports are always included, even if this would cause
+        # n_points or ds to be violated.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Maximum length, for each interval.
+        n_epochs : int, optional
+            Number of epochs / intervals. If ds is None and n_epochs is None,
+            then default is to use n_epochs = 100
+
+        Returns
+        -------
+        out : EpochArray
+            EpochArray that has been partitioned.
+        """
+        return super().partition(ds=ds, n_intervals=n_epochs)
+
 class SpaceArray(IntervalArray):
     """IntervalArray containing spatial intervals (in cm)."""
     def __init__(self, *args, **kwargs):

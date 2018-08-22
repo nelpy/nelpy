@@ -336,7 +336,7 @@ class AnalogSignalArray:
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._support = core.EpochArray(empty=True)
-            self._data = np.array([])
+           self._data = np.array([])
             self.__bake__()
             return
 

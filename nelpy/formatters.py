@@ -16,7 +16,7 @@ __all__ = ['BaseFormatter',
 class BaseFormatter():
     """Base formatter."""
 
-    base_unit = 'base'
+    base_unit = 'base units'
 
     def __init__(self, val):
         self.val = val
@@ -26,7 +26,7 @@ class BaseFormatter():
 class ArbitraryFormatter(float):
     """Formatter for arbitrary units."""
 
-    base_unit = 'arbitrary'
+    base_unit = 'a.u.'
 
     def __init__(self, val):
         self.val = val
@@ -41,7 +41,7 @@ class ArbitraryFormatter(float):
 class PrettyBytes(int):
     """Prints number of bytes in a more readable format"""
 
-    base_unit = 'byte'
+    base_unit = 'bytes'
 
     def __init__(self, val):
         self.val = val
@@ -81,7 +81,7 @@ class PrettyDuration(float):
     Behaves like a float, and can always be cast to a float.
     """
 
-    base_unit = 'seconds'
+    base_unit = 's'
 
     def __init__(self, seconds):
         self.duration = seconds
@@ -205,7 +205,7 @@ class PrettySpace(float):
     Behaves like a float, and can always be cast to a float.
     """
 
-    base_unit = 'centimeters'
+    base_unit = 'cm'
 
     def __init__(self, centimeters):
         self.value = centimeters
