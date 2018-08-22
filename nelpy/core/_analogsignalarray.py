@@ -659,7 +659,7 @@ class AnalogSignalArray:
             raise AttributeError("EpochArray expected")
 
         indices = []
-        for eptime in epocharray.time:
+        for eptime in epocharray.merge().time:
             t_start = eptime[0]
             t_stop = eptime[1]
             frm, to = np.searchsorted(self._time, (t_start, t_stop))
@@ -723,7 +723,7 @@ class AnalogSignalArray:
             raise AttributeError("EpochArray expected")
 
         indices = []
-        for eptime in epocharray.time:
+        for eptime in epocharray.merge().time:
             t_start = eptime[0]
             t_stop = eptime[1]
             indices.append((self._time >= t_start) & (self._time < t_stop))

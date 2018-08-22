@@ -675,7 +675,7 @@ class RegularlySampledAnalogSignalArray:
             raise AttributeError("IntervalArray expected")
 
         indices = []
-        for interval in intervalarray.data:
+        for interval in intervalarray.merge().data:
             a_start = interval[0]
             a_stop = interval[1]
             frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop))
@@ -739,7 +739,7 @@ class RegularlySampledAnalogSignalArray:
             raise AttributeError("IntervalArray expected")
 
         indices = []
-        for interval in intervalarray.data:
+        for interval in intervalarray.merge().data:
             a_start = interval[0]
             a_stop = interval[1]
             indices.append((self._abscissa_vals >= a_start) & (self._abscissa_vals < a_stop))
@@ -756,36 +756,87 @@ class RegularlySampledAnalogSignalArray:
         if update:
             self._abscissa.support = intervalarray
 
-    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False):
+    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False, mode=None, cval=None, within_intervals=False):
         """Smooths the regularly sampled RegularlySampledAnalogSignalArray with a Gaussian kernel.
 
-        Smoothing is applied along the abscissa, and the same smoothing is
-        applied to each signal in the RegularlySampledAnalogSignalArray.
+        Smoothing is applied along the abscissa, and the same smoothing is applied to each
+        signal in the RegularlySampledAnalogSignalArray, or to each unit in a BinnedSpikeTrainArray.
 
-        Smoothing is applied within each interval.
+        Smoothing is applied ACROSS intervals, but smoothing WITHIN intervals is also supported.
 
         Parameters
         ----------
+        obj : RegularlySampledAnalogSignalArray or BinnedSpikeTrainArray.
         fs : float, optional
-            Sampling rate (in Hz) of RegularlySampledAnalogSignalArray. If not provided, it will
-            be obtained from asa.fs
+            Sampling rate (in obj.base_unit^-1) of obj. If not provided, it will
+            be inferred.
         sigma : float, optional
-            Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+            Standard deviation of Gaussian kernel, in obj.base_units. Default is 0.05
+            (50 ms if base_unit=seconds).
         bw : float, optional
-            Bandwidth outside of which the filter value will be zero. Default is 4.0
+            Bandwidth outside of which the filter value will be zero. Default is 4.0.
         inplace : bool
             If True the data will be replaced with the smoothed data.
             Default is False.
+        mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+            The mode parameter determines how the array borders are handled,
+            where cval is the value when mode is equal to ‘constant’. Default is
+            ‘reflect’.
+        cval : scalar, optional
+            Value to fill past edges of input if mode is ‘constant’. Default is 0.0.
+        within_intervals : boolean, optional
+            If True, then smooth within each epoch. Otherwise smooth across epochs.
+            Default is False.
+            Note that when mode = 'wrap', then smoothing within epochs aren't affected
+            by wrapping.
 
         Returns
         -------
-        out : RegularlySampledAnalogSignalArray
-            An RegularlySampledAnalogSignalArray with smoothed data is returned.
+        out : same type as obj
+            An object with smoothed data is returned.
+
         """
+
+        # case 1: abs.wrapping=False, ord.linking=False, ord.wrapping=False
+        if not self._abscissa.is_wrapping and not self._ordinate.is_linking and not self._ordinate.is_wrapping:
+            pass
+
+        # case 2: abs.wrapping=False, ord.linking=False, ord.wrapping=True
+        elif not self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
+            raise NotImplementedError
+
+        # case 3: abs.wrapping=False, ord.linking=True, ord.wrapping=False
+        elif not self._abscissa.is_wrapping and self._ordinate.is_linking and not self._ordinate.is_wrapping:
+            raise NotImplementedError
+
+        # case 4: abs.wrapping=False, ord.linking=True, ord.wrapping=True
+        elif not self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
+            raise NotImplementedError
+
+        # case 5: abs.wrapping=True, ord.linking=False, ord.wrapping=False
+        elif self._abscissa.is_wrapping and not self._ordinate.is_linking and not self._ordinate.is_wrapping:
+            if mode is None:
+                mode = 'wrap'
+
+        # case 6: abs.wrapping=True, ord.linking=False, ord.wrapping=True
+        elif self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
+            raise NotImplementedError
+
+        # case 7: abs.wrapping=True, ord.linking=True, ord.wrapping=False
+        elif self._abscissa.is_wrapping and self._ordinate.is_linking and not self._ordinate.is_wrapping:
+            raise NotImplementedError
+
+        # case 8: abs.wrapping=True, ord.linking=True, ord.wrapping=True
+        elif self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
+            raise NotImplementedError
+
         kwargs = {'inplace' : inplace,
-                'fs' : fs,
-                'sigma' : sigma,
-                'bw' : bw}
+                  'fs' : fs,
+                  'sigma' : sigma,
+                  'bw' : bw,
+                  'mode': mode,
+                  'cval': cval,
+                  'within_intervals': within_intervals}
 
         out = utils.gaussian_filter(self, **kwargs)
         out.__renew__()

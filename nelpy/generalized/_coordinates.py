@@ -107,7 +107,7 @@ class AnalogSignalArrayAbscissa(Abscissa):
     def __init__(self, *args, **kwargs):
 
         support = kwargs.get('support', generalized.EpochArray(empty=True))
-        labelstring = kwargs.get('labelstring', 'time ({})')
+        labelstring = kwargs.get('labelstring', 'time ({})') # TODO FIXME after unit inheritance; inherit from formatter?
 
         kwargs['support'] = support
         kwargs['labelstring'] = labelstring

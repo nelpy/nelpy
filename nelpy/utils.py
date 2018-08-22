@@ -24,6 +24,7 @@ from numpy import log, ceil
 import copy
 
 from . import core # so that core.AnalogSignalArray is exposed
+from . import generalized # so that core.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 
 # def sub2ind(array_shape, rows, cols):
@@ -591,9 +592,9 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
     if minThresholdLength is None:
         minThresholdLength = 0.0
     # if PrimaryThreshold is None:
-    #         PrimaryThreshold = 
+    #         PrimaryThreshold =
     # if SecondaryThreshold is None:
-    #     SecondaryThreshold = 
+    #     SecondaryThreshold =
     PBE_epochs = get_mua_events(mua=mua,
                                 fs=fs,
                                 minLength=minLength,
@@ -1228,73 +1229,123 @@ def nextfastpower(n):
     n2 = nextpower (n / n35)
     return int (min (n2 * n35))
 
-def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
+def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=None, cval=None, within_intervals=False):
     """Smooths with a Gaussian kernel.
 
-    Smoothing is applied in time, and the same smoothing is applied to each
-    signal in the AnalogSignalArray, or each unit in a BinnedSpikeTrainArray.
+    Smoothing is applied along the abscissa, and the same smoothing is applied to each
+    signal in the RegularlySampledAnalogSignalArray, or to each unit in a BinnedSpikeTrainArray.
 
-    Smoothing is applied within each epoch.
+    Smoothing is applied ACROSS intervals, but smoothing WITHIN intervals is also supported.
 
     Parameters
     ----------
-    obj : AnalogSignalArray or BinnedSpikeTrainArray
+    obj : RegularlySampledAnalogSignalArray or BinnedSpikeTrainArray.
     fs : float, optional
-        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
-        be obtained from asa.fs
+        Sampling rate (in obj.base_unit^-1) of obj. If not provided, it will
+        be inferred.
     sigma : float, optional
-        Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+        Standard deviation of Gaussian kernel, in obj.base_units. Default is 0.05
+        (50 ms if base_unit=seconds).
     bw : float, optional
-        Bandwidth outside of which the filter value will be zero. Default is 4.0
+        Bandwidth outside of which the filter value will be zero. Default is 4.0.
     inplace : bool
         If True the data will be replaced with the smoothed data.
         Default is False.
+    mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+        The mode parameter determines how the array borders are handled,
+        where cval is the value when mode is equal to ‘constant’. Default is
+        ‘reflect’.
+    cval : scalar, optional
+        Value to fill past edges of input if mode is ‘constant’. Default is 0.0.
+    within_intervals : boolean, optional
+        If True, then smooth within each epoch. Otherwise smooth across epochs.
+        Default is False.
+        Note that when mode = 'wrap', then smoothing within epochs aren't affected
+        by wrapping.
 
     Returns
     -------
-    out : AnalogSignalArray or BinnedSpikeTrainArray
+    out : same type as obj
         An object with smoothed data is returned.
+
     """
+    if sigma is None:
+        sigma = 0.05
+    if bw is None:
+        bw=4
+    if mode is None:
+        mode = 'reflect'
+    if cval is None:
+        cval = 0.0
 
     if not inplace:
         out = copy.deepcopy(obj)
     else:
         out = obj
 
-    if isinstance(out, core._analogsignalarray.AnalogSignalArray):
-        asa = out
+    if isinstance(out, generalized.RegularlySampledAnalogSignalArray):
         if fs is None:
-            fs = asa.fs
+            fs = out.fs
         if fs is None:
-            raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+            raise ValueError("fs must either be specified, or must be contained in the {}!".format(out.type_name))
     elif isinstance(out, core._spiketrain.BinnedSpikeTrainArray):
         bst = out
         if fs is None:
             fs = 1/bst.ds
         if fs is None:
-            raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+            raise ValueError("fs must either be specified, or must be contained in the {}!".format(out.type_name))
     else:
         raise NotImplementedError("gaussian_filter for {} is not yet supported!".format(str(type(out))))
 
-    if sigma is None:
-        sigma = 0.05 # 50 ms default
-    if bw is None:
-        bw = 4 # bandwidth of filter (outside of this bandwidth, the filter is zero)
-
     sigma = sigma * fs
 
-    cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
+    if not within_intervals:
+        # see https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
+        # (1) if smoothing across intervals, we work on a merged support
+        # (2) build abscissa_vals, including existing ones, and out-of-support ones
+        # (3) to smooth U, build auxiliary arrays V and W, with (V=U).nan=0, and (W=1).nan=0
+        # (4) Z = smooth(V)/smooth(W)
+        # (5) only keep original support, and original abscissa_vals
 
-    if isinstance(out, core.AnalogSignalArray):
-        # now smooth each epoch separately
-        for idx in range(asa.n_epochs):
-            out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
-    elif isinstance(out, core.BinnedSpikeTrainArray):
+        if isinstance(out, generalized.RegularlySampledAnalogSignalArray):
+            support = out._abscissa.support.merge()
+            support._domain = support.domain # wow! cool trick to make sure it's initialized!
+            support._domain._data = np.array([[support.start, support.stop]]) #TODO: #FIXME might come from abscissa definition, and not from support
+
+            missing_abscissa_vals = []
+            for interval in (~support):
+                missing_vals = frange(interval.start, interval.stop, 1/fs)
+                missing_abscissa_vals.extend(missing_vals)
+
+            V = np.zeros((out.n_signals, out.n_samples + len(missing_abscissa_vals)))
+            W = np.ones(V.shape)
+            all_abscissa_vals = np.sort(np.append(out._abscissa_vals, missing_abscissa_vals))
+            data_idx = np.searchsorted(all_abscissa_vals, out.abscissa_vals)
+            missing_idx = np.searchsorted(all_abscissa_vals, missing_abscissa_vals)
+            V[:, data_idx] = out.data
+            W[:, missing_idx] = 0
+
+            VV = scipy.ndimage.filters.gaussian_filter(V, sigma=(0,sigma), truncate=bw, mode=mode, cval=cval)
+            WW = scipy.ndimage.filters.gaussian_filter(W, sigma=(0,sigma), truncate=bw, mode=mode, cval=cval)
+
+            Z = VV[:,data_idx]/WW[:,data_idx]
+
+            out._data = Z
+        else:
+            raise NotImplementedError("gaussian_filter across intervals for {} is not yet supported!".format(str(type(out))))
+    else: # within intervals:
+        cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
         out._data = out._data.astype(float)
-        # now smooth each epoch separately
-        for idx in range(out.n_epochs):
-            out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
-            # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
+
+        if isinstance(out, generalized.RegularlySampledAnalogSignalArray):
+            # now smooth each interval separately
+            for idx in range(out.n_intervals):
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+        elif isinstance(out, core.BinnedSpikeTrainArray):
+            # now smooth each interval separately
+            for idx in range(out.n_epochs):
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+                # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
 
     return out
 
