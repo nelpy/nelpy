@@ -417,16 +417,18 @@ class IntervalArray:
 
         if domain.n_intervals > 1:
             return complement[domain]
-
-        complement._data[0,0] = np.max((complement._data[0,0], domain.start))
-        complement._data[-1,-1] = np.min((complement._data[-1,-1], domain.stop))
+        try:
+            complement._data[0,0] = np.max((complement._data[0,0], domain.start))
+            complement._data[-1,-1] = np.min((complement._data[-1,-1], domain.stop))
+        except IndexError: # complement is empty
+            return type(self)(empty=True)
         return complement
 
     @property
     def domain(self):
         """domain (in base units) within which support is defined"""
         if self._domain is None:
-            return type(self)([-np.inf, np.inf])
+            self._domain = type(self)([-np.inf, np.inf])
         return self._domain
 
     @domain.setter
@@ -453,6 +455,11 @@ class IntervalArray:
     def data(self):
         """Interval values [start, stop) in base units."""
         return self._data
+
+    @property
+    def is_finite(self):
+        """Is the interval [start, stop) finite."""
+        return not(np.isinf(self.start) | np.isinf(self.stop))
 
     # @property
     # def _human_readable_posix_intervals(self):
@@ -594,7 +601,7 @@ class IntervalArray:
         return self[keep_interval_ids]
 
     def intersect(self, interval, *, boundaries=True):
-        """Returns intersection (overlap) between current IntervalArray (self) and 
+        """Returns intersection (overlap) between current IntervalArray (self) and
            other interval array ('interval').
         """
 
@@ -605,14 +612,17 @@ class IntervalArray:
                 new_interval = self._intersect(epa,epb, boundaries=boundaries)
                 if not new_interval.isempty:
                     new_intervals.append([new_interval.start, new_interval.stop])
-
-        return type(self)(new_intervals)
+        out = type(self)(new_intervals)
+        out._domain = self.domain
+        return out
 
     def _intersect(self, intervala, intervalb, *, boundaries=True, meta=None):
         """Finds intersection (overlap) between two sets of interval arrays.
 
         TODO: verify if this requires a merged IntervalArray to work properly?
         ISSUE_261: not fixed yet
+
+        TODO: domains are not preserved yet! careful consideration is necessary.
 
         Parameters
         ----------

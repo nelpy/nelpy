@@ -16,6 +16,10 @@ class Abscissa():
     ----------
     data : np.array
         The
+    extent : tuple
+        The extent [start, stop] of the abscissa (the domain). Default is None
+        or [-inf, inf]. This needs to be specified / populated when wrapping is
+        requested.
     """
 
     def __init__(self, support=None, is_wrapping=False, labelstring=None):
@@ -34,7 +38,7 @@ class Abscissa():
 
     @property
     def label(self):
-        """Ordinate label."""
+        """Abscissa label."""
         return self._labelstring.format(self.base_unit)
 
     @label.setter
@@ -50,8 +54,19 @@ class Abscissa():
         self._labelstring = labelstring
 
     def __repr__(self):
-        return "Abscissa(base_unit={}, is_wrapping={})".format(self.base_unit, self.is_wrapping)
+        return "Abscissa(base_unit={}, is_wrapping={}) on domain [{}, {})".format(self.base_unit, self.is_wrapping, self.domain.start, self.domain.stop)
 
+    @property
+    def domain(self):
+        """Domain (in base units) on which abscissa is defined."""
+        return self.support.domain
+
+    @domain.setter
+    def domain(self, val):
+        """Domain (in base units) on which abscissa is defined."""
+        # val can be an IntervalArray type, or (start, stop)
+        self.support.domain = val
+        self.support = self.support[self.support.domain]
 
 class Ordinate():
     """An ordinate (y-axis) object for core nelpy data containers.

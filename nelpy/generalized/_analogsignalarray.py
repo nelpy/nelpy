@@ -332,6 +332,8 @@ class RegularlySampledAnalogSignalArray:
         self._abscissa = abscissa
         self._ordinate = ordinate
 
+        # TODO: #FIXME abscissa and ordinate domain, range, and supports should be integrated and/or coerced with support
+
         self.__version__ = version.__version__
 
         # cast derivatives of RegularlySampledAnalogSignalArray back into RegularlySampledAnalogSignalArray:
@@ -931,10 +933,41 @@ class RegularlySampledAnalogSignalArray:
 
     @property
     def support(self):
-        """(nelpy.IntervalArray) The support of the underlying RegularlySampledAnalogSignalArray
-        (in seconds).
-         """
+        """(nelpy.IntervalArray) The support of the underlying RegularlySampledAnalogSignalArray."""
         return self._abscissa.support
+
+    @support.setter
+    def support(self, val):
+        """(nelpy.IntervalArray) The support of the underlying RegularlySampledAnalogSignalArray."""
+        # modify support
+        if isinstance(val, type(self._abscissa.support)):
+            self._abscissa.support = val
+        elif isinstance(val, (tuple, list)):
+            prev_domain = self._abscissa.domain
+            self._abscissa.support = type(self._abscissa.support)([val[0], val[1]])
+            self._abscissa.domain = prev_domain
+        else:
+            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+        # restrict data to new support
+        self._restrict_to_interval_array_fast(intervalarray=self._abscissa.support)
+
+    @property
+    def domain(self):
+        """(nelpy.IntervalArray) The domain of the underlying RegularlySampledAnalogSignalArray."""
+        return self._abscissa.domain
+
+    @domain.setter
+    def domain(self, val):
+        """(nelpy.IntervalArray) The domain of the underlying RegularlySampledAnalogSignalArray."""
+        # modify domain
+        if isinstance(val, type(self._abscissa.support)):
+            self._abscissa.domain = val
+        elif isinstance(val, (tuple, list)):
+            self._abscissa.domain = type(self._abscissa.support)([val[0], val[1]])
+        else:
+            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+        # restrict data to new support
+        self._restrict_to_interval_array_fast(intervalarray=self._abscissa.support)
 
     @property
     def step(self):

@@ -1309,8 +1309,8 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
 
         if isinstance(out, generalized.RegularlySampledAnalogSignalArray):
             support = out._abscissa.support.merge()
-            support._domain = support.domain # wow! cool trick to make sure it's initialized!
-            support._domain._data = np.array([[support.start, support.stop]]) #TODO: #FIXME might come from abscissa definition, and not from support
+            if not support.domain.is_finite:
+                support.domain = (support.start, support.stop) #TODO: #FIXME might come from abscissa definition, and not from support
 
             missing_abscissa_vals = []
             for interval in (~support):
