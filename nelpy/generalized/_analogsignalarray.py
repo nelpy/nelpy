@@ -452,6 +452,69 @@ class RegularlySampledAnalogSignalArray:
         return f(args)
 
     @property
+    def is_1d(self):
+        try:
+            return self.n_signals == 1
+        except IndexError:
+            return False
+
+    @property
+    def is_wrapped(self):
+        if np.any(self.max() > self._ordinate.range.stop) | np.any(self.min() < self._ordinate.range.min):
+            self._ordinate._is_wrapped = False
+        else:
+            self._ordinate._is_wrapped = True
+
+        # if self._ordinate._is_wrapped is None:
+        #     if np.any(self.max() > self._ordinate.range.stop) | np.any(self.min() < self._ordinate.range.min):
+        #         self._ordinate._is_wrapped = False
+        #     else:
+        #         self._ordinate._is_wrapped = True
+        return self._ordinate._is_wrapped
+
+    def _wrap(self, arr, vmin, vmax):
+        """Wrap array within finite range."""
+        if np.isinf(vmax - vmin):
+            raise ValueError('range has to be finite!')
+        return ((arr - vmin) % (vmax-vmin)) + vmin
+
+    def wrap(self, inplace=False):
+        """Wrap oridnate within finite range."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+
+        out.data = np.atleast_2d(out._wrap(out.data, out._ordinate.range.min, out._ordinate.range.max ))
+        # out._is_wrapped = True
+        return out
+
+    def _unwrap(self, arr, vmin, vmax):
+        """Unwrap 2D array (with one signal per row) by minimizing total displacement."""
+        d = vmax - vmin
+        dh = d/2
+
+        lin = copy.deepcopy(arr) - vmin
+        n_signals, n_samples = arr.shape
+        for ii in range(1, n_samples):
+            h1 = lin[:,ii] - lin[:,ii-1] >= dh
+            lin[h1,ii:] = lin[h1,ii:] - d
+            h2 = lin[:,ii] - lin[:,ii-1] < - dh
+            lin[h2,ii:] = lin[h2,ii:] + d
+        return np.atleast_2d(lin + vmin)
+
+    def unwrap(self, inplace=False):
+        """Unwrap ordinate by minimizing total displacement."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+
+        out.data = np.atleast_2d(out._unwrap(out._data, out._ordinate.range.min, out._ordinate.range.max))
+        # out._is_wrapped = False
+        return out
+
+    @property
     def base_unit(self):
         """Base unit of the abscissa."""
         return self._abscissa.base_unit
@@ -609,7 +672,7 @@ class RegularlySampledAnalogSignalArray:
     def _drop_empty_intervals(self):
         """Drops empty intervals from support. In-place."""
         keep_interval_ids = np.argwhere(self.lengths).squeeze().tolist()
-        self._abscissa.support = self.support[keep_interval_ids]
+        self._abscissa.support = self._abscissa.support[keep_interval_ids]
         return self
 
     def _estimate_fs(self, abscissa_vals=None):
@@ -798,22 +861,40 @@ class RegularlySampledAnalogSignalArray:
             An object with smoothed data is returned.
 
         """
+        kwargs = {'inplace' : inplace,
+                'fs' : fs,
+                'sigma' : sigma,
+                'bw' : bw,
+                'mode': mode,
+                'cval' : cval,
+                'within_intervals': within_intervals}
+
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+
+        if self._ordinate.is_wrapping:
+            ord_is_wrapped = self.is_wrapped
+
+            if ord_is_wrapped:
+                out = out.unwrap()
 
         # case 1: abs.wrapping=False, ord.linking=False, ord.wrapping=False
         if not self._abscissa.is_wrapping and not self._ordinate.is_linking and not self._ordinate.is_wrapping:
             pass
 
         # case 2: abs.wrapping=False, ord.linking=False, ord.wrapping=True
-        elif not self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
-            raise NotImplementedError
+        # elif not self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
+        #     raise NotImplementedError
 
         # case 3: abs.wrapping=False, ord.linking=True, ord.wrapping=False
         elif not self._abscissa.is_wrapping and self._ordinate.is_linking and not self._ordinate.is_wrapping:
             raise NotImplementedError
 
         # case 4: abs.wrapping=False, ord.linking=True, ord.wrapping=True
-        elif not self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
-            raise NotImplementedError
+        # elif not self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
+        #     raise NotImplementedError
 
         # case 5: abs.wrapping=True, ord.linking=False, ord.wrapping=False
         elif self._abscissa.is_wrapping and not self._ordinate.is_linking and not self._ordinate.is_wrapping:
@@ -821,27 +902,24 @@ class RegularlySampledAnalogSignalArray:
                 mode = 'wrap'
 
         # case 6: abs.wrapping=True, ord.linking=False, ord.wrapping=True
-        elif self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
-            raise NotImplementedError
+        # elif self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
+        #     raise NotImplementedError
 
         # case 7: abs.wrapping=True, ord.linking=True, ord.wrapping=False
         elif self._abscissa.is_wrapping and self._ordinate.is_linking and not self._ordinate.is_wrapping:
             raise NotImplementedError
 
         # case 8: abs.wrapping=True, ord.linking=True, ord.wrapping=True
-        elif self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
-            raise NotImplementedError
+        # elif self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
+        #     raise NotImplementedError
 
-        kwargs = {'inplace' : inplace,
-                  'fs' : fs,
-                  'sigma' : sigma,
-                  'bw' : bw,
-                  'mode': mode,
-                  'cval': cval,
-                  'within_intervals': within_intervals}
-
-        out = utils.gaussian_filter(self, **kwargs)
+        out = utils.gaussian_filter(out, **kwargs)
         out.__renew__()
+
+        if self._ordinate.is_wrapping:
+            if ord_is_wrapped:
+                out = out.wrap()
+
         return out
 
     @property
@@ -930,6 +1008,13 @@ class RegularlySampledAnalogSignalArray:
             # legacy support:
             self._data = self._ydata
         return self._data
+
+    @data.setter
+    def data(self, val):
+        """(np.array N-Dimensional) data with shape (n_signals, n_samples)."""
+        self._data = val
+        # print('data was modified, so re-forming interp, etc.')
+        self.__renew__()
 
     @property
     def support(self):
@@ -1317,7 +1402,12 @@ class RegularlySampledAnalogSignalArray:
             axis = -1
 
         abscissa_vals = self._abscissa_vals
-        yvals = self._data_rowsig
+
+        if self._ordinate.is_wrapping:
+            yvals = self._unwrap(self._data_rowsig, self._ordinate.range.min, self._ordinate.range.max) # always interpolate on the unwrapped data!
+        else:
+            yvals = self._data_rowsig
+
         lengths = self.lengths
         empty_interval_ids = np.argwhere(lengths==0).squeeze().tolist()
         first_abscissavals_per_interval_idx = np.insert(np.cumsum(lengths[:-1]),0,0)
@@ -1435,13 +1525,28 @@ class RegularlySampledAnalogSignalArray:
             self._interp = interpobj
 
         # do the actual interpolation
-        try:
-            out = interpobj(at)
-        except SystemError:
-            interpobj = self._get_interp1d(**kwargs)
-            if store_interp:
-                self._interp = interpobj
-            out = interpobj(at)
+        if self._ordinate.is_wrapping:
+            try:
+                if self.is_wrapped:
+                    out = self._wrap(interpobj(at), self._ordinate.range.min, self._ordinate.range.max)
+                else:
+                    out = interpobj(at)
+            except SystemError:
+                interpobj = self._get_interp1d(**kwargs)
+                if store_interp:
+                    self._interp = interpobj
+                if self.is_wrapped:
+                    out = self._wrap(interpobj(at),self._ordinate.range.min, self._ordinate.range.max)
+                else:
+                    out = interpobj(at)
+        else:
+            try:
+                out = interpobj(at)
+            except SystemError:
+                interpobj = self._get_interp1d(**kwargs)
+                if store_interp:
+                    self._interp = interpobj
+                out = interpobj(at)
 
         # TODO: set all values outside of self.support to fill_value
 

@@ -452,6 +452,16 @@ class IntervalArray:
         self._meta = val
 
     @property
+    def min(self):
+        """Minimum bound of all intervals in IntervalArray."""
+        return self.merge().start
+
+    @property
+    def max(self):
+        """Maximum bound of all intervals in IntervalArray."""
+        return self.merge().stop
+
+    @property
     def data(self):
         """Interval values [start, stop) in base units."""
         return self._data

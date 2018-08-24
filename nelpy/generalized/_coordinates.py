@@ -1,6 +1,8 @@
 """This module contains abscissa and ordinate objects for core nelpy objects."""
 __all__ = ['Abscissa', 'Ordinate', 'AnalogSignalArrayAbscissa', 'AnalogSignalArrayOrdinate']
 
+import numpy as np
+
 from .. import generalized
 from .. import formatters
 
@@ -82,7 +84,7 @@ class Ordinate():
         The
     """
 
-    def __init__(self, base_unit=None, is_linking=False, is_wrapping=False, labelstring=None):
+    def __init__(self, base_unit=None, is_linking=False, is_wrapping=False, labelstring=None, _range=None):
 
         # TODO: add label support
 
@@ -91,10 +93,15 @@ class Ordinate():
         if labelstring is None:
             labelstring = '{}'
 
+        if _range is None:
+            _range = generalized.IntervalArray([-np.inf, np.inf])
+
         self.base_unit = base_unit
         self._labelstring = labelstring
         self.is_linking = is_linking
         self.is_wrapping = is_wrapping
+        self._is_wrapped = None # intialize to unknown (None) state
+        self._range = _range
 
     @property
     def label(self):
@@ -115,6 +122,26 @@ class Ordinate():
 
     def __repr__(self):
         return "Ordinate(base_unit={}, is_linking={}, is_wrapping={})".format(self.base_unit, self.is_linking, self.is_wrapping)
+
+    @property
+    def range(self):
+        """Range (in ordinate base units) on which ordinate is defined."""
+        return self._range
+
+    @range.setter
+    def range(self, val):
+        """Range (in ordinate base units) on which ordinate is defined."""
+        # val can be an IntervalArray type, or (start, stop)
+        if isinstance(val, type(self.range)):
+                self._range = val
+        elif isinstance(val, (tuple, list)):
+            prev_domain = self.range.domain
+            self._range = type(self.range)([val[0], val[1]])
+            self._range.domain = prev_domain
+        else:
+            raise TypeError('range must be of type {}'.format(str(type(self.range))))
+
+        self._range = self.range[self.range.domain]
 
 
 class AnalogSignalArrayAbscissa(Abscissa):
