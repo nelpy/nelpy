@@ -256,19 +256,23 @@ class IntervalArray:
         raise NotImplementedError("operator / not yet implemented")
 
     def __lshift__(self, other):
-        """shift data to left"""
+        """shift data to left (<<)"""
         if isinstance(other, numbers.Number):
             new = copy.copy(self)
             new._data = new._data - other
+            if new.domain.is_finite:
+                new.domain._data = new.domain._data - other
             return new
         else:
             raise TypeError("unsupported operand type(s) for <<: {} and {}".format(str(type(self)), str(type(other))))
 
     def __rshift__(self, other):
-        """shift data to right"""
+        """shift data to right (>>)"""
         if isinstance(other, numbers.Number):
             new = copy.copy(self)
             new._data = new._data + other
+            if new.domain.is_finite:
+                new.domain._data = new.domain._data + other
             return new
         else:
             raise TypeError("unsupported operand type(s) for >>: {} and {}".format(str(type(self)), str(type(other))))

@@ -13,6 +13,7 @@ import numpy as np
 import copy
 import numbers
 
+from sys import float_info
 from functools import wraps
 from scipy import interpolate
 from scipy.stats import zscore
@@ -666,6 +667,26 @@ class RegularlySampledAnalogSignalArray:
         else:
             raise TypeError("unsupported operand type(s) for /: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
 
+    def __lshift__(self, val):
+        """shift abscissa and support to left (<<)"""
+        if isinstance(val, numbers.Number):
+            new = self.copy()
+            new._abscissa_vals -= val
+            new._abscissa.support = new._abscissa.support << val
+            return new
+        else:
+            raise TypeError("unsupported operand type(s) for <<: {} and {}".format(str(type(self)), str(type(val))))
+
+    def __rshift__(self, val):
+        """shift abscissa and support to right (>>)"""
+        if isinstance(val, numbers.Number):
+            new = self.copy()
+            new._abscissa_vals += val
+            new._abscissa.support = new._abscissa.support >> val
+            return new
+        else:
+            raise TypeError("unsupported operand type(s) for >>: {} and {}".format(str(type(self)), str(type(val))))
+
     def __len__(self):
         return self.n_intervals
 
@@ -861,6 +882,12 @@ class RegularlySampledAnalogSignalArray:
             An object with smoothed data is returned.
 
         """
+
+        if sigma is None:
+            sigma = 0.05
+        if bw is None:
+            bw=4
+
         kwargs = {'inplace' : inplace,
                 'fs' : fs,
                 'sigma' : sigma,
@@ -885,33 +912,89 @@ class RegularlySampledAnalogSignalArray:
             pass
 
         # case 2: abs.wrapping=False, ord.linking=False, ord.wrapping=True
-        # elif not self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
-        #     raise NotImplementedError
+        elif not self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
+            pass
 
         # case 3: abs.wrapping=False, ord.linking=True, ord.wrapping=False
         elif not self._abscissa.is_wrapping and self._ordinate.is_linking and not self._ordinate.is_wrapping:
             raise NotImplementedError
 
         # case 4: abs.wrapping=False, ord.linking=True, ord.wrapping=True
-        # elif not self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
-        #     raise NotImplementedError
+        elif not self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
+            raise NotImplementedError
 
         # case 5: abs.wrapping=True, ord.linking=False, ord.wrapping=False
         elif self._abscissa.is_wrapping and not self._ordinate.is_linking and not self._ordinate.is_wrapping:
             if mode is None:
-                mode = 'wrap'
+                kwargs['mode'] = 'wrap'
 
         # case 6: abs.wrapping=True, ord.linking=False, ord.wrapping=True
-        # elif self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
-        #     raise NotImplementedError
+        elif self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
+            # (1) unwrap ordinate (abscissa wrap=False)
+            # (2) smooth unwrapped ordinate (absissa wrap=False)
+            # (3) repeat unwrapped signal based on conditions from (2):
+                # if smoothed wrapped ordinate samples
+                # HH ==> SSS (this must be done on a per-signal basis!!!) H = high; L = low; S = same
+                # LL ==> SSS (the vertical offset must be such that neighbors have smallest displacement)
+                # LH ==> LSH
+                # HL ==> HSL
+            # (4) smooth expanded and unwrapped ordinate (abscissa wrap=False)
+            # (5) cut out orignal signal
+
+            # (1)
+            kwargs['mode'] = 'reflect'
+            L = out._ordinate.range.max - out._ordinate.range.min
+            D = out.domain.length
+
+            tmp = utils.gaussian_filter(out.unwrap(), **kwargs)
+            # (2) (3)
+            n_reps = int(np.ceil((sigma*bw)/float(D)))
+
+            smooth_data = []
+            for ss, signal in enumerate(tmp.signals):
+
+                # signal = signal.wrap()
+                offset = float((signal._data[:,-1] - signal._data[:,0]) // (L/2))*L
+                # print(offset)
+                # left_high = signal._data[:,0] >= out._ordinate.range.min + L/2
+                # right_high = signal._data[:,-1] >= out._ordinate.range.min + L/2
+                # signal = signal.unwrap()
+
+                expanded = signal.copy()
+                for nn in range(n_reps):
+                    expanded = expanded.join((signal << D*(nn+1))-offset).join((signal >> D*(nn+1))+offset)
+                    # print(expanded)
+                    # if left_high == right_high:
+                    #     print('extending flat! signal {}'.format(ss))
+                    #     expanded = expanded.join(signal << D*(nn+1)).join(signal >> D*(nn+1))
+                    # elif left_high < right_high:
+                    #     print('extending LSH! signal {}'.format(ss))
+                    #     # LSH
+                    #     expanded = expanded.join((signal << D*(nn+1))-L).join((signal >> D*(nn+1))+L)
+                    # else:
+                    #     # HSL
+                    #     print('extending HSL! signal {}'.format(ss))
+                    #     expanded = expanded.join((signal << D*(nn+1))+L).join((signal >> D*(nn+1))-L)
+                # (4)
+                smooth_signal = utils.gaussian_filter(expanded, **kwargs)
+                smooth_data.append(smooth_signal._data[:,n_reps*tmp.n_samples:(n_reps+1)*(tmp.n_samples)].squeeze())
+            # (5)
+            out._data = np.array(smooth_data)
+            out.__renew__()
+
+            if self._ordinate.is_wrapping:
+                if ord_is_wrapped:
+                    out = out.wrap()
+
+            return out
 
         # case 7: abs.wrapping=True, ord.linking=True, ord.wrapping=False
         elif self._abscissa.is_wrapping and self._ordinate.is_linking and not self._ordinate.is_wrapping:
             raise NotImplementedError
 
         # case 8: abs.wrapping=True, ord.linking=True, ord.wrapping=True
-        # elif self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
-        #     raise NotImplementedError
+        elif self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
+            raise NotImplementedError
 
         out = utils.gaussian_filter(out, **kwargs)
         out.__renew__()
@@ -1651,6 +1734,10 @@ class RegularlySampledAnalogSignalArray:
     def join(self, other, *, mode=None, inplace=False):
         """Join another RegularlySampledAnalogSignalArray to this one.
 
+        WARNING! Numerical precision might cause some epochs to be considered
+        non-disjoint even when they really are, so a better check than ep1[ep2].isempty
+        is to check for samples contained in the intersection of ep1 and ep2.
+
         Parameters
         ----------
         other : RegularlySampledAnalogSignalArray
@@ -1680,7 +1767,7 @@ class RegularlySampledAnalogSignalArray:
         data = np.zeros((asa.n_signals,0))
 
         # if ASAs are disjoint:
-        if self.support[other.support].isempty:
+        if not self.support[other.support].length > 50*float_info.epsilon:
             # do a simple-as-butter join (concat) and sort
             times = np.append(times, self._abscissa_vals)
             data = np.hstack((data, self.data))
@@ -1693,7 +1780,7 @@ class RegularlySampledAnalogSignalArray:
 
             if mode=='left':
                 self_eps += both_eps
-                print(self_eps)
+                # print(self_eps)
 
                 tmp = self[self_eps]
                 times = np.append(times, tmp._abscissa_vals)
@@ -1723,8 +1810,10 @@ class RegularlySampledAnalogSignalArray:
 
         asa._data = data
         asa._abscissa_vals = times
-        asa._abscissa._support = (self.support + other.support).merge()
-
+        dom1 = self.domain
+        dom2 = other.domain
+        asa._abscissa.support = (self.support + other.support).merge()
+        asa._abscissa.support.domain = (dom1 + dom2).merge()
         return asa
 
     def _pdf(self, bins=None, n_samples=None):
