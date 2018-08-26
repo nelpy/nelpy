@@ -990,6 +990,8 @@ class EpochArray(IntervalArray):
         }
 
     def __init__(self, *args, **kwargs):
+        # add class-specific aliases to existing aliases:
+        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
         super().__init__(*args, **kwargs)
 
         self.interval_name = 'epoch'
@@ -1022,7 +1024,12 @@ class EpochArray(IntervalArray):
 
 class SpaceArray(IntervalArray):
     """IntervalArray containing spatial intervals (in cm)."""
+
+    __aliases__ = {}
+
     def __init__(self, *args, **kwargs):
+        # add class-specific aliases to existing aliases:
+        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
         super().__init__(*args, **kwargs)
 
         self.formatter = formatters.PrettySpace

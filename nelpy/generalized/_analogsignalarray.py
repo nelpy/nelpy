@@ -1965,6 +1965,8 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
         }
 
     def __init__(self, *args, **kwargs):
+        # add class-specific aliases to existing aliases:
+        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
 
         # legacy ASA constructor support for backward compatibility
         kwargs = legacyASAkwargs(**kwargs)
@@ -1979,24 +1981,71 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
         super().__init__(*args, **kwargs)
 
 
-class MinimalExampleArray(RegularlySampledAnalogSignalArray):
+class PositionArray(AnalogSignalArray):
+    """Custom PositionArray docstring with kwarg descriptions.
+
+    TODO: add the docstring here, using the aliases in the constructor.
+    """
+
+    # specify class-specific aliases:
+    __aliases__ = {
+        'posdata': 'data'
+        }
 
     def __init__(self, *args, **kwargs):
+        # add class-specific aliases to existing aliases:
+        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+        super().__init__(*args, **kwargs)
 
+    @property
+    def is_2d(self):
+        try:
+            return self.n_signals == 2
+        except IndexError:
+            return False
+
+    @property
+    def is_1d(self):
+        try:
+            return self.n_signals == 1
+        except IndexError:
+            return False
+
+    @property
+    def x(self):
+        """return x-values, as numpy array."""
+        return self.data[0,:]
+
+    @property
+    def y(self):
+        """return y-values, as numpy array."""
+        if self.is_2d:
+            return self.data[1,:]
+        raise ValueError("PositionArray is not 2 dimensional, so y-values are undefined!")
+
+
+class IMUSensorArray(RegularlySampledAnalogSignalArray):
+    """IMUSensorArray docstring goes here."""
+
+    # specify class-specific aliases:
+    __aliases__ = {}
+
+    def __init__(self, *args, **kwargs):
+        # add class-specific aliases to existing aliases:
+        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+        super().__init__(*args, **kwargs)
+
+class MinimalExampleArray(RegularlySampledAnalogSignalArray):
+    """Class MinimalExampleArray docstring goes here."""
+
+    # specify class-specific aliases:
+    __aliases__ = {}
+
+    def __init__(self, *args, **kwargs):
+        # add class-specific aliases to existing aliases:
+        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
         super().__init__(*args, **kwargs)
 
     def custom_func(self):
         """custom_func docstring goes here."""
         print('Woot! We have some special skillz!')
-
-class PositionArray(RegularlySampledAnalogSignalArray):
-
-    def __init__(self, *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
-
-class IMUSensorArray(RegularlySampledAnalogSignalArray):
-
-    def __init__(self, *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
