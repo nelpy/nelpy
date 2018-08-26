@@ -24,7 +24,7 @@ from numpy import log, ceil
 import copy
 
 from . import core # so that core.AnalogSignalArray is exposed
-from . import generalized # so that core.AnalogSignalArray is exposed
+from . import generalized # so that generalized.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 
 # def sub2ind(array_shape, rows, cols):
@@ -189,8 +189,8 @@ def spatial_sparsity(ratemap):
 def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False):
     # TODO add'l kwargs
 
-    if not isinstance(obj, core.AnalogSignalArray):
-        raise TypeError('obj is expected to be a nelpy.core.AnalogSignalArray!')
+    if not isinstance(obj, generalized.AnalogSignalArray):
+        raise TypeError('obj is expected to be a nelpy.generalized.AnalogSignalArray!')
 
     assert fs_out < obj.fs, "fs_out must be less than current sampling rate!"
 
@@ -280,12 +280,12 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     # TODO: now that we can simply cast from BST to ASA and back, the following logic could be simplified:
     # put mua rate inside an AnalogSignalArray
     if _fast:
-        mua = core.AnalogSignalArray([], empty=True)
+        mua = generalized.AnalogSignalArray([], empty=True)
         mua._support = mua_binned.support
         mua._time = mua_binned.bin_centers
         mua._data = mua_binned.data
     else:
-        mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
+        mua = generalized.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
 
     mua._fs = 1/ds
 
@@ -559,7 +559,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
     if bw is None:
         bw = 6
 
-    if isinstance(data, core.AnalogSignalArray):
+    if isinstance(data, generalized.AnalogSignalArray):
         # if we have only mua, then we cannot set (ds, unsorted_id, min_active)
         if ds is not None:
             raise ValueError('if data is an AnalogSignalArray then ds cannot be specified!')
@@ -789,7 +789,7 @@ def get_direction(asa, *, sigma=None):
     """
     if sigma is None:
         sigma = 0
-    if not isinstance(asa, core.AnalogSignalArray):
+    if not isinstance(asa, generalized.AnalogSignalArray):
         raise TypeError('AnalogSignalArray expected!')
     assert asa.n_signals == 1, "1D AnalogSignalArray expected!"
 
@@ -1139,7 +1139,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
     if fs is None:
         if isinstance(data, (np.ndarray, list)):
             raise ValueError("sampling frequency must be specified!")
-        elif isinstance(data, core.AnalogSignalArray):
+        elif isinstance(data, generalized.AnalogSignalArray):
             fs = data.fs
 
     if isinstance(data, (np.ndarray, list)):
@@ -1156,7 +1156,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             EnvelopeSmoothingSD = sigma*fs
             smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
-    elif isinstance(data, core.AnalogSignalArray):
+    elif isinstance(data, generalized.AnalogSignalArray):
         newasa = copy.deepcopy(data)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -1709,8 +1709,8 @@ def collapse_time(obj, gap=0):
 
     # Also set a new attribute, with the boundaries in seconds.
 
-    if isinstance(obj, core.AnalogSignalArray):
-        new_obj = core.AnalogSignalArray(empty=True)
+    if isinstance(obj, generalized.AnalogSignalArray):
+        new_obj = generalized.AnalogSignalArray(empty=True)
         new_obj._data = obj._data
 
         durations = obj.support.durations

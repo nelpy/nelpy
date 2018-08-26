@@ -65,11 +65,21 @@ def download_example_dataset(dataset_name=None, filename=None, data_home=None,
         if dataset_name == 'linear-track':
             basenames.append('linear-track/trajectory.videoPositionTracking')
             basenames.append('linear-track/spikes.mat')
+
         elif dataset_name == 'w-maze':
             basenames.append('w-maze/trajectory.videoPositionTracking')
             basenames.append('w-maze/spikes.mat')
+
         elif dataset_name == 'spike-sorting':
             basenames.append('spike-sorting/spikedata.npz')
+
+        elif dataset_name == 'ripple-lfp':
+            basenames.append('ripple-lfp/position.npz')
+            basenames.append('ripple-lfp/tetrode2_1kHz.npz')
+            basenames.append('ripple-lfp/tetrode3_1kHz.npz')
+
+        elif dataset_name == 'running-wheel':
+            basenames.append('running-wheel/running-wheel.npz')
         else:
             raise ValueError("example dataset_name '{}' not found!".format(dataset_name))
         for basename in basenames:
@@ -116,8 +126,10 @@ def load_example_dataset(dataset_name=None, data_home=None, **kwargs):
 
     if dataset_name == 'linear-track':
         raise NotImplementedError
+
     elif dataset_name == 'w-maze':
         raise NotImplementedError
+
     elif dataset_name == 'spike-sorting':
         filename = 'spike-sorting/spikedata.npz'
         pathname = cachepath.format(filename)
@@ -129,8 +141,38 @@ def load_example_dataset(dataset_name=None, data_home=None, **kwargs):
         spiketimes = z['spiketimes']
         Data = namedtuple('Data', ['waveforms', 'spiketimes'])
         data = Data(waveforms, spiketimes)
+
     elif dataset_name == 'ripple-lfp':
-        raise NotImplementedError
+        Data = namedtuple('Data', ['T2timestamps', 'T2data', 'T3timestamps', 'T3data', 'posTimestamps', 'posCoords'])
+        filename = 'ripple-lfp/position.npz'
+        pathname = cachepath.format(filename)
+        if not os.path.exists(pathname):
+            print('file does not exist locally, attempting to download...')
+            download_example_dataset(filename=filename, data_home=data_home)
+        z = np.load(pathname)
+        posTimestamps = z['timestamps']
+        posCoords = z['data']
+
+        filename = 'ripple-lfp/tetrode2_1kHz.npz'
+        pathname = cachepath.format(filename)
+        if not os.path.exists(pathname):
+            print('file does not exist locally, attempting to download...')
+            download_example_dataset(filename=filename, data_home=data_home)
+        z = np.load(pathname)
+        T2timestamps = z['timestamps']
+        T2data = z['T2data']
+
+        filename = 'ripple-lfp/tetrode3_1kHz.npz'
+        pathname = cachepath.format(filename)
+        if not os.path.exists(pathname):
+            print('file does not exist locally, attempting to download...')
+            download_example_dataset(filename=filename, data_home=data_home)
+        z = np.load(pathname)
+        T3timestamps = z['timestamps']
+        T3data = z['T3data']
+
+        data = Data(T2timestamps, T2data, T3timestamps, T3data, posTimestamps, posCoords)
+
     elif dataset_name == 'running-wheel':
         filename = 'running-wheel/running-wheel.npz'
         pathname = cachepath.format(filename)
