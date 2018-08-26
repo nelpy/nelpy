@@ -42,6 +42,7 @@ class IntervalArray:
         The start and stop values for each interval. With shape (n_intervals, 2).
     """
 
+    __aliases__ = {}
     __attributes__ = ["_data", "_meta", "_domain"]
 
     def __init__(self, data=None, *args, length=None, 
@@ -168,6 +169,19 @@ class IntervalArray:
             nstr = "1 %s" % self.interval_name
         dstr = "of length {}".format(self.formatter(self.length))
         return "<%s%s: %s> %s" % (self.type_name, address_str, nstr, dstr)
+
+    def __setattr__(self, name, value):
+        # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
+        name = self.__aliases__.get(name, name)
+        object.__setattr__(self, name, value)
+
+    def __getattr__(self, name):
+        # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
+        if name == "aliases":
+            raise AttributeError  # http://nedbatchelder.com/blog/201010/surprising_getattr_recursion.html
+        name = self.__aliases__.get(name, name)
+        #return getattr(self, name) #Causes infinite recursion on non-existent attribute
+        return object.__getattribute__(self, name)
 
     def __iter__(self):
         """IntervalArray iterator initialization."""
@@ -966,29 +980,21 @@ class IntervalArray:
 
 class EpochArray(IntervalArray):
     """IntervalArray containing temporal intervals (epochs, in seconds)."""
+
+    __aliases__ = {
+        'time': 'data',
+        '_time': '_data',
+        'n_epochs': 'n_intervals',
+        'duration': 'length',
+        'durations': 'lengths',
+        }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.interval_name = 'epoch'
         self.formatter = formatters.PrettyDuration
         self.base_unit = self.formatter.base_unit
-
-    # specify additional convenience aliases:
-    @property
-    def time(self):
-        return self._data
-
-    @property
-    def duration(self):
-        return self.length
-
-    @property
-    def durations(self):
-        return self.lengths
-
-    @property
-    def n_epochs(self):
-        return self.n_intervals
 
     # override some functions for API backwards compatibility:
     def partition(self, *, ds=None, n_epochs=None):
@@ -1021,8 +1027,3 @@ class SpaceArray(IntervalArray):
 
         self.formatter = formatters.PrettySpace
         self.base_unit = self.formatter.base_unit
-
-    # specify additional convenience aliases:
-    # @property
-    # def n_epochs(self):
-    #     return self.n_intervals

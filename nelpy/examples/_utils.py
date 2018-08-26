@@ -127,9 +127,32 @@ def load_example_dataset(dataset_name=None, data_home=None, **kwargs):
         z = np.load(pathname)
         waveforms = z['waveforms']
         spiketimes = z['spiketimes']
-
         Data = namedtuple('Data', ['waveforms', 'spiketimes'])
         data = Data(waveforms, spiketimes)
+    elif dataset_name == 'ripple-lfp':
+        raise NotImplementedError
+    elif dataset_name == 'running-wheel':
+        filename = 'running-wheel/running-wheel.npz'
+        pathname = cachepath.format(filename)
+        if not os.path.exists(pathname):
+            print('file does not exist locally, attempting to download...')
+            download_example_dataset(filename=filename, data_home=data_home)
+        z = np.load(pathname)
+        angle_to_linpos = z['angle_to_linpos']
+        angular_position = z['angular_position']
+        lick_lin_position = z['lick_lin_position']
+        lick_times = z['lick_times']
+        linear_position = z['linear_position']
+        motor_lin_position = z['motor_lin_position']
+        motor_times = z['motor_times']
+        reward_position = z['reward_position']
+        silent_position = z['silent_position']
+        timestamps = z['timestamps']
+        tracklength = z['tracklength']
+        wheel_avg_speed = z['wheel_avg_speed']
+
+        Data = namedtuple('Data', ['angle_to_linpos', 'angular_position', 'lick_lin_position', 'lick_times', 'linear_position', 'motor_lin_position', 'motor_times', 'reward_position', 'silent_position', 'timestamps', 'tracklength', 'wheel_avg_speed'])
+        data = Data(angle_to_linpos, angular_position, lick_lin_position, lick_times, linear_position, motor_lin_position, motor_times, reward_position, silent_position, timestamps, tracklength, wheel_avg_speed)
     else:
         raise ValueError("example dataset_name '{}' not found!".format(dataset_name))
 

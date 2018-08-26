@@ -158,6 +158,7 @@ class AnalogSignalArrayAbscissa(Abscissa):
 
         self.formatter = self.support.formatter
 
+
 class AnalogSignalArrayOrdinate(Ordinate):
     """Ordinate for AnalogSignalArray.
 

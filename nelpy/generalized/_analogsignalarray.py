@@ -6,7 +6,11 @@ RegularlySampledAnalogSignalArray
 Core object definition and implementation for RegularlySampledAnalogSignalArray.
 """
 
-__all__ = ['RegularlySampledAnalogSignalArray', 'AnalogSignalArray', 'MinimalExampleArray']
+__all__ = ['RegularlySampledAnalogSignalArray',
+           'AnalogSignalArray',
+           'PositionArray', # Trajectory?
+           'IMUSensorArray',
+           'MinimalExampleArray']
 
 import warnings
 import numpy as np
@@ -311,6 +315,8 @@ class RegularlySampledAnalogSignalArray:
 
         See Parameters
     """
+    __aliases__ = {}
+
     __attributes__ = ['_data','_abscissa_vals', '_fs', '_support', \
                       '_interp', '_step', '_labels']
 
@@ -1076,27 +1082,22 @@ class RegularlySampledAnalogSignalArray:
         out.__renew__()
         return out
 
-    @property
-    def ydata(self):
-        """(np.array N-Dimensional) data with shape (n_signals, n_samples)."""
-        # LEGACY
-        return self.data
+    # @property
+    # def ydata(self):
+    #     """(np.array N-Dimensional) data with shape (n_signals, n_samples)."""
+    #     # LEGACY
+    #     return self.data
 
     @property
     def data(self):
         """(np.array N-Dimensional) data with shape (n_signals, n_samples)."""
-        try:
-            return self._data
-        except AttributeError:
-            # legacy support:
-            self._data = self._ydata
         return self._data
 
     @data.setter
     def data(self, val):
         """(np.array N-Dimensional) data with shape (n_signals, n_samples)."""
         self._data = val
-        # print('data was modified, so re-forming interp, etc.')
+        # print('data was modified, so clearing interp, etc.')
         self.__renew__()
 
     @property
@@ -1138,6 +1139,17 @@ class RegularlySampledAnalogSignalArray:
         self._restrict_to_interval_array_fast(intervalarray=self._abscissa.support)
 
     @property
+    def range(self):
+        """(nelpy.IntervalArray) The range of the underlying RegularlySampledAnalogSignalArray."""
+        return self._ordinate.range
+
+    @range.setter
+    def range(self, val):
+        """(nelpy.IntervalArray) The range of the underlying RegularlySampledAnalogSignalArray."""
+        # modify range
+        self._ordinate.range = val
+
+    @property
     def step(self):
         """ steps per sample
         Example 1: sample_numbers = np.array([1,2,3,4,5,6]) #aka time
@@ -1152,6 +1164,11 @@ class RegularlySampledAnalogSignalArray:
     def abscissa_vals(self):
         """(np.array 1D) Time in seconds."""
         return self._abscissa_vals
+
+    @abscissa_vals.setter
+    def abscissa_vals(self, vals):
+        """(np.array 1D) Time in seconds."""
+        self._abscissa_vals = vals
 
     @property
     def fs(self):
@@ -1871,14 +1888,86 @@ class RegularlySampledAnalogSignalArray:
 
         return cdf
 
+    def __setattr__(self, name, value):
+        # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
+        name = self.__aliases__.get(name, name)
+        object.__setattr__(self, name, value)
+
+    def __getattr__(self, name):
+        # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
+        if name == "aliases":
+            raise AttributeError  # http://nedbatchelder.com/blog/201010/surprising_getattr_recursion.html
+        name = self.__aliases__.get(name, name)
+        #return getattr(self, name) #Causes infinite recursion on non-existent attribute
+        return object.__getattribute__(self, name)
+
 #----------------------------------------------------------------------#
 #======================================================================#
 
+def legacyASAkwargs(**kwargs):
+    """Provide support for legacy AnalogSignalArray kwargs.
+
+    kwarg: time <==> timestamps <==> abscissa_vals
+    kwarg: data <==> ydata
+
+    Examples
+    --------
+    asa = nel.AnalogSignalArray(time=..., data=...)
+    asa = nel.AnalogSignalArray(timestamps=..., data=...)
+    asa = nel.AnalogSignalArray(time=..., ydata=...)
+    asa = nel.AnalogSignalArray(ydata=...)
+    asa = nel.AnalogSignalArray(abscissa_vals=..., data=...)
+    """
+
+    def only_one_of(*args):
+        num_non_null_args = 0
+        out = None
+        for arg in args:
+            if arg is not None:
+                num_non_null_args += 1
+                out = arg
+        if num_non_null_args > 1:
+            raise ValueError ('multiple conflicting arguments received')
+        return out
+
+     # legacy ASA constructor support for backward compatibility
+    abscissa_vals = kwargs.pop('abscissa_vals', None)
+    timestamps = kwargs.pop('timestamps', None)
+    time = kwargs.pop('time', None)
+    # only one of the above, else raise exception
+    abscissa_vals = only_one_of(abscissa_vals, timestamps, time)
+    if abscissa_vals is not None:
+        kwargs['abscissa_vals'] = abscissa_vals
+
+    data = kwargs.pop('data', None)
+    ydata = kwargs.pop('ydata', None)
+    # only one of the above, else raise exception
+    data = only_one_of(data, ydata)
+    if data is not None:
+        kwargs['data'] = data
+
+    return kwargs
+
 
 class AnalogSignalArray(RegularlySampledAnalogSignalArray):
+    """Custom ASA docstring with kwarg descriptions.
 
-    @rsasa_init_wrapper
+    TODO: add the ASA docstring here, using the aliases in the constructor.
+    """
+
+    # specify class-specific aliases:
+    __aliases__ = {
+        'time': 'abscissa_vals',
+        '_time': '_abscissa_vals',
+        'n_epochs': 'n_intervals',
+        'ydata': 'data', # legacy support
+        '_ydata': '_data' # legacy support
+        }
+
     def __init__(self, *args, **kwargs):
+
+        # legacy ASA constructor support for backward compatibility
+        kwargs = legacyASAkwargs(**kwargs)
 
         support = kwargs.get('support', generalized.EpochArray(empty=True))
         abscissa = kwargs.get('abscissa', generalized.AnalogSignalArrayAbscissa(support=support))
@@ -1889,9 +1978,9 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
 
         super().__init__(*args, **kwargs)
 
+
 class MinimalExampleArray(RegularlySampledAnalogSignalArray):
 
-    @rsasa_init_wrapper
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -1899,3 +1988,15 @@ class MinimalExampleArray(RegularlySampledAnalogSignalArray):
     def custom_func(self):
         """custom_func docstring goes here."""
         print('Woot! We have some special skillz!')
+
+class PositionArray(RegularlySampledAnalogSignalArray):
+
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+class IMUSensorArray(RegularlySampledAnalogSignalArray):
+
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
