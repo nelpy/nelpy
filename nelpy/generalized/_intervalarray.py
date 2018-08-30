@@ -999,7 +999,7 @@ class EpochArray(IntervalArray):
         self.base_unit = self.formatter.base_unit
 
     # override some functions for API backwards compatibility:
-    def partition(self, *, ds=None, n_epochs=None):
+    def partition(self, *, ds=None, n_epochs=None, n_intervals=None):
         """Returns an EpochArray that has been partitioned.
 
         # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
@@ -1020,7 +1020,11 @@ class EpochArray(IntervalArray):
         out : EpochArray
             EpochArray that has been partitioned.
         """
-        return super().partition(ds=ds, n_intervals=n_epochs)
+
+        if n_intervals is None:
+            n_intervals = n_epochs
+        kwargs = {'ds':ds, 'n_intervals': n_intervals}
+        return super().partition(**kwargs)
 
 class SpaceArray(IntervalArray):
     """IntervalArray containing spatial intervals (in cm)."""

@@ -1,5 +1,5 @@
 """This module contains abscissa and ordinate objects for core nelpy objects."""
-__all__ = ['Abscissa', 'Ordinate', 'AnalogSignalArrayAbscissa', 'AnalogSignalArrayOrdinate']
+__all__ = ['Abscissa', 'Ordinate', 'AnalogSignalArrayAbscissa', 'AnalogSignalArrayOrdinate', 'TemporalAbscissa']
 
 import numpy as np
 
@@ -143,6 +143,23 @@ class Ordinate():
 
         self._range = self.range[self.range.domain]
 
+class TemporalAbscissa(Abscissa):
+    """Abscissa for time series data."""
+    def __init__(self, *args, **kwargs):
+
+
+        support = kwargs.get('support', generalized.EpochArray(empty=True))
+        labelstring = kwargs.get('labelstring', 'time ({})') # TODO FIXME after unit inheritance; inherit from formatter?
+
+        if support is None:
+            support = generalized.EpochArray(empty=True)
+
+        kwargs['support'] = support
+        kwargs['labelstring'] = labelstring
+
+        super().__init__(*args, **kwargs)
+
+        self.formatter = self.support.formatter
 
 class AnalogSignalArrayAbscissa(Abscissa):
     """Abscissa for AnalogSignalArray."""
