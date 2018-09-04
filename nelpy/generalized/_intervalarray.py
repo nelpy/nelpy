@@ -364,7 +364,7 @@ class IntervalArray:
         new_starts = []
         new_stops = []
         for start, stop in self.data:
-            newxvals = utils.frange(start, stop, step=ds, endpoint=True).tolist()
+            newxvals = utils.frange(start, stop, step=ds).tolist()
             # newxvals = np.arange(start, stop, step=ds).tolist()
             if newxvals[-1] + float_info.epsilon < stop:
                 newxvals.append(stop)

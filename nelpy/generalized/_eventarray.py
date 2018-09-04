@@ -253,7 +253,7 @@ class EventArrayABC(ABC):
         if empty:
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self.support = type(self._abscissa.support)(empty=True)
+            self._abscissa.support = type(self._abscissa.support)(empty=True)
             self._slicer = IntervalSeriesSlicer(self)
             self.loc = ItemGetter_loc(self)
             self.iloc = ItemGetter_iloc(self)
@@ -589,7 +589,7 @@ class EventArray(EventArrayABC):
         Metadata associated with eventseries.
     """
 
-    __attributes__ = ["_data", "_support"]
+    __attributes__ = ["_data"]
     __attributes__.extend(EventArrayABC.__attributes__)
     def __init__(self, datastamps=None, *, fs=None, support=None,
                  series_ids=None, series_labels=None, series_tags=None,
@@ -600,7 +600,7 @@ class EventArray(EventArrayABC):
             super().__init__(empty=True)
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self.support = type(self._abscissa.support)(empty=True)
+            self._abscissa.support = type(self._abscissa.support)(empty=True)
             return
 
         # set default sampling rate
@@ -746,7 +746,9 @@ class EventArray(EventArrayABC):
         """
 
         out = copy.copy(self)
-        out._abscissa.support = out.support.partition(ds=ds, n_intervals=n_intervals)
+        abscissa = copy.deepcopy(out._abscissa)
+        abscissa.support = abscissa.support.partition(ds=ds, n_intervals=n_intervals)
+        out._abscissa = abscissa
         out.loc = ItemGetter_loc(out)
         out.iloc = ItemGetter_iloc(out)
 
@@ -1213,7 +1215,7 @@ class BinnedEventArray(EventArrayABC):
         The start and stop datas for each interval. With shape (n_intervals, 2).
     """
 
-    __attributes__ = ["_ds", "_bins", "_data", "_bin_centers", "_support",
+    __attributes__ = ["_ds", "_bins", "_data", "_bin_centers",
                       "_binnedSupport", "_eventarray"]
     __attributes__.extend(EventArrayABC.__attributes__)
 
@@ -1226,7 +1228,7 @@ class BinnedEventArray(EventArrayABC):
             # super().__init__(empty=True)
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self.support = type(self._abscissa.support)(empty=True)
+            self._abscissa.support = type(self._abscissa.support)(empty=True)
             self._event_centers = None
             return
 
@@ -1235,16 +1237,17 @@ class BinnedEventArray(EventArrayABC):
             if eventarray.isempty:
                 for attr in self.__attributes__:
                     exec("self." + attr + " = None")
-                self.support = type(eventarray._abscissa.support)(empty=True)
+                self._abscissa.support = type(eventarray._abscissa.support)(empty=True)
                 self._event_centers = None
                 return
             self._eventarray = None
             self._ds = 1/eventarray.fs
             self._series_labels = eventarray.labels
-            self._bin_centers = eventarray.data
+            self._bin_centers = eventarray.abscissa_vals
             tmp = np.insert(np.cumsum(eventarray.lengths),0,0)
             self._binnedSupport = np.array((tmp[:-1], tmp[1:]-1)).T
-            self.support = eventarray.support
+            print('in cast, ', type(eventarray.support))
+            self._abscissa.support = eventarray.support
             try:
                 self._series_ids = (np.array(eventarray.labels).astype(int)).tolist()
             except (ValueError, TypeError):
@@ -1252,7 +1255,9 @@ class BinnedEventArray(EventArrayABC):
             self._data = eventarray._ydata_rowsig
 
             bins = []
+            print(self._bin_centers)
             for starti, stopi in self._binnedSupport:
+                print('starti', starti, 'stopi', stopi)
                 bins_edges_in_interval = (self._bin_centers[starti:stopi+1] - self._ds/2).tolist()
                 bins_edges_in_interval.append(self._bin_centers[stopi] + self._ds/2)
                 bins.extend(bins_edges_in_interval)
@@ -1287,7 +1292,7 @@ class BinnedEventArray(EventArrayABC):
             ds = 0.0625
 
         self._eventarray = eventarray # TODO: remove this if we don't need it, or decide that it's too wasteful
-        # self.support = eventarray.support
+        self._abscissa = copy.deepcopy(eventarray._abscissa)
         self.ds = ds
 
         self._bin_events(

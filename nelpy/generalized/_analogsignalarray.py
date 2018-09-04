@@ -176,17 +176,19 @@ def rsasa_init_wrapper(func):
             return
 
         # handle casting other nelpy objects to RegularlySampledAnalogSignalArrays:
-        if isinstance(data, generalized.BinnedSpikeTrainArray):
+        if isinstance(data, generalized.BinnedEventArray):
             abscissa_vals = data.bin_centers
             kwargs['abscissa_vals'] = abscissa_vals
-            support = data.support
-            kwargs['support'] = support
+            # support = data.support
+            # kwargs['support'] = support
+            abscissa = data._abscissa
+            kwargs['abscissa'] = abscissa
             fs = 1/data.ds
             kwargs['fs'] = fs
-            if list(data.unit_labels):
-                labels = data.unit_labels
+            if list(data.series_labels):
+                labels = data.series_labels
             else:
-                labels = data.unit_ids
+                labels = data.series_ids
             kwargs['labels'] = labels
             data = data.data.astype(float)
         # elif isinstance(data, auxiliary.PositionArray):
