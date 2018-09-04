@@ -758,8 +758,7 @@ class EventArray(EventArrayABC):
         """Return a copy of self, without event datas."""
         out = copy.copy(self) # shallow copy
         out._data = None
-        out = copy.deepcopy(self) # just to be on the safe side, but at least now we are not copying the data!
-
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
         return out
 
     def copy(self):
@@ -838,26 +837,16 @@ class EventArray(EventArrayABC):
                     data=self.data,
                     copyover=True
                     )
-                eventarray = EventArray(empty=True)
-                exclude = ["_data", "_support"]
-                attrs = (x for x in self.__attributes__ if x not in exclude)
-                for attr in attrs:
-                    exec("eventarray." + attr + " = self." + attr)
+                eventarray = self._copy_without_data()
                 eventarray._data = data
                 eventarray._abscissa.support = support
                 eventarray.loc = ItemGetter_loc(eventarray)
                 eventarray.iloc = ItemGetter_iloc(eventarray)
             return eventarray
         elif isinstance(idx, int):
-            eventarray = EventArray(empty=True)
-            exclude = ["_data", "_support"]
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                attrs = (x for x in self.__attributes__ if x not in exclude)
-                for attr in attrs:
-                    exec("eventarray." + attr + " = self." + attr)
-                support = self._abscissa.support[idx]
-                eventarray._abscissa.support = support
+            eventarray = self._copy_without_data()
+            support = self._abscissa.support[idx]
+            eventarray._abscissa.support = support
             if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
                 eventarray.loc = ItemGetter_loc(eventarray)
                 eventarray.iloc = ItemGetter_iloc(eventarray)
@@ -883,11 +872,7 @@ class EventArray(EventArrayABC):
                         data=self.data,
                         copyover=True
                         )
-                    eventarray = EventArray(empty=True)
-                    exclude = ["_data", "_support"]
-                    attrs = (x for x in self.__attributes__ if x not in exclude)
-                    for attr in attrs:
-                        exec("eventarray." + attr + " = self." + attr)
+                    eventarray = self._copy_without_data()
                     eventarray._data = data
                     eventarray._abscissa.support = support
                     eventarray.loc = ItemGetter_loc(eventarray)

@@ -521,6 +521,15 @@ class RegularlySampledAnalogSignalArray:
         # out._is_wrapped = False
         return out
 
+    def _crossvals(self):
+        """Return all abscissa values where the orinate crosses.
+
+        Note that this can return multiple values close in succession
+        if the signal oscillates around the maximum or minimum range.
+        """
+        raise NotImplementedError
+
+
     @property
     def base_unit(self):
         """Base unit of the abscissa."""

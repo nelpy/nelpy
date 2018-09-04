@@ -45,6 +45,9 @@ def frange(start, stop, step):
     """arange with floating point step"""
     # TODO: this function is not very general; we can extend it to work
     # for reverse (stop < start), empty, and default args, etc.
+    # there are also many edge cases where this is weird.
+    # see https://stackoverflow.com/questions/7267226/range-for-floats
+    # for better alternatives.
     num_steps = int(np.floor((stop-start)/step))
     return np.linspace(start, stop, num=num_steps, endpoint=False)
 
