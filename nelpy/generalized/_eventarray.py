@@ -1246,7 +1246,6 @@ class BinnedEventArray(EventArrayABC):
             self._bin_centers = eventarray.abscissa_vals
             tmp = np.insert(np.cumsum(eventarray.lengths),0,0)
             self._binnedSupport = np.array((tmp[:-1], tmp[1:]-1)).T
-            print('in cast, ', type(eventarray.support))
             self._abscissa.support = eventarray.support
             try:
                 self._series_ids = (np.array(eventarray.labels).astype(int)).tolist()
@@ -1255,9 +1254,7 @@ class BinnedEventArray(EventArrayABC):
             self._data = eventarray._ydata_rowsig
 
             bins = []
-            print(self._bin_centers)
             for starti, stopi in self._binnedSupport:
-                print('starti', starti, 'stopi', stopi)
                 bins_edges_in_interval = (self._bin_centers[starti:stopi+1] - self._ds/2).tolist()
                 bins_edges_in_interval.append(self._bin_centers[stopi] + self._ds/2)
                 bins.extend(bins_edges_in_interval)
