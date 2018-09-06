@@ -23,7 +23,7 @@ import scipy.ndimage.filters #import gaussian_filter1d, gaussian_filter
 from numpy import log, ceil
 import copy
 
-from . import core # so that core.AnalogSignalArray is exposed
+# from . import core # so that core.AnalogSignalArray is exposed
 from . import generalized # so that generalized.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 
@@ -268,10 +268,10 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     if bw is None:
         bw = 6
 
-    if isinstance(st, core.SpikeTrainArray):
+    if isinstance(st, generalized.EventArray):
         # bin spikes, so that we can count the spikes
         mua_binned = st.bin(ds=ds).flatten()
-    elif isinstance(st, core.BinnedSpikeTrainArray):
+    elif isinstance(st, generalized.BinnedEventArray):
         mua_binned = st.flatten()
         ds = mua_binned.ds
     else:
@@ -467,10 +467,10 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
 
     if len(mua_bounds_idx) == 0:
         warnings.warn("no mua events detected")
-        return core.EpochArray(empty=True)
+        return generalized.EpochArray(empty=True)
 
     # store MUA bounds in an EpochArray
-    mua_epochs = core.EpochArray(mua.time[mua_bounds_idx])
+    mua_epochs = generalized.EpochArray(mua.time[mua_bounds_idx])
 
     return mua_epochs
 
@@ -575,7 +575,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
         if (sigma != 0) and (bw > 0):
             mua = gaussian_filter(mua, sigma=sigma, bw=bw)
 
-    elif isinstance(data, (core.SpikeTrainArray, core.BinnedSpikeTrainArray)):
+    elif isinstance(data, (generalized.EventArray, generalized.BinnedEventArray)):
         # set default parameter values:
         if ds is None:
             ds = 0.001 # default 1 ms
@@ -607,7 +607,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
                                 SecondaryThreshold=SecondaryThreshold)
 
     # now require min_active number of sorted cells
-    if isinstance(data, (core.SpikeTrainArray, core.BinnedSpikeTrainArray)):
+    if isinstance(data, (generalized.EventArray, generalized.BinnedEventArray)):
         if min_active > 0:
             if unsorted_id is not None:
                 # remove unsorted unit, if present:
@@ -804,11 +804,11 @@ def get_direction(asa, *, sigma=None):
 
     l2r = get_contiguous_segments(np.argwhere(direction>0).squeeze(), step=1)
     l2r[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
-    l2r = core.EpochArray(asa.time[l2r])
+    l2r = generalized.EpochArray(asa.abscissa_vals[l2r])
 
     r2l = get_contiguous_segments(np.argwhere(direction<0).squeeze(), step=1)
     r2l[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
-    r2l = core.EpochArray(asa.time[r2l])
+    r2l = generalized.EpochArray(asa.abscissa_vals[r2l])
 
     return l2r, r2l
 
@@ -1291,7 +1291,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
             fs = out.fs
         if fs is None:
             raise ValueError("fs must either be specified, or must be contained in the {}!".format(out.type_name))
-    elif isinstance(out, core._spiketrain.BinnedSpikeTrainArray):
+    elif isinstance(out, generalized.BinnedSpikeTrainArray):
         bst = out
         if fs is None:
             fs = 1/bst.ds
@@ -1344,7 +1344,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
             # now smooth each interval separately
             for idx in range(out.n_intervals):
                 out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
-        elif isinstance(out, core.BinnedSpikeTrainArray):
+        elif isinstance(out, generalized.BinnedSpikeTrainArray):
             # now smooth each interval separately
             for idx in range(out.n_epochs):
                 out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
@@ -1352,7 +1352,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
 
     return out
 
-def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
+def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None, norm=False):
     """Numerical differentiation of a regularly sampled AnalogSignalArray.
 
     Optionally also smooths result with a Gaussian kernel.
@@ -1377,7 +1377,8 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
         (50 ms).
     bw : float, optional
         Bandwidth outside of which the filter value will be zero. Default is 4.0
-
+    norm: boolean, optional
+        If True, then apply the L2 norm to the result.
     Returns
     -------
     out : AnalogSignalArray
@@ -1419,6 +1420,9 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
                 out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
 
     out._data = out._data * fs
+
+    if norm:
+        out._data = np.atleast_2d(np.linalg.norm(out._data, axis=0))
 
     if rectify:
         out._data = np.abs(out._data)
@@ -1553,11 +1557,11 @@ def get_threshold_crossing_epochs(asa, t1=None, t2=None, mode='above'):
     # convert bounds to time in seconds
     epoch_bounds = asa.time[epoch_bounds]
     if len(epoch_bounds) == 0:
-        return core.EpochArray(empty=True)
+        return type(asa._abscissa.support)(empty=True)
     # add 1/fs to stops for open interval
     epoch_bounds[:,1] += 1/asa.fs
     # create EpochArray with threshould exceeding bounds
-    epochs = core.EpochArray(epoch_bounds)
+    epochs = type(asa._abscissa.support)(epoch_bounds)
     return epochs
 
 def get_run_epochs(speed, v1=10, v2=8):
@@ -1621,7 +1625,7 @@ def spiketrain_union(st1, st2):
     if st1.fs == st2.fs:
         fs = st1.fs
 
-    return core.SpikeTrainArray(newdata, support=support, fs=fs)
+    return generalized.SpikeTrainArray(newdata, support=support, fs=fs)
 
 ########################################################################
 # uncurated below this line!
@@ -1719,7 +1723,7 @@ def collapse_time(obj, gap=0):
         durations = obj.support.durations
         starts = np.insert(np.cumsum(durations + gap),0,0)[:-1]
         stops = starts + durations
-        newsupport = core.EpochArray(np.vstack((starts, stops)).T)
+        newsupport = type(obj._abscissa.support)(np.vstack((starts, stops)).T)
         new_obj._support = newsupport
 
         new_time = obj.time.astype(float) # fast copy
@@ -1737,10 +1741,10 @@ def collapse_time(obj, gap=0):
 
         new_obj._fs = obj._fs
 
-    elif isinstance(obj, core.SpikeTrainArray):
+    elif isinstance(obj, generalized.SpikeTrainArray):
         if gap > 0:
             raise ValueError("gaps not supported for SpikeTrainArrays yet!")
-        new_obj = core.SpikeTrainArray(empty=True)
+        new_obj = generalized.SpikeTrainArray(empty=True)
         new_time = lists = [[] for _ in range(obj.n_units)]
         duration = 0
         for st_ in obj:
@@ -1750,10 +1754,10 @@ def collapse_time(obj, gap=0):
             duration += st_.support.duration
         new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time])
         new_obj._time = new_time
-        new_obj._support = core.EpochArray([0, duration])
+        new_obj._support = type(obj._abscissa.support)([0, duration])
         new_obj._unit_ids = obj._unit_ids
         new_obj._unit_labels = obj._unit_labels
-    elif isinstance(obj, core.BinnedSpikeTrainArray):
+    elif isinstance(obj, generalized.BinnedSpikeTrainArray):
         raise NotImplementedError("BinnedSpikeTrains are not yet supported, but bst.data is essentially already collapsed!")
     else:
         raise TypeError("unsupported type for collapse_time")

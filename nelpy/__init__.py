@@ -9,7 +9,7 @@ and inspired by the neuralensemble.org NEO project
 
 # from .objects import *  # NOTE: control exported symbols in objects.py
 
-from .core import *
+from .generalized import *
 from .auxiliary import *
 
 # from . import analysis

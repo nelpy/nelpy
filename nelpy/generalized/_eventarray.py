@@ -591,7 +591,7 @@ class EventArray(EventArrayABC):
 
     __attributes__ = ["_data"]
     __attributes__.extend(EventArrayABC.__attributes__)
-    def __init__(self, datastamps=None, *, fs=None, support=None,
+    def __init__(self, abscissa_vals=None, *, fs=None, support=None,
                  series_ids=None, series_labels=None, series_tags=None,
                  label=None, empty=False, **kwargs):
 
@@ -674,7 +674,7 @@ class EventArray(EventArrayABC):
                     data = np.array(data, ndmin=2)
             return data
 
-        data = standardize_to_2d(datastamps)
+        data = standardize_to_2d(abscissa_vals)
 
         #sort event series, but only if necessary:
         for ii, train in enumerate(data):
@@ -1260,6 +1260,24 @@ class BinnedEventArray(EventArrayABC):
                 bins.extend(bins_edges_in_interval)
             self._bins = np.array(bins)
             return
+
+        if type(eventarray).__name__ == 'BinnedSpikeTrainArray':
+            # old-style nelpy BinnedSpikeTrainArray object?
+            try:
+                self._eventarray = eventarray._spiketrainarray
+                self._ds = eventarray.ds
+                self._series_labels = eventarray.unit_labels
+                self._bin_centers = eventarray.bin_centers
+                self._binnedSupport = eventarray.binnedSupport
+                try:
+                    self._abscissa.support = generalized.EpochArray(eventarray.support.data)
+                except AttributeError:
+                    self._abscissa.support = generalized.EpochArray(eventarray.support.time)
+                self._series_ids = eventarray.unit_ids
+                self._data = eventarray.data
+                return
+            except Exception:
+                pass
 
         if not isinstance(eventarray, EventArray):
             raise TypeError(
@@ -1943,13 +1961,13 @@ class BinnedEventArray(EventArrayABC):
         bins_ = []
         binnedSupport_ = []
         support_ = []
-        all_datastamps = []
+        all_abscissa_vals = []
 
         n_preceding_bins = 0
 
         for frm, to in idx:
             idx_array = np.arange(frm, to+1).astype(int)
-            all_datastamps.append(idx_array)
+            all_abscissa_vals.append(idx_array)
             bin_centers = self.bin_centers[idx_array]
             bins = np.append(bin_centers - ds/2, bin_centers[-1] + ds/2)
 
@@ -1966,13 +1984,13 @@ class BinnedEventArray(EventArrayABC):
         bins = np.concatenate(bins_)
         binnedSupport = np.array(binnedSupport_)
         support = np.sum(support_)
-        all_datastamps = np.concatenate(all_datastamps)
+        all_abscissa_vals = np.concatenate(all_abscissa_vals)
 
         newbst._bin_centers = bin_centers
         newbst._bins = bins
         newbst._binnedSupport = binnedSupport
         newbst._abscissa.support = support
-        newbst._data = newbst.data[:,all_datastamps]
+        newbst._data = newbst.data[:,all_abscissa_vals]
 
         newbst.loc = ItemGetter_loc(newbst)
         newbst.iloc = ItemGetter_iloc(newbst)
@@ -2086,6 +2104,40 @@ class BinnedEventArray(EventArrayABC):
 #----------------------------------------------------------------------#
 #======================================================================#
 
+def legacySTAkwargs(**kwargs):
+    """Provide support for legacy SpikeTrainArray kwargs.
+
+    kwarg: time <==> timestamps <==> abscissa_vals
+    kwarg: data <==> ydata
+
+    Examples
+    --------
+    sta = nel.SpikeTrainArray(time=..., )
+    sta = nel.SpikeTrainArray(timestamps=..., )
+    sta = nel.SpikeTrainArray(abscissa_vals=..., )
+    """
+
+    def only_one_of(*args):
+        num_non_null_args = 0
+        out = None
+        for arg in args:
+            if arg is not None:
+                num_non_null_args += 1
+                out = arg
+        if num_non_null_args > 1:
+            raise ValueError ('multiple conflicting arguments received')
+        return out
+
+     # legacy STA constructor support for backward compatibility
+    abscissa_vals = kwargs.pop('abscissa_vals', None)
+    timestamps = kwargs.pop('timestamps', None)
+    time = kwargs.pop('time', None)
+    # only one of the above, else raise exception
+    abscissa_vals = only_one_of(abscissa_vals, timestamps, time)
+    if abscissa_vals is not None:
+        kwargs['abscissa_vals'] = abscissa_vals
+
+    return kwargs
 
 class SpikeTrainArray(EventArray):
     """Custom SpikeTrainArray docstring with kwarg descriptions.
@@ -2111,6 +2163,9 @@ class SpikeTrainArray(EventArray):
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+
+        # legacy STA constructor support for backward compatibility
+        kwargs = legacySTAkwargs(**kwargs)
 
         support = kwargs.get('support', None)
         if support is not None:

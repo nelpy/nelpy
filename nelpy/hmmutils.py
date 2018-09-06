@@ -15,7 +15,7 @@ from pandas import unique
 from matplotlib.pyplot import subplots
 import copy
 
-from . core import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
+from . generalized import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
 from . utils import swap_cols, swap_rows
 from . import plotting
 from . decoding import decode1D

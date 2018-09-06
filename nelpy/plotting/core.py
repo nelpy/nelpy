@@ -10,7 +10,6 @@ import itertools
 from scipy import signal
 
 from .helpers import RasterLabelData
-from ..core import *
 from . import utils  # import plotting/utils
 from .. import auxiliary
 from .. import generalized
@@ -246,7 +245,7 @@ def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
     if ax is None:
         ax = plt.gca()
 
-    if(isinstance(data, AnalogSignalArray)):
+    if(isinstance(data, generalized.RegularlySampledAnalogSignalArray)):
         if fs is None:
             fs = data.fs
         if fs is None:
@@ -358,13 +357,14 @@ def plot(obj, *args, **kwargs):
     """Docstring goes here."""
 
     ax = kwargs.pop('ax', None)
+    autoscale = kwargs.pop('autoscale', True)
     xlabel = kwargs.pop('xlabel', None)
     ylabel = kwargs.pop('ylabel', None)
 
     if ax is None:
         ax = plt.gca()
 
-    if (isinstance(obj, generalized.AnalogSignalArray)):
+    if (isinstance(obj, generalized.RegularlySampledAnalogSignalArray)):
         if obj.n_signals == 1:
             label = kwargs.pop('label', None)
             for ii, (abscissa_vals, data) in enumerate(zip(obj._intervaltime.plot_generator(), obj._intervaldata.plot_generator())):
@@ -415,7 +415,7 @@ def plot(obj, *args, **kwargs):
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
 
-    elif (isinstance(obj, AnalogSignalArray)):
+    elif (isinstance(obj, generalized.RegularlySampledAnalogSignalArray)):
         if obj.n_signals == 1:
             label = kwargs.pop('label', None)
             for ii, (timestamps, data) in enumerate(zip(obj._epochtime.plot_generator(), obj._epochdata.plot_generator())):
@@ -461,6 +461,27 @@ def plot(obj, *args, **kwargs):
 
     else: # if we didn't handle it yet, just pass it through to matplotlib...
         ax.plot(obj, *args, **kwargs)
+
+    if autoscale:
+        xmin = np.inf
+        xmax = -np.inf
+        ymin = np.inf
+        ymax = -np.inf
+        for child in ax.get_children():
+            try:
+                cxmin, cymin = np.min(child.get_xydata(), axis=0)
+                cxmax, cymax = np.max(child.get_xydata(), axis=0)
+                if cxmin < xmin:
+                    xmin = cxmin
+                if cymin < ymin:
+                    ymin = cymin
+                if cxmax > xmax:
+                    xmax = cxmax
+                if cymax > ymax:
+                    ymax = cymax
+            except:
+                pass
+        ax.set_xlim(xmin, xmax)
 
 def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
          mec=None, markerfacecolor=None, **kwargs):
@@ -516,7 +537,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
-    if(isinstance(npl_obj, AnalogSignalArray)):
+    if(isinstance(npl_obj, generalized.RegularlySampledAnalogSignalArray)):
 
         # Get the colors from the current color cycle
         if npl_obj.n_signals > 1:
@@ -598,9 +619,9 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                     )
 
 
-    if isinstance(npl_obj, EpochArray):
+    if isinstance(npl_obj, generalized.IntervalArray):
         epocharray = npl_obj
-        if epocharray.n_epochs != len(data):
+        if epocharray.n_intervals != len(data):
             raise ValueError("epocharray and data must have the same length")
 
         with warnings.catch_warnings():
@@ -640,7 +661,7 @@ def plot2d(npl_obj, data=None, *, ax=None, mew=None, color=None,
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
-    if(isinstance(npl_obj, AnalogSignalArray)):
+    if(isinstance(npl_obj, generalized.RegularlySampledAnalogSignalArray)):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -937,7 +958,7 @@ def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
 
     # do fixed-value-on-epoch plot if data is not None
     if data is not None:
-        if epochs.n_epochs != len(data):
+        if epochs.n_intervals != len(data):
             raise ValueError("epocharray and data must have the same length")
 
         with warnings.catch_warnings():
