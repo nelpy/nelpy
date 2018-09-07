@@ -1291,7 +1291,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
             fs = out.fs
         if fs is None:
             raise ValueError("fs must either be specified, or must be contained in the {}!".format(out.type_name))
-    elif isinstance(out, generalized.BinnedSpikeTrainArray):
+    elif isinstance(out, generalized.BinnedEventArray):
         bst = out
         if fs is None:
             fs = 1/bst.ds
@@ -1310,7 +1310,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
         # (4) Z = smooth(V)/smooth(W)
         # (5) only keep original support, and original abscissa_vals
 
-        if isinstance(out, generalized.RegularlySampledAnalogSignalArray):
+        if isinstance(out, (generalized.RegularlySampledAnalogSignalArray, generalized.BinnedEventArray)):
             support = out._abscissa.support.merge()
             if not support.domain.is_finite:
                 support.domain = (support.start, support.stop) #TODO: #FIXME might come from abscissa definition, and not from support
@@ -1320,10 +1320,17 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
                 missing_vals = frange(interval.start, interval.stop, 1/fs)
                 missing_abscissa_vals.extend(missing_vals)
 
-            V = np.zeros((out.n_signals, out.n_samples + len(missing_abscissa_vals)))
+            if isinstance(out, generalized.RegularlySampledAnalogSignalArray):
+                n_signals = out.n_signals
+                n_samples = out.n_samples
+            elif isinstance(out, generalized.BinnedEventArray):
+                n_signals = out.n_series
+                n_samples = out.n_bins
+
+            V = np.zeros((n_signals, n_samples + len(missing_abscissa_vals)))
             W = np.ones(V.shape)
             all_abscissa_vals = np.sort(np.append(out._abscissa_vals, missing_abscissa_vals))
-            data_idx = np.searchsorted(all_abscissa_vals, out.abscissa_vals)
+            data_idx = np.searchsorted(all_abscissa_vals, out._abscissa_vals)
             missing_idx = np.searchsorted(all_abscissa_vals, missing_abscissa_vals)
             V[:, data_idx] = out.data
             W[:, missing_idx] = 0

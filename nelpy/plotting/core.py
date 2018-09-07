@@ -699,7 +699,7 @@ def matshow(data, *, ax=None, **kwargs):
         ax = plt.gca()
 
     # Handle different types of input data
-    if isinstance(data, BinnedSpikeTrainArray):
+    if isinstance(data, generalized.BinnedSpikeTrainArray):
         # TODO: split by epoch, and plot matshows in same row, but with
         # a small gap to indicate discontinuities. How about slicing
         # then? Or slicing within an epoch?
@@ -874,7 +874,7 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     hh = lh/2.0  # half the line height
 
     # Handle different types of input data
-    if isinstance(data, SpikeTrainArray):
+    if isinstance(data, generalized.SpikeTrainArray):
 
         label_data = ax.findobj(match=RasterLabelData)[0].label_data
         unitlist = [np.NINF for element in data.unit_ids]

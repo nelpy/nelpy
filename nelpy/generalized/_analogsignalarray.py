@@ -1674,7 +1674,7 @@ class RegularlySampledAnalogSignalArray:
 
         return self.simplify(ds=1/fs)
 
-    def simplify(self, *, ds=None, n_samples=None):
+    def simplify(self, *, ds=None, n_samples=None, **kwargs):
         """Returns an RegularlySampledAnalogSignalArray where the data has been
         simplified / subsampled.
 
@@ -1708,6 +1708,11 @@ class RegularlySampledAnalogSignalArray:
 
         if self.isempty:
             return self
+
+        # legacy kwarg support:
+            n_points = original_kwargs.pop('n_points', False)
+            if n_points:
+                n_samples = n_points
 
         if ds is not None and n_samples is not None:
             raise ValueError("ds and n_samples cannot be used together")

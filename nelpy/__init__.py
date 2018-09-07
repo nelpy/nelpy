@@ -22,11 +22,12 @@ from .utils_ import metrics
 
 from .version import __version__
 
-# TODO: decide on which utils to expose directly:
-# from .utils import (find_nearest_idx,
-#                     find_nearest_indices)
-
-# from .hmmutils import PoissonHMM
-# from . import hmmutils
-
-# from .plotting import plot
+# for legacy support
+import sys
+from . import generalized
+sys.modules['nelpy.core'] = generalized
+sys.modules['nelpy.core._analogsignalarray'] = generalized._analogsignalarray
+sys.modules['nelpy.core._analogsignalarray'].EpochSignalSlicer = generalized._analogsignalarray.IntervalSignalSlicer
+sys.modules['nelpy.core._epocharray'] = generalized._intervalarray
+sys.modules['nelpy.core._spiketrain'] = generalized._eventarray
+sys.modules['nelpy.core._spiketrain'].EpochUnitSlicer = generalized._eventarray.IntervalSeriesSlicer

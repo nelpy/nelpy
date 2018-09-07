@@ -1397,7 +1397,7 @@ class BinnedEventArray(EventArrayABC):
             support = self._abscissa.support[index]
             bsupport = self.binnedSupport[[index],:]
 
-            binnedeventarray = BinnedEventArray(empty=True)
+            binnedeventarray = type(self)(empty=True)
             exclude = ["_bins", "_data", "_support", "_bin_centers", "_binnedSupport"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
             for attr in attrs:
@@ -1461,7 +1461,7 @@ class BinnedEventArray(EventArrayABC):
 
         elif isinstance(idx, int):
             # TODO: issue 229
-            binnedeventarray = BinnedEventArray(empty=True)
+            binnedeventarray = type(self)(empty=True)
             exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -1491,7 +1491,7 @@ class BinnedEventArray(EventArrayABC):
             try:
                 # have to be careful about re-indexing binnedSupport
                 # TODO: issue 229
-                binnedeventarray = BinnedEventArray(empty=True)
+                binnedeventarray = type(self)(empty=True)
                 exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
@@ -1555,6 +1555,11 @@ class BinnedEventArray(EventArrayABC):
         """(np.array) The bin centers (in seconds)."""
         warnings.warn("centers is deprecated. Use bin_centers instead.", DeprecationWarning)
         return self.bin_centers
+
+    @property
+    def _abscissa_vals(self):
+        """(np.array) The bin centers (in seconds)."""
+        return self._bin_centers
 
     @property
     def bin_centers(self):
@@ -1734,7 +1739,7 @@ class BinnedEventArray(EventArrayABC):
         supportdata = np.vstack([support_starts, support_stops]).T
         self.support = type(self._abscissa.support)(supportdata) # set support to TRUE bin support
 
-    def smooth(self, *, sigma=None, inplace=False,  bw=None):
+    def smooth(self, *, sigma=None, inplace=False,  bw=None, within_intervals=False):
         """Smooth BinnedEventArray by convolving with a Gaussian kernel.
 
         Smoothing is applied in data, and the same smoothing is applied
@@ -1765,7 +1770,7 @@ class BinnedEventArray(EventArrayABC):
 
         fs = 1 / self.ds
 
-        return utils.gaussian_filter(self, fs=fs, sigma=sigma, inplace=inplace)
+        return utils.gaussian_filter(self, fs=fs, sigma=sigma, bw=bw, inplace=inplace, within_intervals=within_intervals)
 
     @staticmethod
     def _smooth_array(arr, w=None):
@@ -2157,7 +2162,12 @@ class SpikeTrainArray(EventArray):
         'reorder_units' : 'reorder_series',
         '_reorder_units_by_idx' : '_reorder_series_by_idx',
         'n_spikes' : 'n_events',
-        'unit_ids' : 'series_ids'
+        'unit_ids' : 'series_ids',
+        'unit_labels': 'series_labels',
+        'unit_tags': 'series_tags',
+        '_unit_ids' : '_series_ids',
+        '_unit_labels': '_series_labels',
+        '_unit_tags': '_series_tags'
         }
 
     def __init__(self, *args, **kwargs):
@@ -2209,7 +2219,12 @@ class BinnedSpikeTrainArray(BinnedEventArray):
         'reorder_units' : 'reorder_series',
         '_reorder_units_by_idx' : '_reorder_series_by_idx',
         'n_spikes' : 'n_events',
-        'unit_ids' : 'series_ids'
+        'unit_ids' : 'series_ids',
+        'unit_labels': 'series_labels',
+        'unit_tags': 'series_tags',
+        '_unit_ids' : '_series_ids',
+        '_unit_labels': '_series_labels',
+        '_unit_tags': '_series_tags'
         }
 
     def __init__(self, *args, **kwargs):
