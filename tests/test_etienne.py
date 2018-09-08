@@ -31,35 +31,35 @@ class TestEvenMore:
     #     Note: should pass on column-wise signals"""
     #     asa = AnalogSignalArray([1,2,4])
     #     asa.add_signal([3,4,5])
-    #     assert np.array(asa._ydata == np.array([[1,2,4],[3,4,5]]).T).all()
+    #     assert np.array(asa.data == np.array([[1,2,4],[3,4,5]]).T).all()
 
     def test_add_signal1D_3(self):
         """Add a signal to a 1D AnalogSignalArray
         Note: should pass on row-wise signals"""
         asa = AnalogSignalArray([1,2,4])
         asa.add_signal([3,4,5])
-        assert np.array(asa._ydata == np.array([[1,2,4],[3,4,5]])).all()
+        assert np.array(asa.data == np.array([[1,2,4],[3,4,5]])).all()
 
     # def test_add_signal1D_4(self):
     #     """Add a signal to an 2D AnalogSignalArray
     #     Note: should pass on column-wise signals"""
     #     asa = AnalogSignalArray([[1, 2, 4], [7, 8, 9]])
     #     asa.add_signal([3, 4, 5])
-    #     assert np.array(asa._ydata == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]]).T).all()
+    #     assert np.array(asa.data == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]]).T).all()
 
     def test_add_signal1D_5(self):
         """Add a signal to an 2D AnalogSignalArray
         Note: should pass on row-wise signals"""
         asa = AnalogSignalArray([[1, 2, 4], [7, 8, 9]])
         asa.add_signal([3, 4, 5])
-        assert np.array(asa._ydata == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
+        assert np.array(asa.data == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
 
     def test_complex_ASA_1(self):
         N = 128
         theta = np.array(2*pi/N*np.arange(N))
         exp_theta = np.exp(np.array(theta)*1j)
         casa = AnalogSignalArray(exp_theta)
-        assert np.all(np.isclose(casa.abs._ydata, 1))
+        assert np.all(np.isclose(casa.abs.data, 1))
 
     def test_complex_ASA_2(self):
         N = 6
@@ -69,7 +69,7 @@ class TestEvenMore:
         expected = np.array([[ 1.0 +0.00000000e+00j, 0.5 +8.66025404e-01j,
             -0.5 +8.66025404e-01j, -1.0 +1.22464680e-16j,
             -0.5 -8.66025404e-01j,  0.5 -8.66025404e-01j]])
-        assert np.all(np.isclose(casa._ydata, expected))
+        assert np.all(np.isclose(casa.data, expected))
 
     def test_complex_ASA_3(self):
         N = 6
@@ -78,17 +78,17 @@ class TestEvenMore:
         casa = AnalogSignalArray(exp_theta)
         expected = np.array([[ 0. ,  1.04719755,  2.0943951 ,  3.14159265, -2.0943951 ,
         -1.04719755]])
-        assert np.all(np.isclose(casa.angle._ydata, expected))
+        assert np.all(np.isclose(casa.angle.data, expected))
 
-    def test_AnalogSignalArray_ydata_format1(self):
+    def test_AnalogSignalArray_data_format1(self):
         asa = AnalogSignalArray([[1, 2, 4], [7, 8, 9]])
         asa.add_signal([3, 4, 5])
-        assert np.array(asa._ydata_rowsig == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
+        assert np.array(asa._data_rowsig == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
 
-    def test_AnalogSignalArray_ydata_format2(self):
+    def test_AnalogSignalArray_data_format2(self):
         asa = AnalogSignalArray([[1, 2, 4], [7, 8, 9]])
         asa.add_signal([3, 4, 5])
-        assert np.array(asa._ydata_colsig == np.array([[1, 7, 3], [2, 8, 4], [4, 9, 5]])).all()
+        assert np.array(asa._data_colsig == np.array([[1, 7, 3], [2, 8, 4], [4, 9, 5]])).all()
 
     def test_AnalogSignal_n_signals(self):
         asa = AnalogSignalArray([[1, 2, 4, 5], [7, 8, 9, 10]])

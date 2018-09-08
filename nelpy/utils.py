@@ -8,6 +8,7 @@ __all__ = ['spatial_information',
            'is_sorted',
            'linear_merge',
            'PrettyDuration',
+           'ddt_asa',
            'get_contiguous_segments',
            'get_events_boundaries',
            'get_threshold_crossing_epochs']
@@ -22,6 +23,7 @@ import scipy.ndimage.filters #import gaussian_filter1d, gaussian_filter
 from numpy import log, ceil
 import copy
 
+# from . import core # so that core.AnalogSignalArray is exposed
 from . import core # so that core.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 
@@ -43,6 +45,9 @@ def frange(start, stop, step):
     """arange with floating point step"""
     # TODO: this function is not very general; we can extend it to work
     # for reverse (stop < start), empty, and default args, etc.
+    # there are also many edge cases where this is weird.
+    # see https://stackoverflow.com/questions/7267226/range-for-floats
+    # for better alternatives.
     num_steps = int(np.floor((stop-start)/step))
     return np.linspace(start, stop, num=num_steps, endpoint=False)
 
@@ -223,11 +228,11 @@ def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False):
                 chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
                 rel_st_idx = int(buff_st_idx - chk_st_idx)
                 rel_nd_idx = int(buff_nd_idx - chk_st_idx)
-                this_y_chk = sosfiltfilt(sos, obj._ydata_rowsig[:,chk_st_idx:chk_nd_idx])
-                out._ydata[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
+                this_y_chk = sosfiltfilt(sos, obj._data_rowsig[:,chk_st_idx:chk_nd_idx])
+                out._data[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
 
     downsampled = out.simplify(ds=1/fs_out)
-    out._ydata = downsampled._ydata
+    out._data = downsampled._data
     out._time = downsampled.time
     out._fs = fs_out
     return out
@@ -239,6 +244,9 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     ----------
     st : SpikeTrainArray
         SpikeTrainArray containing one or more units.
+     -- OR --
+    st : BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing multiunit activity.
     ds : float, optional
         Time step in which to bin spikes. Default is 1 ms.
     sigma : float, optional
@@ -260,18 +268,25 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     if bw is None:
         bw = 6
 
-    # bin spikes, so that we can count the spikes
-    mua_binned = st.bin(ds=ds).flatten()
+    if isinstance(st, core.EventArray):
+        # bin spikes, so that we can count the spikes
+        mua_binned = st.bin(ds=ds).flatten()
+    elif isinstance(st, core.BinnedEventArray):
+        mua_binned = st.flatten()
+        ds = mua_binned.ds
+    else:
+        raise TypeError('st has to be one of (SpikeTrainArray, BinnedSpikeTrainArray)')
 
     # make sure data type is float, so that smoothing works, and convert to rate
     mua_binned._data = mua_binned._data.astype(float) / ds
 
+    # TODO: now that we can simply cast from BST to ASA and back, the following logic could be simplified:
     # put mua rate inside an AnalogSignalArray
     if _fast:
         mua = core.AnalogSignalArray([], empty=True)
         mua._support = mua_binned.support
         mua._time = mua_binned.bin_centers
-        mua._ydata = mua_binned.data
+        mua._data = mua_binned.data
     else:
         mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
 
@@ -414,6 +429,13 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
     -------
     mua_epochs : EpochArray
         EpochArray containing all the MUA events / PBEs.
+
+    Example
+    -------
+    mua = get_mua(spiketrain)
+    mua_epochs = get_mua_events(mua)
+    PBEs = get_PBEs(spiketrain, min_active=5)
+         = get_PBEs(get_mua_events(get_mua(*)), spiketrain, min_active=5)
     """
 
     if fs is None:
@@ -434,7 +456,7 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
 
     # determine MUA event bounds:
     mua_bounds_idx, maxes, _ = get_events_boundaries(
-        x = mua.ydata,
+        x = mua.data,
         PrimaryThreshold = PrimaryThreshold,
         SecondaryThreshold = SecondaryThreshold,
         minThresholdLength = minThresholdLength,
@@ -444,12 +466,163 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
     )
 
     if len(mua_bounds_idx) == 0:
-        raise ValueError("no mua events detected")
+        warnings.warn("no mua events detected")
+        return core.EpochArray(empty=True)
 
     # store MUA bounds in an EpochArray
     mua_epochs = core.EpochArray(mua.time[mua_bounds_idx])
 
     return mua_epochs
+
+def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
+             min_active=None, minLength=None, maxLength=None,
+             PrimaryThreshold=None, minThresholdLength=None,
+             SecondaryThreshold=None):
+    """Determine PBEs from multiunit activity or spike trains.
+
+    Definitions
+    -----------
+    MUA : multiunit activity
+    PBE : population burst event
+
+    Summary
+    -------
+    This function can be used to identify PBE epochs from spike trains, binned
+    spike trains, or multiunit activity (in the form of an AnalogSignalArray).
+
+    It is recommended to either pass in a SpikeTrainArray or a
+    BinnedSpikeTrainArray, so that a `min_active` number of sorted units can be
+    set.
+
+    It is also recommended that the unsorted units (but not noise artifacts!)
+    should be included in the spike train that is used to estimate the PBEs. By
+    default, unit_id=0 is assumed to be unsorted, but this can be changed, or if
+    no unsorted units are present, you can set unsorted_id=None. Equivalently,
+    if min_active=0, then no restriction will apply, and the unsorted_id will
+    have no effect on the final PBE epochs.
+
+    Examples
+    --------
+    PBE_epochs = get_PBEs(mua_asa)
+    PBE_epochs = get_PBEs(spiketrain, min_active=5)
+    PBE_epochs = get_PBEs(binnedspiketrain, min_active=5)
+
+    Parameters
+    ----------
+    data : AnalogSignalArray
+        AnalogSignalArray with one signal, namely the multiunit firing rate [in Hz].
+     -- OR --
+    data : SpikeTrainArray
+        SpikeTrainArray with multiple units, including unsorted unit(s), but
+        excluding any noise artifects.
+     -- OR --
+    data : BinnedSpikeTrainArray
+        BinnedSpikeTrainArray containing multiunit activity.
+    fs : float, optional
+        Sampling frequency of mua, in Hz. If not specified, it will be inferred
+        from data.
+    ds : float, optional
+        Time step in which to bin spikes. Default is 1 ms.
+    sigma : float, optional
+        Standard deviation (in seconds) of Gaussian smoothing kernel.
+        Default is 10 ms. If sigma==0 then no smoothing is applied.
+    bw : float, optional
+        Bandwidth of the Gaussian filter. Default is 6.
+    unsorted_id : int, optional
+        unit_id of the unsorted unit. Default is 0. If no unsorted unit is
+        present, then set unsorted_id = None
+    min_active : int, optional
+        Minimum number of active units per event, excluding unsorted unit.
+        Default is 5.
+    minLength : float, optional
+        Minimum event duration in milliseconds. Default is 50 ms.
+    maxLength : float, optional
+        Maximum event duration in milliseconds. Default is 750 ms.
+    PrimaryThreshold : float, optional
+        Primary threshold to exceed. Default is mean() + 3*std()
+    SecondaryThreshold : float, optional
+        Secondary threshold to fall back to. Default is mean().
+    minThresholdLength : float, optional
+        Minimum duration to stay above PrimaryThreshold. Default is 0 ms.
+
+    Returns
+    -------
+    PBE_epochs : EpochArray
+        EpochArray containing all the PBEs.
+
+    Future improvements
+    -------------------
+    As of now, it is possible, but not easy to specify the Primary and Secondary
+    thresholds for event detection. A slight change in API might be needed to
+    make this specification more flexible.
+    """
+
+    if sigma is None:
+        sigma = 0.01 # 10 ms standard deviation
+    if bw is None:
+        bw = 6
+
+    if isinstance(data, core.AnalogSignalArray):
+        # if we have only mua, then we cannot set (ds, unsorted_id, min_active)
+        if ds is not None:
+            raise ValueError('if data is an AnalogSignalArray then ds cannot be specified!')
+        if unsorted_id:
+            raise ValueError('if data is an AnalogSignalArray then unsorted_id cannot be specified!')
+        if min_active is not None:
+            raise ValueError('if data is an AnalogSignalArray then min_active cannot be specified!')
+        mua = data
+        mua._data = mua._data.astype(float)
+        if (sigma != 0) and (bw > 0):
+            mua = gaussian_filter(mua, sigma=sigma, bw=bw)
+
+    elif isinstance(data, (core.EventArray, core.BinnedEventArray)):
+        # set default parameter values:
+        if ds is None:
+            ds = 0.001 # default 1 ms
+        if min_active is None:
+            min_active = 5
+        mua = get_mua(data, ds=ds, sigma=sigma, bw=bw, _fast=True)
+    else:
+        raise TypeError('data has to be one of (AnalogSignalArray, SpikeTrainArray, BinnedSpikeTrainArray)')
+
+    # set default parameter values:
+    if fs is None:
+        fs = mua.fs
+    if minLength is None:
+        minLength =  0.050 # 50 ms minimum event duration
+    if maxLength is None:
+        maxLength = 0.750 # 750 ms maximum event duration
+    if minThresholdLength is None:
+        minThresholdLength = 0.0
+    # if PrimaryThreshold is None:
+    #         PrimaryThreshold =
+    # if SecondaryThreshold is None:
+    #     SecondaryThreshold =
+    PBE_epochs = get_mua_events(mua=mua,
+                                fs=fs,
+                                minLength=minLength,
+                                maxLength=maxLength,
+                                PrimaryThreshold=PrimaryThreshold,
+                                minThresholdLength=minThresholdLength,
+                                SecondaryThreshold=SecondaryThreshold)
+
+    # now require min_active number of sorted cells
+    if isinstance(data, (core.EventArray, core.BinnedEventArray)):
+        if min_active > 0:
+            if unsorted_id is not None:
+                # remove unsorted unit, if present:
+                unit_ids = copy.deepcopy(data.unit_ids)
+                try:
+                    unit_ids.remove(unsorted_id)
+                except ValueError:
+                    pass
+                data_ = data._unit_subset(unit_ids)
+            # determine number of active units per epoch:
+            n_active = np.array([snippet.n_active for snippet in data_[PBE_epochs]])
+            active_epochs_idx = np.argwhere(n_active > min_active).squeeze()
+            # only keep those epochs where sufficiently many units are active:
+            PBE_epochs = PBE_epochs[active_epochs_idx]
+    return PBE_epochs
 
 def get_contiguous_segments(data, *, step=None, assume_sorted=None,
                             in_core=True, index=False, inclusive=False,
@@ -624,18 +797,18 @@ def get_direction(asa, *, sigma=None):
     assert asa.n_signals == 1, "1D AnalogSignalArray expected!"
 
     direction = dxdt_AnalogSignalArray(asa.smooth(sigma=sigma),
-                                       rectify=False).ydata
+                                       rectify=False).data
     direction[direction>=0] = 1
     direction[direction<0] = -1
     direction = direction.squeeze()
 
     l2r = get_contiguous_segments(np.argwhere(direction>0).squeeze(), step=1)
     l2r[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
-    l2r = core.EpochArray(asa.time[l2r])
+    l2r = core.EpochArray(asa.abscissa_vals[l2r])
 
     r2l = get_contiguous_segments(np.argwhere(direction<0).squeeze(), step=1)
     r2l[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
-    r2l = core.EpochArray(asa.time[r2l])
+    r2l = core.EpochArray(asa.abscissa_vals[r2l])
 
     return l2r, r2l
 
@@ -711,13 +884,39 @@ class PrettyDuration(float):
                 # in this case, represent milliseconds in terms of
                 # seconds (i.e. a decimal)
                 sstr = str(s/1000).lstrip('0')
-                if sstr == "1.0":
+                if s >= 999.5:
                     ss += 1
+                    s = 0
                     sstr = ""
+                    # now propagate the carry:
+                    if ss == 60:
+                        mm += 1
+                        ss = 0
+                    if mm == 60:
+                        hh +=1
+                        mm = 0
+                    if hh == 24:
+                        dd += 1
+                        hh = 0
             else:
                 # for all other cases, milliseconds will be represented
                 # as an integer
-                sstr = ":{:03d}".format(int(s))
+                if s >= 999.5:
+                    ss += 1
+                    s = 0
+                    sstr = ""
+                    # now propagate the carry:
+                    if ss == 60:
+                        mm += 1
+                        ss = 0
+                    if mm == 60:
+                        hh +=1
+                        mm = 0
+                    if hh == 24:
+                        dd += 1
+                        hh = 0
+                else:
+                    sstr = ":{:03d}".format(int(s))
         else:
             sstr = ""
         if dd > 0:
@@ -763,6 +962,7 @@ class PrettyDuration(float):
     def __truediv__(self, other):
         """a / b"""
         return PrettyDuration(self.duration / other)
+
 
 def shrinkMatColsTo(mat, numCols):
     """ Docstring goes here
@@ -968,7 +1168,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
         # for segment in data:
         for idx in range(data.n_epochs):
             # print('hilberting epoch {}/{}'.format(idx+1, data.n_epochs))
-            segment_data = data._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]]
+            segment_data = data._data[:,cum_lengths[idx]:cum_lengths[idx+1]]
             n_signals, n_samples = segment_data.shape
             assert n_signals == 1, 'only 1D signals supported!'
             # Compute number of samples to compute fast FFTs:
@@ -986,7 +1186,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
                 EnvelopeSmoothingSD = sigma*fs
                 smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
                 envelope = smoothed_envelope
-            newasa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.atleast_2d(envelope)
+            newasa._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.atleast_2d(envelope)
         return newasa
     return envelope
 
@@ -1032,73 +1232,210 @@ def nextfastpower(n):
     n2 = nextpower (n / n35)
     return int (min (n2 * n35))
 
-def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False):
+def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=None, cval=None, within_intervals=False):
     """Smooths with a Gaussian kernel.
 
-    Smoothing is applied in time, and the same smoothing is applied to each
-    signal in the AnalogSignalArray, or each unit in a BinnedSpikeTrainArray.
+    Smoothing is applied along the abscissa, and the same smoothing is applied to each
+    signal in the RegularlySampledAnalogSignalArray, or to each unit in a BinnedSpikeTrainArray.
 
-    Smoothing is applied within each epoch.
+    Smoothing is applied ACROSS intervals, but smoothing WITHIN intervals is also supported.
 
     Parameters
     ----------
-    obj : AnalogSignalArray or BinnedSpikeTrainArray
+    obj : RegularlySampledAnalogSignalArray or BinnedSpikeTrainArray.
     fs : float, optional
-        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
-        be obtained from asa.fs
+        Sampling rate (in obj.base_unit^-1) of obj. If not provided, it will
+        be inferred.
     sigma : float, optional
-        Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+        Standard deviation of Gaussian kernel, in obj.base_units. Default is 0.05
+        (50 ms if base_unit=seconds).
     bw : float, optional
-        Bandwidth outside of which the filter value will be zero. Default is 4.0
+        Bandwidth outside of which the filter value will be zero. Default is 4.0.
     inplace : bool
         If True the data will be replaced with the smoothed data.
         Default is False.
+    mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+        The mode parameter determines how the array borders are handled,
+        where cval is the value when mode is equal to ‘constant’. Default is
+        ‘reflect’.
+    cval : scalar, optional
+        Value to fill past edges of input if mode is ‘constant’. Default is 0.0.
+    within_intervals : boolean, optional
+        If True, then smooth within each epoch. Otherwise smooth across epochs.
+        Default is False.
+        Note that when mode = 'wrap', then smoothing within epochs aren't affected
+        by wrapping.
 
     Returns
     -------
-    out : AnalogSignalArray or BinnedSpikeTrainArray
+    out : same type as obj
         An object with smoothed data is returned.
+
     """
+    if sigma is None:
+        sigma = 0.05
+    if bw is None:
+        bw=4
+    if mode is None:
+        mode = 'reflect'
+    if cval is None:
+        cval = 0.0
 
     if not inplace:
         out = copy.deepcopy(obj)
     else:
         out = obj
 
-    if isinstance(out, core._analogsignalarray.AnalogSignalArray):
-        asa = out
+    if isinstance(out, core.RegularlySampledAnalogSignalArray):
         if fs is None:
-            fs = asa.fs
+            fs = out.fs
         if fs is None:
-            raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
-    elif isinstance(out, core._spiketrain.BinnedSpikeTrainArray):
+            raise ValueError("fs must either be specified, or must be contained in the {}!".format(out.type_name))
+    elif isinstance(out, core.BinnedEventArray):
         bst = out
         if fs is None:
             fs = 1/bst.ds
         if fs is None:
-            raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+            raise ValueError("fs must either be specified, or must be contained in the {}!".format(out.type_name))
     else:
         raise NotImplementedError("gaussian_filter for {} is not yet supported!".format(str(type(out))))
 
-    if sigma is None:
-        sigma = 0.05 # 50 ms default
-    if bw is None:
-        bw = 4 # bandwidth of filter (outside of this bandwidth, the filter is zero)
-
     sigma = sigma * fs
 
-    cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
+    if not within_intervals:
+        # see https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
+        # (1) if smoothing across intervals, we work on a merged support
+        # (2) build abscissa_vals, including existing ones, and out-of-support ones
+        # (3) to smooth U, build auxiliary arrays V and W, with (V=U).nan=0, and (W=1).nan=0
+        # (4) Z = smooth(V)/smooth(W)
+        # (5) only keep original support, and original abscissa_vals
 
-    if isinstance(out, core.AnalogSignalArray):
-        # now smooth each epoch separately
-        for idx in range(asa.n_epochs):
-            out._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
-    elif isinstance(out, core.BinnedSpikeTrainArray):
+        if isinstance(out, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+            support = out._abscissa.support.merge()
+            if not support.domain.is_finite:
+                support.domain = (support.start, support.stop) #TODO: #FIXME might come from abscissa definition, and not from support
+
+            missing_abscissa_vals = []
+            for interval in (~support):
+                missing_vals = frange(interval.start, interval.stop, 1/fs)
+                missing_abscissa_vals.extend(missing_vals)
+
+            if isinstance(out, core.RegularlySampledAnalogSignalArray):
+                n_signals = out.n_signals
+                n_samples = out.n_samples
+            elif isinstance(out, core.BinnedEventArray):
+                n_signals = out.n_series
+                n_samples = out.n_bins
+
+            V = np.zeros((n_signals, n_samples + len(missing_abscissa_vals)))
+            W = np.ones(V.shape)
+            all_abscissa_vals = np.sort(np.append(out._abscissa_vals, missing_abscissa_vals))
+            data_idx = np.searchsorted(all_abscissa_vals, out._abscissa_vals)
+            missing_idx = np.searchsorted(all_abscissa_vals, missing_abscissa_vals)
+            V[:, data_idx] = out.data
+            W[:, missing_idx] = 0
+
+            VV = scipy.ndimage.filters.gaussian_filter(V, sigma=(0,sigma), truncate=bw, mode=mode, cval=cval)
+            WW = scipy.ndimage.filters.gaussian_filter(W, sigma=(0,sigma), truncate=bw, mode=mode, cval=cval)
+
+            Z = VV[:,data_idx]/WW[:,data_idx]
+
+            out._data = Z
+        else:
+            raise NotImplementedError("gaussian_filter across intervals for {} is not yet supported!".format(str(type(out))))
+    else: # within intervals:
+        cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
         out._data = out._data.astype(float)
-        # now smooth each epoch separately
-        for idx in range(out.n_epochs):
-            out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
-            # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
+
+        if isinstance(out, core.RegularlySampledAnalogSignalArray):
+            # now smooth each interval separately
+            for idx in range(out.n_intervals):
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+        elif isinstance(out, core.BinnedSpikeTrainArray):
+            # now smooth each interval separately
+            for idx in range(out.n_epochs):
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+                # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
+
+    return out
+
+def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None, norm=False):
+    """Numerical differentiation of a regularly sampled AnalogSignalArray.
+
+    Optionally also smooths result with a Gaussian kernel.
+
+    Smoothing is applied in time, and the same smoothing is applied to each
+    signal in the AnalogSignalArray.
+
+    Differentiation, (and if requested, smoothing) is applied within each epoch.
+
+    Parameters
+    ----------
+    asa : AnalogSignalArray
+    fs : float, optional
+        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+        be obtained from asa.fs
+    smooth : bool, optional
+        If true, result will be smoothed. Default is False
+    rectify : bool, optional
+        If True, absolute value of derivative is computed. Default is True.
+    sigma : float, optional
+        Standard deviation of Gaussian kernel, in seconds. Default is 0.05
+        (50 ms).
+    bw : float, optional
+        Bandwidth outside of which the filter value will be zero. Default is 4.0
+    norm: boolean, optional
+        If True, then apply the L2 norm to the result.
+    Returns
+    -------
+    out : AnalogSignalArray
+        An AnalogSignalArray with derivative data (in units per second) is returned.
+
+    Notes
+    -----
+    Central differences are used here.
+    """
+
+    if fs is None:
+        fs = asa.fs
+    if fs is None:
+        raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+    if sigma is None:
+        sigma = 0.05 # 50 ms default
+
+    out = copy.deepcopy(asa)
+    cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
+
+    # ensure that datatype is float
+    # TODO: this will break complex data
+    out._data = out.data.astype(float)
+
+    # now obtain the derivative for each epoch separately
+    for idx in range(asa.n_epochs):
+        # if 1D:
+        if asa.n_signals == 1:
+            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+                # only single sample
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+            else:
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+        else:
+            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+                # only single sample
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = 0
+            else:
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+
+    out._data = out._data * fs
+
+    if norm:
+        out._data = np.atleast_2d(np.linalg.norm(out._data, axis=0))
+
+    if rectify:
+        out._data = np.abs(out._data)
+
+    if smooth:
+        out = gaussian_filter(out, fs=fs, sigma=sigma, bw=bw)
 
     return out
 
@@ -1134,6 +1471,8 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
         An AnalogSignalArray with derivative data (in units per second) is returned.
     """
 
+    raise DeprecationWarning('use ddt_asa instead!')
+
     if fs is None:
         fs = asa.fs
     if fs is None:
@@ -1145,10 +1484,10 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
 
     # ensure that datatype is float
-    out._ydata = out.ydata.astype(float)
+    out._data = out.data.astype(float)
 
     if asa.n_signals == 2:
-        out._ydata = out._ydata[[0],:]
+        out._data = out._data[[0],:]
 
     # now obtain the derivative for each epoch separately
     for idx in range(asa.n_epochs):
@@ -1156,22 +1495,22 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
         if asa.n_signals == 1:
             if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
                 # only single sample
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
             else:
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
         elif asa.n_signals == 2:
             if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
                 # only single sample
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
             else:
-                out._ydata[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._ydata[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
+                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
         else:
             raise TypeError("more than 2D not currently supported!")
 
-    out._ydata = out._ydata * fs
+    out._data = out._data * fs
 
     if rectify:
-        out._ydata = np.abs(out._ydata)
+        out._data = np.abs(out._data)
 
     if smooth:
         out = gaussian_filter(out, fs=fs, sigma=sigma, bw=bw)
@@ -1207,7 +1546,7 @@ def get_threshold_crossing_epochs(asa, t1=None, t2=None, mode='above'):
 
     if asa.n_signals > 1:
         raise TypeError("multidimensional AnalogSignalArrays not supported!")
-    x = asa.ydata.squeeze()
+    x = asa.data.squeeze()
 
     if t1 is None: # by default, threshold is 3 SDs above mean of x
         t1 = np.mean(x) + 3*np.std(x)
@@ -1225,11 +1564,11 @@ def get_threshold_crossing_epochs(asa, t1=None, t2=None, mode='above'):
     # convert bounds to time in seconds
     epoch_bounds = asa.time[epoch_bounds]
     if len(epoch_bounds) == 0:
-        return core.EpochArray(empty=True)
+        return type(asa._abscissa.support)(empty=True)
     # add 1/fs to stops for open interval
     epoch_bounds[:,1] += 1/asa.fs
     # create EpochArray with threshould exceeding bounds
-    epochs = core.EpochArray(epoch_bounds)
+    epochs = type(asa._abscissa.support)(epoch_bounds)
     return epochs
 
 def get_run_epochs(speed, v1=10, v2=8):
@@ -1386,12 +1725,12 @@ def collapse_time(obj, gap=0):
 
     if isinstance(obj, core.AnalogSignalArray):
         new_obj = core.AnalogSignalArray(empty=True)
-        new_obj._ydata = obj._ydata
+        new_obj._data = obj._data
 
         durations = obj.support.durations
         starts = np.insert(np.cumsum(durations + gap),0,0)[:-1]
         stops = starts + durations
-        newsupport = core.EpochArray(np.vstack((starts, stops)).T)
+        newsupport = type(obj._abscissa.support)(np.vstack((starts, stops)).T)
         new_obj._support = newsupport
 
         new_time = obj.time.astype(float) # fast copy
@@ -1422,7 +1761,7 @@ def collapse_time(obj, gap=0):
             duration += st_.support.duration
         new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time])
         new_obj._time = new_time
-        new_obj._support = core.EpochArray([0, duration])
+        new_obj._support = type(obj._abscissa.support)([0, duration])
         new_obj._unit_ids = obj._unit_ids
         new_obj._unit_labels = obj._unit_labels
     elif isinstance(obj, core.BinnedSpikeTrainArray):

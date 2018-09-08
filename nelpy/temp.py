@@ -39,7 +39,7 @@ def detect_ripples(eeg):
     ripple_envelope = nel.utils.signal_envelope1D(ripple_eeg, sigma=0.004)
     # (4, 5)
     bounds, maxes, events = nel.utils.get_events_boundaries(
-                x=ripple_envelope.ydata,
+                x=ripple_envelope.data,
                 PrimaryThreshold=ripple_envelope.mean() + 3.5*ripple_envelope.std(),   # cm/s
                 SecondaryThreshold=ripple_envelope.mean(),  # cm/s
                 minThresholdLength=0.015, # threshold crossing must be at least 15 ms long

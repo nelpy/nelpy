@@ -135,7 +135,7 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
     if bandstop: # notch / bandstop filter
         wp, ws = ws, wp
 
-    sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype='cheby2', output='sos')
+    sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype=ftype, output='sos')
 
     if isinstance(asa, (np.ndarray, list)):
         if len(np.array(out).squeeze().shape) > 1:
@@ -166,6 +166,107 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
                 chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
                 rel_st_idx = int(buff_st_idx - chk_st_idx)
                 rel_nd_idx = int(buff_nd_idx - chk_st_idx)
-                this_y_chk = sosfiltfilt(sos, out._ydata_rowsig[:,chk_st_idx:chk_nd_idx])
-                out._ydata[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
+                this_y_chk = sosfiltfilt(sos, out._data_rowsig[:,chk_st_idx:chk_nd_idx])
+                out._data[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
     return out
+
+def getsos(*, fs, fl=None, fh=None, bandstop=False,
+                gpass=None, gstop=None, ftype='cheby2'):
+    """Return second-order sections representation of the IIR filter.
+
+    This is useful to plot the frequency response using scipy.signal.sosfreqz,
+    for example:
+
+    >>> import matplotlib.pyplot as plt
+    >>> from scipy import signal
+    >>>
+    >>> sos = getsos(...)
+    >>> w, h = signal.sosfreqz(sos, worN=1500)
+    >>> db = 20*np.log10(np.abs(h))
+    >>> freq = w*fs/(2*np.pi)
+    >>> plt.subplot(2, 1, 1)
+    >>> plt.ylabel('Gain [dB]')
+    >>> plt.plot(freq, db)
+    >>> plt.subplot(2, 1, 2)
+    >>> plt.plot(freq, np.angle(h))
+    >>> plt.ylabel('Phase [rad]')
+
+    Although not currently supported, filters can be stacked as well, as follows:
+    >>> sos = np.vstack((nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),\
+                 nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),\
+                 nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),\
+                 nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=1, ftype='butter')))
+
+    Parameters
+    ----------
+    fs : float
+        The sampling frequency (Hz).
+    fl : float, optional
+        Lower cut-off frequency (in Hz), 0 or None to ignore. Default is None.
+    fh : float, optional
+        Upper cut-off frequency (in Hz), 0 or None to ignore. Default is None.
+    bandstop : boolean, optional
+        If False, passband is between fl and fh. If True, stopband is between
+        fl and fh. Default is False.
+    gpass : float, optional
+        The maximum loss in the passband (dB). Default is 0.1 dB.
+    gstop : float, optional
+        The minimum attenuation in the stopband (dB). Default is 30 dB.
+    ftype : str, optional
+        The type of IIR filter to design:
+            - Butterworth   : 'butter'
+            - Chebyshev I   : 'cheby1'
+            - Chebyshev II  : 'cheby2' (Default)
+            - Cauer/elliptic: 'ellip'
+            - Bessel/Thomson: 'bessel'
+
+    Returns
+    -------
+    sos : ndarray
+        Second-order sections representation of the IIR filter.
+    """
+
+    try:
+        assert fh < fs, "fh must be less than sampling rate!"
+    except TypeError:
+        pass
+    try:
+        assert fl < fh, "fl must be less than fh!"
+    except TypeError:
+        pass
+
+    from scipy.signal import iirdesign
+
+    if gpass is None:
+        gpass = 0.1 # max loss in passband, dB
+
+    if gstop is None:
+        gstop = 30 # min attenuation in stopband (dB)
+
+    fso2 = fs/2.0
+
+    try:
+        if np.isinf(fh):
+            fh = None
+    except TypeError:
+        pass
+    if fl == 0:
+        fl = None
+
+    if (fl is None) and (fh is None):
+        raise ValueError('nonsensical all-pass filter requested...')
+    elif fl is None: # lowpass
+        wp = fh/fso2
+        ws = 1.4*fh/fso2
+    elif fh is None: # highpass
+        wp = fl/fso2
+        ws = 0.8*fl/fso2
+    else: # bandpass
+        wp = [fl/fso2, fh/fso2]
+        ws = [0.8*fl/fso2,1.4*fh/fso2]
+    if bandstop: # notch / bandstop filter
+        wp, ws = ws, wp
+
+    sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype=ftype, output='sos')
+
+    return sos

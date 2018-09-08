@@ -45,10 +45,16 @@ class EpochArray:
 
     __attributes__ = ["_time", "_meta", "_domain"]
 
-    def __init__(self, time=None, *, duration=None,
+    def __init__(self, time=None, *args, duration=None,
                  meta=None, empty=False, domain=None, label=None):
 
         self.__version__ = version.__version__
+
+        if len(args) > 1:
+            raise TypeError("__init__() takes from 1 to 3 positional arguments but 4 were given")
+        elif len(args) == 1:
+            time = [time, args[0]]
+
         # if an empty object is requested, return it:
         if empty:
             for attr in self.__attributes__:
@@ -275,8 +281,9 @@ class EpochArray:
         """join and merge epoch array; set union"""
         if isinstance(other, EpochArray):
             new = copy.copy(self)
-            # return (new.join(other)).merge()
-            return new.join(other)
+            joined = new.join(other)
+            union = joined.merge()
+            return union
         else:
             raise TypeError("unsupported operand type(s) for |: 'EpochArray' and {}".format(str(type(other))))
 
@@ -287,6 +294,10 @@ class EpochArray:
     def __bool__(self):
         """(bool) Empty EventArray"""
         return not self.isempty
+
+    def remove_duplicates(self, inplace=False):
+        """Remove duplicate epochs."""
+        raise NotImplementedError
 
     def partition(self, *, ds=None, n_epochs=None):
         """Returns an EpochArray that has been partitioned.
@@ -399,7 +410,13 @@ class EpochArray:
         newtimes = newtimes[durations>0]
         complement = copy.copy(self)
         complement._time = newtimes
-        return complement[domain]
+
+        if domain.n_epochs > 1:
+            return complement[domain]
+
+        complement._time[0,0] = np.max((complement._time[0,0], domain.start))
+        complement._time[-1,-1] = np.min((complement._time[-1,-1], domain.stop))
+        return complement
 
     @property
     def domain(self):
@@ -591,6 +608,7 @@ class EpochArray:
         """Finds intersection (overlap) between two sets of epoch arrays.
 
         TODO: verify if this requires a merged EpochArray to work properly?
+        ISSUE_261: not fixed yet
 
         Parameters
         ----------
@@ -610,8 +628,8 @@ class EpochArray:
 
         new_starts = []
         new_stops = []
-        epoch_a = epocha.copy().merge()
-        epoch_b = epochb.copy().merge()
+        epoch_a = epocha.merge().copy()
+        epoch_b = epochb.merge().copy()
 
         for aa in epoch_a.time:
             for bb in epoch_b.time:

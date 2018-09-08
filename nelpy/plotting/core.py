@@ -10,9 +10,9 @@ import itertools
 from scipy import signal
 
 from .helpers import RasterLabelData
-from ..core import *
 from . import utils  # import plotting/utils
 from .. import auxiliary
+from .. import core
 
 __all__ = ['plot',
            'plot2d',
@@ -198,7 +198,7 @@ def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
     TODO: Here we have to be careful: AnalogSignalArray is not guaranteed
           to have a working / accurate asa.fs parameter :/
 
-          Also, we should probably collapse all the samples, (as ydata
+          Also, we should probably collapse all the samples, (asdata
           should be already) and then assume a fixed sampling rate.
 
     TODO: Should we speed up FFTs by zero padding, or is this done
@@ -245,7 +245,7 @@ def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
     if ax is None:
         ax = plt.gca()
 
-    if(isinstance(data, AnalogSignalArray)):
+    if(isinstance(data, core.RegularlySampledAnalogSignalArray)):
         if fs is None:
             fs = data.fs
         if fs is None:
@@ -253,7 +253,7 @@ def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
         if data.n_signals > 1:
             raise NotImplementedError("more than one signal is not yet supported for psdplot!")
         else:
-            data = data.ydata.squeeze()
+            data = data.data.squeeze()
     else:
         raise NotImplementedError("datatype {} not yet supported by psdplot!".format(str(type(data))))
 
@@ -357,10 +357,65 @@ def plot(obj, *args, **kwargs):
     """Docstring goes here."""
 
     ax = kwargs.pop('ax', None)
+    autoscale = kwargs.pop('autoscale', True)
+    xlabel = kwargs.pop('xlabel', None)
+    ylabel = kwargs.pop('ylabel', None)
+
     if ax is None:
         ax = plt.gca()
 
-    if(isinstance(obj, AnalogSignalArray)):
+    if (isinstance(obj, core.RegularlySampledAnalogSignalArray)):
+        if obj.n_signals == 1:
+            label = kwargs.pop('label', None)
+            for ii, (abscissa_vals, data) in enumerate(zip(obj._intervaltime.plot_generator(), obj._intervaldata.plot_generator())):
+                ax.plot(abscissa_vals, data.T, label=label if ii == 0 else '_nolegend_', *args, **kwargs)
+        elif obj.n_signals > 1:
+            # TODO: intercept when any color is requested. This could happen
+            # multiple ways, such as plt.plot(x, '-r') or plt.plot(x, c='0.7')
+            # or plt.plot(x, color='red'), and maybe some others? Probably have
+            # dig into the matplotlib code to see how they parse this and do
+            # conflict resolution... Update: they use the last specified color.
+            # but I still need to know how to detect a color that was passed in
+            # the *args part, e.g., '-r'
+
+            color = kwargs.pop('color', None)
+            carg = kwargs.pop('c', None)
+
+            if color is not None and carg is not None:
+                # TODO: fix this so that a warning is issued, not raised
+                raise ValueError("saw kwargs ['c', 'color']")
+                # raise UserWarning("saw kwargs ['c', 'color'] which are all aliases for 'color'.  Kept value from 'color'")
+            if carg:
+                color = carg
+
+            if not color:
+                colors = []
+                for ii in range(obj.n_signals):
+                    line, = ax.plot(0, 0.5)
+                    colors.append(line.get_color())
+                    line.remove()
+
+                for ee, (abscissa_vals, data) in enumerate(zip(obj._intervaltime.plot_generator(), obj._intervaldata.plot_generator())):
+                    if ee > 0:
+                        kwargs['label'] = '_nolegend_'
+                    for ii, snippet in enumerate(data):
+                        ax.plot(abscissa_vals, snippet, *args, color=colors[ii], **kwargs)
+            else:
+                kwargs['color'] = color
+                for ee, (abscissa_vals, data) in enumerate(zip(obj._intervaltime.plot_generator(), obj._intervaldata.plot_generator())):
+                    if ee > 0:
+                        kwargs['label'] = '_nolegend_'
+                    for ii, snippet in enumerate(data):
+                        ax.plot(abscissa_vals, snippet, *args, **kwargs)
+
+        if xlabel is None:
+            xlabel = obj._abscissa.label
+        if ylabel is None:
+            ylabel = obj._ordinate.label
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+
+    elif (isinstance(obj, core.RegularlySampledAnalogSignalArray)):
         if obj.n_signals == 1:
             label = kwargs.pop('label', None)
             for ii, (timestamps, data) in enumerate(zip(obj._epochtime.plot_generator(), obj._epochdata.plot_generator())):
@@ -406,6 +461,27 @@ def plot(obj, *args, **kwargs):
 
     else: # if we didn't handle it yet, just pass it through to matplotlib...
         ax.plot(obj, *args, **kwargs)
+
+    if autoscale:
+        xmin = np.inf
+        xmax = -np.inf
+        ymin = np.inf
+        ymax = -np.inf
+        for child in ax.get_children():
+            try:
+                cxmin, cymin = np.min(child.get_xydata(), axis=0)
+                cxmax, cymax = np.max(child.get_xydata(), axis=0)
+                if cxmin < xmin:
+                    xmin = cxmin
+                if cymin < ymin:
+                    ymin = cymin
+                if cxmax > xmax:
+                    xmax = cxmax
+                if cymax > ymax:
+                    ymax = cymax
+            except:
+                pass
+        ax.set_xlim(xmin, xmax)
 
 def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
          mec=None, markerfacecolor=None, **kwargs):
@@ -461,7 +537,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
-    if(isinstance(npl_obj, AnalogSignalArray)):
+    if(isinstance(npl_obj, core.RegularlySampledAnalogSignalArray)):
 
         # Get the colors from the current color cycle
         if npl_obj.n_signals > 1:
@@ -481,7 +557,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                 for segment in npl_obj:
                     if color is not None:
                         ax.plot(segment._time,
-                                segment._ydata_colsig,
+                                segment._data_colsig,
                                 color=color,
                                 mec=mec,
                                 markerfacecolor=markerfacecolor,
@@ -489,7 +565,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                 )
                     else:
                         ax.plot(segment._time,
-                                segment._ydata_colsig,
+                                segment._data_colsig,
                                 # color=colors[ii],
                                 mec=mec,
                                 markerfacecolor=markerfacecolor,
@@ -498,7 +574,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
             else: # there are labels
                 if npl_obj.n_signals > 1:
                     for ii, segment in enumerate(npl_obj):
-                        for signal, label in zip(segment._ydata_rowsig, npl_obj.labels):
+                        for signal, label in zip(segment._data_rowsig, npl_obj.labels):
                             if color is not None:
                                 ax.plot(segment._time,
                                         signal,
@@ -525,7 +601,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                             label = npl_obj.labels
                         if color is not None:
                             ax.plot(segment._time,
-                                    segment._ydata_colsig,
+                                    segment._data_colsig,
                                     color=color,
                                     mec=mec,
                                     markerfacecolor=markerfacecolor,
@@ -534,7 +610,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                     )
                         else:
                             ax.plot(segment._time,
-                                    segment._ydata_colsig,
+                                    segment._data_colsig,
                                     # color=color,
                                     mec=mec,
                                     markerfacecolor=markerfacecolor,
@@ -543,9 +619,9 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                     )
 
 
-    if isinstance(npl_obj, EpochArray):
+    if isinstance(npl_obj, core.IntervalArray):
         epocharray = npl_obj
-        if epocharray.n_epochs != len(data):
+        if epocharray.n_intervals != len(data):
             raise ValueError("epocharray and data must have the same length")
 
         with warnings.catch_warnings():
@@ -585,22 +661,22 @@ def plot2d(npl_obj, data=None, *, ax=None, mew=None, color=None,
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
-    if(isinstance(npl_obj, AnalogSignalArray)):
+    if(isinstance(npl_obj, core.RegularlySampledAnalogSignalArray)):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for segment in npl_obj:
                 if color is not None:
-                    ax.plot(segment[:,0]._ydata_colsig,
-                            segment[:,1]._ydata_colsig,
+                    ax.plot(segment[:,0]._data_colsig,
+                            segment[:,1]._data_colsig,
                             color=color,
                             mec=mec,
                             markerfacecolor='w',
                             **kwargs
                             )
                 else:
-                    ax.plot(segment[:,0]._ydata_colsig,
-                            segment[:,1]._ydata_colsig,
+                    ax.plot(segment[:,0]._data_colsig,
+                            segment[:,1]._data_colsig,
                             # color=color,
                             mec=mec,
                             markerfacecolor='w',
@@ -623,7 +699,7 @@ def matshow(data, *, ax=None, **kwargs):
         ax = plt.gca()
 
     # Handle different types of input data
-    if isinstance(data, BinnedSpikeTrainArray):
+    if isinstance(data, core.BinnedSpikeTrainArray):
         # TODO: split by epoch, and plot matshows in same row, but with
         # a small gap to indicate discontinuities. How about slicing
         # then? Or slicing within an epoch?
@@ -798,7 +874,7 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     hh = lh/2.0  # half the line height
 
     # Handle different types of input data
-    if isinstance(data, SpikeTrainArray):
+    if isinstance(data, core.SpikeTrainArray):
 
         label_data = ax.findobj(match=RasterLabelData)[0].label_data
         unitlist = [np.NINF for element in data.unit_ids]
@@ -882,7 +958,7 @@ def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
 
     # do fixed-value-on-epoch plot if data is not None
     if data is not None:
-        if epochs.n_epochs != len(data):
+        if epochs.n_intervals != len(data):
             raise ValueError("epocharray and data must have the same length")
 
         with warnings.catch_warnings():
