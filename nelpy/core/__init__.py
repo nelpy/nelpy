@@ -1,11 +1,12 @@
 """
-nelpy generalized objects
+nelpy core objects
 
 ``nelpy`` is a neuroelectrophysiology object model and data analysis package.
 """
 
 # __all__ = ['IntervalArray',
-#            'UniformlySampledSignalArray',
+#            'EpochArray',
+#            'RegularlySampledAnalogSignalArray',
 #            'SpikeTrainArray',
 #            'BinnedSpikeTrainArray',
 #            'EventArray']

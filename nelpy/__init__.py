@@ -9,7 +9,7 @@ and inspired by the neuralensemble.org NEO project
 
 # from .objects import *  # NOTE: control exported symbols in objects.py
 
-from .generalized import *
+from .core import *
 from .auxiliary import *
 
 # from . import analysis
@@ -24,10 +24,10 @@ from .version import __version__
 
 # for legacy support
 import sys
-from . import generalized
-sys.modules['nelpy.core'] = generalized
-sys.modules['nelpy.core._analogsignalarray'] = generalized._analogsignalarray
-sys.modules['nelpy.core._analogsignalarray'].EpochSignalSlicer = generalized._analogsignalarray.IntervalSignalSlicer
-sys.modules['nelpy.core._epocharray'] = generalized._intervalarray
-sys.modules['nelpy.core._spiketrain'] = generalized._eventarray
-sys.modules['nelpy.core._spiketrain'].EpochUnitSlicer = generalized._eventarray.IntervalSeriesSlicer
+from . import core
+# sys.modules['nelpy.core'] = core
+# sys.modules['nelpy.core._analogsignalarray'] = core._analogsignalarray
+sys.modules['nelpy.core._analogsignalarray'].EpochSignalSlicer = core._analogsignalarray.IntervalSignalSlicer
+sys.modules['nelpy.core._epocharray'] = core._intervalarray
+sys.modules['nelpy.core._spiketrain'] = core._eventarray
+sys.modules['nelpy.core._spiketrain'].EpochUnitSlicer = core._eventarray.IntervalSeriesSlicer

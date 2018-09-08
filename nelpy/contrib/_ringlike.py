@@ -31,7 +31,7 @@ class RinglikeTrajectory(_analogsignalarray.AnalogSignalArray):
 
         # cast an AnalogSignalArray to a RinglikeTrajectory:
         if isinstance(data, _analogsignalarray.AnalogSignalArray):
-            assertdata.n_signals == 1, \
+            assert data.n_signals == 1, \
                 "only 1D AnalogSignalArrays can be cast to RinglikeTrajectories!"
             self.__dict__ = copy.deepcopy(data.__dict__)
             self._track_length = None

@@ -22,8 +22,8 @@ from ._epocharray import EpochArray
 """ Data container objects """
 # from ._analogsignalarray import AnalogSignalArray
 
-from .. import generalized
-sys.modules['_analogsignalarray.AnalogSignalArray'] = generalized.AnalogSignalArray
+from . import core
+sys.modules['_analogsignalarray.AnalogSignalArray'] = core.AnalogSignalArray
 
 from ._spiketrain import SpikeTrainArray, BinnedSpikeTrainArray
 from ._eventarray import EventArray #, ValueEventArray, StatefulEventArray

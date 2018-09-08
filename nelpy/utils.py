@@ -24,7 +24,7 @@ from numpy import log, ceil
 import copy
 
 # from . import core # so that core.AnalogSignalArray is exposed
-from . import generalized # so that generalized.AnalogSignalArray is exposed
+from . import core # so that core.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 
 # def sub2ind(array_shape, rows, cols):
@@ -192,8 +192,8 @@ def spatial_sparsity(ratemap):
 def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False):
     # TODO add'l kwargs
 
-    if not isinstance(obj, generalized.AnalogSignalArray):
-        raise TypeError('obj is expected to be a nelpy.generalized.AnalogSignalArray!')
+    if not isinstance(obj, core.AnalogSignalArray):
+        raise TypeError('obj is expected to be a nelpy.core.AnalogSignalArray!')
 
     assert fs_out < obj.fs, "fs_out must be less than current sampling rate!"
 
@@ -268,10 +268,10 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     if bw is None:
         bw = 6
 
-    if isinstance(st, generalized.EventArray):
+    if isinstance(st, core.EventArray):
         # bin spikes, so that we can count the spikes
         mua_binned = st.bin(ds=ds).flatten()
-    elif isinstance(st, generalized.BinnedEventArray):
+    elif isinstance(st, core.BinnedEventArray):
         mua_binned = st.flatten()
         ds = mua_binned.ds
     else:
@@ -283,12 +283,12 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     # TODO: now that we can simply cast from BST to ASA and back, the following logic could be simplified:
     # put mua rate inside an AnalogSignalArray
     if _fast:
-        mua = generalized.AnalogSignalArray([], empty=True)
+        mua = core.AnalogSignalArray([], empty=True)
         mua._support = mua_binned.support
         mua._time = mua_binned.bin_centers
         mua._data = mua_binned.data
     else:
-        mua = generalized.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
+        mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
 
     mua._fs = 1/ds
 
@@ -467,10 +467,10 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
 
     if len(mua_bounds_idx) == 0:
         warnings.warn("no mua events detected")
-        return generalized.EpochArray(empty=True)
+        return core.EpochArray(empty=True)
 
     # store MUA bounds in an EpochArray
-    mua_epochs = generalized.EpochArray(mua.time[mua_bounds_idx])
+    mua_epochs = core.EpochArray(mua.time[mua_bounds_idx])
 
     return mua_epochs
 
@@ -562,7 +562,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
     if bw is None:
         bw = 6
 
-    if isinstance(data, generalized.AnalogSignalArray):
+    if isinstance(data, core.AnalogSignalArray):
         # if we have only mua, then we cannot set (ds, unsorted_id, min_active)
         if ds is not None:
             raise ValueError('if data is an AnalogSignalArray then ds cannot be specified!')
@@ -575,7 +575,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
         if (sigma != 0) and (bw > 0):
             mua = gaussian_filter(mua, sigma=sigma, bw=bw)
 
-    elif isinstance(data, (generalized.EventArray, generalized.BinnedEventArray)):
+    elif isinstance(data, (core.EventArray, core.BinnedEventArray)):
         # set default parameter values:
         if ds is None:
             ds = 0.001 # default 1 ms
@@ -607,7 +607,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
                                 SecondaryThreshold=SecondaryThreshold)
 
     # now require min_active number of sorted cells
-    if isinstance(data, (generalized.EventArray, generalized.BinnedEventArray)):
+    if isinstance(data, (core.EventArray, core.BinnedEventArray)):
         if min_active > 0:
             if unsorted_id is not None:
                 # remove unsorted unit, if present:
@@ -792,7 +792,7 @@ def get_direction(asa, *, sigma=None):
     """
     if sigma is None:
         sigma = 0
-    if not isinstance(asa, generalized.AnalogSignalArray):
+    if not isinstance(asa, core.AnalogSignalArray):
         raise TypeError('AnalogSignalArray expected!')
     assert asa.n_signals == 1, "1D AnalogSignalArray expected!"
 
@@ -804,11 +804,11 @@ def get_direction(asa, *, sigma=None):
 
     l2r = get_contiguous_segments(np.argwhere(direction>0).squeeze(), step=1)
     l2r[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
-    l2r = generalized.EpochArray(asa.abscissa_vals[l2r])
+    l2r = core.EpochArray(asa.abscissa_vals[l2r])
 
     r2l = get_contiguous_segments(np.argwhere(direction<0).squeeze(), step=1)
     r2l[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
-    r2l = generalized.EpochArray(asa.abscissa_vals[r2l])
+    r2l = core.EpochArray(asa.abscissa_vals[r2l])
 
     return l2r, r2l
 
@@ -1142,7 +1142,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
     if fs is None:
         if isinstance(data, (np.ndarray, list)):
             raise ValueError("sampling frequency must be specified!")
-        elif isinstance(data, generalized.AnalogSignalArray):
+        elif isinstance(data, core.AnalogSignalArray):
             fs = data.fs
 
     if isinstance(data, (np.ndarray, list)):
@@ -1159,7 +1159,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             EnvelopeSmoothingSD = sigma*fs
             smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
             envelope = smoothed_envelope
-    elif isinstance(data, generalized.AnalogSignalArray):
+    elif isinstance(data, core.AnalogSignalArray):
         newasa = copy.deepcopy(data)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -1286,12 +1286,12 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
     else:
         out = obj
 
-    if isinstance(out, generalized.RegularlySampledAnalogSignalArray):
+    if isinstance(out, core.RegularlySampledAnalogSignalArray):
         if fs is None:
             fs = out.fs
         if fs is None:
             raise ValueError("fs must either be specified, or must be contained in the {}!".format(out.type_name))
-    elif isinstance(out, generalized.BinnedEventArray):
+    elif isinstance(out, core.BinnedEventArray):
         bst = out
         if fs is None:
             fs = 1/bst.ds
@@ -1310,7 +1310,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
         # (4) Z = smooth(V)/smooth(W)
         # (5) only keep original support, and original abscissa_vals
 
-        if isinstance(out, (generalized.RegularlySampledAnalogSignalArray, generalized.BinnedEventArray)):
+        if isinstance(out, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
             support = out._abscissa.support.merge()
             if not support.domain.is_finite:
                 support.domain = (support.start, support.stop) #TODO: #FIXME might come from abscissa definition, and not from support
@@ -1320,10 +1320,10 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
                 missing_vals = frange(interval.start, interval.stop, 1/fs)
                 missing_abscissa_vals.extend(missing_vals)
 
-            if isinstance(out, generalized.RegularlySampledAnalogSignalArray):
+            if isinstance(out, core.RegularlySampledAnalogSignalArray):
                 n_signals = out.n_signals
                 n_samples = out.n_samples
-            elif isinstance(out, generalized.BinnedEventArray):
+            elif isinstance(out, core.BinnedEventArray):
                 n_signals = out.n_series
                 n_samples = out.n_bins
 
@@ -1347,11 +1347,11 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
         cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
         out._data = out._data.astype(float)
 
-        if isinstance(out, generalized.RegularlySampledAnalogSignalArray):
+        if isinstance(out, core.RegularlySampledAnalogSignalArray):
             # now smooth each interval separately
             for idx in range(out.n_intervals):
                 out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
-        elif isinstance(out, generalized.BinnedSpikeTrainArray):
+        elif isinstance(out, core.BinnedSpikeTrainArray):
             # now smooth each interval separately
             for idx in range(out.n_epochs):
                 out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
@@ -1632,7 +1632,7 @@ def spiketrain_union(st1, st2):
     if st1.fs == st2.fs:
         fs = st1.fs
 
-    return generalized.SpikeTrainArray(newdata, support=support, fs=fs)
+    return core.SpikeTrainArray(newdata, support=support, fs=fs)
 
 ########################################################################
 # uncurated below this line!
@@ -1723,8 +1723,8 @@ def collapse_time(obj, gap=0):
 
     # Also set a new attribute, with the boundaries in seconds.
 
-    if isinstance(obj, generalized.AnalogSignalArray):
-        new_obj = generalized.AnalogSignalArray(empty=True)
+    if isinstance(obj, core.AnalogSignalArray):
+        new_obj = core.AnalogSignalArray(empty=True)
         new_obj._data = obj._data
 
         durations = obj.support.durations
@@ -1748,10 +1748,10 @@ def collapse_time(obj, gap=0):
 
         new_obj._fs = obj._fs
 
-    elif isinstance(obj, generalized.SpikeTrainArray):
+    elif isinstance(obj, core.SpikeTrainArray):
         if gap > 0:
             raise ValueError("gaps not supported for SpikeTrainArrays yet!")
-        new_obj = generalized.SpikeTrainArray(empty=True)
+        new_obj = core.SpikeTrainArray(empty=True)
         new_time = lists = [[] for _ in range(obj.n_units)]
         duration = 0
         for st_ in obj:
@@ -1764,7 +1764,7 @@ def collapse_time(obj, gap=0):
         new_obj._support = type(obj._abscissa.support)([0, duration])
         new_obj._unit_ids = obj._unit_ids
         new_obj._unit_labels = obj._unit_labels
-    elif isinstance(obj, generalized.BinnedSpikeTrainArray):
+    elif isinstance(obj, core.BinnedSpikeTrainArray):
         raise NotImplementedError("BinnedSpikeTrains are not yet supported, but bst.data is essentially already collapsed!")
     else:
         raise TypeError("unsupported type for collapse_time")

@@ -8,7 +8,7 @@ import copy
 import numpy as np
 import warnings
 
-from .generalized import AnalogSignalArray
+from .core import AnalogSignalArray
 
 def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False,
                 gpass=None, gstop=None, ftype='cheby2', buffer_len=4194304,

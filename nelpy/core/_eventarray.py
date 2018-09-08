@@ -28,8 +28,7 @@ import copy
 
 from abc import ABC, abstractmethod
 
-# from .. import core
-from .. import generalized
+from .. import core
 from .. import utils
 from .. import version
 
@@ -49,7 +48,7 @@ class IntervalSeriesSlicer(object):
         seriesslice = slice(None, None, None)
         if isinstance(*args, int):
             intervalslice = args[0]
-        elif isinstance(*args, generalized.IntervalArray):
+        elif isinstance(*args, core.IntervalArray):
             intervalslice = args[0]
         else:
             try:
@@ -243,9 +242,9 @@ class EventArrayABC(ABC):
         self.__version__ = version.__version__
         self.type_name = self.__class__.__name__
         if abscissa is None:
-            abscissa = generalized.Abscissa() #TODO: integrate into constructor?
+            abscissa = core.Abscissa() #TODO: integrate into constructor?
         if ordinate is None:
-            ordinate = generalized.Ordinate() #TODO: integrate into constructor?
+            ordinate = core.Ordinate() #TODO: integrate into constructor?
         self._abscissa = abscissa
         self._ordinate = ordinate
 
@@ -822,7 +821,7 @@ class EventArray(EventArrayABC):
         # if self.isempty:
         #     return self
 
-        if isinstance(idx, generalized.IntervalArray):
+        if isinstance(idx, core.IntervalArray):
             if idx.isempty:
                 return EventArray(empty=True)
             support = self._abscissa.support.intersect(
@@ -1233,7 +1232,7 @@ class BinnedEventArray(EventArrayABC):
             return
 
         # handle casting other nelpy objects to BinnedEventArray:
-        if isinstance(eventarray, generalized.RegularlySampledAnalogSignalArray):
+        if isinstance(eventarray, core.RegularlySampledAnalogSignalArray):
             if eventarray.isempty:
                 for attr in self.__attributes__:
                     exec("self." + attr + " = None")
@@ -1270,9 +1269,9 @@ class BinnedEventArray(EventArrayABC):
                 self._bin_centers = eventarray.bin_centers
                 self._binnedSupport = eventarray.binnedSupport
                 try:
-                    self._abscissa.support = generalized.EpochArray(eventarray.support.data)
+                    self._abscissa.support = core.EpochArray(eventarray.support.data)
                 except AttributeError:
-                    self._abscissa.support = generalized.EpochArray(eventarray.support.time)
+                    self._abscissa.support = core.EpochArray(eventarray.support.time)
                 self._series_ids = eventarray.unit_ids
                 self._data = eventarray.data
                 return
@@ -1338,7 +1337,7 @@ class BinnedEventArray(EventArrayABC):
             EventArrayABC that has been partitioned.
         """
 
-        partitioned = type(self)(generalized.RegularlySampledAnalogSignalArray(self).partition(ds=ds, n_intervals=n_intervals))
+        partitioned = type(self)(core.RegularlySampledAnalogSignalArray(self).partition(ds=ds, n_intervals=n_intervals))
         # partitioned.loc = ItemGetter_loc(partitioned)
         # partitioned.iloc = ItemGetter_iloc(partitioned)
         return partitioned
@@ -1434,7 +1433,7 @@ class BinnedEventArray(EventArrayABC):
         """BinnedEventArray index access."""
         if self.isempty:
             return self
-        if isinstance(idx, generalized.IntervalArray):
+        if isinstance(idx, core.IntervalArray):
             # need to determine if there is any proper subset in self._abscissa.support intersect EpochArray
             # next, we need to identify all the bins that would fall within the EpochArray
 
@@ -1442,7 +1441,7 @@ class BinnedEventArray(EventArrayABC):
                 return self.empty(inplace=False)
 
             # TODO: code this more directly:
-            asa = generalized.RegularlySampledAnalogSignalArray(self)
+            asa = core.RegularlySampledAnalogSignalArray(self)
             asa = asa[idx]
             if asa.isempty:
                 return self.empty(inplace=False)
@@ -2179,10 +2178,10 @@ class SpikeTrainArray(EventArray):
 
         support = kwargs.get('support', None)
         if support is not None:
-            abscissa = kwargs.get('abscissa', generalized.TemporalAbscissa(support=support))
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa(support=support))
         else:
-            abscissa = kwargs.get('abscissa', generalized.TemporalAbscissa())
-        ordinate = kwargs.get('ordinate', generalized.AnalogSignalArrayOrdinate())
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa())
+        ordinate = kwargs.get('ordinate', core.AnalogSignalArrayOrdinate())
 
         kwargs['abscissa'] = abscissa
         kwargs['ordinate'] = ordinate
@@ -2233,10 +2232,10 @@ class BinnedSpikeTrainArray(BinnedEventArray):
 
         support = kwargs.get('support', None)
         if support is not None:
-            abscissa = kwargs.get('abscissa', generalized.TemporalAbscissa(support=support))
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa(support=support))
         else:
-            abscissa = kwargs.get('abscissa', generalized.TemporalAbscissa())
-        ordinate = kwargs.get('ordinate', generalized.AnalogSignalArrayOrdinate())
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa())
+        ordinate = kwargs.get('ordinate', core.AnalogSignalArrayOrdinate())
 
         kwargs['abscissa'] = abscissa
         kwargs['ordinate'] = ordinate

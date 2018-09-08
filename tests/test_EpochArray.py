@@ -1,6 +1,6 @@
 """EpochArray tests"""
 import nelpy as nel
-from nelpy.generalized import *
+from nelpy.core import *
 
 class TestEpochArray:
 

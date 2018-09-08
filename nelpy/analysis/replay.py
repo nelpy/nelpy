@@ -19,7 +19,7 @@ from scipy.ndimage import convolve
 from scipy import stats
 
 from .. import hmmutils
-from ..generalized import SpikeTrainArray
+from ..core import SpikeTrainArray
 from .. import auxiliary
 from ..decoding import decode1D as decode
 from ..decoding import k_fold_cross_validation

@@ -1,5 +1,5 @@
 import nelpy as nel
-from nelpy.generalized import *
+from nelpy.core import *
 import numpy as np
 from math import pi
 

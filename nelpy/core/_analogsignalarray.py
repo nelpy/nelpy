@@ -24,8 +24,7 @@ from scipy.stats import zscore
 from sys import float_info
 from collections import namedtuple
 
-# from .. import core
-from .. import generalized
+from .. import core
 from .. import auxiliary
 from .. import utils
 from .. import version
@@ -46,7 +45,7 @@ class IntervalSignalSlicer(object):
         signalslice = slice(None, None, None)
         if isinstance(*args, int):
             intervalslice = args[0]
-        elif isinstance(*args, generalized.IntervalArray):
+        elif isinstance(*args, core.IntervalArray):
             intervalslice = args[0]
         else:
             try:
@@ -176,7 +175,7 @@ def rsasa_init_wrapper(func):
             return
 
         # handle casting other nelpy objects to RegularlySampledAnalogSignalArrays:
-        if isinstance(data, generalized.BinnedEventArray):
+        if isinstance(data, core.BinnedEventArray):
             abscissa_vals = data.bin_centers
             kwargs['abscissa_vals'] = abscissa_vals
             # support = data.support
@@ -334,9 +333,9 @@ class RegularlySampledAnalogSignalArray:
 
         self.type_name = self.__class__.__name__
         if abscissa is None:
-            abscissa = generalized.Abscissa() #TODO: integrate into constructor?
+            abscissa = core.Abscissa() #TODO: integrate into constructor?
         if ordinate is None:
-            ordinate = generalized.Ordinate() #TODO: integrate into constructor?
+            ordinate = core.Ordinate() #TODO: integrate into constructor?
 
         self._abscissa = abscissa
         self._ordinate = ordinate
@@ -1987,9 +1986,9 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
         # legacy ASA constructor support for backward compatibility
         kwargs = legacyASAkwargs(**kwargs)
 
-        support = kwargs.get('support', generalized.EpochArray(empty=True))
-        abscissa = kwargs.get('abscissa', generalized.AnalogSignalArrayAbscissa(support=support))
-        ordinate = kwargs.get('ordinate', generalized.AnalogSignalArrayOrdinate())
+        support = kwargs.get('support', core.EpochArray(empty=True))
+        abscissa = kwargs.get('abscissa', core.AnalogSignalArrayAbscissa(support=support))
+        ordinate = kwargs.get('ordinate', core.AnalogSignalArrayOrdinate())
 
         kwargs['abscissa'] = abscissa
         kwargs['ordinate'] = ordinate

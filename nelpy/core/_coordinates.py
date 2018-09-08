@@ -3,7 +3,7 @@ __all__ = ['Abscissa', 'Ordinate', 'AnalogSignalArrayAbscissa', 'AnalogSignalArr
 
 import numpy as np
 
-from .. import generalized
+from .. import core
 from .. import formatters
 
 class Abscissa():
@@ -28,7 +28,7 @@ class Abscissa():
 
         # TODO: add label support
         if support is None:
-            support = generalized.IntervalArray(empty=True)
+            support = core.IntervalArray(empty=True)
         if labelstring is None:
             labelstring = '{}'
 
@@ -94,7 +94,7 @@ class Ordinate():
             labelstring = '{}'
 
         if _range is None:
-            _range = generalized.IntervalArray([-np.inf, np.inf])
+            _range = core.IntervalArray([-np.inf, np.inf])
 
         self.base_unit = base_unit
         self._labelstring = labelstring
@@ -148,11 +148,11 @@ class TemporalAbscissa(Abscissa):
     def __init__(self, *args, **kwargs):
 
 
-        support = kwargs.get('support', generalized.EpochArray(empty=True))
+        support = kwargs.get('support', core.EpochArray(empty=True))
         labelstring = kwargs.get('labelstring', 'time ({})') # TODO FIXME after unit inheritance; inherit from formatter?
 
         if support is None:
-            support = generalized.EpochArray(empty=True)
+            support = core.EpochArray(empty=True)
 
         kwargs['support'] = support
         kwargs['labelstring'] = labelstring
@@ -165,7 +165,7 @@ class AnalogSignalArrayAbscissa(Abscissa):
     """Abscissa for AnalogSignalArray."""
     def __init__(self, *args, **kwargs):
 
-        support = kwargs.get('support', generalized.EpochArray(empty=True))
+        support = kwargs.get('support', core.EpochArray(empty=True))
         labelstring = kwargs.get('labelstring', 'time ({})') # TODO FIXME after unit inheritance; inherit from formatter?
 
         kwargs['support'] = support

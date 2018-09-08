@@ -12,7 +12,7 @@ from scipy import signal
 from .helpers import RasterLabelData
 from . import utils  # import plotting/utils
 from .. import auxiliary
-from .. import generalized
+from .. import core
 
 __all__ = ['plot',
            'plot2d',
@@ -245,7 +245,7 @@ def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
     if ax is None:
         ax = plt.gca()
 
-    if(isinstance(data, generalized.RegularlySampledAnalogSignalArray)):
+    if(isinstance(data, core.RegularlySampledAnalogSignalArray)):
         if fs is None:
             fs = data.fs
         if fs is None:
@@ -364,7 +364,7 @@ def plot(obj, *args, **kwargs):
     if ax is None:
         ax = plt.gca()
 
-    if (isinstance(obj, generalized.RegularlySampledAnalogSignalArray)):
+    if (isinstance(obj, core.RegularlySampledAnalogSignalArray)):
         if obj.n_signals == 1:
             label = kwargs.pop('label', None)
             for ii, (abscissa_vals, data) in enumerate(zip(obj._intervaltime.plot_generator(), obj._intervaldata.plot_generator())):
@@ -415,7 +415,7 @@ def plot(obj, *args, **kwargs):
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
 
-    elif (isinstance(obj, generalized.RegularlySampledAnalogSignalArray)):
+    elif (isinstance(obj, core.RegularlySampledAnalogSignalArray)):
         if obj.n_signals == 1:
             label = kwargs.pop('label', None)
             for ii, (timestamps, data) in enumerate(zip(obj._epochtime.plot_generator(), obj._epochdata.plot_generator())):
@@ -537,7 +537,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
-    if(isinstance(npl_obj, generalized.RegularlySampledAnalogSignalArray)):
+    if(isinstance(npl_obj, core.RegularlySampledAnalogSignalArray)):
 
         # Get the colors from the current color cycle
         if npl_obj.n_signals > 1:
@@ -619,7 +619,7 @@ def plot_old(npl_obj, data=None, *, ax=None, mew=None, color=None,
                                     )
 
 
-    if isinstance(npl_obj, generalized.IntervalArray):
+    if isinstance(npl_obj, core.IntervalArray):
         epocharray = npl_obj
         if epocharray.n_intervals != len(data):
             raise ValueError("epocharray and data must have the same length")
@@ -661,7 +661,7 @@ def plot2d(npl_obj, data=None, *, ax=None, mew=None, color=None,
     #TODO: better solution for this? we could just iterate over the epochs and
     #plot them but that might take up too much time since a copy is being made
     #each iteration?
-    if(isinstance(npl_obj, generalized.RegularlySampledAnalogSignalArray)):
+    if(isinstance(npl_obj, core.RegularlySampledAnalogSignalArray)):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -699,7 +699,7 @@ def matshow(data, *, ax=None, **kwargs):
         ax = plt.gca()
 
     # Handle different types of input data
-    if isinstance(data, generalized.BinnedSpikeTrainArray):
+    if isinstance(data, core.BinnedSpikeTrainArray):
         # TODO: split by epoch, and plot matshows in same row, but with
         # a small gap to indicate discontinuities. How about slicing
         # then? Or slicing within an epoch?
@@ -874,7 +874,7 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     hh = lh/2.0  # half the line height
 
     # Handle different types of input data
-    if isinstance(data, generalized.SpikeTrainArray):
+    if isinstance(data, core.SpikeTrainArray):
 
         label_data = ax.findobj(match=RasterLabelData)[0].label_data
         unitlist = [np.NINF for element in data.unit_ids]
