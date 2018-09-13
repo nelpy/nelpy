@@ -45,13 +45,13 @@ class IntervalArray:
     __aliases__ = {}
     __attributes__ = ["_data", "_meta", "_domain"]
 
-    def __init__(self, data=None, *args, length=None, 
+    def __init__(self, data=None, *args, length=None,
                  meta=None, empty=False, domain=None, label=None):
 
         self.__version__ = version.__version__
 
         self.type_name = self.__class__.__name__
-        self.interval_name = 'interval'
+        self._interval_label = 'interval'
         self.formatter = formatters.ArbitraryFormatter
         self.base_unit = self.formatter.base_unit
 
@@ -164,9 +164,9 @@ class IntervalArray:
         if self.isempty:
             return "<empty " + self.type_name + address_str + ">"
         if self.n_intervals > 1:
-            nstr = "%s %ss" % (self.n_intervals, self.interval_name)
+            nstr = "%s %ss" % (self.n_intervals, self._interval_label)
         else:
-            nstr = "1 %s" % self.interval_name
+            nstr = "1 %s" % self._interval_label
         dstr = "of length {}".format(self.formatter(self.length))
         return "<%s%s: %s> %s" % (self.type_name, address_str, nstr, dstr)
 
@@ -183,6 +183,13 @@ class IntervalArray:
         #return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
+    def _copy_without_data(self):
+        """Return a copy of self, without data."""
+        out = copy.copy(self) # shallow copy
+        out._data = np.zeros((self.n_intervals, 2))
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        return out
+
     def __iter__(self):
         """IntervalArray iterator initialization."""
         # initialize the internal index to zero when used as iterator
@@ -194,18 +201,9 @@ class IntervalArray:
         index = self._index
         if index > self.n_intervals - 1:
             raise StopIteration
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            intervalarray = type(self)(empty=True)
 
-            exclude = ["_data"]
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("intervalarray." + attr + " = self." + attr)
-            intervalarray._data = np.array([self.data[index, :]])
+        intervalarray = self._copy_without_data()
+        intervalarray._data = np.array([self.data[index, :]])
         self._index += 1
         return intervalarray
 
@@ -709,6 +707,71 @@ class IntervalArray:
 
         return interval_a
 
+    # def intersect2(self, interval, *, boundaries=True):
+    #     """Returns intersection (overlap) between current IntervalArray (self) and
+    #        other interval array ('interval').
+    #     """
+
+    #     this = copy.deepcopy(self)
+    #     new_intervals = []
+    #     for epa in self.data:
+    #         for epb in interval.data:
+    #             new_interval = self._intersect2(epa, epb)
+    #             print(new_interval)
+    #             if len(new_interval) > 0:
+    #                 new_intervals.append(new_interval)
+    #     print(new_intervals)
+    #     new_intervals = np.array(new_intervals)
+    #     print(new_intervals.shape)
+    #     out = type(self)(new_intervals)
+    #     out._domain = self.domain
+    #     return out
+
+    # def _intersect2(self, aa, bb, *, boundaries=True, meta=None):
+    #     """Finds intersection (overlap) between two sets of interval arrays.
+
+    #     TODO: verify if this requires a merged IntervalArray to work properly?
+    #     ISSUE_261: not fixed yet
+
+    #     TODO: domains are not preserved yet! careful consideration is necessary.
+
+    #     Parameters
+    #     ----------
+    #     interval : nelpy.IntervalArray
+    #     boundaries : bool
+    #         If True, limits start, stop to interval start and stop.
+    #     meta : dict, optional
+    #         New dictionary of meta data for interval ontersection.
+
+    #     Returns
+    #     -------
+    #     intersect_intervals : nelpy.IntervalArray
+    #     """
+    #     if len(aa) == 0 or len(bb) == 0:
+    #         warnings.warn('interval intersection is empty')
+    #         return []
+
+    #     new_start = []
+    #     new_stop = []
+
+    #     if (aa[0] <= bb[0] < aa[1]) and (aa[0] < bb[1] <= aa[1]):
+    #         new_start = bb[0]
+    #         new_stops = bb[1]
+    #     elif (aa[0] < bb[0] < aa[1]) and (aa[0] < bb[1] > aa[1]):
+    #         new_start = bb[0]
+    #         new_stop = aa[1]
+    #     elif (aa[0] > bb[0] < aa[1]) and (aa[0] < bb[1] < aa[1]):
+    #         new_start = aa[0]
+    #         new_stop = bb[1]
+    #     # else (aa[0] >= bb[0] < aa[1]) and (aa[0] < bb[1] >= aa[1]):
+    #     else:
+    #         new_start = aa[0]
+    #         new_stop = aa[1]
+
+    #     out = [new_start, new_stop]
+
+    #     return out
+
     def merge(self, *, gap=0.0, overlap=0.0):
         """Merge intervals that are close or overlapping.
 
@@ -995,7 +1058,7 @@ class EpochArray(IntervalArray):
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
         super().__init__(*args, **kwargs)
 
-        self.interval_name = 'epoch'
+        self._interval_label = 'epoch'
         self.formatter = formatters.PrettyDuration
         self.base_unit = self.formatter.base_unit
 

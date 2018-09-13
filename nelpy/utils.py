@@ -1723,8 +1723,8 @@ def collapse_time(obj, gap=0):
 
     # Also set a new attribute, with the boundaries in seconds.
 
-    if isinstance(obj, core.AnalogSignalArray):
-        new_obj = core.AnalogSignalArray(empty=True)
+    if isinstance(obj, core.RegularlySampledAnalogSignalArray):
+        new_obj = type(obj)(empty=True)
         new_obj._data = obj._data
 
         durations = obj.support.durations
@@ -1748,24 +1748,25 @@ def collapse_time(obj, gap=0):
 
         new_obj._fs = obj._fs
 
-    elif isinstance(obj, core.SpikeTrainArray):
+    elif isinstance(obj, core.EventArray):
         if gap > 0:
             raise ValueError("gaps not supported for SpikeTrainArrays yet!")
-        new_obj = core.SpikeTrainArray(empty=True)
-        new_time = lists = [[] for _ in range(obj.n_units)]
+        new_obj = type(obj)(empty=True)
+        new_time = lists = [[] for _ in range(obj.n_series)]
         duration = 0
         for st_ in obj:
             le = st_.support.start
-            for unit_ in range(obj.n_units):
-                new_time[unit_].extend(st_._time[unit_] - le + duration)
+            for unit_ in range(obj.n_series):
+                new_time[unit_].extend(st_._data[unit_] - le + duration)
             duration += st_.support.duration
         new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time])
-        new_obj._time = new_time
-        new_obj._support = type(obj._abscissa.support)([0, duration])
-        new_obj._unit_ids = obj._unit_ids
-        new_obj._unit_labels = obj._unit_labels
-    elif isinstance(obj, core.BinnedSpikeTrainArray):
-        raise NotImplementedError("BinnedSpikeTrains are not yet supported, but bst.data is essentially already collapsed!")
+        new_obj._data = new_time
+        new_obj.support = type(obj._abscissa.support)([0, duration])
+        new_obj._series_ids = obj._series_ids
+        new_obj._series_labels = obj._series_labels
+        new_obj._series_tags = obj._series_tags
+    elif isinstance(obj, core.BinnedEventArray):
+        raise NotImplementedError("BinnedEventArrays are not yet supported, but bst.data is essentially already collapsed!")
     else:
         raise TypeError("unsupported type for collapse_time")
 

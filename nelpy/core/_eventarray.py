@@ -489,17 +489,9 @@ class EventArrayABC(ABC):
         if isinstance(self, EventArray):
             if len(series_subset_ids) == 0:
                 warnings.warn("no series remaining in requested series subset")
-                return EventArray(empty=True)
+                return type(self)(empty=True)
 
-            eventarray = EventArray(empty=True)
-            exclude = ["_data", "series_ids", "series_labels"]
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("eventarray." + attr + " = self." + attr)
-
+            eventarray = self._copy_without_data()
             eventarray._data = self.data[series_subset_ids]
             eventarray._series_ids = new_series_ids
             eventarray._series_labels = new_series_labels
@@ -510,17 +502,9 @@ class EventArrayABC(ABC):
         elif isinstance(self, BinnedEventArray):
             if len(series_subset_ids) == 0:
                 warnings.warn("no series remaining in requested series subset")
-                return BinnedEventArray(empty=True)
+                return type(self)(empty=True)
 
-            binnedeventarray = BinnedEventArray(empty=True)
-            exclude = ["_data", "series_ids", "series_labels"]
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("binnedeventarray." + attr + " = self." + attr)
-
+            binnedeventarray = self._copy_without_data()
             binnedeventarray._data = self.data[series_subset_ids,:]
             binnedeventarray._series_ids = new_series_ids
             binnedeventarray._series_labels = new_series_labels
@@ -804,7 +788,7 @@ class EventArray(EventArrayABC):
                 data=self.data,
                 copyover=True
                 )
-            eventarray = EventArray(empty=True)
+            eventarray = type(self)(empty=True)
             exclude = ["_data", "_support"]
             attrs = (x for x in self.__attributes__ if x not in exclude)
             for attr in attrs:
@@ -823,13 +807,13 @@ class EventArray(EventArrayABC):
 
         if isinstance(idx, core.IntervalArray):
             if idx.isempty:
-                return EventArray(empty=True)
+                return type(self)(empty=True)
             support = self._abscissa.support.intersect(
                     interval=idx,
                     boundaries=True
                     ) # what if fs of slicing interval is different?
             if support.isempty:
-                return EventArray(empty=True)
+                return type(self)(empty=True)
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -2082,7 +2066,7 @@ class BinnedEventArray(EventArrayABC):
         if series_label is None:
             series_label = "flattened"
 
-        binnedeventarray = BinnedEventArray(empty=True)
+        binnedeventarray = type(self)(empty=True)
 
         exclude = ["_data", "series_ids", "series_labels", "series_tags"]
         attrs = (x for x in self.__attributes__ if x not in "_data")
@@ -2140,6 +2124,14 @@ def legacySTAkwargs(**kwargs):
     abscissa_vals = only_one_of(abscissa_vals, timestamps, time)
     if abscissa_vals is not None:
         kwargs['abscissa_vals'] = abscissa_vals
+
+    series_ids = kwargs.pop('unit_ids', None)
+    series_tags = kwargs.pop('unit_tags', None)
+    series_labels = kwargs.pop('unit_labels', None)
+
+    kwargs['series_ids'] = series_ids
+    kwargs['series_tags'] = series_tags
+    kwargs['series_labels'] = series_labels
 
     return kwargs
 
