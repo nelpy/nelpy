@@ -2148,7 +2148,7 @@ class SpikeTrainArray(EventArray):
         'n_epochs': 'n_intervals',
         'n_units' : 'n_series',
         '_unit_subset' : '_series_subset', # requires kw change
-        # 'get_event_firing_order' : 'get_spike_firing_order'
+        'get_event_firing_order' : 'get_spike_firing_order',
         'reorder_units_by_ids' : 'reorder_series_by_ids',
         'reorder_units' : 'reorder_series',
         '_reorder_units_by_idx' : '_reorder_series_by_idx',
