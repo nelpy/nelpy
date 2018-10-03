@@ -950,7 +950,7 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     return ax
 
 def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
-                      alpha=0.5, hatch='////', label=None, hc=None,**kwargs):
+                      alpha=0.5, hatch='', label=None, hc=None,**kwargs):
     """Docstring goes here.
     """
     if ax is None:
@@ -984,11 +984,8 @@ def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
             warnings.warn("Hatch color not supported for matplotlib <2.0")
 
     for ii, (start, stop) in enumerate(zip(epochs.starts, epochs.stops)):
-        ax.add_patch(
-            patches.Rectangle(
-                (start, ymin),   # (x,y)
-                width=stop - start ,          # width
-                height=height,          # height
+        ax.axvspan(start,
+                stop,
                 hatch=hatch,
                 facecolor=fc,
                 edgecolor=ec,
@@ -996,7 +993,6 @@ def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
                 label=label if ii == 0 else "_nolegend_",
                 **kwargs
             )
-        )
 
     if epochs.start < xmin:
         xmin = epochs.start

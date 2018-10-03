@@ -80,7 +80,7 @@ def get_num_electrodes(sessiondir, verbose=False):
         raise ValueError('number of electrodes (shanks) could not be established...')
 
 #datatype = ['spikes', 'eeg', 'pos', '?']
-def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessiontime='11-26-53', track=None, datatype='spikes', channels='all', fs=32552,starttime=0, ctx=None, verbose=False, includeUnsortedSpikes=False):
+def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessiontime='11-26-53', track=None, datatype='spikes', channels='all', fs=None,starttime=0, ctx=None, verbose=False, includeUnsortedSpikes=False):
 
     fileroot = os.path.normpath(fileroot)
     if track is None:
@@ -93,6 +93,8 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
         sessiondir = "{}/{}/{}/{}".format(fileroot, anim_prefix, track, session_prefix) # track can be 'one', 'two', or 'sleep'
 
     if (datatype=='spikes'):
+        if fs is None:
+            fs = 32552
         # NOTE: st_array[0] always corresponds to unsortable spikes (not mechanical noise). However, when includeUnsortedSpikes==True, then it gets populated
         #       with spike times; else, it just remains an empty list []
 
@@ -158,6 +160,8 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
         # hence when extracting info, we must take all sessions in a recording day into account, and not just a specific recording session
 
     elif (datatype=='eeg'):
+        if fs is None:
+            fs = 1252
         filename = "{}/{}.eeg".format(sessiondir, session_prefix)
         if verbose:
             print("Loading EEG data from file '{}'".format(filename))
@@ -192,6 +196,8 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
         return eeg
 
     elif (datatype=='pos'):
+        if fs is None:
+            fs = 60
         filename = "{}/{}.whl".format(sessiondir, session_prefix)
         if verbose:
             print("reading {} Hz position data from '{}'".format(fs, filename))

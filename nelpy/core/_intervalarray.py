@@ -635,10 +635,12 @@ class IntervalArray:
         this = copy.deepcopy(self)
         new_intervals = []
         for epa in this:
-            for epb in interval:
-                new_interval = self._intersect(epa,epb, boundaries=boundaries)
-                if not new_interval.isempty:
-                    new_intervals.append([new_interval.start, new_interval.stop])
+            cand_ep_idx = np.argwhere((interval.starts < epa.stop) & (interval.stops > epa.start)).squeeze()
+            if np.size(cand_ep_idx) > 0:
+                for epb in interval[cand_ep_idx.tolist()]:
+                    new_interval = self._intersect(epa, epb, boundaries=boundaries)
+                    if not new_interval.isempty:
+                        new_intervals.append([new_interval.start, new_interval.stop])
         out = type(self)(new_intervals)
         out._domain = self.domain
         return out
