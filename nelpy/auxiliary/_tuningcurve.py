@@ -197,8 +197,6 @@ class TuningCurve2D:
         -------
         si : array of shape (n_units,)
             spatial information (in bits) per unit
-        sparsity: array of shape (n_units,)
-            sparsity (in percent) for each unit
         """
 
         return utils.spatial_information(ratemap=self.ratemap)
