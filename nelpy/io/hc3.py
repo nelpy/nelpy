@@ -80,7 +80,7 @@ def get_num_electrodes(sessiondir, verbose=False):
         raise ValueError('number of electrodes (shanks) could not be established...')
 
 #datatype = ['spikes', 'eeg', 'pos', '?']
-def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessiontime='11-26-53', track=None, datatype='spikes', channels='all', fs=None,starttime=0, ctx=None, verbose=False, includeUnsortedSpikes=False):
+def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessiontime='11-26-53', track=None, datatype='spikes', channels='all', fs=None,starttime=0, ctx=None, verbose=False, includeUnsortedSpikes=False, includeWaveforms=False):
 
     fileroot = os.path.normpath(fileroot)
     if track is None:
@@ -108,17 +108,32 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
             print('Number of electrode (.clu) files found:', num_elec)
         if includeUnsortedSpikes:
             st_array = [[]]
+            wf_array = [[]]
         else:
             st_array = []
+            wf_array = []
+        wfdt = np.dtype('<h', (54,8)) # waveform datatype (.spk files)
         # note: using pandas.read_table is orders of magnitude faster here than using numpy.loadtxt
         for ele in np.arange(num_elec):
             #%time dt1a = np.loadtxt( base_filename1 + '.clu.' + str(ele + 1), skiprows=1,dtype=int)
             eudf = pd.read_table( filename + '.clu.' + str(ele + 1), header=None, names='u' ) # read unit numbers within electrode
             tsdf = pd.read_table( filename + '.res.' + str(ele + 1), header=None, names='t' ) # read sample numbers for spikes
+            if includeWaveforms:
+                waveforms = np.fromfile(filename + '.spk.' + str(ele + 1), dtype=wfdt)
+                waveforms = np.reshape(waveforms, (int(len(waveforms)/(54*8)), 54, 8))
+                waveforms = waveforms[:,26,:]
+
             max_units = eudf.u.values[0]
 
             eu = eudf.u.values[1:]
             ts = tsdf.t.values
+
+            if includeWaveforms:
+                noise_idx = np.argwhere(eu==0).squeeze()
+                hash_idx = np.argwhere(eu==1).squeeze()
+                all_idx = set(np.arange(len(eu)))
+                discard_idx = set(noise_idx)
+
             # discard units labeled as '0' or '1', as these correspond to mechanical noise and unsortable units
             ts = ts[eu!=0]  # always discard mechanical noise
             eu = eu[eu!=0]  # always discard mechanical noise
@@ -126,12 +141,25 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
             if not includeUnsortedSpikes:
                 ts = ts[eu!=1]  # potentially discard unsortable spikes
                 eu = eu[eu!=1]  # potentially discard unsortable spikes
+                if includeWaveforms:
+                    discard_idx = discard_idx.union(set(hash_idx))
+
+            if includeWaveforms:
+                keep_idx = all_idx - discard_idx
+                waveforms = waveforms[sorted(list(keep_idx))]
 
             for uu in np.arange(max_units-2):
                 st_array.append(ts[eu==uu+2])
+                if includeWaveforms:
+                    wf_array.append(waveforms[eu==uu+2])
 
             if includeUnsortedSpikes:
                 st_array[0] = np.append(st_array[0], ts[eu==1])   # unit 0 now corresponds to unsortable spikes
+                if includeWaveforms:
+                    if len(wf_array[0]) > 0:
+                        wf_array[0] = np.vstack((wf_array[0],waveforms[eu==1]))
+                    else:
+                        wf_array[0] = waveforms[eu==1]
 
         if verbose:
             print('Spike times (in sample numbers) for a total of {} units were read successfully...'.format(len(st_array)))
@@ -143,9 +171,17 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
 
         # make sure that spike times are sorted! (this is not true for unit 0 of the hc-3 dataset, for example):
         for unit, spikes in enumerate(st_array):
-            st_array[unit] = np.sort(spikes)/fs
+            order = np.argsort(spikes)
+            st_array[unit] = spikes[order]/fs
+            if includeWaveforms:
+                wf_array[unit] = wf_array[unit][order]
 
-        spikes = SpikeTrainArray(st_array, label=session_prefix, fs=fs, unit_ids=unit_ids)
+        if includeWaveforms:
+            # spikes = MarkedSpikeTrainArray(st_array, marks=wf_array, label=session_prefix, fs=fs, unit_ids=unit_ids)
+            spikes = SpikeTrainArray(st_array, label=session_prefix, fs=fs, unit_ids=unit_ids)
+            spikes._marks = wf_array
+        else:
+            spikes = SpikeTrainArray(st_array, label=session_prefix, fs=fs, unit_ids=unit_ids)
 
         # spikes = Map()
         # spikes['data'] = st_array
@@ -158,6 +194,67 @@ def load_hc3_data(fileroot, animal='gor01', year=2006, month=6, day=7, sessionti
 
         ## continue from here... we want to keep cells that are inactive in some, but not all environments...
         # hence when extracting info, we must take all sessions in a recording day into account, and not just a specific recording session
+
+    if (datatype=='clusterless'):
+        if fs is None:
+            fs = 32552
+
+        filename = "{}/{}".format(sessiondir, session_prefix)
+
+        if verbose:
+            print("Loading data for session in directory '{}'...".format(sessiondir))
+        num_elec = get_num_electrodes(sessiondir, verbose=verbose)
+        if verbose:
+            print('Number of electrode (.clu) files found:', num_elec)
+        st_array = []
+        mark_array = []
+
+        wfdt = np.dtype('<h', (54,8)) # waveform datatype (.spk files)
+        # note: using pandas.read_table is orders of magnitude faster here than using numpy.loadtxt
+        for ele in np.arange(num_elec):
+            #%time dt1a = np.loadtxt( base_filename1 + '.clu.' + str(ele + 1), skiprows=1,dtype=int)
+            eudf = pd.read_table( filename + '.clu.' + str(ele + 1), header=None, names='u' ) # read unit numbers within electrode
+            tsdf = pd.read_table( filename + '.res.' + str(ele + 1), header=None, names='t' ) # read sample numbers for spikes
+
+            waveforms = np.fromfile(filename + '.spk.' + str(ele + 1), dtype=wfdt)
+            waveforms = np.reshape(waveforms, (int(len(waveforms)/(54*8)), 54, 8))
+            marks = waveforms[:,26,:]
+
+            max_units = eudf.u.values[0]
+
+            eu = eudf.u.values[1:]
+            ts = tsdf.t.values
+
+            noise_idx = np.argwhere(eu==0).squeeze()
+            hash_idx = np.argwhere(eu==1).squeeze()
+            all_idx = set(np.arange(len(eu)))
+            discard_idx = set(noise_idx)
+
+            # discard units labeled as '0' or '1', as these correspond to mechanical noise and unsortable units
+            ts = ts[eu!=0]  # always discard mechanical noise
+            eu = eu[eu!=0]  # always discard mechanical noise
+
+            if not includeUnsortedSpikes:
+                ts = ts[eu!=1]  # potentially discard unsortable spikes
+                eu = eu[eu!=1]  # potentially discard unsortable spikes
+                discard_idx = discard_idx.union(set(hash_idx))
+
+            keep_idx = all_idx - discard_idx
+            marks = marks[sorted(list(keep_idx))]
+
+            st_array.append(ts)
+            mark_array.append(marks)
+
+        if verbose:
+            print('Spike times and marks for a total of {} electrodes were read successfully...'.format(num_elec))
+
+        # make sure that spike times are sorted! (this is not true for unit 0 of the hc-3 dataset, for example):
+        for ele, spikes in enumerate(st_array):
+            order = np.argsort(spikes)
+            st_array[ele] = spikes[order]/fs
+            mark_array[ele] = mark_array[ele][order]
+
+        return np.array(st_array), np.array(mark_array)
 
     elif (datatype=='eeg'):
         if fs is None:
