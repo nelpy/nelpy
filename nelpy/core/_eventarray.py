@@ -1,6 +1,7 @@
 __all__ = ['EventArray',
            'BinnedEventArray',
            'SpikeTrainArray',
+        #    'MarkedSpikeTrainArray',
            'BinnedSpikeTrainArray']
 
 """ idea is to have abscissa and ordinate, and to use aliasing to have n_series,
@@ -529,7 +530,6 @@ class EventArrayABC(ABC):
         #return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
-
 ########################################################################
 # class EventArray
 ########################################################################
@@ -700,7 +700,7 @@ class EventArray(EventArrayABC):
             self.support = support
 
         # TODO: if sorted, we may as well use the fast restrict here as well?
-        data = self._restrict_to_interval_array(
+        data = self._restrict_to_interval_array_fast(
             intervalarray=self.support,
             data=data)
 
@@ -1175,6 +1175,24 @@ class EventArray(EventArrayABC):
         firing_order.extend(remaining_ids)
 
         return firing_order
+
+    @property
+    def first_event(self):
+        """Returns the [time of the] first event across all series."""
+        first = np.inf
+        for series in self.data:
+            if series[0] < first:
+                first = series[0]
+        return first
+
+    @property
+    def last_event(self):
+        """Returns the [time of the] last event across all series."""
+        last = -np.inf
+        for series in self.data:
+            if series[-1] > last:
+                last = series[-1]
+        return last
 
 #----------------------------------------------------------------------#
 #======================================================================#
@@ -2158,7 +2176,9 @@ class SpikeTrainArray(EventArray):
         'unit_tags': 'series_tags',
         '_unit_ids' : '_series_ids',
         '_unit_labels': '_series_labels',
-        '_unit_tags': '_series_tags'
+        '_unit_tags': '_series_tags',
+        'first_spike': 'first_event',
+        'last_spike': 'last_event',
         }
 
     def __init__(self, *args, **kwargs):
@@ -2190,6 +2210,297 @@ class SpikeTrainArray(EventArray):
     def bin(self, *, ds=None):
         """Return a BinnedSpikeTrainArray."""
         return BinnedSpikeTrainArray(self, ds=ds) # TODO #FIXME
+
+class MarkedSpikeTrainArray(SpikeTrainArray):
+
+    def __init__(self, *args, marks, **kwargs):
+        # add class-specific aliases to existing aliases:
+        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+
+        # legacy STA constructor support for backward compatibility
+        kwargs = legacySTAkwargs(**kwargs)
+
+        support = kwargs.get('support', None)
+        if support is not None:
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa(support=support))
+        else:
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa())
+        ordinate = kwargs.get('ordinate', core.AnalogSignalArrayOrdinate())
+
+        kwargs['abscissa'] = abscissa
+        kwargs['ordinate'] = ordinate
+
+        super().__init__(*args, **kwargs)
+
+        self._marks = marks
+
+        raise NotImplementedError('ItemGetter_iloc etc. should also be implemented / specialized')
+
+        # consistency check: make sure we have a mark vector for each spike:
+        for uu, (marklist, n_spks) in enumerate(zip(self._marks, self.n_spikes)):
+            assert len(marklist) == n_spks, "expected {} mark vectors for {} spikes in unit {}, but received {}".format(n_spks, n_spks, uu, len(marklist))
+
+    def flatten(self, *, series_id=None, series_label=None):
+        raise NotImplementedError ("marks are not flattened yet...")
+
+    @staticmethod
+    def _restrict_to_interval_array_fast(intervalarray, data, copyover=True):
+        """Return data restricted to an EpochArray.
+
+        This function assumes sorted event datas, so that binary search can
+        be used to quickly identify slices that should be kept in the
+        restriction. It does not check every event data.
+
+        Parameters
+        ----------
+        intervalarray : EpochArray
+        data : array-like
+        """
+        raise NotImplementedError
+        if intervalarray.isempty:
+            n_series = len(data)
+            data = np.zeros((n_series,0))
+            return data
+
+        singleseries = len(data)==1  # bool
+
+        # TODO: is this copy even necessary?
+        if copyover:
+            data = copy.copy(data)
+
+        # NOTE: this used to assume multiple series for the enumeration to work
+        for series, evt_data in enumerate(data):
+            indices = []
+            for epdata in intervalarray.data:
+                t_start = epdata[0]
+                t_stop = epdata[1]
+                frm, to = np.searchsorted(evt_data, (t_start, t_stop))
+                indices.append((frm, to))
+            indices = np.array(indices, ndmin=2)
+            if np.diff(indices).sum() < len(evt_data):
+                warnings.warn(
+                    'ignoring events outside of eventarray support')
+            if singleseries:
+                data_list = []
+                for start, stop in indices:
+                    data_list.extend(evt_data[start:stop])
+                data = np.array(data_list, ndmin=2)
+            else:
+                # here we have to do some annoying conversion between
+                # arrays and lists to fully support jagged array
+                # mutation
+                data_list = []
+                for start, stop in indices:
+                    data_list.extend(evt_data[start:stop])
+                data_ = data.tolist()
+                data_[series] = np.array(data_list)
+                data = np.array(data_)
+        return data
+
+    def _reorder_series_by_idx(self, neworder, inplace=False):
+        raise NotImplementedError
+
+    def reorder_series_by_ids(self, neworder, *, inplace=False):
+        raise NotImplementedError
+
+    def __next__(self):
+        raise NotImplementedError
+        """EventArray iterator advancer."""
+        index = self._index
+        if index > self._abscissa.support.n_intervals - 1:
+            raise StopIteration
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            support = self._abscissa.support[index]
+            data = self._restrict_to_interval_array_fast(
+                intervalarray=support,
+                data=self.data,
+                copyover=True
+                )
+            eventarray = type(self)(empty=True)
+            exclude = ["_data", "_support"]
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            for attr in attrs:
+                exec("eventarray." + attr + " = self." + attr)
+            eventarray._data = data
+            eventarray._abscissa.support = support
+            eventarray.loc = ItemGetter_loc(eventarray)
+            eventarray.iloc = ItemGetter_iloc(eventarray)
+        self._index += 1
+        return eventarray
+
+    def _intervalslicer(self, idx):
+        """Helper function to restrict object to EpochArray."""
+        # if self.isempty:
+        #     return self
+
+        raise NotImplementedError
+
+        if isinstance(idx, core.IntervalArray):
+            if idx.isempty:
+                return type(self)(empty=True)
+            support = self._abscissa.support.intersect(
+                    interval=idx,
+                    boundaries=True
+                    ) # what if fs of slicing interval is different?
+            if support.isempty:
+                return type(self)(empty=True)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                data = self._restrict_to_interval_array_fast(
+                    intervalarray=support,
+                    data=self.data,
+                    copyover=True
+                    )
+                eventarray = self._copy_without_data()
+                eventarray._data = data
+                eventarray._abscissa.support = support
+                eventarray.loc = ItemGetter_loc(eventarray)
+                eventarray.iloc = ItemGetter_iloc(eventarray)
+            return eventarray
+        elif isinstance(idx, int):
+            eventarray = self._copy_without_data()
+            support = self._abscissa.support[idx]
+            eventarray._abscissa.support = support
+            if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
+                eventarray.loc = ItemGetter_loc(eventarray)
+                eventarray.iloc = ItemGetter_iloc(eventarray)
+                return eventarray
+            else:
+                data = self._restrict_to_interval_array_fast(
+                        intervalarray=support,
+                        data=self.data,
+                        copyover=True
+                        )
+                eventarray._data = data
+                eventarray._abscissa.support = support
+                eventarray.loc = ItemGetter_loc(eventarray)
+                eventarray.iloc = ItemGetter_iloc(eventarray)
+                return eventarray
+        else:  # most likely slice indexing
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    support = self._abscissa.support[idx]
+                    data = self._restrict_to_interval_array_fast(
+                        intervalarray=support,
+                        data=self.data,
+                        copyover=True
+                        )
+                    eventarray = self._copy_without_data()
+                    eventarray._data = data
+                    eventarray._abscissa.support = support
+                    eventarray.loc = ItemGetter_loc(eventarray)
+                    eventarray.iloc = ItemGetter_iloc(eventarray)
+                return eventarray
+            except Exception:
+                raise TypeError(
+                    'unsupported subsctipting type {}'.format(type(idx)))
+
+
+    @property
+    def support(self):
+        """(nelpy.IntervalArray) The support of the underlying EventArray."""
+        return self._abscissa.support
+
+    @support.setter
+    def support(self, val):
+        """(nelpy.IntervalArray) The support of the underlying EventArray."""
+        raise NotImplementedError
+        # modify support
+        if isinstance(val, type(self._abscissa.support)):
+            self._abscissa.support = val
+        elif isinstance(val, (tuple, list)):
+            prev_domain = self._abscissa.domain
+            self._abscissa.support = type(self._abscissa.support)([val[0], val[1]])
+            self._abscissa.domain = prev_domain
+        else:
+            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+        # restrict data to new support
+        self._data, self._marks = self._restrict_to_interval_array_fast(
+                intervalarray=self._abscissa.support,
+                data=self.data,
+                copyover=True
+                )
+
+    @property
+    def domain(self):
+        """(nelpy.IntervalArray) The domain of the underlying EventArray."""
+        return self._abscissa.domain
+
+    @domain.setter
+    def domain(self, val):
+        """(nelpy.IntervalArray) The domain of the underlying EventArray."""
+        raise NotImplementedError
+        # modify domain
+        if isinstance(val, type(self._abscissa.support)):
+            self._abscissa.domain = val
+        elif isinstance(val, (tuple, list)):
+            self._abscissa.domain = type(self._abscissa.support)([val[0], val[1]])
+        else:
+            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+        # restrict data to new support
+        self._data, self._marks = self._restrict_to_interval_array_fast(
+                intervalarray=self._abscissa.support,
+                data=self.data,
+                copyover=True
+                )
+
+    def _series_subset(self, series_list):
+        """Return a EventArrayABC restricted to a subset of series.
+
+        Parameters
+        ----------
+        series_list : array-like
+            Array or list of series_ids.
+        """
+        raise NotImplementedError
+        series_subset_ids = []
+        for series in series_list:
+            try:
+                id = self.series_ids.index(series)
+            except ValueError:
+                warnings.warn("series_id " + str(series) + " not found in EventArrayABC; ignoring")
+                pass
+            else:
+                series_subset_ids.append(id)
+
+        new_series_ids = (np.asarray(self.series_ids)[series_subset_ids]).tolist()
+        new_series_labels = (np.asarray(self.series_labels)[series_subset_ids]).tolist()
+
+        if isinstance(self, EventArray):
+            if len(series_subset_ids) == 0:
+                warnings.warn("no series remaining in requested series subset")
+                return type(self)(empty=True)
+
+            eventarray = self._copy_without_data()
+            eventarray._data = self.data[series_subset_ids]
+            eventarray._series_ids = new_series_ids
+            eventarray._series_labels = new_series_labels
+            eventarray.loc = ItemGetter_loc(eventarray)
+            eventarray.iloc = ItemGetter_iloc(eventarray)
+
+            return eventarray
+        elif isinstance(self, BinnedEventArray):
+            if len(series_subset_ids) == 0:
+                warnings.warn("no series remaining in requested series subset")
+                return type(self)(empty=True)
+
+            binnedeventarray = self._copy_without_data()
+            binnedeventarray._data = self.data[series_subset_ids,:]
+            binnedeventarray._series_ids = new_series_ids
+            binnedeventarray._series_labels = new_series_labels
+            binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
+            binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
+
+            return binnedeventarray
+        else:
+            raise NotImplementedError(
+            "EventArrayABC._series_slice() not supported for this type yet!")
+
+
+    #TODO: unit subset, slicing, indexing, and interval restriction
 
 
 class BinnedSpikeTrainArray(BinnedEventArray):
