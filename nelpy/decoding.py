@@ -415,6 +415,28 @@ def k_fold_cross_validation(X, k=None, randomize=False):
         validation = [x for i, x in enumerate(X) if i % k == _k_]
         yield training, validation
 
+from scipy import interpolate
+
+class Cumhist(np.ndarray):
+
+    def __new__(cls, cumhist, bincenters):
+        obj = np.asarray(cumhist).view(cls)
+        obj._bincenters = bincenters
+        return obj
+
+    def __call__(self, *val):
+
+        f = interpolate.interp1d(x=self,
+                                 y=self._bincenters,
+                                 kind='linear',
+                                 fill_value=np.NaN)
+        try:
+            vals = np.asscalar(f(*val))
+        except ValueError:
+            vals = f(*val)
+
+        return vals
+
 def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, tuningcurve=None, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins=None):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
@@ -491,6 +513,7 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
     cumhist = np.append(cumhist, 1)
     bincenters = np.append(bincenters, max_error)
 
+    cumhist = Cumhist(cumhist, bincenters)
     return cumhist, bincenters
 
 def cumulative_dist_decoding_error(bst, *, tuningcurve, extern,
@@ -555,6 +578,8 @@ def cumulative_dist_decoding_error(bst, *, tuningcurve, extern,
     # modify to end at (max_error,1):
     cumhist = np.append(cumhist, 1)
     bincenters = np.append(bincenters, max_error)
+
+    cumhist = Cumhist(cumhist, bincenters)
 
     return cumhist, bincenters
 
