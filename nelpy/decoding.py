@@ -10,6 +10,9 @@ __all__ = ['decode1D',
 
 import numpy as np
 import numbers
+
+from scipy.special import logsumexp
+
 from . import auxiliary
 
 def get_mode_pth_from_array(posterior, tuningcurve=None):
