@@ -280,8 +280,8 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     # put mua rate inside an AnalogSignalArray
     if _fast:
         mua = core.AnalogSignalArray([], empty=True)
-        mua._support = mua_binned.support
-        mua._time = mua_binned.bin_centers
+        mua._abscissa.support = mua_binned.support
+        mua._abscissa_vals = mua_binned.bin_centers
         mua._data = mua_binned.data
     else:
         mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
@@ -531,9 +531,9 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
         Minimum number of active units per event, excluding unsorted unit.
         Default is 5.
     minLength : float, optional
-        Minimum event duration in milliseconds. Default is 50 ms.
+        Minimum event duration in seconds. Default is 50 ms.
     maxLength : float, optional
-        Maximum event duration in milliseconds. Default is 750 ms.
+        Maximum event duration in seconds. Default is 750 ms.
     PrimaryThreshold : float, optional
         Primary threshold to exceed. Default is mean() + 3*std()
     SecondaryThreshold : float, optional

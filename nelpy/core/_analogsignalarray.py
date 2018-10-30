@@ -353,11 +353,12 @@ class RegularlySampledAnalogSignalArray:
             self.__renew__()
             return
 
-        if(empty):
+        if (empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._abscissa.support = type(self._abscissa.support)(empty=True)
             self._data = np.array([])
+            self._abscissa_vals = np.array([])
             self.__bake__()
             return
 
