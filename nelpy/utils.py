@@ -86,16 +86,12 @@ def spatial_information(ratemap):
 
         Parameters
         ----------
-        occupancy : array of shape (n_bins,)
-            Occupancy of the animal.
         ratemap : array of shape (n_units, n_bins)
             Rate map in Hz.
         Returns
         -------
         si : array of shape (n_units,)
             spatial information (in bits) per unit
-        sparsity: array of shape (n_units,)
-            sparsity (in percent) for each unit
         """
 
         ratemap = copy.deepcopy(ratemap)

@@ -9,6 +9,7 @@ __all__ = ['decode1D',
            'get_mean_pth_from_array']
 
 import numpy as np
+import numbers
 from . import auxiliary
 
 def get_mode_pth_from_array(posterior, tuningcurve=None):
@@ -128,7 +129,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
 
     if nospk_prior is None:
         nospk_prior = np.full(n_xbins, np.nan)
-    elif isinstance(nospk_priors, numbers.Number):
+    elif isinstance(nospk_prior, numbers.Number):
         nospk_prior = np.full(n_xbins, 1.0)
 
     assert nospk_prior.shape[0] == n_xbins, "prior must have length {}".format(n_xbins)
@@ -184,7 +185,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
                 posterior[:,post_idx] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
 
     # normalize posterior:
-    posterior = np.exp(posterior) / np.tile(np.exp(posterior).sum(axis=0),(n_xbins,1))
+    posterior = np.exp(posterior - logsumexp(posterior, axis=0))
 
     # TODO: what was my rationale behid the following? Why not use bin centers?
     # _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
@@ -273,7 +274,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
 
     if nospk_prior is None:
         nospk_prior = np.full((n_xbins, n_ybins), np.nan)
-    elif isinstance(nospk_priors, numbers.Number):
+    elif isinstance(nospk_prior, numbers.Number):
         nospk_prior = np.full((n_xbins, n_ybins), 1.0)
 
     assert nospk_prior.shape == (n_xbins, n_ybins), "prior must have shape ({}, {})".format(n_xbins, n_ybins)

@@ -130,6 +130,9 @@ def load_example_dataset(dataset_name=None, data_home=None, **kwargs):
     elif dataset_name == 'w-maze':
         raise NotImplementedError
 
+    elif dataset_name == 'diba-linear':
+        raise NotImplementedError
+
     elif dataset_name == 'spike-sorting':
         filename = 'spike-sorting/spikedata.npz'
         pathname = cachepath.format(filename)
