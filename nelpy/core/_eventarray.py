@@ -1349,9 +1349,9 @@ class BinnedEventArray(EventArrayABC):
     def _copy_without_data(self):
         """Returns a copy of the BinnedEventArray, without data."""
         out = copy.copy(self) # shallow copy
-        out._bin_centers = None
-        out._binnedSupport = None
-        out._bins = None
+        # out._bin_centers = None
+        # out._binnedSupport = None
+        # out._bins = None
         out._data = np.zeros((self.n_series,0))
         out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
@@ -2084,15 +2084,8 @@ class BinnedEventArray(EventArrayABC):
         if series_label is None:
             series_label = "flattened"
 
-        binnedeventarray = type(self)(empty=True)
+        binnedeventarray = self._copy_without_data()
 
-        exclude = ["_data", "series_ids", "series_labels", "series_tags"]
-        attrs = (x for x in self.__attributes__ if x not in "_data")
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("binnedeventarray." + attr + " = self." + attr)
         binnedeventarray._data = np.array(self.data.sum(axis=0), ndmin=2)
         binnedeventarray._series_ids = [series_id]
         binnedeventarray._series_labels = [series_label]

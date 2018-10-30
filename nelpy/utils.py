@@ -280,9 +280,9 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     # put mua rate inside an AnalogSignalArray
     if _fast:
         mua = core.AnalogSignalArray([], empty=True)
-        mua._abscissa.support = mua_binned.support
-        mua._abscissa_vals = mua_binned.bin_centers
         mua._data = mua_binned.data
+        mua._abscissa_vals = mua_binned.bin_centers
+        mua._abscissa.support = mua_binned.support
     else:
         mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
 
