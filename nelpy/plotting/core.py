@@ -324,7 +324,10 @@ def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
     """
 
     def extents(f):
-        delta = f[1] - f[0]
+        if len(f) > 1:
+            delta = f[1] - f[0]
+        else:
+            delta = 1
         return [f[0] - delta/2, f[-1] + delta/2]
 
     if ax is None:
@@ -345,7 +348,7 @@ def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
     if not large:
         # Matplotlib imshow
         image = ax.imshow(data, aspect='auto', interpolation='none',
-            extent=extents(x) + extents(y), origin='lower', **kwargs)
+                extent=extents(x) + extents(y), origin='lower', **kwargs)
     else:
         # ModestImage imshow for large images, but 'extent' is still not working well
         image = utils.imshow(axes=ax, X=data, aspect='auto', interpolation='none',
