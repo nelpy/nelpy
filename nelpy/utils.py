@@ -41,6 +41,26 @@ from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 #     cols = ind % array_shape[1]
 #     return (rows, cols)
 
+def asa_indices_within_epochs(asa, intervalarray):
+    """Return indices of ASA within epochs.
+
+    [[start, stop]
+         ...
+     [start, stop]]
+
+    so that data can be associated with asa._data[:,start:stop] for each epoch.
+    """
+    indices = []
+    intervalarray = intervalarray[asa.support]
+    for interval in intervalarray.merge().data:
+        a_start = interval[0]
+        a_stop = interval[1]
+        frm, to = np.searchsorted(asa._abscissa_vals, (a_start, a_stop))
+        indices.append((frm, to))
+    indices = np.array(indices, ndmin=2)
+
+    return indices
+
 def frange(start, stop, step):
     """arange with floating point step"""
     # TODO: this function is not very general; we can extend it to work
