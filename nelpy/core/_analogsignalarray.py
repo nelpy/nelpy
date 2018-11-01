@@ -1904,6 +1904,55 @@ class RegularlySampledAnalogSignalArray:
 
         return cdf
 
+    def _eegplot(self, ax=None, normalize=False, pad=None, fill=True, color=None):
+        """custom_func docstring goes here."""
+
+        import matplotlib.pyplot as plt
+        from ..plotting import utils as plotutils
+
+        if ax is None:
+            ax = plt.gca()
+
+        xmin = self.support.min
+        xmax = self.support.max
+        xvals = self._abscissa_vals
+
+        if pad is None:
+            pad = np.mean(self.data)/2
+
+        data = self.data.copy()
+
+        if normalize:
+            peak_vals = self.max()
+            data = (data.T / peak_vals).T
+
+        n_traces = self.n_signals
+
+        for tt, trace in enumerate(data):
+            if color is None:
+                line = ax.plot(xvals, tt*pad + trace, zorder=int(10+2*n_traces-2*tt))
+            else:
+                line = ax.plot(xvals, tt*pad + trace, zorder=int(10+2*n_traces-2*tt), color=color)
+            if fill:
+                # Get the color from the current curve
+                fillcolor = line[0].get_color()
+                ax.fill_between(xvals, tt*pad, tt*pad + trace, alpha=0.3, color=fillcolor, zorder=int(10+2*n_traces-2*tt-1))
+
+        ax.set_xlim(xmin, xmax)
+        if pad != 0:
+            # yticks = np.arange(n_traces)*pad + 0.5*pad
+            yticks = []
+            ax.set_yticks(yticks)
+            ax.set_xlabel(self._abscissa.label)
+            ax.set_ylabel(self._ordinate.label)
+            plotutils.no_yticks(ax)
+            plotutils.clear_left(ax)
+
+        plotutils.clear_top(ax)
+        plotutils.clear_right(ax)
+
+        return ax
+
     def __setattr__(self, name, value):
         # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
         name = self.__aliases__.get(name, name)

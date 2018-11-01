@@ -737,7 +737,7 @@ def occupancy():
     """Docstring goes here. TODO: complete me."""
     raise NotImplementedError("occupancy() not implemented yet")
 
-def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None):
+def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None, **kwargs):
     """Plot an epoch array similar to vscode scrollbar, to show gaps in e.g.
     matshow plots. TODO: complete me.
 
@@ -753,7 +753,7 @@ def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None):
     ax_ = divider.append_axes("top", size=0.2, pad=0.05)
 
     for epoch in epochs:
-        ax_.plot([epoch.start, epoch.stop], [1,1], lw=lw, solid_capstyle=solid_capstyle)
+        ax_.plot([epoch.start, epoch.stop], [1,1], lw=lw, solid_capstyle=solid_capstyle, **kwargs)
 
     if label is not None:
         ax_.set_yticks([1])

@@ -7,6 +7,8 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+from . import utils  # import plotting/utils
+
 __all__ = ["palplot", "stripplot"]
 
 def palplot(pal, size=1):
@@ -62,7 +64,7 @@ def stripplot(*eps, voffset=None, lw=None, labels=None):
             ax0.plot([ep.start, ep.stop], [y,y], lw=6, color=colors[ii], solid_capstyle='round')
         y+=0.2
 
-    npl.utils.clear_top(ax0)
+    utils.clear_top(ax0)
 #     npl.utils.clear_bottom(ax0)
 
     if labels is None:
@@ -77,8 +79,8 @@ def stripplot(*eps, voffset=None, lw=None, labels=None):
     ax0.set_xlim(epmin-10, epmax+10)
     ax0.set_ylim(0,0.2*(ii+2))
 
-    npl.utils.no_yticks(ax0)
-    npl.utils.clear_left(ax0)
-    npl.utils.clear_right(ax0)
+    utils.no_yticks(ax0)
+    utils.clear_left(ax0)
+    utils.clear_right(ax0)
 
     return ax0
