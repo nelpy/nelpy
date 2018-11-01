@@ -437,7 +437,7 @@ class Cumhist(np.ndarray):
 
         return vals
 
-def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, tuningcurve=None, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins=None):
+def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins=None, randomize=False):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
     procedure.
@@ -448,7 +448,6 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
         BinnedSpikeTrainArray containing all the epochs to be decoded.
         Should typically have the same type of epochs as the ratemap
         (e.g., online epochs), but this is not a requirement.
-    tuningcurve : TuningCurve1D
     extern : query-able object of external correlates (e.g. pos AnalogSignalArray)
     ratemap : array_like
         The ratemap (in Hz) with shape (n_units, n_ext) where n_ext are
@@ -488,7 +487,7 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
     # indices of training and validation epochs / events
 
     hist = np.zeros(n_bins)
-    for training, validation in k_fold_cross_validation(bst.n_epochs, k=k):
+    for training, validation in k_fold_cross_validation(bst.n_epochs, k=k, randomize=randomize):
         # estimate place fields using bst[training]
         tc = auxiliary.TuningCurve1D(bst=bst[training], extern=extern, n_extern=n_extern, extmin=extmin, extmax=extmax, sigma=sigma)
         # decode position using bst[validation]
