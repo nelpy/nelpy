@@ -437,7 +437,7 @@ class Cumhist(np.ndarray):
 
         return vals
 
-def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins=None, randomize=False):
+def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=0, n_bins=None, randomize=False):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
     procedure.
@@ -496,7 +496,17 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
         # decoded pos v target pos
         target = transfunc(extern, at=bst[validation].bin_centers)
 
-        histnew, bins = np.histogram(np.abs(target - mean_pth), bins=n_bins, range=(0, max_error))
+        errors = np.abs(target - mean_pth)
+
+        try:
+            if extern._ordinate.is_wrapping:
+                extern_range = extern._ordinate.range.max - extern._ordinate.range.min
+                max_error = extern_range/2
+                errors[errors > max_error] = extern_range - errors[errors > max_error]
+        except Exception:
+            pass
+
+        histnew, bins = np.histogram(errors, bins=n_bins, range=(0, max_error))
         hist = hist + histnew
 
     # build cumulative error distribution

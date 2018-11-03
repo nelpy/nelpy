@@ -236,13 +236,13 @@ def plot_cum_error_dist(*, cumhist=None, bincenters=None,
 
         # annotate inset
         thresh1 = 0.7
-        inset_ax.hlines(thresh1, 0, cumhist(thresh1), color=color, alpha=0.9, linestyle='--')
-        inset_ax.vlines(cumhist(thresh1), 0, thresh1, color=color, alpha=0.9, linestyle='--')
+        inset_ax.hlines(thresh1, 0, cumhist(thresh1), color=color, alpha=0.9, lw=lw, linestyle='--')
+        inset_ax.vlines(cumhist(thresh1), 0, thresh1, color=color, alpha=0.9, lw=lw, linestyle='--')
         inset_ax.set_xlim(0,12*np.ceil(cumhist(thresh1)/10))
 
         thresh2 = 0.5
-        inset_ax.hlines(thresh2, 0, cumhist(thresh2), color=color, alpha=0.6, linestyle='--')
-        inset_ax.vlines(cumhist(thresh2), 0, thresh2, color=color, alpha=0.6, linestyle='--')
+        inset_ax.hlines(thresh2, 0, cumhist(thresh2), color=color, alpha=0.6, lw=lw, linestyle='--')
+        inset_ax.vlines(cumhist(thresh2), 0, thresh2, color=color, alpha=0.6, lw=lw, linestyle='--')
 
         inset_ax.set_yticks((0,thresh1, thresh2, 1))
         inset_ax.set_ylim(0)
