@@ -14,6 +14,9 @@ import numbers
 from scipy.special import logsumexp
 
 from . import auxiliary
+from . import core
+from . import utils
+from . core._eventarray import ItemGetter_iloc, ItemGetter_loc
 
 def get_mode_pth_from_array(posterior, tuningcurve=None):
     """If tuningcurve is provided, then we map it back to the external coordinates / units.
@@ -437,7 +440,7 @@ class Cumhist(np.ndarray):
 
         return vals
 
-def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=0, n_bins=None, randomize=False):
+def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins=None, randomize=False):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
     procedure.
@@ -496,17 +499,7 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
         # decoded pos v target pos
         target = transfunc(extern, at=bst[validation].bin_centers)
 
-        errors = np.abs(target - mean_pth)
-
-        try:
-            if extern._ordinate.is_wrapping:
-                extern_range = extern._ordinate.range.max - extern._ordinate.range.min
-                max_error = extern_range/2
-                errors[errors > max_error] = extern_range - errors[errors > max_error]
-        except Exception:
-            pass
-
-        histnew, bins = np.histogram(errors, bins=n_bins, range=(0, max_error))
+        histnew, bins = np.histogram(np.abs(target - mean_pth), bins=n_bins, range=(0, max_error))
         hist = hist + histnew
 
     # build cumulative error distribution
@@ -611,3 +604,101 @@ def rmse(predictions, targets):
     targets = np.asanyarray(targets)
     rmse = np.sqrt(np.nanmean((predictions - targets) ** 2))
     return rmse
+
+
+class BayesianDecoder(object):
+    """
+    current nelpy Bayesian decoding lacks several potentially important elements:
+        - (1) directional tuning curves
+        - (2) theta (and gamma?) phase information (esp. in PFC)
+        - (4) a unified approach for 1D, 2D, and ND decoding?
+        - (3) a scikit-like API with support for numpy and nelpy
+        - full Bayesian incorporation on prior information
+        - arbitraty bin-and-stride specification
+        - dynamical model, e.g., Kalman smoother
+        - adaptive mode for model to be updated?
+
+    To support (1) and (2), we need
+        a. easy ways to extract spikes at a particular phase,
+        b. ways to incorporate multiple tuning curves (per condition/phase) in
+           one decoder model?
+        c. ways to easily extract direction
+        d. support to decode using multiple alternatives, and return best one?
+
+    For example, for a given bst, we could split data into different conditions,
+    e.g., theta phase bin (x8), and direction (x2), for a total of 16 conditions.
+    Then we would learn a model for each of the 16 conditions, and subsequently
+    when we decode, we would combine the results.
+
+    Q1. Is there a nice hierarchical way in which we can share some information
+        between the different conditions? Otherwise we really don't have much
+        data...
+    Q2. How do we deal with the unknown direction during decoding? Is this an EM
+        or missing value problem? Or do we marginalize?
+
+    Q3. How do we bin in time? Does theta-phase-augmented decoding now become a
+        binning-in-phase, rather than a binning-in-time problem? How do we
+        extend all our existing machinery to deal with that? (we won't have a
+        fixed bst.ds anymore, for example).
+
+        ==> an alternative is to bin into something relatively small (thata/8?)
+            and then to associate a phase with the (fixed-duration) temporal bin.
+            Q. can we weigh bins by their phase?
+
+    See https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3129134/
+        http://rstb.royalsocietypublishing.org/content/364/1521/1193
+        and Jensen & Lisman 2000
+    """
+
+    def __init__(self, tuningcurve=None):
+        if tuningcurve is not None:
+            self.tuningcurve = tuningcurve
+        pass
+
+    # def __new__(cls, *args):
+    #     raise NotImplementedError
+
+    def fit(self, X):
+        raise NotImplementedError
+
+    def predict(self, X):
+        raise NotImplementedError
+
+    def predict_proba(self, X):
+        raise NotImplementedError
+
+    def predict_proba_bst(self, X, sigma=0, w=1):
+        if isinstance(X, core.BinnedEventArray):
+            posteriors, bdries, mode_pth, mean_pth = decode1D(X, self.tuningcurve.smooth(sigma=sigma), w=w)
+
+            m, n = posteriors.shape
+
+            bins, bin_centers, binnedSupport, support = utils._bst_get_bins(X.support, ds=X.ds, w=w)
+            bst = core.BinnedSpikeTrainArray(empty=True)
+            bst._binnedSupport = binnedSupport
+            bst._bins = bins
+            bst._data = posteriors
+            # selfs die support mag dalk verander het, maar dit is altyd KLEINER as die oorspronkilke
+            bst._abscissa.support = support
+            bst._bin_centers = bin_centers
+            bst.loc = ItemGetter_loc(bst)
+            bst.iloc = ItemGetter_iloc(bst)
+            bst._ds = X.ds # funksie van bst.ds en w ?
+            bst.series_ids = np.array(list(range(1, m + 1)), ndmin=1)
+            bst.series_labels = np.array(list(range(1, m + 1)), ndmin=1)
+            bst._series_tags = None
+
+            # asa = nel.PositionArray(data=mean_pth, timestamps=bst.bin_centers, support=bst.support, fs=1/bst.ds)
+            # asa._ordinate.label = 'position ({})'
+            # asa._ordinate.base_unit = 'cm'
+
+        else:
+            raise NotImplementedError
+
+        return bst
+
+    def predict_asa(self, X):
+        raise NotImplementedError
+
+    def __repr__(self):
+        raise NotImplementedError

@@ -11,7 +11,8 @@ __all__ = ['spatial_information',
            'ddt_asa',
            'get_contiguous_segments',
            'get_events_boundaries',
-           'get_threshold_crossing_epochs']
+           'get_threshold_crossing_epochs',
+           '_bst_get_bins']
 
 import numpy as np
 import warnings
@@ -252,6 +253,97 @@ def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False):
     out._time = downsampled.time
     out._fs = fs_out
     return out
+
+def _bst_get_bins_inside_interval(interval, ds, w=1):
+    """(np.array) Return bin edges entirely contained inside an interval.
+
+    Bin edges always start at interval.start, and continue for as many
+    bins as would fit entirely inside the interval.
+
+    NOTE 1: there are (n+1) bin edges associated with n bins.
+
+    WARNING: if an interval is smaller than ds, then no bin will be
+            associated with the particular interval.
+
+    NOTE 2: nelpy uses half-open intervals [a,b), but if the bin
+            width divides b-a, then the bins will cover the entire
+            range. For example, if interval = [0,2) and ds = 1, then
+            bins = [0,1,2], even though [0,2] is not contained in
+            [0,2). There might be numerical precision deviations from this?
+
+    Parameters
+    ----------
+    interval : EpochArray
+        EpochArray containing a single interval with a start, and stop
+    ds : float
+        Time bin width, in seconds.
+    w : number of bins to use in a sliding window mode. Default is 1 (no sliding window).
+        For example, 40 ms bins, with a stride of 5 ms, can be achieved by using (ds=0.005, w=8)
+        For now, w has to be an integer, and therefore 5 second bins, with a stride of 2 seconds
+        are not supported within this framework.
+
+    Returns
+    -------
+    bins : array
+        Bin edges in an array of shape (n+1,) where n is the number
+        of bins
+    centers : array
+        Bin centers in an array of shape (n,) where n is the number
+        of bins
+    """
+
+    if interval.length < ds:
+        return None, None
+
+    n_bins = int(np.floor(interval.length / ds)) # number of bins
+
+    # linspace is better than arange for non-integral steps
+    bins = np.linspace(interval.start, interval.start + n_bins*ds, n_bins+1)
+    
+    if w > 1:
+        wn_bins = np.max((1, n_bins - w + 1))
+        wn_bins = bins[:wn_bins+1] + w/2*ds - ds/2
+        bins = wn_bins
+        
+    centers = bins[:-1] + (ds / 2)
+                
+    return bins, centers
+
+def _bst_get_bins(intervalArray, ds, w=1):
+    """
+    Docstring goes here. TBD. For use with bins that are contained
+    wholly inside the intervals.
+
+    """
+    b = []  # bin list
+    c = []  # centers list
+    left_edges = []
+    right_edges = []
+    counter = 0
+    for interval in intervalArray:
+        bins, centers = _bst_get_bins_inside_interval(interval=interval, ds=ds, w=w)
+        if bins is not None:
+            left_edges.append(counter)
+            counter += len(centers) - 1
+            right_edges.append(counter)
+            counter += 1
+            b.extend(bins.tolist())
+            c.extend(centers.tolist())
+    bins = np.array(b)
+    bin_centers = np.array(c)
+
+    le = np.array(left_edges)
+    le = le[:, np.newaxis]
+    re = np.array(right_edges)
+    re = re[:, np.newaxis]
+    binnedSupport = np.hstack((le, re))
+    lengths = np.atleast_1d((binnedSupport[:,1] - binnedSupport[:,0] + 1).squeeze())
+    support_starts = bins[np.insert(np.cumsum(lengths+1),0,0)[:-1]]
+    support_stops = bins[np.insert(np.cumsum(lengths+1)-1,0,0)[1:]]
+    supportdata = np.vstack([support_starts, support_stops]).T
+    support = type(intervalArray)(supportdata) # set support to TRUE bin support
+
+    return bins, bin_centers, binnedSupport, support
 
 def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     """Compute the multiunit activity (MUA) from a spike train.
