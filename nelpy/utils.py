@@ -724,7 +724,10 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
                     unit_ids.remove(unsorted_id)
                 except ValueError:
                     pass
-                data_ = data._unit_subset(unit_ids)
+                # data_ = data._unit_subset(unit_ids)
+                data_ = data[:,unit_ids]
+            else:
+                data_ = data
             # determine number of active units per epoch:
             n_active = np.array([snippet.n_active for snippet in data_[PBE_epochs]])
             active_epochs_idx = np.argwhere(n_active > min_active).squeeze()
