@@ -474,48 +474,7 @@ class EventArrayABC(ABC):
         series_list : array-like
             Array or list of series_ids.
         """
-        series_subset_ids = []
-        for series in series_list:
-            try:
-                id = self.series_ids.index(series)
-            except ValueError:
-                warnings.warn("series_id " + str(series) + " not found in EventArrayABC; ignoring")
-                pass
-            else:
-                series_subset_ids.append(id)
-
-        new_series_ids = (np.asarray(self.series_ids)[series_subset_ids]).tolist()
-        new_series_labels = (np.asarray(self.series_labels)[series_subset_ids]).tolist()
-
-        if isinstance(self, EventArray):
-            if len(series_subset_ids) == 0:
-                warnings.warn("no series remaining in requested series subset")
-                return type(self)(empty=True)
-
-            eventarray = self._copy_without_data()
-            eventarray._data = self.data[series_subset_ids]
-            eventarray._series_ids = new_series_ids
-            eventarray._series_labels = new_series_labels
-            eventarray.loc = ItemGetter_loc(eventarray)
-            eventarray.iloc = ItemGetter_iloc(eventarray)
-
-            return eventarray
-        elif isinstance(self, BinnedEventArray):
-            if len(series_subset_ids) == 0:
-                warnings.warn("no series remaining in requested series subset")
-                return type(self)(empty=True)
-
-            binnedeventarray = self._copy_without_data()
-            binnedeventarray._data = self.data[series_subset_ids,:]
-            binnedeventarray._series_ids = new_series_ids
-            binnedeventarray._series_labels = new_series_labels
-            binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
-            binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
-
-            return binnedeventarray
-        else:
-            raise NotImplementedError(
-            "EventArrayABC._series_slice() not supported for this type yet!")
+        return self.loc[:,series_list]
 
     def __setattr__(self, name, value):
         # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
@@ -2448,50 +2407,7 @@ class MarkedSpikeTrainArray(SpikeTrainArray):
         series_list : array-like
             Array or list of series_ids.
         """
-        raise NotImplementedError
-        series_subset_ids = []
-        for series in series_list:
-            try:
-                id = self.series_ids.index(series)
-            except ValueError:
-                warnings.warn("series_id " + str(series) + " not found in EventArrayABC; ignoring")
-                pass
-            else:
-                series_subset_ids.append(id)
-
-        new_series_ids = (np.asarray(self.series_ids)[series_subset_ids]).tolist()
-        new_series_labels = (np.asarray(self.series_labels)[series_subset_ids]).tolist()
-
-        if isinstance(self, EventArray):
-            if len(series_subset_ids) == 0:
-                warnings.warn("no series remaining in requested series subset")
-                return type(self)(empty=True)
-
-            eventarray = self._copy_without_data()
-            eventarray._data = self.data[series_subset_ids]
-            eventarray._series_ids = new_series_ids
-            eventarray._series_labels = new_series_labels
-            eventarray.loc = ItemGetter_loc(eventarray)
-            eventarray.iloc = ItemGetter_iloc(eventarray)
-
-            return eventarray
-        elif isinstance(self, BinnedEventArray):
-            if len(series_subset_ids) == 0:
-                warnings.warn("no series remaining in requested series subset")
-                return type(self)(empty=True)
-
-            binnedeventarray = self._copy_without_data()
-            binnedeventarray._data = self.data[series_subset_ids,:]
-            binnedeventarray._series_ids = new_series_ids
-            binnedeventarray._series_labels = new_series_labels
-            binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
-            binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
-
-            return binnedeventarray
-        else:
-            raise NotImplementedError(
-            "EventArrayABC._series_slice() not supported for this type yet!")
-
+        return self.loc[:,series_list]
 
     #TODO: unit subset, slicing, indexing, and interval restriction
 
