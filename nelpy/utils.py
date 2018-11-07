@@ -725,7 +725,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
                 except ValueError:
                     pass
                 # data_ = data._unit_subset(unit_ids)
-                data_ = data[:,unit_ids]
+                data_ = data.loc[:,unit_ids]
             else:
                 data_ = data
             # determine number of active units per epoch:
