@@ -13,6 +13,7 @@ from .core import *
 from .auxiliary import *
 
 # from . import analysis
+from . import preprocessing
 from . import filtering
 from . import plotting
 from . import utils
