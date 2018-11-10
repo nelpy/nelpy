@@ -1276,6 +1276,55 @@ class BinnedEventArray(EventArrayABC):
             ds=ds
             )
 
+    def mean(self,*,axis=1):
+        """Returns the mean of each series in BinnedEventArray."""
+        try:
+            means = np.nanmean(self.data, axis=axis).squeeze()
+            if means.size == 1:
+                return np.asscalar(means)
+            return means
+        except IndexError:
+            raise IndexError("Empty BinnedEventArray; cannot calculate mean.")
+
+    def std(self,*,axis=1):
+        """Returns the standard deviation of each series in BinnedEventArray."""
+        try:
+            stds = np.nanstd(self.data,axis=axis).squeeze()
+            if stds.size == 1:
+                return np.asscalar(stds)
+            return stds
+        except IndexError:
+            raise IndexError("Empty BinnedEventArray; cannot calculate standard deviation")
+
+    def center(self, inplace=False):
+        """Center data (zero mean)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T - out.mean()).T
+        return out
+
+    def normalize(self, inplace=False):
+        """Normalize data (unit standard deviation)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T / out.std()).T
+        return out
+
+    def standardize(self, inplace=False):
+        """Standardize data (zero mean and unit std deviation)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T - out.mean()).T
+        out._data = (out._data.T / out.std()).T
+
+        return out
+
     def partition(self, ds=None, n_intervals=None):
         """Returns a EventArrayABC whose support has been partitioned.
 

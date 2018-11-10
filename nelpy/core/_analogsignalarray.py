@@ -460,6 +460,35 @@ class RegularlySampledAnalogSignalArray:
         f = lambda x: self.asarray(at=x).yvals
         return f(args)
 
+    def center(self, inplace=False):
+        """Center data (zero mean)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T - out.mean()).T
+        return out
+
+    def normalize(self, inplace=False):
+        """Normalize data (unit standard deviation)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T / out.std()).T
+        return out
+
+    def standardize(self, inplace=False):
+        """Standardize data (zero mean and unit std deviation)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T - out.mean()).T
+        out._data = (out._data.T / out.std()).T
+
+        return out
+
     @property
     def is_1d(self):
         try:
@@ -1342,7 +1371,7 @@ class RegularlySampledAnalogSignalArray:
     def mean(self,*,axis=1):
         """Returns the mean of each signal in RegularlySampledAnalogSignalArray."""
         try:
-            means = np.mean(self.data, axis=axis).squeeze()
+            means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
                 return np.asscalar(means)
             return means
@@ -1352,7 +1381,7 @@ class RegularlySampledAnalogSignalArray:
     def std(self,*,axis=1):
         """Returns the standard deviation of each signal in RegularlySampledAnalogSignalArray."""
         try:
-            stds = np.std(self.data,axis=axis).squeeze()
+            stds = np.nanstd(self.data,axis=axis).squeeze()
             if stds.size == 1:
                 return np.asscalar(stds)
             return stds
