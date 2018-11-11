@@ -1311,7 +1311,9 @@ class BinnedEventArray(EventArrayABC):
             out = self
         else:
             out = self.copy()
-        out._data = (out._data.T / out.std()).T
+        std = out.std()
+        std[std==0] = 1
+        out._data = (out._data.T / std).T
         return out
 
     def standardize(self, inplace=False):
@@ -1321,7 +1323,9 @@ class BinnedEventArray(EventArrayABC):
         else:
             out = self.copy()
         out._data = (out._data.T - out.mean()).T
-        out._data = (out._data.T / out.std()).T
+        std = out.std()
+        std[std==0] = 1
+        out._data = (out._data.T / std).T
 
         return out
 

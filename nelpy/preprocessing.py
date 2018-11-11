@@ -115,8 +115,9 @@ class DataWindow():
         t = []
         for ii, jj in self._iter_from_X_lengths(X=X, lengths=lengths):
             x, tx = self._apply_contiguous(X[ii:jj], T[ii:jj], flatten=flatten)
-            z.append(x)
-            t.extend(tx)
+            if x is not None:
+                z.append(x)
+                t.extend(tx)
 
         Z = np.vstack(z)
         T = np.array(t)
@@ -165,6 +166,11 @@ class DataWindow():
 
         n_samples, n_features = X.shape
         n_zamples = int(np.ceil((n_samples - bins_before - bins_after)/stride))
+
+        if n_zamples < 1:
+            Z = None
+            T = None
+            return Z, T
 
         Z = np.empty([n_zamples, bins_before + bins_after + bins_current, n_features])
         Z[:] = np.NaN
