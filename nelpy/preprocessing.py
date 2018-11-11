@@ -2,12 +2,15 @@
 
 import numpy as np
 
+from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
+from copy import copy as copycopy # to avoid name clash with local copy variable in StandardScaler
+
 from .utils import PrettyDuration
 from . import core
 
 __all__ = ['DataWindow',
-           'StreamingDataWindow']
-
+           'StreamingDataWindow',
+           'StandardScaler']
 
 class DataWindow():
     """
@@ -405,13 +408,12 @@ class DataWindow():
             assert float(val) > 0, "``bin_width`` must be a non-negative number (float)!"
         self._bin_width = val
 
-    @property
-    def params(self):
+    def get_params(self):
         """Dictionary of DataWindow parameters.
 
         Can be used to instantiate a new DataWindow, for example:
 
-        >>> w_new = DataWindow(**w.params)
+        >>> w_new = DataWindow(**w.get_params())
         """
         params = {'bins_before'  : self.bins_before,
                   'bins_after'   : self.bins_after,
@@ -466,3 +468,104 @@ class StreamingDataWindow():
             raise TypeError('w must be a nelpy.preprocessing.DataWindow type!')
         else:
             self._w = val
+
+class StandardScaler(SklearnStandardScaler):
+
+    def __init__(self, copy=True, with_mean=True, with_std=True):
+        super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
+
+    def fit(self, X, y=None):
+        """Compute the mean and std to be used for later scaling.
+        Parameters
+        ----------
+        X : {array-like, sparse matrix}, shape [n_samples, n_features]
+            The data used to compute the mean and standard deviation
+            used for later scaling along the features axis.
+        y
+            Ignored
+        """
+
+        if isinstance(X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+            X = X.data.T
+
+        return super().fit(X, y)
+
+    def partial_fit(self, X, y=None):
+        """Online computation of mean and std on X for later scaling.
+        All of X is processed as a single batch. This is intended for cases
+        when `fit` is not feasible due to very large number of `n_samples`
+        or because X is read from a continuous stream.
+        The algorithm for incremental mean and std is given in Equation 1.5a,b
+        in Chan, Tony F., Gene H. Golub, and Randall J. LeVeque. "Algorithms
+        for computing the sample variance: Analysis and recommendations."
+        The American Statistician 37.3 (1983): 242-247:
+        Parameters
+        ----------
+        X : {array-like, sparse matrix}, shape [n_samples, n_features]
+            The data used to compute the mean and standard deviation
+            used for later scaling along the features axis.
+        y
+            Ignored
+        """
+
+        if isinstance(X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+            X = X.data.T
+
+        return super().partial_fit(X, y)
+
+    def transform(self, X, copy=None):
+        """Perform standardization by centering and scaling
+        Parameters
+        ----------
+        X : array-like, shape [n_samples, n_features]
+            The data used to scale along the features axis.
+        copy : bool, optional (default: None)
+            Copy the input X or not.
+        """
+
+        if copy is None:
+            copy = self.copy
+
+        if isinstance(X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+            if copy:
+                Xdata = copycopy(X.data.T)
+            else:
+                Xdata = X.data.T
+            Xdata = super().transform(Xdata, copy).T
+
+        if copy:
+            X = X.copy()
+
+        X._data = Xdata
+        return X
+
+    def inverse_transform(self, X, copy=None):
+        """Scale back the data to the original representation
+        Parameters
+        ----------
+        X : array-like, shape [n_samples, n_features]
+            The data used to scale along the features axis.
+        copy : bool, optional (default: None)
+            Copy the input X or not.
+        Returns
+        -------
+        X_tr : array-like, shape [n_samples, n_features]
+            Transformed array.
+        """
+
+        if copy is None:
+            copy = self.copy
+
+        if isinstance(X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+            if copy:
+                Xdata = copycopy(X.data.T)
+            else:
+                Xdata = X.data.T
+            Xdata = super().inverse_transform(Xdata, copy).T
+
+        if copy:
+            X = X.copy()
+
+        X._data = Xdata
+
+        return X
