@@ -26,6 +26,7 @@ __all__ = ['EventArray',
 import warnings
 import numpy as np
 import copy
+import numbers
 
 from abc import ABC, abstractmethod
 
@@ -299,6 +300,89 @@ class EventArrayABC(ABC):
         address_str = " at " + str(hex(id(self)))
         return "<EventArrayABC" + address_str + ">"
 
+    def __mul__(self, other):
+        """Overloaded * operator"""
+
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data * other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T * other).T
+            neweva.__renew__()
+            return neweva
+        else:
+            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+    def __rmul__(self, other):
+        """Overloaded * operator"""
+        return self.__mul__(other)
+
+    def __sub__(self, other):
+        """Overloaded - operator"""
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data - other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T - other).T
+            neweva.__renew__()
+            return neweva
+        else:
+            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+
+    def __add__(self, other):
+        """Overloaded + operator"""
+
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data + other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T + other).T
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, type(self)):
+
+            #TODO: additional checks need to be done, e.g., same series ids...
+            assert self.n_series == other.n_series
+            support = self._abscissa.support + other.support
+
+            newdata = []
+            for series in range(self.n_series):
+                newdata.append(np.append(self.data[series], other.data[series]))
+
+            fs = self.fs
+            if self.fs != other.fs:
+                fs = None
+            return type(self)(newdata, support=support, fs=fs)
+        else:
+            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+    def __truediv__(self, other):
+        """Overloaded / operator"""
+
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data / other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T / other).T
+            neweva.__renew__()
+            return neweva
+        else:
+            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+
     @abstractmethod
     def partition(self, ds=None, n_intervals=None):
         """Returns a EventArrayABC whose support has been partitioned.
@@ -364,6 +448,7 @@ class EventArrayABC(ABC):
         """Labels corresponding to series contained in the EventArrayABC."""
         if self._series_labels is None:
             warnings.warn("series labels have not yet been specified")
+            return self.series_ids
         return self._series_labels
 
     @series_labels.setter
@@ -711,22 +796,6 @@ class EventArray(EventArrayABC):
         newcopy.loc = ItemGetter_loc(newcopy)
         newcopy.iloc = ItemGetter_iloc(newcopy)
         return newcopy
-
-    def __add__(self, other):
-        """Overloaded + operator"""
-
-        #TODO: additional checks need to be done, e.g., same series ids...
-        assert self.n_series == other.n_series
-        support = self._abscissa.support + other.support
-
-        newdata = []
-        for series in range(self.n_series):
-            newdata.append(np.append(self.data[series], other.data[series]))
-
-        fs = self.fs
-        if self.fs != other.fs:
-            fs = None
-        return EventArray(newdata, support=support, fs=fs)
 
     def __iter__(self):
         """EventArray iterator initialization."""
@@ -2106,6 +2175,32 @@ class BinnedEventArray(EventArrayABC):
         binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
         return binnedeventarray
 
+    @property
+    def support(self):
+        """(nelpy.IntervalArray) The support of the underlying BinnedEventArray."""
+        return self._abscissa.support
+
+    @support.setter
+    def support(self, val):
+        """(nelpy.IntervalArray) The support of the underlying BinnedEventArray."""
+        # modify support
+        if isinstance(val, type(self._abscissa.support)):
+            self._abscissa.support = val
+        elif isinstance(val, (tuple, list)):
+            prev_domain = self._abscissa.domain
+            self._abscissa.support = type(self._abscissa.support)([val[0], val[1]])
+            self._abscissa.domain = prev_domain
+        else:
+            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+        # restrict data to new support
+        self._data = self._restrict_to_interval_array_fast(
+                intervalarray=self._abscissa.support,
+                data=self.data,
+                copyover=True
+                )
+        #TODO: modify binnedSupport attribute to match new support
+        raise NotImplementedError('setting the support of a BST does not yet propagate properly to the data and binnedSupport attributes')
+
     @staticmethod
     def _restrict_to_interval_array_fast(intervalarray, data, copyover=True):
         warnings.warn('_restrict_to_interval_array() not yet implemented for BinnedTypes')
@@ -2428,6 +2523,7 @@ class MarkedSpikeTrainArray(SpikeTrainArray):
                 data=self.data,
                 copyover=True
                 )
+        # TODO: modify the binnedSupport attributes to match the new support
 
     @property
     def domain(self):

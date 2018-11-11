@@ -674,6 +674,11 @@ class RegularlySampledAnalogSignalArray:
             newasa._data = self.data * other
             newasa.__renew__()
             return newasa
+        elif isinstance(other, np.ndarray):
+            newasa = copy.copy(self)
+            newasa._data = (self.data.T * other).T
+            newasa.__renew__()
+            return newasa
         else:
             raise TypeError("unsupported operand type(s) for *: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
 
@@ -684,6 +689,11 @@ class RegularlySampledAnalogSignalArray:
             newasa._data = self.data + other
             newasa.__renew__()
             return newasa
+        elif isinstance(other, np.ndarray):
+            newasa = copy.copy(self)
+            newasa._data = (self.data.T + other).T
+            newasa.__renew__()
+            return newasa
         else:
             raise TypeError("unsupported operand type(s) for +: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
 
@@ -692,6 +702,11 @@ class RegularlySampledAnalogSignalArray:
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._data = self.data - other
+            newasa.__renew__()
+            return newasa
+        elif isinstance(other, np.ndarray):
+            newasa = copy.copy(self)
+            newasa._data = (self.data.T - other).T
             newasa.__renew__()
             return newasa
         else:
@@ -711,6 +726,11 @@ class RegularlySampledAnalogSignalArray:
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._data = self.data / other
+            newasa.__renew__()
+            return newasa
+        elif isinstance(other, np.ndarray):
+            newasa = copy.copy(self)
+            newasa._data = (self.data.T / other).T
             newasa.__renew__()
             return newasa
         else:

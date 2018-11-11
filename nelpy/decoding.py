@@ -321,7 +321,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
                 obs = datacum[:, re] - datacum[:, re-w] # spikes in window of size w
                 re+=1
                 post_idx = cum_posterior_lengths[ii] + tt
-                if obs.sum() == 0 and _skip_empty_bins:
+                if obs.sum() == 0 and not _skip_empty_bins:
                     # no spikes to decode in window!
                     posterior[:,:,post_idx] = nospk_prior
                 else:
@@ -330,7 +330,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
               # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
             post_idx = cum_posterior_lengths[ii]
             obs = datacum[:, -1] # spikes in window of size at most w
-            if obs.sum() == 0 and _skip_empty_bins:
+            if obs.sum() == 0 and not _skip_empty_bins:
                 # no spikes to decode in window!
                 posterior[:,:,post_idx] = nospk_prior
             else:
@@ -338,6 +338,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
 
     # normalize posterior:
     # see http://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
+
     for tt in range(n_tbins):
         posterior[:,:,tt] = posterior[:,:,tt] - posterior[:,:,tt].max()
         posterior[:,:,tt] = np.exp(posterior[:,:,tt])
