@@ -1819,7 +1819,7 @@ class BinnedEventArray(EventArrayABC):
         support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
         support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
         supportdata = np.vstack([support_starts, support_stops]).T
-        self.support = type(self._abscissa.support)(supportdata) # set support to TRUE bin support
+        self._abscissa._support = type(self._abscissa.support)(supportdata) # set support to TRUE bin support
 
     def smooth(self, *, sigma=None, inplace=False,  bw=None, within_intervals=False):
         """Smooth BinnedEventArray by convolving with a Gaussian kernel.
