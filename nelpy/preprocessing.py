@@ -47,13 +47,14 @@ class DataWindow(BaseEstimator):
             Total bin width = 5 seconds
     """
 
-    def __init__(self, bins_before=0, bins_after=0, bins_current=1, bins_stride=1, bin_width=None, flatten=False):
+    def __init__(self, bins_before=0, bins_after=0, bins_current=1, bins_stride=1, bin_width=None, flatten=False, sum=False):
         self.bins_before = bins_before
         self.bins_after = bins_after
         self.bins_current = bins_current
         self.bins_stride = bins_stride
         self.bin_width = bin_width
         self._flatten = flatten
+        self._sum = sum
 
     def __str__(self):
         if self.bin_width is not None:
@@ -75,8 +76,8 @@ class DataWindow(BaseEstimator):
             .format(self.bins_before, self.bins_after, self.bins_current, self.bins_stride)
         return repr_string
 
-    def fit(self, X, y, flatten=None):
-        """Dummy fit function to support sklean pipelines.
+    def fit(self, X, y=None, *, T=None, lengths=None, flatten=None):
+        """Dummy fit function to support sklearn pipelines.
         Parameters
         ----------
         X
@@ -89,9 +90,28 @@ class DataWindow(BaseEstimator):
         if flatten is not None:
             self._flatten = flatten
 
+        bins_before = self.bins_before
+        bins_after = self.bins_after
+        bins_current = self.bins_current
+        stride = self.bins_stride
+
+        X, T, lengths = self._tidy(X=X, T=T, lengths=lengths)
+        L = np.insert(np.cumsum(lengths),0,0)
+        idx = []
+        n_zamples_tot = 0
+        for kk, (ii, jj) in enumerate(self._iter_from_X_lengths(X=X, lengths=lengths)):
+            X_ = X[ii:jj] #, T[ii:jj]
+            n_samples, n_features = X_.shape
+            n_zamples = int(np.ceil((n_samples - bins_before - bins_after)/stride))
+            n_zamples_tot += n_zamples
+            idx += list(L[kk] + np.array(range(bins_before, n_samples-bins_after, stride)))
+
+        self.n_samples = n_zamples_tot
+        self.idx = idx
+        self.T = T[idx]
         return self
 
-    def transform(self, X, T=None, lengths=None, flatten=None):
+    def transform(self, X, T=None, lengths=None, flatten=None, sum=None):
         """
         Apply window specification to data in X.
 
@@ -119,6 +139,9 @@ class DataWindow(BaseEstimator):
                 in X.
         flatten : int, optional (default=False)
             Whether or not to flatten the output data.
+        sum : boolean, optional (default=False)
+            Whether or not to sum all the spikes in the window per time bin. If
+            sum==True, then the dimensions of Z will be (n_samples, n_features).
 
         Returns
         -------
@@ -127,11 +150,18 @@ class DataWindow(BaseEstimator):
             in the input, since window specifications can affect which and how
             many samples to return.
             When flatten is True, then Z has shape (n_samples, window_size*n_features).
+            When sum is True, then Z has shape (n_samples, n_features)
         T : array-like of shape (n_samples,)
             Timestamps associated with data contained in Z.
         """
         if flatten is None:
             flatten = self._flatten
+
+        if sum is None:
+            sum = self._sum
+
+        if sum:
+            raise NotImplementedError("haven't implemented this yet, sorry :/")
 
         X, T, lengths = self._tidy(X=X, T=T, lengths=lengths)
         z = []

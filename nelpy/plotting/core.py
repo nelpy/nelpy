@@ -685,6 +685,13 @@ def plot2d(npl_obj, data=None, *, ax=None, mew=None, color=None,
                             markerfacecolor='w',
                             **kwargs
                             )
+
+    if isinstance(npl_obj, core.PositionArray):
+        xlim, ylim = npl_obj.xlim, npl_obj.ylim
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
     return ax
 
 def imshow(data, *, ax=None, interpolation=None, **kwargs):

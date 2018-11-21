@@ -2112,7 +2112,11 @@ class PositionArray(AnalogSignalArray):
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+        xlim = kwargs.pop('xlim', None)
+        ylim = kwargs.pop('ylim', None)
         super().__init__(*args, **kwargs)
+        self._xlim = xlim
+        self._ylim = ylim
 
     @property
     def is_2d(self):
@@ -2139,6 +2143,30 @@ class PositionArray(AnalogSignalArray):
         if self.is_2d:
             return self.data[1,:]
         raise ValueError("PositionArray is not 2 dimensional, so y-values are undefined!")
+
+    @property
+    def xlim(self):
+        if self.is_2d:
+            return self._xlim
+        raise ValueError("PositionArray is not 2 dimensional, so xlim is not undefined!")
+
+    @xlim.setter
+    def xlim(self, val):
+        if self.is_2d:
+            self._xlim = xlim
+        raise ValueError("PositionArray is not 2 dimensional, so xlim cannot be defined!")
+
+    @property
+    def ylim(self):
+        if self.is_2d:
+            return self._ylim
+        raise ValueError("PositionArray is not 2 dimensional, so ylim is not undefined!")
+
+    @ylim.setter
+    def ylim(self, val):
+        if self.is_2d:
+            self._ylim = ylim
+        raise ValueError("PositionArray is not 2 dimensional, so ylim cannot be defined!")
 
 
 class IMUSensorArray(RegularlySampledAnalogSignalArray):
