@@ -1,3 +1,7 @@
+# local references
+/references
+/nelpy/contrib
+
 # code-matlab
 *.*~
 *.aux
