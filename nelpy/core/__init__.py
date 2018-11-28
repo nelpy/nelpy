@@ -17,6 +17,7 @@ from ._intervalarray import *
 from ._coordinates import *
 from ._analogsignalarray import *
 from ._eventarray import *
+from ._valeventarray import *
 
 """ Data container objects """
 

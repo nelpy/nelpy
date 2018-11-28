@@ -99,14 +99,14 @@ class ItemGetter_loc(object):
                 else:
                     istart = self.obj._series_ids.index(start)
             except ValueError:
-                raise KeyError('series_id {} could not be found in EventArrayABC!'.format(start))
+                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(start))
             try:
                 if stop is None:
                     istop = self.obj.n_series
                 else:
                     istop = self.obj._series_ids.index(stop) + 1
             except ValueError:
-                raise KeyError('series_id {} could not be found in EventArrayABC!'.format(stop))
+                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(stop))
             if istep is None:
                 istep = 1
             if istep < 0:
@@ -121,7 +121,7 @@ class ItemGetter_loc(object):
                 try:
                     uidx = self.obj.series_ids.index(series)
                 except ValueError:
-                    raise KeyError("series_id {} could not be found in EventArrayABC!".format(series))
+                    raise KeyError("series_id {} could not be found in BaseEventArray!".format(series))
                 else:
                     series_idx_list.append(uidx)
 
@@ -190,9 +190,9 @@ class ItemGetter_iloc(object):
         return out
 
 ########################################################################
-# class EventArrayABC
+# class BaseEventArray
 ########################################################################
-class EventArrayABC(ABC):
+class BaseEventArray(ABC):
     """Base class for EventArray and BinnedEventArray.
 
     NOTE: This class can't really be instantiated, almost like a pseudo
@@ -298,7 +298,7 @@ class EventArrayABC(ABC):
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
-        return "<EventArrayABC" + address_str + ">"
+        return "<BaseEventArray" + address_str + ">"
 
     def __mul__(self, other):
         """Overloaded * operator"""
@@ -385,7 +385,7 @@ class EventArrayABC(ABC):
 
     @abstractmethod
     def partition(self, ds=None, n_intervals=None):
-        """Returns a EventArrayABC whose support has been partitioned.
+        """Returns a BaseEventArray whose support has been partitioned.
 
         # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
         # underlying support is propagated, and the first and last points
@@ -402,14 +402,14 @@ class EventArrayABC(ABC):
 
         Returns
         -------
-        out : EventArrayABC
-            EventArrayABC that has been partitioned.
+        out : BaseEventArray
+            BaseEventArray that has been partitioned.
         """
         return
 
     @abstractmethod
     def isempty(self):
-        """(bool) Empty EventArrayABC."""
+        """(bool) Empty BaseEventArray."""
         return
 
     @abstractmethod
@@ -426,7 +426,7 @@ class EventArrayABC(ABC):
 
     @property
     def series_ids(self):
-        """Unit IDs contained in the EventArrayABC."""
+        """Unit IDs contained in the BaseEventArray."""
         return self._series_ids
 
     @series_ids.setter
@@ -445,7 +445,7 @@ class EventArrayABC(ABC):
 
     @property
     def series_labels(self):
-        """Labels corresponding to series contained in the EventArrayABC."""
+        """Labels corresponding to series contained in the BaseEventArray."""
         if self._series_labels is None:
             warnings.warn("series labels have not yet been specified")
             return self.series_ids
@@ -465,7 +465,7 @@ class EventArrayABC(ABC):
 
     @property
     def series_tags(self):
-        """Tags corresponding to series contained in the EventArrayABC"""
+        """Tags corresponding to series contained in the BaseEventArray"""
         if self._series_tags is None:
             warnings.warn("series tags have not yet been specified")
         return self._series_tags
@@ -552,7 +552,7 @@ class EventArrayABC(ABC):
         self._label = label
 
     def _series_subset(self, series_list):
-        """Return a EventArrayABC restricted to a subset of series.
+        """Return a BaseEventArray restricted to a subset of series.
 
         Parameters
         ----------
@@ -577,7 +577,7 @@ class EventArrayABC(ABC):
 ########################################################################
 # class EventArray
 ########################################################################
-class EventArray(EventArrayABC):
+class EventArray(BaseEventArray):
     """A multiseries eventarray with shared support.
 
     Parameters
@@ -617,7 +617,7 @@ class EventArray(EventArrayABC):
     """
 
     __attributes__ = ["_data"]
-    __attributes__.extend(EventArrayABC.__attributes__)
+    __attributes__.extend(BaseEventArray.__attributes__)
     def __init__(self, abscissa_vals=None, *, fs=None, support=None,
                  series_ids=None, series_labels=None, series_tags=None,
                  label=None, empty=False, **kwargs):
@@ -751,7 +751,7 @@ class EventArray(EventArrayABC):
         self._data = data
 
     def partition(self, ds=None, n_intervals=None):
-        """Returns a EventArrayABC whose support has been partitioned.
+        """Returns a BaseEventArray whose support has been partitioned.
 
         # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
         # underlying support is propagated, and the first and last points
@@ -768,8 +768,8 @@ class EventArray(EventArrayABC):
 
         Returns
         -------
-        out : EventArrayABC
-            EventArrayABC that has been partitioned.
+        out : BaseEventArray
+            BaseEventArray that has been partitioned.
         """
 
         out = copy.copy(self)
@@ -1229,7 +1229,7 @@ class EventArray(EventArrayABC):
 ########################################################################
 # class BinnedEventArray
 ########################################################################
-class BinnedEventArray(EventArrayABC):
+class BinnedEventArray(BaseEventArray):
     """Binned eventarray.
 
     Parameters
@@ -1246,7 +1246,7 @@ class BinnedEventArray(EventArrayABC):
 
     __attributes__ = ["_ds", "_bins", "_data", "_bin_centers",
                       "_binnedSupport", "_eventarray"]
-    __attributes__.extend(EventArrayABC.__attributes__)
+    __attributes__.extend(BaseEventArray.__attributes__)
 
     def __init__(self, eventarray=None, *, ds=None, empty=False, **kwargs):
 
@@ -1399,7 +1399,7 @@ class BinnedEventArray(EventArrayABC):
         return out
 
     def partition(self, ds=None, n_intervals=None):
-        """Returns a EventArrayABC whose support has been partitioned.
+        """Returns a BaseEventArray whose support has been partitioned.
 
         # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
         # underlying support is propagated, and the first and last points
@@ -1416,8 +1416,8 @@ class BinnedEventArray(EventArrayABC):
 
         Returns
         -------
-        out : EventArrayABC
-            EventArrayABC that has been partitioned.
+        out : BaseEventArray
+            BaseEventArray that has been partitioned.
         """
 
         partitioned = type(self)(core.RegularlySampledAnalogSignalArray(self).partition(ds=ds, n_intervals=n_intervals))
@@ -1678,7 +1678,7 @@ class BinnedEventArray(EventArrayABC):
     @property
     def data(self):
         """(np.array) Event counts in all bins, with shape (n_series, n_bins).
-        See also BinnedEventArrayABC.centers
+        See also BinnedBaseEventArray.centers
         """
         return self._data
 
@@ -1819,7 +1819,7 @@ class BinnedEventArray(EventArrayABC):
         support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
         support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
         supportdata = np.vstack([support_starts, support_stops]).T
-        self._abscissa._support = type(self._abscissa.support)(supportdata) # set support to TRUE bin support
+        self._abscissa.support = type(self._abscissa.support)(supportdata) # set support to TRUE bin support
 
     def smooth(self, *, sigma=None, inplace=False,  bw=None, within_intervals=False):
         """Smooth BinnedEventArray by convolving with a Gaussian kernel.
@@ -2549,7 +2549,7 @@ class MarkedSpikeTrainArray(SpikeTrainArray):
                 )
 
     def _series_subset(self, series_list):
-        """Return a EventArrayABC restricted to a subset of series.
+        """Return a BaseEventArray restricted to a subset of series.
 
         Parameters
         ----------
