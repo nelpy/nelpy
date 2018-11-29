@@ -9,7 +9,6 @@
 
 __all__ = ['ValueEventArray']
 
-
 # __all__ = ['BaseValueEventArray(ABC)',
 #            'ValueEventArray(BaseValueEventArray)',
 #            'MarkedSpikeTrainArray(ValueEventArray)',
@@ -520,7 +519,7 @@ class ValueEventArray(BaseValueEventArray):
         # set default sampling rate
         if fs is None:
             fs = 30000
-            warnings.warn("No sampling rate was specified! Assuming default of {} Hz.".format(fs))
+            logging.info("No sampling rate was specified! Assuming default of {} Hz.".format(fs))
 
         def is_singletons(data):
             """Returns True if data is a list of singletons (more than one)."""
@@ -548,9 +547,12 @@ class ValueEventArray(BaseValueEventArray):
             """
             try:
                 if isinstance(data[0][0], list) or isinstance(data[0][0], np.ndarray):
-                    warnings.warn("event datas input has too many layers!")
-                    if max(np.array(data).shape[:-1]) > 1:
-        #                 singletons = True
+                    logging.info("event datas input has too many layers!")
+                    try:
+                        if max(np.array(data).shape[:-1]) > 1:
+            #                 singletons = True
+                            return False
+                    except ValueError:
                         return False
                     data = np.squeeze(data)
             except (IndexError, TypeError):
@@ -674,8 +676,6 @@ class ValueEventArray(BaseValueEventArray):
         out.loc = ItemGetter_loc(out)
         out.iloc = ItemGetter_iloc(out)
 
-        #TODO: renew interval slicers !
-
         return out
 
     def _copy_without_data(self):
@@ -694,34 +694,18 @@ class ValueEventArray(BaseValueEventArray):
 
     def __iter__(self):
         """EventArray iterator initialization."""
-        # initialize the internal index to zero when used as iterator
         self._index = 0
         return self
 
     def __next__(self):
         """EventArray iterator advancer."""
         index = self._index
+
         if index > self._abscissa.support.n_intervals - 1:
             raise StopIteration
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            support = self._abscissa.support[index]
-            data = self._restrict_to_interval_array_fast(
-                intervalarray=support,
-                data=self.data,
-                copyover=True
-                )
-            eventarray = type(self)(empty=True)
-            exclude = ["_data", "_support"]
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-            for attr in attrs:
-                exec("eventarray." + attr + " = self." + attr)
-            eventarray._data = data
-            eventarray._abscissa.support = support
-            eventarray.loc = ItemGetter_loc(eventarray)
-            eventarray.iloc = ItemGetter_iloc(eventarray)
+
         self._index += 1
-        return eventarray
+        return self.loc[index]
 
     def _intervalslicer(self, idx):
         """Helper function to restrict object to EpochArray."""
@@ -794,7 +778,7 @@ class ValueEventArray(BaseValueEventArray):
     def __getitem__(self, idx):
         """EventArray index access.
 
-        By default, this method is bound to EventArray.loc
+        By default, this method is bound to ValueEventArray.loc
         """
         return self.loc[idx]
 
@@ -824,17 +808,30 @@ class ValueEventArray(BaseValueEventArray):
             return 0
         return utils.PrettyInt(np.count_nonzero(self.n_events))
 
+    @property
+    def events(self):
+        events = []
+        for series in self.data:
+            events.append(series[:,0].squeeze())
+
+        return events
+
+    @property
+    def values(self):
+        values = []
+        for series in self.data:
+            values.append(series[:,1:].squeeze())
+
+        return values
+
     def flatten(self, *, series_id=None):
         """Collapse events across series.
-
-        WARNING! series_tags are thrown away when flattening.
 
         Parameters
         ----------
         series_id: (int)
             (series) ID to assign to flattened event series, default is 0.
         """
-        raise NotImplementedError
         if self.n_series < 2:  # already flattened
             return self
 
@@ -846,6 +843,7 @@ class ValueEventArray(BaseValueEventArray):
 
         flattened._series_ids = [series_id]
 
+        raise NotImplementedError
         alldatas = self.data[0]
         for series in range(1,self.n_series):
             alldatas = utils.linear_merge(alldatas, self.data[series])
@@ -889,8 +887,7 @@ class ValueEventArray(BaseValueEventArray):
                 indices.append((frm, to))
             indices = np.array(indices, ndmin=2)
             if np.diff(indices).sum() < len(evt_data):
-                warnings.warn(
-                    'ignoring events outside of eventarray support')
+                logging.info('ignoring events outside of eventarray support')
             if singleseries:
                 data_list = []
                 for start, stop in indices:
@@ -925,10 +922,10 @@ class ValueEventArray(BaseValueEventArray):
             numstr = " %s series" % self.n_series # TODO # FIXME swap this with type specific label, e.g., 'units'
         return "<%s%s:%s%s>%s" % (self.type_name, address_str, numstr, epstr, fsstr)
 
-    def bin(self, *, ds=None):
+    def bin(self, *, ds=None, method='accumulative'):
         """Return a binned eventarray."""
         raise NotImplementedError
-        return BinnedEventArray(self, ds=ds)
+        return BinnedValueEventArray(self, ds=ds, method=method)
 
     @property
     def data(self):
