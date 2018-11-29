@@ -238,7 +238,7 @@ class BaseEventArray(ABC):
     __attributes__ = ["_fs", "_series_ids", "_series_labels", "_series_tags", "_label"]
 
     def __init__(self, *, fs=None, series_ids=None, series_labels=None,
-                 series_tags=None, label=None, empty=False, abscissa=None, ordinate=None):
+                 series_tags=None, label=None, empty=False, abscissa=None, ordinate=None, **kwargs):
 
         self.__version__ = version.__version__
         self.type_name = self.__class__.__name__
@@ -248,6 +248,11 @@ class BaseEventArray(ABC):
             ordinate = core.Ordinate() #TODO: integrate into constructor?
         self._abscissa = abscissa
         self._ordinate = ordinate
+
+        series_label = kwargs.pop('series_label', None)
+        if series_label is None:
+            series_label = 'series'
+        self._series_label = series_label
 
         # if an empty object is requested, return it:
         if empty:
@@ -1069,7 +1074,7 @@ class EventArray(BaseEventArray):
                 labelstr = " from %s" % self.label
             else:
                 labelstr = ""
-            numstr = " %s series" % self.n_series # TODO # FIXME swap this with type specific label, e.g., 'units'
+            numstr = " %s %s" % (self.n_series, self._series_label)
         return "<%s%s:%s%s>%s%s" % (self.type_name, address_str, numstr, epstr, fsstr, labelstr)
 
     def bin(self, *, ds=None):
@@ -1432,7 +1437,7 @@ class BinnedEventArray(BaseEventArray):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
             return "<empty " + self.type_name + address_str + ">"
-        ustr = " {} series".format(self.n_series)
+        ustr = " {} {}".format(self.n_series, self._series_label)
         if self._abscissa.support.n_intervals > 1:
             epstr = " ({} segments) in".format(self._abscissa.support.n_intervals)
         else:
@@ -2269,6 +2274,11 @@ class SpikeTrainArray(EventArray):
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+
+        series_label = kwargs.pop('series_label', None)
+        if series_label is None:
+            series_label = 'units'
+        kwargs['series_label'] = series_label
 
         # legacy STA constructor support for backward compatibility
         kwargs = legacySTAkwargs(**kwargs)

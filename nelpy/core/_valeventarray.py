@@ -242,7 +242,7 @@ class BaseValueEventArray(ABC):
     __aliases__ = {}
     __attributes__ = ["_fs", "_series_ids"]
 
-    def __init__(self, *, fs=None, series_ids=None, empty=False, abscissa=None, ordinate=None):
+    def __init__(self, *, fs=None, series_ids=None, empty=False, abscissa=None, ordinate=None, **kwargs):
 
         self.__version__ = version.__version__
         self.type_name = self.__class__.__name__
@@ -252,6 +252,11 @@ class BaseValueEventArray(ABC):
             ordinate = core.Ordinate() #TODO: integrate into constructor?
         self._abscissa = abscissa
         self._ordinate = ordinate
+
+        series_label = kwargs.pop('series_label', None)
+        if series_label is None:
+            series_label = 'series'
+        self._series_label = series_label
 
         # if an empty object is requested, return it:
         if empty:
@@ -976,7 +981,7 @@ class ValueEventArray(BaseValueEventArray):
                 fsstr = " at %s Hz" % self.fs
             else:
                 fsstr = ""
-            numstr = " %s series" % self.n_series # TODO # FIXME swap this with type specific label, e.g., 'units'
+            numstr = " %s %s" % (self.n_series, self._series_label)
         return "<%s%s:%s%s>%s" % (self.type_name, address_str, numstr, epstr, fsstr)
 
     def bin(self, *, ds=None, method='accumulative'):
@@ -1103,6 +1108,7 @@ class MarkedSpikeTrainArray(ValueEventArray):
                                         marks=marks,
                                         support=support,
                                         fs=fs,
+                                        series_label='tetrodes',
                                         **kwargs
                                         )
     """
@@ -1119,6 +1125,7 @@ class MarkedSpikeTrainArray(ValueEventArray):
         'reorder_units' : 'reorder_series',
         '_reorder_units_by_idx' : '_reorder_series_by_idx',
         'n_spikes' : 'n_events',
+        'n_marks' : 'n_values',
         'unit_ids' : 'series_ids',
         'unit_labels': 'series_labels',
         'unit_tags': 'series_tags',
@@ -1134,6 +1141,11 @@ class MarkedSpikeTrainArray(ValueEventArray):
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+
+        series_label = kwargs.pop('series_label', None)
+        if series_label is None:
+            series_label = 'tetrodes'
+        kwargs['series_label'] = series_label
 
         support = kwargs.get('support', None)
         if support is not None:
