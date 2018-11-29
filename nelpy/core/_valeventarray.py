@@ -7,7 +7,8 @@
 #            'SpikeTrainArray',
 #            'BinnedSpikeTrainArray']
 
-__all__ = ['ValueEventArray']
+__all__ = ['ValueEventArray',
+           'MarkedSpikeTrainArray']
 
 # __all__ = ['BaseValueEventArray(ABC)',
 #            'ValueEventArray(BaseValueEventArray)',
@@ -239,7 +240,6 @@ class BaseValueEventArray(ABC):
     """
 
     __aliases__ = {}
-
     __attributes__ = ["_fs", "_series_ids"]
 
     def __init__(self, *, fs=None, series_ids=None, empty=False, abscissa=None, ordinate=None):
@@ -461,6 +461,51 @@ class BaseValueEventArray(ABC):
         #return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
+    @staticmethod
+    def _standardize_kwargs(**kwargs):
+        """Provide support for easier ValueEventArray keyword arguments.
+
+        kwarg: time <==> timestamps <==> abscissa_vals <==> events
+        kwarg: data <==> values
+
+        Examples
+        --------
+        veva = nel.ValueEventArray(time=..., )
+        veva = nel.ValueEventArray(timestamps=..., )
+        veva = nel.ValueEventArray(abscissa_vals=..., data=... )
+        veva = nel.ValueEventArray(events=..., values=... )
+        """
+
+        def only_one_of(*args):
+            num_non_null_args = 0
+            out = None
+            for arg in args:
+                if arg is not None:
+                    num_non_null_args += 1
+                    out = arg
+            if num_non_null_args > 1:
+                raise ValueError ('multiple conflicting arguments received')
+            return out
+
+        abscissa_vals = kwargs.pop('abscissa_vals', None)
+        timestamps = kwargs.pop('timestamps', None)
+        time = kwargs.pop('time', None)
+        events = kwargs.pop('events', None)
+        data = kwargs.pop('data', None)
+        values = kwargs.pop('values', None)
+
+        # only one of the above, else raise exception
+        events = only_one_of(abscissa_vals, timestamps, time, events)
+        values = only_one_of(data, values)
+
+        if events is not None:
+            kwargs['events'] = events
+
+        if values is not None:
+            kwargs['values'] = values
+
+        return kwargs
+
 ########################################################################
 # class ValueEventArray
 ########################################################################
@@ -505,8 +550,20 @@ class ValueEventArray(BaseValueEventArray):
 
     __attributes__ = ["_data"]
     __attributes__.extend(BaseValueEventArray.__attributes__)
-    def __init__(self, abscissa_vals=None, values=None, *, fs=None, support=None,
+    def __init__(self, events=None, values=None, *, fs=None, support=None,
                  series_ids=None, empty=False, **kwargs):
+
+        #############################################
+        #            standardize kwargs             #
+        #############################################
+        if events is not None:
+            kwargs['events'] = events
+        if values is not None:
+            kwargs['values'] = values
+        kwargs = self._standardize_kwargs(**kwargs)
+        events =  kwargs.pop('events', None)
+        values =  kwargs.pop('values', None)
+        #############################################
 
         # if an empty object is requested, return it:
         if empty:
@@ -601,16 +658,16 @@ class ValueEventArray(BaseValueEventArray):
                             raise ValueError('each series must have a fixed number of values; mismatch in series {}'.format(ii))
             return data
 
-        abscissa_vals = standardize_to_2d(abscissa_vals)
+        events = standardize_to_2d(events)
         values = standardize_values_to_2d(values)
 
         data = []
-        for a, v in zip(abscissa_vals, values):
+        for a, v in zip(events, values):
             data.append(np.vstack((a, v.T)).T)
         data = np.array(data)
 
         #sort event series, but only if necessary:
-        for ii, train in enumerate(abscissa_vals):
+        for ii, train in enumerate(events):
             if not utils.is_sorted(train):
                 sortidx = np.argsort(train)
                 data[ii] = (data[ii])[sortidx,:]
@@ -814,7 +871,7 @@ class ValueEventArray(BaseValueEventArray):
         for series in self.data:
             events.append(series[:,0].squeeze())
 
-        return events
+        return np.asarray(events)
 
     @property
     def values(self):
@@ -822,7 +879,7 @@ class ValueEventArray(BaseValueEventArray):
         for series in self.data:
             values.append(series[:,1:].squeeze())
 
-        return values
+        return np.asarray(values)
 
     def flatten(self, *, series_id=None):
         """Collapse events across series.
@@ -1035,3 +1092,68 @@ class ValueEventArray(BaseValueEventArray):
 
 #----------------------------------------------------------------------#
 #======================================================================#
+
+class MarkedSpikeTrainArray(ValueEventArray):
+    """Custom MarkedSpikeTrainArray docstring with kwarg descriptions.
+
+    TODO: add docstring here, using the aliases in the constructor.
+
+    Canonical signature: msta = nel.MarkedSpikeTrainArray(
+                                        events=events, #spikes? spiketimes? timestamps?
+                                        marks=marks,
+                                        support=support,
+                                        fs=fs,
+                                        **kwargs
+                                        )
+    """
+
+    # specify class-specific aliases:
+    __aliases__ = {
+        'time': 'data',
+        '_time': '_data',
+        'n_epochs': 'n_intervals',
+        'n_units' : 'n_series',
+        '_unit_subset' : '_series_subset', # requires kw change
+        'get_event_firing_order' : 'get_spike_firing_order',
+        'reorder_units_by_ids' : 'reorder_series_by_ids',
+        'reorder_units' : 'reorder_series',
+        '_reorder_units_by_idx' : '_reorder_series_by_idx',
+        'n_spikes' : 'n_events',
+        'unit_ids' : 'series_ids',
+        'unit_labels': 'series_labels',
+        'unit_tags': 'series_tags',
+        '_unit_ids' : '_series_ids',
+        '_unit_labels': '_series_labels',
+        '_unit_tags': '_series_tags',
+        'first_spike': 'first_event',
+        'last_spike': 'last_event',
+        'marks': 'values',
+        'spikes': 'events'
+        }
+
+    def __init__(self, *args, **kwargs):
+        # add class-specific aliases to existing aliases:
+        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+
+        support = kwargs.get('support', None)
+        if support is not None:
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa(support=support))
+        else:
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa())
+        ordinate = kwargs.get('ordinate', core.AnalogSignalArrayOrdinate())
+
+        kwargs['abscissa'] = abscissa
+        kwargs['ordinate'] = ordinate
+
+        super().__init__(*args, **kwargs)
+
+    def partition(self, ds=None, n_intervals=None, n_epochs=None):
+        if n_intervals is None:
+            n_intervals = n_epochs
+        kwargs = {'ds':ds, 'n_intervals': n_intervals}
+        return super().partition(**kwargs)
+
+    def bin(self, *, ds=None):
+        """Return a BinnedSpikeTrainArray."""
+        raise NotImplementedError
+        return BinnedMarkedSpikeTrainArray(self, ds=ds)

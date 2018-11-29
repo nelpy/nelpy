@@ -2291,7 +2291,6 @@ class SpikeTrainArray(EventArray):
         kwargs = {'ds':ds, 'n_intervals': n_intervals}
         return super().partition(**kwargs)
 
-
     def bin(self, *, ds=None):
         """Return a BinnedSpikeTrainArray."""
         return BinnedSpikeTrainArray(self, ds=ds) # TODO #FIXME
