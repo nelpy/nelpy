@@ -471,7 +471,7 @@ class BaseValueEventArray(ABC):
         """Provide support for easier ValueEventArray keyword arguments.
 
         kwarg: time <==> timestamps <==> abscissa_vals <==> events
-        kwarg: data <==> values
+        kwarg: data <==> values <==> marks
 
         Examples
         --------
@@ -498,10 +498,11 @@ class BaseValueEventArray(ABC):
         events = kwargs.pop('events', None)
         data = kwargs.pop('data', None)
         values = kwargs.pop('values', None)
+        marks = kwargs.pop('marks', None)
 
         # only one of the above, else raise exception
         events = only_one_of(abscissa_vals, timestamps, time, events)
-        values = only_one_of(data, values)
+        values = only_one_of(data, values, marks)
 
         if events is not None:
             kwargs['events'] = events
