@@ -8,7 +8,8 @@
 #            'BinnedSpikeTrainArray']
 
 __all__ = ['ValueEventArray',
-           'MarkedSpikeTrainArray']
+           'MarkedSpikeTrainArray',
+           'StatefulValueEventArray']
 
 # __all__ = ['BaseValueEventArray(ABC)',
 #            'ValueEventArray(BaseValueEventArray)',
@@ -955,7 +956,7 @@ class ValueEventArray(BaseValueEventArray):
                 data_list = []
                 for start, stop in indices:
                     data_list.extend(evt_data[start:stop])
-                data = np.array(data_list, ndmin=2)
+                data = np.array([data_list])
             else:
                 # here we have to do some annoying conversion between
                 # arrays and lists to fully support jagged array
@@ -985,8 +986,11 @@ class ValueEventArray(BaseValueEventArray):
             numstr = " %s %s" % (self.n_series, self._series_label)
         return "<%s%s:%s%s>%s" % (self.type_name, address_str, numstr, epstr, fsstr)
 
-    def bin(self, *, ds=None, method='accumulative'):
-        """Return a binned eventarray."""
+    def bin(self, *, ds=None, method='sum'):
+        """Return a binned eventarray.
+
+        method in [sum, mean, median, min, max]
+        """
         raise NotImplementedError
         return BinnedValueEventArray(self, ds=ds, method=method)
 
@@ -1099,6 +1103,10 @@ class ValueEventArray(BaseValueEventArray):
 #----------------------------------------------------------------------#
 #======================================================================#
 
+
+########################################################################
+# class MarkedSpikeTrainArray
+########################################################################
 class MarkedSpikeTrainArray(ValueEventArray):
     """Custom MarkedSpikeTrainArray docstring with kwarg descriptions.
 
@@ -1170,3 +1178,227 @@ class MarkedSpikeTrainArray(ValueEventArray):
         """Return a BinnedSpikeTrainArray."""
         raise NotImplementedError
         return BinnedMarkedSpikeTrainArray(self, ds=ds)
+
+#----------------------------------------------------------------------#
+#======================================================================#
+
+
+########################################################################
+# class StatefulValueEventArray
+########################################################################
+class StatefulValueEventArray(ValueEventArray):
+    """Custom StatefulValueEventArray docstring with kwarg descriptions.
+
+    TODO: add docstring here, using the aliases in the constructor.
+
+    Canonical signature: sveva = nel.StatefulValueEventArray(
+                                        events=events,
+                                        values=values,
+                                        states=states, # what's the format of these?
+                                        support=support,
+                                        fs=fs,
+                                        series_label='tetrodes',
+                                        **kwargs
+                                        )
+    """
+
+    # specify class-specific aliases:
+    __aliases__ = {
+        'time': 'data',
+        '_time': '_data',
+        'n_epochs': 'n_intervals',
+        'n_units' : 'n_series',
+        '_unit_subset' : '_series_subset', # requires kw change
+        'get_event_firing_order' : 'get_spike_firing_order',
+        'reorder_units_by_ids' : 'reorder_series_by_ids',
+        'reorder_units' : 'reorder_series',
+        '_reorder_units_by_idx' : '_reorder_series_by_idx',
+        'n_spikes' : 'n_events',
+        'n_marks' : 'n_values',
+        'unit_ids' : 'series_ids',
+        'unit_labels': 'series_labels',
+        'unit_tags': 'series_tags',
+        '_unit_ids' : '_series_ids',
+        '_unit_labels': '_series_labels',
+        '_unit_tags': '_series_tags',
+        'first_spike': 'first_event',
+        'last_spike': 'last_event',
+        'marks': 'values',
+        'spikes': 'events'
+        }
+
+    def __init__(self, *args, **kwargs):
+        # add class-specific aliases to existing aliases:
+        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+
+        support = kwargs.get('support', None)
+        if support is not None:
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa(support=support))
+        else:
+            abscissa = kwargs.get('abscissa', core.TemporalAbscissa())
+        ordinate = kwargs.get('ordinate', core.AnalogSignalArrayOrdinate())
+
+        kwargs['abscissa'] = abscissa
+        kwargs['ordinate'] = ordinate
+
+        super().__init__(*args, **kwargs)
+
+        data = self._make_stateful(data=self.data)
+        self._data = data
+
+    def partition(self, ds=None, n_intervals=None, n_epochs=None):
+        if n_intervals is None:
+            n_intervals = n_epochs
+        kwargs = {'ds':ds, 'n_intervals': n_intervals}
+        return super().partition(**kwargs)
+
+    def bin(self, *, ds=None):
+        """Return a BinnedValueEventArray."""
+        raise NotImplementedError
+        return BinnedValueEventArray(self, ds=ds)
+
+    def __call__(self, *args):
+        """StatefulValueEventArray callable method; by default returns state values"""
+        raise NotImplementedError
+        f = lambda x: self.asarray(at=x).yvals
+        return f(args)
+
+    def _make_stateful(self, data, intervalarray=None, initial_state=np.nan):
+        """
+        [i, e0, e1, e2, ..., f] for every epoch
+
+        matrix of size (n_values x (n_epochs*2 + n_events) )
+        matrix of size (nSeries: n_values x (n_epochs*2 + n_events) )
+
+        needs to change when calling loc, iloc, restrict, getitem, ...
+
+        """
+        kinds = []
+        events = []
+        states = []
+
+        if intervalarray is None:
+            intervalarray = self.support
+
+        for series in data:
+            starts = intervalarray.starts
+            stops = intervalarray.stops
+            tvect = series[:,0].astype(float)
+            statevals = series[:,1:]
+            kind = np.ones(tvect.size).astype(int)
+
+            for start in starts:
+                idx = np.searchsorted(tvect, start, side='right')
+                idx2 = np.max((idx-1,0))
+                if start == tvect[idx2]:
+                    continue
+                else:
+                    kind = np.insert(kind, idx, 0)
+                    tvect = np.insert(tvect, idx, start)
+                    statevals = np.insert(statevals, idx, statevals[idx2], axis=0)
+
+            for stop in stops:
+                idx = np.searchsorted(tvect, stop, side='right')
+                idx2 = np.max((idx-1,0))
+                if stop == tvect[idx2]:
+                    continue
+                else:
+                    kind = np.insert(kind, idx, 2)
+                    tvect = np.insert(tvect, idx, stop)
+                    statevals = np.insert(statevals, idx, statevals[idx2], axis=0)
+
+            states.append(statevals)
+            events.append(tvect)
+            kinds.append(kind)
+
+        data = []
+        for e, k, s in zip(events, kinds, states):
+            data.append(np.vstack((e, k, s.T)).T)
+        data = np.array(data)
+
+        return data
+
+    @property
+    def n_values(self):
+        """(int) The number of values associated with each event series."""
+        if self.isempty:
+            return 0
+        n_values = []
+        for series in self.data:
+            n_values.append(series.squeeze().shape[1] - 2)
+        return n_values
+
+    @property
+    def n_events(self):
+        """(np.array) The number of events in each series."""
+        if self.isempty:
+            return 0
+        return np.array([len(series) for series in self.events])
+
+    @property
+    def events(self):
+        events = []
+        for series, kinds in zip(self.state_events, self.state_kinds):
+            keep_idx = np.argwhere(kinds==1)
+            events.append(series[keep_idx].squeeze())
+        return np.asarray(events)
+
+    @property
+    def values(self):
+        values = []
+        for series, kinds in zip(self.state_values, self.state_kinds):
+            keep_idx = np.argwhere(kinds==1)
+            values.append(series[keep_idx].squeeze())
+        return np.asarray(values)
+
+    @property
+    def state_events(self):
+        events = []
+        for series in self.data:
+            events.append(series[:,0].squeeze())
+
+        return np.asarray(events)
+
+    @property
+    def state_values(self):
+        values = []
+        for series in self.data:
+            values.append(series[:,2:].squeeze())
+
+        return np.asarray(values)
+
+    @property
+    def state_kinds(self):
+        values = []
+        for series in self.data:
+            values.append(series[:,1].squeeze())
+
+        return np.asarray(values)
+
+    def _plot(self, *args, **kwargs):
+        if self.n_series > 1:
+            raise NotImplementedError
+        if np.any(np.array(self.n_values) > 1):
+            raise NotImplementedError
+
+        import matplotlib.pyplot as plt
+
+        events = self.state_events.squeeze()
+        values = self.state_values.squeeze()
+        kinds = self.state_kinds.squeeze()
+
+        for (a, b), val, (ka, kb) in zip(utils.pairwise(events), values, utils.pairwise(kinds)):
+            if kb == 1:
+                plt.plot([a, b], [val, val], '-', color='b', markerfacecolor='w', lw=1.5, mew=1.5)
+            if ka == 1:
+                plt.plot([a, b], [val, val], '-', color='g', markerfacecolor='w', lw=1.5, mew=1.5)
+            if kb == 1:
+                plt.plot(b, val, 'o', color='k', markerfacecolor='w', lw=1.5, mew=1.5)
+            if ka == 1:
+                plt.plot(a, val, 'o', color='k', markerfacecolor='k', lw=1.5, mew=1.5)
+            if ka == 0 and kb == 2:
+                plt.plot([a, b], [val, val], '-', color='r', markerfacecolor='w', lw=1.5, mew=1.5)
+
+
+#----------------------------------------------------------------------#
+#======================================================================#
