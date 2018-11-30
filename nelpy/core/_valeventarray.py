@@ -838,7 +838,6 @@ class ValueEventArray(BaseValueEventArray):
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
 
-
     def __getitem__(self, idx):
         """EventArray index access.
 
@@ -1100,6 +1099,9 @@ class ValueEventArray(BaseValueEventArray):
                 last = series[-1,0]
         return last
 
+    def make_stateful(self):
+        raise NotImplementedError
+
 #----------------------------------------------------------------------#
 #======================================================================#
 
@@ -1252,6 +1254,58 @@ class StatefulValueEventArray(ValueEventArray):
         kwargs = {'ds':ds, 'n_intervals': n_intervals}
         return super().partition(**kwargs)
 
+    @staticmethod
+    def _restrict_to_interval_array_fast(intervalarray, data, copyover=True):
+        """Return data restricted to an IntervalArray.
+
+        This function assumes sorted event datas, so that binary search can
+        be used to quickly identify slices that should be kept in the
+        restriction. It does not check every event data.
+
+        Parameters
+        ----------
+        intervalarray : IntervalArray or EpochArray
+        data : list or array-like, each element of size (n_events, n_values).
+        """
+        if intervalarray.isempty:
+            n_series = len(data)
+            data = np.zeros((n_series,0))
+            return data
+
+        singleseries = len(data)==1  # bool
+
+        # TODO: is this copy even necessary?
+        if copyover:
+            data = copy.copy(data)
+
+        # NOTE: this used to assume multiple series for the enumeration to work
+        for series, evt_data in enumerate(data):
+            indices = []
+            for epdata in intervalarray.data:
+                t_start = epdata[0]
+                t_stop = epdata[1]
+                frm, to = np.searchsorted(evt_data[:,0], (t_start, t_stop))
+                indices.append((frm, to))
+            indices = np.array(indices, ndmin=2)
+            if np.diff(indices).sum() < len(evt_data):
+                logging.info('ignoring events outside of eventarray support')
+            if singleseries:
+                data_list = []
+                for start, stop in indices:
+                    data_list.extend(evt_data[start:stop])
+                data = np.array([data_list])
+            else:
+                # here we have to do some annoying conversion between
+                # arrays and lists to fully support jagged array
+                # mutation
+                data_list = []
+                for start, stop in indices:
+                    data_list.extend(evt_data[start:stop])
+                data_ = data.tolist()
+                data_[series] = np.array(data_list)
+                data = np.array(data_)
+        return data
+
     def bin(self, *, ds=None):
         """Return a BinnedValueEventArray."""
         raise NotImplementedError
@@ -1259,9 +1313,13 @@ class StatefulValueEventArray(ValueEventArray):
 
     def __call__(self, *args):
         """StatefulValueEventArray callable method; by default returns state values"""
-        raise NotImplementedError
-        f = lambda x: self.asarray(at=x).yvals
-        return f(args)
+        values = []
+        for events, vals in zip(self.state_events, self.state_values):
+            idx = np.searchsorted(events, args, side='right')-1
+            idx[idx<0] = 0
+            values.append(vals[[idx]])
+        values = np.asarray(values)
+        return values
 
     def _make_stateful(self, data, intervalarray=None, initial_state=np.nan):
         """
