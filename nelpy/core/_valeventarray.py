@@ -1269,8 +1269,46 @@ class StatefulValueEventArray(ValueEventArray):
         """
         if intervalarray.isempty:
             n_series = len(data)
-            data = np.zeros((n_series,0))
-            return data
+        data = np.zeros((n_series,0))
+        return data
+
+        # plan of action
+        # create pseudo events supporting each interval
+        # then restrict existing data (pseudo and real events)
+        # then merge in all pseudo events that don't exist yet
+        starts = intervalarray.starts
+        stops = intervalarray.stops
+
+        kinds = []
+        events = []
+        states = []
+
+        for series in data:
+            tvect = series[:,0].astype(float)
+            statevals = series[:,2:]
+            kind = []
+            state = []
+
+            for start in starts:
+                idx = np.max((np.searchsorted(tvect, start, side='right')-1,0))
+                kind.append(0)
+                state.append(statevals[[idx]])
+
+            for stop in stops:
+                idx = np.max((np.searchsorted(tvect, stop, side='right')-1,0))
+                kind.append(2)
+                state.append(statevals[[idx]])
+
+            states.append(np.array(state).squeeze()) ## squeeze???
+            events.append(np.hstack((starts, stops)))
+            kinds.append(np.array(kind))
+
+        pseudodata = []
+        for e, k, s in zip(events, kinds, states):
+            pseudodata.append(np.vstack((e, k, s.T)).T)
+    #     pseudodata = np.array(pseudodata)
+
+        raise NotImplementedError
 
         singleseries = len(data)==1  # bool
 
@@ -1330,6 +1368,7 @@ class StatefulValueEventArray(ValueEventArray):
 
         needs to change when calling loc, iloc, restrict, getitem, ...
 
+        TODO: initial_state is not used yet!!!
         """
         kinds = []
         events = []
