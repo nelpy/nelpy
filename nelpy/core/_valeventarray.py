@@ -322,15 +322,21 @@ class BaseValueEventArray(ABC):
         """
         return
 
-    @abstractmethod
+    @property
     def isempty(self):
-        """(bool) Empty BaseEventArray."""
-        return
+        """(bool) Empty EventArray."""
+        try:
+            return np.sum([len(st) for st in self.data]) == 0
+        except TypeError:
+            return True  # this happens when self.data == None
 
-    @abstractmethod
+    @property
     def n_series(self):
         """(int) The number of series."""
-        return
+        try:
+            return utils.PrettyInt(len(self.data))
+        except TypeError:
+            return 0
 
     @abstractmethod
     def n_values(self):
@@ -348,6 +354,43 @@ class BaseValueEventArray(ABC):
     def series_ids(self):
         """Unit IDs contained in the BaseEventArray."""
         return self._series_ids
+
+    def _copy_without_data(self):
+        """Return a copy of self, without event datas."""
+        out = copy.copy(self) # shallow copy
+        out._data = None
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        return out
+
+    def copy(self):
+        """Returns a copy of the EventArray."""
+        newcopy = copy.deepcopy(self)
+        newcopy.loc = ItemGetter_loc(newcopy)
+        newcopy.iloc = ItemGetter_iloc(newcopy)
+        return newcopy
+
+    @property
+    def data(self):
+        """Event datas in seconds."""
+        return self._data
+
+    @property
+    def first_event(self):
+        """Returns the [time of the] first event across all series."""
+        first = np.inf
+        for series in self.data:
+            if series[0,0] < first:
+                first = series[0,0]
+        return first
+
+    @property
+    def last_event(self):
+        """Returns the [time of the] last event across all series."""
+        last = -np.inf
+        for series in self.data:
+            if series[-1,0] > last:
+                last = series[-1,0]
+        return last
 
     @series_ids.setter
     def series_ids(self, val):
@@ -560,6 +603,11 @@ class ValueEventArray(BaseValueEventArray):
     def __init__(self, events=None, values=None, *, fs=None, support=None,
                  series_ids=None, empty=False, **kwargs):
 
+        self._val_init(events=events, values=values,fs=fs, support=support,
+                 series_ids=series_ids, empty=empty, **kwargs)
+
+    def _val_init(self, events=None, values=None, *, fs=None, support=None,
+                 series_ids=None, empty=False, **kwargs):
         #############################################
         #            standardize kwargs             #
         #############################################
@@ -648,7 +696,7 @@ class ValueEventArray(BaseValueEventArray):
                 if jagged:  # jagged array
                     # standardize input so that a list of lists is converted
                     # to an array of arrays:
-                    data = np.array(
+                    data = utils.ragged_array(
                         [np.array(st, ndmin=1, copy=False) for st in data])
                 else:
                     data = np.array(data, ndmin=2)
@@ -702,6 +750,7 @@ class ValueEventArray(BaseValueEventArray):
         else:
             # restrict events to only those within the eventseries
             # array's support:
+            print('restricting, here')
             self.support = support
 
         # TODO: if sorted, we may as well use the fast restrict here as well?
@@ -710,6 +759,7 @@ class ValueEventArray(BaseValueEventArray):
             data=data)
 
         self._data = data
+        return
 
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
@@ -741,20 +791,6 @@ class ValueEventArray(BaseValueEventArray):
         out.iloc = ItemGetter_iloc(out)
 
         return out
-
-    def _copy_without_data(self):
-        """Return a copy of self, without event datas."""
-        out = copy.copy(self) # shallow copy
-        out._data = None
-        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
-        return out
-
-    def copy(self):
-        """Returns a copy of the EventArray."""
-        newcopy = copy.deepcopy(self)
-        newcopy.loc = ItemGetter_loc(newcopy)
-        newcopy.iloc = ItemGetter_iloc(newcopy)
-        return newcopy
 
     def __iter__(self):
         """EventArray iterator initialization."""
@@ -846,22 +882,6 @@ class ValueEventArray(BaseValueEventArray):
         return self.loc[idx]
 
     @property
-    def isempty(self):
-        """(bool) Empty EventArray."""
-        try:
-            return np.sum([len(st) for st in self.data]) == 0
-        except TypeError:
-            return True  # this happens when self.data == None
-
-    @property
-    def n_series(self):
-        """(int) The number of series."""
-        try:
-            return utils.PrettyInt(len(self.data))
-        except TypeError:
-            return 0
-
-    @property
     def n_active(self):
         """(int) The number of active series.
 
@@ -929,6 +949,7 @@ class ValueEventArray(BaseValueEventArray):
         intervalarray : IntervalArray or EpochArray
         data : list or array-like, each element of size (n_events, n_values).
         """
+        print('_restrict base')
         if intervalarray.isempty:
             n_series = len(data)
             data = np.zeros((n_series,0))
@@ -965,7 +986,7 @@ class ValueEventArray(BaseValueEventArray):
                     data_list.extend(evt_data[start:stop])
                 data_ = data.tolist()
                 data_[series] = np.array(data_list)
-                data = np.array(data_)
+                data = utils.ragged_array(data_)
         return data
 
     def __repr__(self):
@@ -992,11 +1013,6 @@ class ValueEventArray(BaseValueEventArray):
         """
         raise NotImplementedError
         return BinnedValueEventArray(self, ds=ds, method=method)
-
-    @property
-    def data(self):
-        """Event datas in seconds."""
-        return self._data
 
     @property
     def n_events(self):
@@ -1080,24 +1096,6 @@ class ValueEventArray(BaseValueEventArray):
         out.loc = ItemGetter_loc(out)
         out.iloc = ItemGetter_iloc(out)
         return out
-
-    @property
-    def first_event(self):
-        """Returns the [time of the] first event across all series."""
-        first = np.inf
-        for series in self.data:
-            if series[0,0] < first:
-                first = series[0,0]
-        return first
-
-    @property
-    def last_event(self):
-        """Returns the [time of the] last event across all series."""
-        last = -np.inf
-        for series in self.data:
-            if series[-1,0] > last:
-                last = series[-1,0]
-        return last
 
     def make_stateful(self):
         raise NotImplementedError
@@ -1188,7 +1186,7 @@ class MarkedSpikeTrainArray(ValueEventArray):
 ########################################################################
 # class StatefulValueEventArray
 ########################################################################
-class StatefulValueEventArray(ValueEventArray):
+class StatefulValueEventArray(BaseValueEventArray):
     """Custom StatefulValueEventArray docstring with kwarg descriptions.
 
     TODO: add docstring here, using the aliases in the constructor.
@@ -1229,11 +1227,11 @@ class StatefulValueEventArray(ValueEventArray):
         'spikes': 'events'
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, events=None, values=None, *, fs=None, support=None,
+                 series_ids=None, empty=False, **kwargs):
         # add class-specific aliases to existing aliases:
-        self.__aliases__ = {**super().__aliases__, **self.__aliases__}
-
-        support = kwargs.get('support', None)
+        # self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+        print('in init')
         if support is not None:
             abscissa = kwargs.get('abscissa', core.TemporalAbscissa(support=support))
         else:
@@ -1243,16 +1241,340 @@ class StatefulValueEventArray(ValueEventArray):
         kwargs['abscissa'] = abscissa
         kwargs['ordinate'] = ordinate
 
-        super().__init__(*args, **kwargs)
+        print('non-stateful preprocessing')
+        self._val_init(events=events, values=values,fs=fs, support=support,
+                 series_ids=series_ids, empty=empty, **kwargs)
 
+        print('making stateful')
         data = self._make_stateful(data=self.data)
         self._data = data
 
-    def partition(self, ds=None, n_intervals=None, n_epochs=None):
+    def _val_init(self, events=None, values=None, *, fs=None, support=None,
+                 series_ids=None, empty=False, **kwargs):
+        #############################################
+        #            standardize kwargs             #
+        #############################################
+        if events is not None:
+            kwargs['events'] = events
+        if values is not None:
+            kwargs['values'] = values
+        kwargs = self._standardize_kwargs(**kwargs)
+        events =  kwargs.pop('events', None)
+        values =  kwargs.pop('values', None)
+        #############################################
+
+        # if an empty object is requested, return it:
+        if empty:
+            super().__init__(empty=True)
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            self._abscissa.support = type(self._abscissa.support)(empty=True)
+            return
+
+        # set default sampling rate
+        if fs is None:
+            fs = 30000
+            logging.info("No sampling rate was specified! Assuming default of {} Hz.".format(fs))
+
+        def is_singletons(data):
+            """Returns True if data is a list of singletons (more than one)."""
+            data = np.array(data)
+            try:
+                if data.shape[-1] < 2 and np.max(data.shape) > 1:
+                    return True
+                if max(np.array(data).shape[:-1]) > 1 and data.shape[-1] == 1:
+                    return True
+            except (IndexError, TypeError, ValueError):
+                return False
+            return False
+
+        def is_single_series(data):
+            """Returns True if data represents event datas from a single series.
+
+            Examples
+            ========
+            [1, 2, 3]           : True
+            [[1, 2, 3]]         : True
+            [[1, 2, 3], []]     : False
+            [[], [], []]        : False
+            [[[[1, 2, 3]]]]     : True
+            [[[[[1],[2],[3]]]]] : False
+            """
+            try:
+                if isinstance(data[0][0], list) or isinstance(data[0][0], np.ndarray):
+                    logging.info("event datas input has too many layers!")
+                    try:
+                        if max(np.array(data).shape[:-1]) > 1:
+            #                 singletons = True
+                            return False
+                    except ValueError:
+                        return False
+                    data = np.squeeze(data)
+            except (IndexError, TypeError):
+                pass
+            try:
+                if isinstance(data[1], list) or isinstance(data[1], np.ndarray):
+                    return False
+            except (IndexError, TypeError):
+                pass
+            return True
+
+        def standardize_to_2d(data):
+            if is_single_series(data):
+                return np.array(np.squeeze(data), ndmin=2)
+            if is_singletons(data):
+                data = np.squeeze(data)
+                n = np.max(data.shape)
+                if len(data.shape) == 1:
+                    m = 1
+                else:
+                    m = np.min(data.shape)
+                data = np.reshape(data, (n,m))
+            else:
+                data = np.squeeze(data)
+                if data.dtype == np.dtype('O'):
+                    jagged = True
+                else:
+                    jagged = False
+                if jagged:  # jagged array
+                    # standardize input so that a list of lists is converted
+                    # to an array of arrays:
+                    data = utils.ragged_array(
+                        [np.array(st, ndmin=1, copy=False) for st in data])
+                else:
+                    data = np.array(data, ndmin=2)
+            return data
+
+        def standardize_values_to_2d(data):
+            data = standardize_to_2d(data)
+            for ii, series in enumerate(data):
+                if len(series.shape) == 2:
+                    pass
+                else:
+                    for xx in series:
+                        if len(np.atleast_1d(xx)) > 1:
+                            raise ValueError('each series must have a fixed number of values; mismatch in series {}'.format(ii))
+            return data
+
+        events = standardize_to_2d(events)
+        values = standardize_values_to_2d(values)
+
+        data = []
+        for a, v in zip(events, values):
+            data.append(np.vstack((a, v.T)).T)
+        data = np.array(data)
+
+        #sort event series, but only if necessary:
+        for ii, train in enumerate(events):
+            if not utils.is_sorted(train):
+                sortidx = np.argsort(train)
+                data[ii] = (data[ii])[sortidx,:]
+
+        kwargs["fs"] = fs
+        kwargs["series_ids"] = series_ids
+
+        self._data = data  # this is necessary so that
+        # super() can determine self.n_series when initializing.
+
+        # initialize super so that self.fs is set:
+        super().__init__(**kwargs)
+
+        # if only empty data were received AND no support, attach an
+        # empty support:
+        if np.sum([st.size for st in data]) == 0 and support is None:
+            warnings.warn("no events; cannot automatically determine support")
+            support = type(self._abscissa.support)(empty=True)
+
+        # determine eventarray support:
+        if support is None:
+            self._abscissa.support = type(self._abscissa.support)(np.array([self.first_event, self.last_event + 1/fs]))
+        else:
+            # restrict events to only those within the eventseries
+            # array's support:
+            self._abscissa.support = support
+
+        # TODO: if sorted, we may as well use the fast restrict here as well?
+        data = self._restrict_to_interval_array_fast(
+            intervalarray=self.support,
+            data=data)
+
+        self._data = data
+        return
+
+    @property
+    def data(self):
+        """Event datas in seconds."""
+        return self._data
+
+    def partition(self, ds=None, n_intervals=None,  n_epochs=None):
+        """Returns a BaseEventArray whose support has been partitioned.
+
+        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        # underlying support is propagated, and the first and last points
+        # of the supports are always included, even if this would cause
+        # n_points or ds to be violated.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Maximum duration (in seconds), for each interval.
+        n_points : int, optional
+            Number of intervals. If ds is None and n_intervals is None, then
+            default is to use n_intervals = 100
+
+        Returns
+        -------
+        out : BaseEventArray
+            BaseEventArray that has been partitioned.
+        """
+
         if n_intervals is None:
             n_intervals = n_epochs
-        kwargs = {'ds':ds, 'n_intervals': n_intervals}
-        return super().partition(**kwargs)
+
+        out = copy.copy(self)
+        abscissa = copy.deepcopy(out._abscissa)
+        abscissa.support = abscissa.support.partition(ds=ds, n_intervals=n_intervals)
+        out._abscissa = abscissa
+        out.loc = ItemGetter_loc(out)
+        out.iloc = ItemGetter_iloc(out)
+
+        return out
+
+    def __iter__(self):
+        """EventArray iterator initialization."""
+        self._index = 0
+        return self
+
+    def __next__(self):
+        """EventArray iterator advancer."""
+        index = self._index
+
+        if index > self._abscissa.support.n_intervals - 1:
+            raise StopIteration
+
+        self._index += 1
+        return self.loc[index]
+
+    def __getitem__(self, idx):
+        """EventArray index access.
+
+        By default, this method is bound to ValueEventArray.loc
+        """
+        return self.loc[idx]
+
+    @property
+    def support(self):
+        """(nelpy.IntervalArray) The support of the underlying EventArray."""
+        return self._abscissa.support
+
+    @support.setter
+    def support(self, val):
+        """(nelpy.IntervalArray) The support of the underlying EventArray."""
+        # modify support
+        if isinstance(val, type(self._abscissa.support)):
+            self._abscissa.support = val
+        elif isinstance(val, (tuple, list)):
+            prev_domain = self._abscissa.domain
+            self._abscissa.support = type(self._abscissa.support)([val[0], val[1]])
+            self._abscissa.domain = prev_domain
+        else:
+            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+        # restrict data to new support
+        self._data = self._restrict_to_interval_array_value_fast(
+                intervalarray=self._abscissa.support,
+                data=self.data,
+                copyover=True
+                )
+
+    @property
+    def domain(self):
+        """(nelpy.IntervalArray) The domain of the underlying EventArray."""
+        return self._abscissa.domain
+
+    @domain.setter
+    def domain(self, val):
+        """(nelpy.IntervalArray) The domain of the underlying EventArray."""
+        # modify domain
+        if isinstance(val, type(self._abscissa.support)):
+            self._abscissa.domain = val
+        elif isinstance(val, (tuple, list)):
+            self._abscissa.domain = type(self._abscissa.support)([val[0], val[1]])
+        else:
+            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+        # restrict data to new support
+        self._data = self._restrict_to_interval_array_value_fast(
+                intervalarray=self._abscissa.support,
+                data=self.data,
+                copyover=True
+                )
+
+    def _intervalslicer(self, idx):
+        """Helper function to restrict object to EpochArray."""
+        # if self.isempty:
+        #     return self
+
+        if isinstance(idx, core.IntervalArray):
+            if idx.isempty:
+                return type(self)(empty=True)
+            support = self._abscissa.support.intersect(
+                    interval=idx,
+                    boundaries=True
+                    ) # what if fs of slicing interval is different?
+            if support.isempty:
+                return type(self)(empty=True)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                data = self._restrict_to_interval_array_value_fast(
+                    intervalarray=support,
+                    data=self.data,
+                    copyover=True
+                    )
+                eventarray = self._copy_without_data()
+                eventarray._data = data
+                eventarray._abscissa.support = support
+                eventarray.loc = ItemGetter_loc(eventarray)
+                eventarray.iloc = ItemGetter_iloc(eventarray)
+            return eventarray
+        elif isinstance(idx, int):
+            eventarray = self._copy_without_data()
+            support = self._abscissa.support[idx]
+            eventarray._abscissa.support = support
+            if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
+                eventarray.loc = ItemGetter_loc(eventarray)
+                eventarray.iloc = ItemGetter_iloc(eventarray)
+                return eventarray
+            else:
+                data = self._restrict_to_interval_array_value_fast(
+                        intervalarray=support,
+                        data=self.data,
+                        copyover=True
+                        )
+                eventarray._data = data
+                eventarray._abscissa.support = support
+                eventarray.loc = ItemGetter_loc(eventarray)
+                eventarray.iloc = ItemGetter_iloc(eventarray)
+                return eventarray
+        else:  # most likely slice indexing
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    support = self._abscissa.support[idx]
+                    data = self._restrict_to_interval_array_value_fast(
+                        intervalarray=support,
+                        data=self.data,
+                        copyover=True
+                        )
+                    eventarray = self._copy_without_data()
+                    eventarray._data = data
+                    eventarray._abscissa.support = support
+                    eventarray.loc = ItemGetter_loc(eventarray)
+                    eventarray.iloc = ItemGetter_iloc(eventarray)
+                return eventarray
+            except Exception:
+                raise TypeError(
+                    'unsupported subsctipting type {}'.format(type(idx)))
+
 
     @staticmethod
     def _restrict_to_interval_array_fast(intervalarray, data, copyover=True):
@@ -1267,48 +1589,11 @@ class StatefulValueEventArray(ValueEventArray):
         intervalarray : IntervalArray or EpochArray
         data : list or array-like, each element of size (n_events, n_values).
         """
+        print('_restrict base')
         if intervalarray.isempty:
             n_series = len(data)
-        data = np.zeros((n_series,0))
-        return data
-
-        # plan of action
-        # create pseudo events supporting each interval
-        # then restrict existing data (pseudo and real events)
-        # then merge in all pseudo events that don't exist yet
-        starts = intervalarray.starts
-        stops = intervalarray.stops
-
-        kinds = []
-        events = []
-        states = []
-
-        for series in data:
-            tvect = series[:,0].astype(float)
-            statevals = series[:,2:]
-            kind = []
-            state = []
-
-            for start in starts:
-                idx = np.max((np.searchsorted(tvect, start, side='right')-1,0))
-                kind.append(0)
-                state.append(statevals[[idx]])
-
-            for stop in stops:
-                idx = np.max((np.searchsorted(tvect, stop, side='right')-1,0))
-                kind.append(2)
-                state.append(statevals[[idx]])
-
-            states.append(np.array(state).squeeze()) ## squeeze???
-            events.append(np.hstack((starts, stops)))
-            kinds.append(np.array(kind))
-
-        pseudodata = []
-        for e, k, s in zip(events, kinds, states):
-            pseudodata.append(np.vstack((e, k, s.T)).T)
-    #     pseudodata = np.array(pseudodata)
-
-        raise NotImplementedError
+            data = np.zeros((n_series,0))
+            return data
 
         singleseries = len(data)==1  # bool
 
@@ -1341,7 +1626,149 @@ class StatefulValueEventArray(ValueEventArray):
                     data_list.extend(evt_data[start:stop])
                 data_ = data.tolist()
                 data_[series] = np.array(data_list)
-                data = np.array(data_)
+                data = utils.ragged_array(data_)
+        return data
+
+    def _restrict_to_interval_array_value_fast(self, intervalarray, data, copyover=True):
+        """Return data restricted to an IntervalArray.
+
+        This function assumes sorted event datas, so that binary search can
+        be used to quickly identify slices that should be kept in the
+        restriction. It does not check every event data.
+
+        Parameters
+        ----------
+        intervalarray : IntervalArray or EpochArray
+        data : list or array-like, each element of size (n_events, n_values).
+        """
+        print('_restrict overload')
+        if intervalarray.isempty:
+            n_series = len(data)
+            data = np.zeros((n_series,0))
+            return data
+
+        # plan of action
+        # create pseudo events supporting each interval
+        # then restrict existing data (pseudo and real events)
+        # then merge in all pseudo events that don't exist yet
+        starts = intervalarray.starts
+        stops = intervalarray.stops
+
+        kinds = []
+        events = []
+        states = []
+
+        for series in data:
+            tvect = series[:,0].astype(float)
+            statevals = series[:,2:]
+
+            kind = []
+            state = []
+
+            for start in starts:
+                idx = np.max((np.searchsorted(tvect, start, side='right')-1,0))
+                kind.append(0)
+                state.append(statevals[[idx]])
+
+            for stop in stops:
+                idx = np.max((np.searchsorted(tvect, stop, side='right')-1,0))
+                kind.append(2)
+                state.append(statevals[[idx]])
+
+            states.append(np.array(state).squeeze()) ## squeeze???
+            events.append(np.hstack((starts, stops)))
+            kinds.append(np.array(kind))
+
+        pseudodata = []
+        for e, k, s in zip(events, kinds, states):
+            pseudodata.append(np.vstack((e, k, s.T)).T)
+
+        pseudodata = utils.ragged_array(pseudodata)
+
+        singleseries = len(data)==1  # bool
+
+        # TODO: is this copy even necessary?
+        if copyover:
+            data = copy.copy(data)
+
+        # NOTE: this used to assume multiple series for the enumeration to work
+        for series, evt_data in enumerate(data):
+            indices = []
+            for epdata in intervalarray.data:
+                t_start = epdata[0]
+                t_stop = epdata[1]
+                frm, to = np.searchsorted(evt_data[:,0], (t_start, t_stop))
+                indices.append((frm, to))
+            indices = np.array(indices, ndmin=2)
+            if np.diff(indices).sum() < len(evt_data):
+                logging.info('ignoring events outside of eventarray support')
+            if singleseries:
+                data_list = []
+                for start, stop in indices:
+                    data_list.extend(evt_data[start:stop])
+                data = np.array([data_list])
+            else:
+                # here we have to do some annoying conversion between
+                # arrays and lists to fully support jagged array
+                # mutation
+                data_list = []
+                for start, stop in indices:
+                    data_list.extend(evt_data[start:stop])
+                data_ = data.tolist()
+                data_[series] = np.array(data_list)
+                data = utils.ragged_array(data_)
+
+        # now add in all pseudo events that don't already exist in data
+
+        kinds = []
+        events = []
+        states = []
+
+        for pseries, series in zip(pseudodata, data):
+            ptvect = pseries[:,0].astype(float)
+            pkind = pseries[:,1].astype(int)
+            pstatevals = pseries[:,2:]
+
+            try:
+                tvect = series[:,0].astype(float)
+                kind = series[:,1]
+                statevals = series[:,2:]
+            except IndexError:
+                tvect = np.zeros((0))
+                kind = np.zeros((0))
+                statevals = np.zeros((0,))
+
+            for tt, kk, psv in zip(ptvect, pkind, pstatevals):
+                print(tt, kk, psv)
+                idx = np.searchsorted(tvect, tt, side='right')
+                idx2 = np.max((idx-1,0))
+                try:
+                    if tt == tvect[idx2]:
+                        print('pseudo event {} not necessary...'.format(tt))
+                    else:
+                        print('pseudo event {} necessary...'.format(tt))
+                        kind = np.insert(kind, idx, kk)
+                        tvect = np.insert(tvect, idx, tt)
+                        statevals = np.insert(statevals, idx, psv, axis=0)
+                except IndexError:
+                    kind = np.insert(kind, idx, kk)
+                    tvect = np.insert(tvect, idx, tt)
+                    statevals = np.insert(statevals, idx, psv, axis=0)
+
+            states.append(np.array(statevals).squeeze())
+            events.append(tvect)
+            kinds.append(kind)
+
+        print(states)
+        print(tvect)
+        print(kinds)
+
+        data = []
+        for e, k, s in zip(events, kinds, states):
+            data.append(np.vstack((e, k, s.T)).T)
+
+        data = utils.ragged_array(data)
+
         return data
 
     def bin(self, *, ds=None):
@@ -1411,7 +1838,7 @@ class StatefulValueEventArray(ValueEventArray):
         data = []
         for e, k, s in zip(events, kinds, states):
             data.append(np.vstack((e, k, s.T)).T)
-        data = np.array(data)
+        data = utils.ragged_array(data)
 
         return data
 
@@ -1424,6 +1851,23 @@ class StatefulValueEventArray(ValueEventArray):
         for series in self.data:
             n_values.append(series.squeeze().shape[1] - 2)
         return n_values
+
+    def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if self.isempty:
+                return "<empty " + self.type_name + address_str + ">"
+            if self._abscissa.support.n_intervals > 1:
+                epstr = " ({} segments)".format(self._abscissa.support.n_intervals)
+            else:
+                epstr = ""
+            if self.fs is not None:
+                fsstr = " at %s Hz" % self.fs
+            else:
+                fsstr = ""
+            numstr = " %s %s" % (self.n_series, self._series_label)
+        return "<%s%s:%s%s>%s" % (self.type_name, address_str, numstr, epstr, fsstr)
 
     @property
     def n_events(self):
