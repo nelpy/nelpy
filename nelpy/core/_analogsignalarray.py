@@ -255,10 +255,9 @@ class RegularlySampledAnalogSignalArray:
     """Continuous analog signal(s) with regular sampling rates (irregular
     sampling rates can be corrected with operations on the support) and same
     support. NOTE: data that is not equal dimensionality will NOT work
-    and error/warning messages may/may not be sent out. Also, in this
-    current rendition, I am assuming abscissa_vals are the exact same for all
-    signals passed through. As such, abscissa_vals are expected to be single
-    dimensional.
+    and error/warning messages may/may not be sent out. Assumes abscissa_vals
+    are identical for all signals passed through and are therefore expected
+    to be 1-dimensional
 
     Parameters
     ----------
@@ -772,6 +771,23 @@ class RegularlySampledAnalogSignalArray:
         return 1.0/np.median(np.diff(abscissa_vals))
 
     def downsample(self, *, fs_out, aafilter=True, inplace=False):
+        """Downsamples the RegularlySampledAnalogSignalArray
+
+        Parameters
+        ----------
+        fs_out : float, optional
+            Desired output sampling rate in Hz
+        aafilter : boolean, optional
+            Whether to apply an anti-aliasing filter before performing the actual
+            downsampling. Default is True
+        inplace : boolean, optional
+            If True, the output ASA will replace the input ASA. Default is False
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            The downsampled RegularlySampledAnalogSignalArray
+        """
         out = utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, inplace=inplace)
         out.__renew__()
         return out
@@ -1717,11 +1733,21 @@ class RegularlySampledAnalogSignalArray:
         return xyarray
 
     def subsample(self, *, fs):
-        """Returns an RegularlySampledAnalogSignalArray where the data has been
-        subsampled to a new rate of fs.
+        """Subsamples a RegularlySampledAnalogSignalArray
 
         WARNING! Aliasing can occur! It is better to use downsample when
         lowering the sampling rate substantially.
+
+        Parameters
+        ----------
+        fs : float, optional
+            Desired output sampling rate, in Hz
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            Copy of RegularlySampledAnalogSignalArray where data is only stored at the
+            new subset of points.
         """
 
         return self.simplify(ds=1/fs)

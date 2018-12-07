@@ -208,6 +208,24 @@ def spatial_sparsity(ratemap):
 
 def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False):
     # TODO add'l kwargs
+    """Downsamples analog signal array
+
+    Parameters
+    ----------
+    fs_out : float
+        Desired output sampling rate, in Hz
+    aafilter : boolean, optional
+        Whether to apply an anti-aliasing filter before performing the actual
+        downsampling. Default is True
+    inplace : boolean, optional
+        If True, the output ASA will replace the input ASA. Default is False
+
+    Returns
+    -------
+    out : AnalogSignalArray
+        The downsampled AnalogSignalArray
+
+    """
 
     if not isinstance(obj, core.AnalogSignalArray):
         raise TypeError('obj is expected to be a nelpy.core.AnalogSignalArray!')
@@ -1092,10 +1110,19 @@ def find_threshold_crossing_events(x, threshold, *, mode='above'):
 
     Parameters
     ----------
-    x :
-    threshold :
+    x : numpy array
+        Input data
+    threshold : float
+        The value whose crossing triggers an event
     mode : string, optional in ['above', 'below']; default 'above'
         event triggering above, or below threshold
+
+    Returns
+    -------
+    eventlist : list
+        List containing the indices corresponding to threshold crossings
+    eventmax : list
+        List containing the maximum value of each event
     """
     from itertools import groupby
     from operator import itemgetter
@@ -1137,22 +1164,30 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
 
     Parameters
     ----------
-    x :
-    PrimaryThreshold : float
-    SecondaryThreshold : float
-    minThresholdLength : float
-    minLength : float
-    maxLength : float
-    ds : float
+    x : numpy array
+        Input data
     mode : string, optional in ['above', 'below']; default 'above'
         event triggering above, or below threshold
+    PrimaryThreshold : float, optional
+        If mode=='above', requires that event.max >= PrimaryThreshold
+        If mode=='below', requires that event.min <= PrimaryThreshold
+    SecondaryThreshold : float, optional
+        The value that defines the event extent
+    minThresholdLength : float, optional
+        Minimum duration for which the PrimaryThreshold is crossed
+    minLength : float, optional
+        Minimum duration for which the SecondaryThreshold is crossed
+    maxLength : float, optional
+        Maximum duration for which the SecondaryThreshold is crossed
+    ds : float, optional
+        Time step of the input data x
 
     Returns
     -------
     returns bounds, maxes, events
-        where bounds <==> SecondaryThreshold to SecondaryThreshold
+        where bounds <==> SecondaryThreshold to SecondaryThreshold, inclusive
               maxes  <==> maximum value during each event
-              events <==> PrimaryThreshold to PrimaryThreshold
+              events <==> PrimaryThreshold to PrimaryThreshold, inclusive
     """
 
     # TODO: x must be a numpy array
@@ -1240,12 +1275,27 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
     return bounds, maxes, events
 
 def signal_envelope1D(data, *, sigma=None, fs=None):
-    """Docstring goes here
+    """Finds the signal envelope by taking the absolute value
+    of the Hilbert transform
+
+    Parameters
+    ----------
+    data : numpy array, list, or AnalogSignalArray
+        Input data
+    sigma : float, optional
+        Standard deviation of the Gaussian kernel used to
+        smooth the envelope after applying the Hilbert transform.
+        Units of seconds. Default is 4 ms
+    fs : float, optional
+        Sampling rate of the signal
+
+    Returns
+    -------
+    out : same type as the input object
+        An object containing the signal envelope
 
     TODO: this is not yet epoch-aware!
     UPDATE: this is actually epoch-aware by now!
-
-    sigma = 0 means no smoothing (default 4 ms)
     """
 
     if sigma is None:
