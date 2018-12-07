@@ -4,14 +4,15 @@
 
 __all__ = ['sosfiltfilt']
 
-import copy
 import numpy as np
 import warnings
 
-from .core import AnalogSignalArray
+from . import core
+from copy import deepcopy
+from scipy.signal import iirdesign
 
 def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False,
-                gpass=None, gstop=None, ftype='cheby2', buffer_len=4194304,
+                gpass=None, gstop=None, ftype='cheby2', buffer_len=None,
                 overlap_len=None, max_len=None, **kwargs):
     """Zero-phase forward backward second-order-segment Chebyshev II filter.
 
@@ -62,23 +63,28 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
         How much data to process at a time. Default is 2**22 = 4194304 samples.
     overlap_len : int, optional
         How much data do we add to the end of each chunk to smooth out filter
-        transients
+        transients.
     max_len : int, optional
         When max_len == -1 or max_len == None, then argument is effectively
-        ignored. If max_len is a positive integer, thenmax_len specifies how
+        ignored. If max_len is a positive integer, then max_len specifies how
         many samples to process.
+    kwargs : optional 
+        Other keyword arguments are passed to scipy.signal's iirdesign method
 
     Returns
     -------
     out : nelpy.core.AnalogSignalArray, ndarray, or list
         Same output type as input asa.
     """
-
+    
+    # Normally we would import at the module level but since this function name
+    # is also sosfiltfilt, we import here to avoid conflict
+    from scipy.signal import sosfiltfilt
     # make sure that fs is specified, unless AnalogSignalArray is passed in
     if isinstance(asa, (np.ndarray, list)):
         if fs is None:
             raise ValueError("sampling frequency, fs, must be specified!")
-    elif isinstance(asa, AnalogSignalArray):
+    elif isinstance(asa, core.AnalogSignalArray):
         if fs is None:
             fs = asa.fs
     else:
@@ -93,25 +99,19 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
     except TypeError:
         pass
 
-    from scipy.signal import sosfiltfilt, iirdesign
 
     if inplace:
         out = asa
     else:
-        from copy import deepcopy
         out = deepcopy(asa)
-
     if overlap_len is None:
         overlap_len = int(fs*2)
-
-    buffer_len = 4194304
+    if buffer_len is None:
+        buffer_len = 4194304
     if gpass is None:
         gpass = 0.1 # max loss in passband, dB
-
     if gstop is None:
         gstop = 30 # min attenuation in stopband (dB)
-
-    fso2 = fs/2.0
 
     try:
         if np.isinf(fh):
@@ -121,6 +121,8 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
     if fl == 0:
         fl = None
 
+    # Handle cutoff frequencies
+    fso2 = fs/2.0
     if (fl is None) and (fh is None):
         raise ValueError('nonsensical all-pass filter requested...')
     elif fl is None: # lowpass
@@ -135,7 +137,7 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
     if bandstop: # notch / bandstop filter
         wp, ws = ws, wp
 
-    sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype=ftype, output='sos')
+    sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype=ftype, output='sos', **kwargs)
 
     if isinstance(asa, (np.ndarray, list)):
         if len(np.array(out).squeeze().shape) > 1:
@@ -155,7 +157,7 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
         out = np.reshape(out, dims)
         if isinstance(asa, list):
             out = out.tolist()
-    elif isinstance(asa, AnalogSignalArray):
+    elif isinstance(asa, core.AnalogSignalArray):
         # filter within epochs
         fei = np.insert(np.cumsum(out.lengths), 0, 0) # filter epoch indices, fei
         for ii in range(len(fei)-1):
@@ -235,15 +237,10 @@ def getsos(*, fs, fl=None, fh=None, bandstop=False,
     except TypeError:
         pass
 
-    from scipy.signal import iirdesign
-
     if gpass is None:
         gpass = 0.1 # max loss in passband, dB
-
     if gstop is None:
         gstop = 30 # min attenuation in stopband (dB)
-
-    fso2 = fs/2.0
 
     try:
         if np.isinf(fh):
@@ -253,6 +250,8 @@ def getsos(*, fs, fl=None, fh=None, bandstop=False,
     if fl == 0:
         fl = None
 
+    # Handle cutoff frequencies
+    fso2 = fs/2.0
     if (fl is None) and (fh is None):
         raise ValueError('nonsensical all-pass filter requested...')
     elif fl is None: # lowpass

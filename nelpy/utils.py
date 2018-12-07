@@ -27,6 +27,7 @@ import copy
 # from . import core # so that core.AnalogSignalArray is exposed
 from . import core # so that core.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
+from . import filtering
 
 # def sub2ind(array_shape, rows, cols):
 #     ind = rows*array_shape[1] + cols
@@ -206,12 +207,13 @@ def spatial_sparsity(ratemap):
 
         return sparsity/number_of_spatial_bins
 
-def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False):
-    # TODO add'l kwargs
-    """Downsamples analog signal array
+def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False, **kwargs):
+    """Downsamples the data
 
     Parameters
     ----------
+    obj : AnalogSignalArray
+        The AnalogSignalArray to downsample
     fs_out : float
         Desired output sampling rate, in Hz
     aafilter : boolean, optional
@@ -219,52 +221,25 @@ def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False):
         downsampling. Default is True
     inplace : boolean, optional
         If True, the output ASA will replace the input ASA. Default is False
+    kwargs : 
+        Other keyword arguments are passed to sosfiltfilt() in the `filtering`
+        module
 
     Returns
     -------
     out : AnalogSignalArray
         The downsampled AnalogSignalArray
-
     """
+    # TODO: Implement this for ndarray and list as well
 
     if not isinstance(obj, core.AnalogSignalArray):
         raise TypeError('obj is expected to be a nelpy.core.AnalogSignalArray!')
 
     assert fs_out < obj.fs, "fs_out must be less than current sampling rate!"
 
-    if inplace:
-        out = obj
-    else:
-        from copy import deepcopy
-        out = deepcopy(obj)
-
     if aafilter:
-        from scipy.signal import sosfiltfilt, iirdesign
-
-        fs = out.fs
-        overlap_len = int(fs*2)
-        buffer_len = 4194304
-        gpass = 0.1 # max loss in passband, dB
-        gstop = 30 # min attenuation in stopband (dB)
-        fso2 = fs/2.0
-        fh = fs_out/2
-        wp = fh/fso2
-        ws = 1.4*fh/fso2
-
-        sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype='cheby2', output='sos')
-
-        fei = np.insert(np.cumsum(obj.lengths), 0, 0) # filter epoch indices, fei
-
-        for ii in range(len(fei)-1):
-            start, stop = fei[ii], fei[ii+1]
-            for buff_st_idx in range(start, stop, buffer_len):
-                chk_st_idx = int(max(start, buff_st_idx - overlap_len))
-                buff_nd_idx = int(min(stop, buff_st_idx + buffer_len))
-                chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
-                rel_st_idx = int(buff_st_idx - chk_st_idx)
-                rel_nd_idx = int(buff_nd_idx - chk_st_idx)
-                this_y_chk = sosfiltfilt(sos, obj._data_rowsig[:,chk_st_idx:chk_nd_idx])
-                out._data[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
+        fh = fs_out/2.0
+        out = filtering.sosfiltfilt(obj, fl=None, fh=fh, inplace=inplace, **kwargs)
 
     downsampled = out.simplify(ds=1/fs_out)
     out._data = downsampled._data

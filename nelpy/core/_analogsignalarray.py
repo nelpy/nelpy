@@ -770,7 +770,7 @@ class RegularlySampledAnalogSignalArray:
             abscissa_vals = self._abscissa_vals
         return 1.0/np.median(np.diff(abscissa_vals))
 
-    def downsample(self, *, fs_out, aafilter=True, inplace=False):
+    def downsample(self, *, fs_out, aafilter=True, inplace=False, **kwargs):
         """Downsamples the RegularlySampledAnalogSignalArray
 
         Parameters
@@ -782,13 +782,16 @@ class RegularlySampledAnalogSignalArray:
             downsampling. Default is True
         inplace : boolean, optional
             If True, the output ASA will replace the input ASA. Default is False
+        kwargs : 
+            Other keyword arguments are passed to utils.downsample_analogsignalarray()
 
         Returns
         -------
         out : RegularlySampledAnalogSignalArray
             The downsampled RegularlySampledAnalogSignalArray
         """
-        out = utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, inplace=inplace)
+        out = utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, 
+                               inplace=inplace, **kwargs)
         out.__renew__()
         return out
 
