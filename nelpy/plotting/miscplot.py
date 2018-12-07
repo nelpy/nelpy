@@ -8,8 +8,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from . import utils  # import plotting/utils
+from .. import core
 
-__all__ = ["palplot", "stripplot"]
+__all__ = ["palplot", "stripplot", 'veva_scatter']
 
 def palplot(pal, size=1):
     """Plot the values in a color palette as a horizontal array.
@@ -84,3 +85,36 @@ def stripplot(*eps, voffset=None, lw=None, labels=None):
     utils.clear_right(ax0)
 
     return ax0
+
+def veva_scatter(data, *, cmap=None, color=None, ax=None, lw=None, lh=None, **kwargs):
+
+    # Sort out default values for the parameters
+    if ax is None:
+        ax = plt.gca()
+    if cmap is None and color is None:
+        color = '0.25'
+    if lw is None:
+        lw = 1.5
+    if lh is None:
+        lh = 0.95
+
+    hh = lh/2.0  # half the line height
+
+    # Handle different types of input data
+    if isinstance(data, core.ValueEventArray):
+
+        vmin = np.min([np.min(x) for x in data.values])-1 #TODO: -1 because white is invisible... fix this properly
+        vmax = np.max([np.max(x) for x in data.values])
+        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+        for ii, (events, values) in enumerate(zip(data.events, data.values)):
+            if cmap is not None:
+                colors = cmap(norm(values))
+            else:
+                colors = color
+            ax.vlines(events, ii - hh, ii + hh, colors=colors, lw=lw, **kwargs)
+
+    else:
+        raise NotImplementedError(
+            "plotting {} not yet supported".format(str(type(data))))
+    return ax

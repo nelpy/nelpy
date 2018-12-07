@@ -750,7 +750,7 @@ class ValueEventArray(BaseValueEventArray):
         else:
             # restrict events to only those within the eventseries
             # array's support:
-            print('restricting, here')
+            # print('restricting, here')
             self.support = support
 
         # TODO: if sorted, we may as well use the fast restrict here as well?
@@ -949,7 +949,7 @@ class ValueEventArray(BaseValueEventArray):
         intervalarray : IntervalArray or EpochArray
         data : list or array-like, each element of size (n_events, n_values).
         """
-        print('_restrict base')
+        # print('_restrict base')
         if intervalarray.isempty:
             n_series = len(data)
             data = np.zeros((n_series,0))
@@ -1231,7 +1231,7 @@ class StatefulValueEventArray(BaseValueEventArray):
                  series_ids=None, empty=False, **kwargs):
         # add class-specific aliases to existing aliases:
         # self.__aliases__ = {**super().__aliases__, **self.__aliases__}
-        print('in init')
+        # print('in init')
         if support is not None:
             abscissa = kwargs.get('abscissa', core.TemporalAbscissa(support=support))
         else:
@@ -1241,11 +1241,11 @@ class StatefulValueEventArray(BaseValueEventArray):
         kwargs['abscissa'] = abscissa
         kwargs['ordinate'] = ordinate
 
-        print('non-stateful preprocessing')
+        # print('non-stateful preprocessing')
         self._val_init(events=events, values=values,fs=fs, support=support,
                  series_ids=series_ids, empty=empty, **kwargs)
 
-        print('making stateful')
+        # print('making stateful')
         data = self._make_stateful(data=self.data)
         self._data = data
 
@@ -1589,7 +1589,6 @@ class StatefulValueEventArray(BaseValueEventArray):
         intervalarray : IntervalArray or EpochArray
         data : list or array-like, each element of size (n_events, n_values).
         """
-        print('_restrict base')
         if intervalarray.isempty:
             n_series = len(data)
             data = np.zeros((n_series,0))
@@ -1641,7 +1640,6 @@ class StatefulValueEventArray(BaseValueEventArray):
         intervalarray : IntervalArray or EpochArray
         data : list or array-like, each element of size (n_events, n_values).
         """
-        print('_restrict overload')
         if intervalarray.isempty:
             n_series = len(data)
             data = np.zeros((n_series,0))
@@ -1739,14 +1737,15 @@ class StatefulValueEventArray(BaseValueEventArray):
                 statevals = np.zeros((0,))
 
             for tt, kk, psv in zip(ptvect, pkind, pstatevals):
-                print(tt, kk, psv)
+                # print(tt, kk, psv)
                 idx = np.searchsorted(tvect, tt, side='right')
                 idx2 = np.max((idx-1,0))
                 try:
                     if tt == tvect[idx2]:
-                        print('pseudo event {} not necessary...'.format(tt))
+                        pass
+                        # print('pseudo event {} not necessary...'.format(tt))
                     else:
-                        print('pseudo event {} necessary...'.format(tt))
+                        # print('pseudo event {} necessary...'.format(tt))
                         kind = np.insert(kind, idx, kk)
                         tvect = np.insert(tvect, idx, tt)
                         statevals = np.insert(statevals, idx, psv, axis=0)
@@ -1759,9 +1758,9 @@ class StatefulValueEventArray(BaseValueEventArray):
             events.append(tvect)
             kinds.append(kind)
 
-        print(states)
-        print(tvect)
-        print(kinds)
+        # print(states)
+        # print(tvect)
+        # print(kinds)
 
         data = []
         for e, k, s in zip(events, kinds, states):

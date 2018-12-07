@@ -1004,7 +1004,7 @@ class EventArray(BaseEventArray):
                     data_list.extend(evt_data[start:stop])
                 data_ = data.tolist()
                 data_[series] = np.array(data_list)
-                data = np.array(data_)
+                data = utils.ragged_array(data_)
         return data
 
     @staticmethod
@@ -1053,7 +1053,7 @@ class EventArray(BaseEventArray):
                 data_ = data.tolist()
                 data_[series] = np.array(data_[series])
                 data_[series] = data_[series][indices]
-                data = np.array(data_)
+                data = utils.ragged_array(data_)
         return data
 
     def __repr__(self):
