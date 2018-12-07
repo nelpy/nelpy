@@ -43,6 +43,17 @@ from . import filtering
 #     cols = ind % array_shape[1]
 #     return (rows, cols)
 
+def ragged_array(arr):
+    """Takes a list of arrays, and returns a ragged array.
+
+    See https://github.com/numpy/numpy/issues/12468
+    """
+    n_elem = len(arr)
+    out = np.array(n_elem*[None])
+    for ii in range(out.shape[0]):
+        out[ii] = arr[ii]
+    return out
+
 def asa_indices_within_epochs(asa, intervalarray):
     """Return indices of ASA within epochs.
 

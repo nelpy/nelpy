@@ -877,66 +877,66 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
 
     # override labels
     if labels is not None:
-        unit_labels = labels
+        series_labels = labels
     else:
-        unit_labels = []
+        series_labels = []
 
     hh = lh/2.0  # half the line height
 
     # Handle different types of input data
-    if isinstance(data, core.SpikeTrainArray):
+    if isinstance(data, core.EventArray):
 
         label_data = ax.findobj(match=RasterLabelData)[0].label_data
-        unitlist = [np.NINF for element in data.unit_ids]
+        serieslist = [np.NINF for element in data.series_ids]
         # no override labels so use unit_labels from input
-        if not unit_labels:
-            unit_labels = data.unit_labels
+        if not series_labels:
+            series_labels = data.series_labels
 
         if firstplot:
             if vertstack:
                 minunit = 1
-                maxunit = data.n_units
-                unitlist = range(1, data.n_units + 1)
+                maxunit = data.n_series
+                serieslist = range(1, data.n_series + 1)
             else:
-                minunit = np.array(data.unit_ids).min()
-                maxunit = np.array(data.unit_ids).max()
-                unitlist = data.unit_ids
-        # see if any of the unit_ids has already been plotted. If so,
+                minunit = np.array(data.series_ids).min()
+                maxunit = np.array(data.series_ids).max()
+                serieslist = data.series_ids
+        # see if any of the series_ids has already been plotted. If so,
         # then merge
         else:
-            for idx, unit_id in enumerate(data.unit_ids):
-                if unit_id in label_data.keys():
-                    position, _ = label_data[unit_id]
-                    unitlist[idx] = position
+            for idx, series_id in enumerate(data.series_ids):
+                if series_id in label_data.keys():
+                    position, _ = label_data[series_id]
+                    serieslist[idx] = position
                 else:  # unit not yet plotted
                     if vertstack:
-                        unitlist[idx] = 1 + max(int(ax.get_yticks()[-1]),
-                                                max(unitlist))
+                        serieslist[idx] = 1 + max(int(ax.get_yticks()[-1]),
+                                                max(serieslist))
                     else:
                         warnings.warn("Spike trains may be plotted in "
                                       "the same vertical position as "
                                       "another unit")
-                        unitlist[idx] = data.unit_ids[idx]
+                        serieslist[idx] = data.series_ids[idx]
 
         if firstplot:
             minunit = int(minunit)
             maxunit = int(maxunit)
         else:
             (prev_ymin, prev_ymax) = ax.findobj(match=RasterLabelData)[0].yrange
-            minunit = int(np.min([np.ceil(prev_ymin), np.min(unitlist)]))
-            maxunit = int(np.max([np.floor(prev_ymax), np.max(unitlist)]))
+            minunit = int(np.min([np.ceil(prev_ymin), np.min(serieslist)]))
+            maxunit = int(np.max([np.floor(prev_ymax), np.max(serieslist)]))
 
         yrange = (minunit - 0.5, maxunit + 0.5)
 
         if cmap is not None:
-            color_range = range(data.n_units)
+            color_range = range(data.n_series)
             # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
-            colors = cmap(np.linspace(cmap_lo, cmap_hi, data.n_units))
-            for unit, spiketrain, color_idx in zip(unitlist, data.time, color_range):
-                ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[color_idx], lw=lw, **kwargs)
+            colors = cmap(np.linspace(cmap_lo, cmap_hi, data.n_series))
+            for series_ii, series, color_idx in zip(serieslist, data.data, color_range):
+                ax.vlines(series, series_ii - hh, series_ii + hh, colors=colors[color_idx], lw=lw, **kwargs)
         else:  # use a constant color:
-            for unit, spiketrain in zip(unitlist, data.time):
-                ax.vlines(spiketrain, unit - hh, unit + hh, colors=color, lw=lw, **kwargs)
+            for series_ii, series in zip(serieslist, data.data):
+                ax.vlines(series, series_ii - hh, series_ii + hh, colors=color, lw=lw, **kwargs)
 
         # get existing label data so we can set some attributes
         rld = ax.findobj(match=RasterLabelData)[0]
@@ -944,15 +944,15 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
         ax.set_ylim(yrange)
         rld.yrange = yrange
 
-        for unit_id, loc, label in zip(data.unit_ids, unitlist, unit_labels):
-            rld.label_data[unit_id] = (loc, label)
-        unitlocs = []
-        unitlabels = []
+        for series_id, loc, label in zip(data.series_ids, serieslist, series_labels):
+            rld.label_data[series_id] = (loc, label)
+        serieslocs = []
+        serieslabels = []
         for loc, label in label_data.values():
-            unitlocs.append(loc)
-            unitlabels.append(label)
-        ax.set_yticks(unitlocs)
-        ax.set_yticklabels(unitlabels)
+            serieslocs.append(loc)
+            serieslabels.append(label)
+        ax.set_yticks(serieslocs)
+        ax.set_yticklabels(serieslabels)
 
     else:
         raise NotImplementedError(
