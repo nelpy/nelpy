@@ -24,7 +24,8 @@ __all__ = ['plot',
            'matshow',
            'epochplot',
            'rasterplot',
-           'rastercountplot']
+           'rastercountplot',
+           '_plot_ratemap']
 
 def colorline(x, y, cmap=None, cm_range=(0, 0.7), **kwargs):
     """Colorline plots a trajectory of (x,y) points with a colormap"""
@@ -53,6 +54,67 @@ def colorline(x, y, cmap=None, cm_range=(0, 0.7), **kwargs):
     ax.add_collection(lc)
 
     return lc
+
+def _plot_ratemap(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None):
+    """
+    WARNING! This function is not complete, and hence 'private',
+    and may be moved somewhere else later on.
+
+    If pad=0 then the y-axis is assumed to be firing rate
+    """
+    if ax is None:
+        ax = plt.gca()
+
+    # xmin = ratemap.bins[0]
+    # xmax = ratemap.bins[-1]
+    # xvals = ratemap.bin_centers
+    if unit_labels is None:
+        unit_labels = ratemap.unit_ids
+    ratemap = ratemap.ratemap_
+
+    if pad is None:
+        pad = ratemap.mean()/2
+
+    n_units, n_ext = ratemap.shape
+
+    if normalize:
+        peak_firing_rates = ratemap.max(axis=1)
+        ratemap = (ratemap.T / peak_firing_rates).T
+
+    # determine max firing rate
+    max_firing_rate = ratemap.max()
+    xvals = np.arange(n_ext)
+
+    for unit, curve in enumerate(ratemap):
+        if color is None:
+            line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit))
+        else:
+            line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit), color=color)
+        if fill:
+            # Get the color from the current curve
+            fillcolor = line[0].get_color()
+            ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=0.3, color=fillcolor, zorder=int(10+2*n_units-2*unit-1))
+
+    # ax.set_xlim(xmin, xmax)
+    if pad != 0:
+        yticks = np.arange(n_units)*pad + 0.5*pad
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(unit_labels)
+        ax.set_xlabel('external variable')
+        ax.set_ylabel('unit')
+        utils.no_yticks(ax)
+        utils.clear_left(ax)
+    else:
+        if normalize:
+            ax.set_ylabel('normalized firing rate')
+        else:
+            ax.set_ylabel('firing rate [Hz]')
+        ax.set_ylim(0)
+
+    utils.clear_top(ax)
+    utils.clear_right(ax)
+
+    return ax
 
 def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None):
     """

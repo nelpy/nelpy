@@ -7,6 +7,7 @@ from sklearn.utils.validation import check_is_fitted, NotFittedError
 
 from .preprocessing import DataWindow
 from . import core
+from.plotting import _plot_ratemap
 
 """
 FiringRateEstimator(BaseEstimator) DRAFT SPECIFICATION
@@ -52,16 +53,9 @@ class RateMap(BaseEstimator):
 
     Parameters
     ----------
-    X : array-like, shape (n_bins,), or (n_bins_x, n_bins_y)
-        Bin locations where ratemap is defined.
-    y : array-like, shape (n_units, n_bins) or (n_units, n_bins_x, n_bins_y)
     connectivity : string ['continuous', 'discrete', 'circular'], optional
         Defines how smoothing is applied. If 'discrete', then no smoothing is
         applied. Default is 'continuous'.
-    unit_ids : array-like, shape (n_units,), optional (default=None)
-        Persistent unit IDs that are used to associate units after
-        permutation. Unit IDs are inherited from nelpy.core.BinnedEventArray
-        objects, or initialized to np.arange(n_units).
     """
 
     def __init__(self, connectivity='continuous'):
@@ -76,14 +70,20 @@ class RateMap(BaseEstimator):
                 r += ' with shape (n_units={}, n_bins_x={}, n_bins_y={})'.format(*self.shape)
         return r
 
-    def fit(self, X, y, unit_ids=None):
+    def fit(self, X, y, dt=1, unit_ids=None):
         """Fit firing rates
+
         Parameters
         ----------
         X : array-like, shape (n_bins,), or (n_bins_x, n_bins_y)
             Bin locations (centers) where ratemap is defined.
         y : array-like, shape (n_units, n_bins) or (n_units, n_bins_x, n_bins_y)
-            Firing rates (in Hz? in bin width?)
+            Expected number of spikes in a temporal bin of width dt, for each of
+            the predictor bins specified in X.
+        dt : float, optional (default=1)
+            Temporal bin size with which firing rate y is defined.
+            For example, if dt==1, then the firing rate is in Hz. If dt==0.001,
+            then the firing rate is in kHz, and so on.
         unit_ids : array-like, shape (n_units,), optional (default=None)
             Persistent unit IDs that are used to associate units after
             permutation. Unit IDs are inherited from nelpy.core.BinnedEventArray
@@ -416,7 +416,11 @@ class RateMap(BaseEstimator):
         self._mask = val
 
     def plot(self, **kwargs):
-        raise NotImplementedError
+        check_is_fitted(self, 'ratemap_')
+        if self.is_2d:
+            raise NotImplementedError("plot() not yet implemented for 2D RateMaps.")
+        pad = kwargs.pop('pad', None)
+        _plot_ratemap(self, pad=pad, **kwargs)
 
     def smooth(self, *, sigma=None, bw=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
