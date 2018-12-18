@@ -232,7 +232,7 @@ def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False, *
         downsampling. Default is True
     inplace : boolean, optional
         If True, the output ASA will replace the input ASA. Default is False
-    kwargs : 
+    kwargs :
         Other keyword arguments are passed to sosfiltfilt() in the `filtering`
         module
 
@@ -303,14 +303,14 @@ def _bst_get_bins_inside_interval(interval, ds, w=1):
 
     # linspace is better than arange for non-integral steps
     bins = np.linspace(interval.start, interval.start + n_bins*ds, n_bins+1)
-    
+
     if w > 1:
         wn_bins = np.max((1, n_bins - w + 1))
         wn_bins = bins[:wn_bins+1] + w/2*ds - ds/2
         bins = wn_bins
-        
+
     centers = bins[:-1] + (ds / 2)
-                
+
     return bins, centers
 
 def _bst_get_bins(intervalArray, ds, w=1):

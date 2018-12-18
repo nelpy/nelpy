@@ -3,6 +3,7 @@
 import numpy as np
 
 from sklearn.base import BaseEstimator
+from sklearn.utils.validation import check_is_fitted
 
 from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
 from copy import copy as copycopy # to avoid name clash with local copy variable in StandardScaler
@@ -160,14 +161,11 @@ class DataWindow(BaseEstimator):
         if sum is None:
             sum = self._sum
 
-        if sum:
-            raise NotImplementedError("haven't implemented this yet, sorry :/")
-
         X, T, lengths = self._tidy(X=X, T=T, lengths=lengths)
         z = []
         t = []
         for ii, jj in self._iter_from_X_lengths(X=X, lengths=lengths):
-            x, tx = self._apply_contiguous(X[ii:jj], T[ii:jj], flatten=flatten)
+            x, tx = self._apply_contiguous(X[ii:jj], T[ii:jj], flatten=flatten, sum=sum)
             if x is not None:
                 z.append(x)
                 t.extend(tx)
@@ -177,7 +175,7 @@ class DataWindow(BaseEstimator):
 
         return Z, T
 
-    def _apply_contiguous(self, X, T=None, flatten=None):
+    def _apply_contiguous(self, X, T=None, flatten=None, sum=False):
         """
         Apply window specification to data in X.
 
@@ -200,6 +198,9 @@ class DataWindow(BaseEstimator):
                 Timestamps / sample numbers corresponding to data in X.
         flatten : int, optional (default=False)
             Whether or not to flatten the output data.
+        sum : boolean, optional (default=False)
+            Whether or not to sum all the spikes in the window per time bin. If
+            sum==True, then the dimensions of Z will be (n_samples, n_features).
 
         Returns
         -------
@@ -246,7 +247,9 @@ class DataWindow(BaseEstimator):
             curr_idx += stride
             frm_idx += stride
 
-        if flatten:
+        if sum:
+            Z = Z.sum(axis=1)
+        elif flatten:
             Z = Z.reshape(Z.shape[0],(Z.shape[1]*Z.shape[2]))
 
         if T is not None:
