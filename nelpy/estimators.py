@@ -41,6 +41,9 @@ class RateMap(BaseEstimator):
     """
     RateMap with persistent unit_ids and firing rates in Hz.
 
+    NOTE: RateMap assumes a [uniform] isometric spacing in all dimensions of the
+          rate map. This is only relevant when smoothing is applied.
+
     mode = ['continuous', 'discrete', 'circular']
 
     fit(X, y) estimates ratemap [discrete, continuous, circular]
@@ -74,11 +77,25 @@ class RateMap(BaseEstimator):
         return r
 
     def fit(self, X, y, unit_ids=None):
+        """Fit firing rates
+        Parameters
+        ----------
+        X : array-like, shape (n_bins,), or (n_bins_x, n_bins_y)
+            Bin locations (centers) where ratemap is defined.
+        y : array-like, shape (n_units, n_bins) or (n_units, n_bins_x, n_bins_y)
+            Firing rates (in Hz? in bin width?)
+        unit_ids : array-like, shape (n_units,), optional (default=None)
+            Persistent unit IDs that are used to associate units after
+            permutation. Unit IDs are inherited from nelpy.core.BinnedEventArray
+            objects, or initialized to np.arange(n_units).
+        """
         n_units, n_bins_x, n_bins_y = self._check_X_y(X, y)
         if n_bins_y > 0:
             self.ratemap_ = np.zeros((n_units, n_bins_x, n_bins_y)) #FIXME
+            self.ratemap_ = y #FIXME
         else:
             self.ratemap_ = np.zeros((n_units, n_bins_x)) #FIXME
+            self.ratemap_ = y #FIXME
 
         self._unit_ids = np.arange(n_units) #FIXME
 
@@ -128,6 +145,21 @@ class RateMap(BaseEstimator):
         except Exception:
             raise TypeError(
                 'unsupported subsctipting type {}'.format(type(idx)))
+
+    def get_peak_firing_order_ids(self):
+        """Get the unit_ids in order of peak firing location for 1D RateMaps.
+
+        Returns
+        -------
+        unit_ids : array-like
+            The permutaiton of unit_ids such that after reordering, the peak
+            firing locations are ordered along the RateMap.
+        """
+        check_is_fitted(self, 'ratemap_')
+        if self.is_2d:
+            raise NotImplementedError("get_peak_firing_order_ids() only implemented for 1D RateMaps.")
+        peakorder = np.argmax(self.ratemap_, axis=1).argsort()
+        return self.unit_ids[peakorder]
 
     def reorder_units_by_ids(self, unit_ids, inplace=False):
         """Permute the unit ordering.
