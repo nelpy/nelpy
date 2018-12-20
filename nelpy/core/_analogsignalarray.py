@@ -29,6 +29,8 @@ from .. import auxiliary
 from .. import utils
 from .. import version
 
+from ..utils_.decorators import keyword_deprecation
+
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -930,7 +932,8 @@ class RegularlySampledAnalogSignalArray:
         if update:
             self._abscissa.support = intervalarray
 
-    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False, mode=None, cval=None, within_intervals=False):
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def smooth(self, *, fs=None, sigma=None, truncate=None, inplace=False, mode=None, cval=None, within_intervals=False):
         """Smooths the regularly sampled RegularlySampledAnalogSignalArray with a Gaussian kernel.
 
         Smoothing is applied along the abscissa, and the same smoothing is applied to each
@@ -947,7 +950,7 @@ class RegularlySampledAnalogSignalArray:
         sigma : float, optional
             Standard deviation of Gaussian kernel, in obj.base_units. Default is 0.05
             (50 ms if base_unit=seconds).
-        bw : float, optional
+        truncate : float, optional
             Bandwidth outside of which the filter value will be zero. Default is 4.0.
         inplace : bool
             If True the data will be replaced with the smoothed data.
@@ -973,13 +976,13 @@ class RegularlySampledAnalogSignalArray:
 
         if sigma is None:
             sigma = 0.05
-        if bw is None:
-            bw=4
+        if truncate is None:
+            truncate=4
 
         kwargs = {'inplace' : inplace,
                 'fs' : fs,
                 'sigma' : sigma,
-                'bw' : bw,
+                'truncate' : truncate,
                 'mode': mode,
                 'cval' : cval,
                 'within_intervals': within_intervals}
@@ -1036,7 +1039,7 @@ class RegularlySampledAnalogSignalArray:
 
             tmp = utils.gaussian_filter(out.unwrap(), **kwargs)
             # (2) (3)
-            n_reps = int(np.ceil((sigma*bw)/float(D)))
+            n_reps = int(np.ceil((sigma*truncate)/float(D)))
 
             smooth_data = []
             for ss, signal in enumerate(tmp.signals):

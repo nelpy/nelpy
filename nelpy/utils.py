@@ -29,6 +29,8 @@ from . import core # so that core.AnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 from . import filtering
 
+from .utils_.decorators import keyword_deprecation
+
 # def sub2ind(array_shape, rows, cols):
 #     ind = rows*array_shape[1] + cols
 #     ind[ind < 0] = -1
@@ -349,7 +351,8 @@ def _bst_get_bins(intervalArray, ds, w=1):
 
     return bins, bin_centers, binnedSupport, support
 
-def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
+@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+def get_mua(st, ds=None, sigma=None, truncate=None, _fast=True):
     """Compute the multiunit activity (MUA) from a spike train.
 
     Parameters
@@ -364,7 +367,7 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
     sigma : float, optional
         Standard deviation (in seconds) of Gaussian smoothing kernel.
         Default is 10 ms. If sigma==0 then no smoothing is applied.
-    bw : float, optional
+    truncate : float, optional
         Bandwidth of the Gaussian filter. Default is 6.
 
     Returns
@@ -377,8 +380,8 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
         ds = 0.001 # 1 ms bin size
     if sigma is None:
         sigma = 0.01 # 10 ms standard deviation
-    if bw is None:
-        bw = 6
+    if truncate is None:
+        truncate = 6
 
     if isinstance(st, core.EventArray):
         # bin spikes, so that we can count the spikes
@@ -404,8 +407,8 @@ def get_mua(st, ds=None, sigma=None, bw=None, _fast=True):
 
     mua._fs = 1/ds
 
-    if (sigma != 0) and (bw > 0):
-        mua = gaussian_filter(mua, sigma=sigma, bw=bw)
+    if (sigma != 0) and (truncate > 0):
+        mua = gaussian_filter(mua, sigma=sigma, truncate=truncate)
 
     return mua
 
@@ -586,7 +589,8 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
 
     return mua_epochs
 
-def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
+@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+def get_PBEs(data, fs=None, ds=None, sigma=None, truncate=None, unsorted_id=0,
              min_active=None, minLength=None, maxLength=None,
              PrimaryThreshold=None, minThresholdLength=None,
              SecondaryThreshold=None):
@@ -638,7 +642,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
     sigma : float, optional
         Standard deviation (in seconds) of Gaussian smoothing kernel.
         Default is 10 ms. If sigma==0 then no smoothing is applied.
-    bw : float, optional
+    truncate : float, optional
         Bandwidth of the Gaussian filter. Default is 6.
     unsorted_id : int, optional
         unit_id of the unsorted unit. Default is 0. If no unsorted unit is
@@ -671,8 +675,8 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
 
     if sigma is None:
         sigma = 0.01 # 10 ms standard deviation
-    if bw is None:
-        bw = 6
+    if truncate is None:
+        truncate = 6
 
     if isinstance(data, core.AnalogSignalArray):
         # if we have only mua, then we cannot set (ds, unsorted_id, min_active)
@@ -684,8 +688,8 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
             raise ValueError('if data is an AnalogSignalArray then min_active cannot be specified!')
         mua = data
         mua._data = mua._data.astype(float)
-        if (sigma != 0) and (bw > 0):
-            mua = gaussian_filter(mua, sigma=sigma, bw=bw)
+        if (sigma != 0) and (truncate > 0):
+            mua = gaussian_filter(mua, sigma=sigma, truncate=truncate)
 
     elif isinstance(data, (core.EventArray, core.BinnedEventArray)):
         # set default parameter values:
@@ -693,7 +697,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, bw=None, unsorted_id=0,
             ds = 0.001 # default 1 ms
         if min_active is None:
             min_active = 5
-        mua = get_mua(data, ds=ds, sigma=sigma, bw=bw, _fast=True)
+        mua = get_mua(data, ds=ds, sigma=sigma, truncate=truncate, _fast=True)
     else:
         raise TypeError('data has to be one of (AnalogSignalArray, SpikeTrainArray, BinnedSpikeTrainArray)')
 
@@ -1379,7 +1383,7 @@ def nextfastpower(n):
     n2 = nextpower (n / n35)
     return int (min (n2 * n35))
 
-def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=None, cval=None, within_intervals=False):
+def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, mode=None, cval=None, within_intervals=False):
     """Smooths with a Gaussian kernel.
 
     Smoothing is applied along the abscissa, and the same smoothing is applied to each
@@ -1396,7 +1400,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
     sigma : float, optional
         Standard deviation of Gaussian kernel, in obj.base_units. Default is 0.05
         (50 ms if base_unit=seconds).
-    bw : float, optional
+    truncate : float, optional
         Bandwidth outside of which the filter value will be zero. Default is 4.0.
     inplace : bool
         If True the data will be replaced with the smoothed data.
@@ -1421,8 +1425,8 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
     """
     if sigma is None:
         sigma = 0.05
-    if bw is None:
-        bw=4
+    if truncate is None:
+        truncate = 4
     if mode is None:
         mode = 'reflect'
     if cval is None:
@@ -1482,8 +1486,8 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
             V[:, data_idx] = out.data
             W[:, missing_idx] = 0
 
-            VV = scipy.ndimage.filters.gaussian_filter(V, sigma=(0,sigma), truncate=bw, mode=mode, cval=cval)
-            WW = scipy.ndimage.filters.gaussian_filter(W, sigma=(0,sigma), truncate=bw, mode=mode, cval=cval)
+            VV = scipy.ndimage.filters.gaussian_filter(V, sigma=(0,sigma), truncate=truncate, mode=mode, cval=cval)
+            WW = scipy.ndimage.filters.gaussian_filter(W, sigma=(0,sigma), truncate=truncate, mode=mode, cval=cval)
 
             Z = VV[:,data_idx]/WW[:,data_idx]
 
@@ -1497,16 +1501,16 @@ def gaussian_filter(obj, *, fs=None, sigma=None, bw=None, inplace=False, mode=No
         if isinstance(out, core.RegularlySampledAnalogSignalArray):
             # now smooth each interval separately
             for idx in range(out.n_intervals):
-                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=truncate)
         elif isinstance(out, core.BinnedSpikeTrainArray):
             # now smooth each interval separately
             for idx in range(out.n_epochs):
-                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=bw)
+                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=truncate)
                 # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
 
     return out
 
-def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None, norm=False):
+def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=None, norm=False):
     """Numerical differentiation of a regularly sampled AnalogSignalArray.
 
     Optionally also smooths result with a Gaussian kernel.
@@ -1529,7 +1533,7 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None, no
     sigma : float, optional
         Standard deviation of Gaussian kernel, in seconds. Default is 0.05
         (50 ms).
-    bw : float, optional
+    truncate : float, optional
         Bandwidth outside of which the filter value will be zero. Default is 4.0
     norm: boolean, optional
         If True, then apply the L2 norm to the result.
@@ -1582,11 +1586,11 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None, no
         out._data = np.abs(out._data)
 
     if smooth:
-        out = gaussian_filter(out, fs=fs, sigma=sigma, bw=bw)
+        out = gaussian_filter(out, fs=fs, sigma=sigma, truncate=truncate)
 
     return out
 
-def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=None, bw=None):
+def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=None):
     """Numerical differentiation of a regularly sampled AnalogSignalArray.
 
     Optionally also smooths result with a Gaussian kernel.
@@ -1609,7 +1613,7 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
     sigma : float, optional
         Standard deviation of Gaussian kernel, in seconds. Default is 0.05
         (50 ms).
-    bw : float, optional
+    truncate : float, optional
         Bandwidth outside of which the filter value will be zero. Default is 4.0
 
     Returns
@@ -1660,7 +1664,7 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
         out._data = np.abs(out._data)
 
     if smooth:
-        out = gaussian_filter(out, fs=fs, sigma=sigma, bw=bw)
+        out = gaussian_filter(out, fs=fs, sigma=sigma, truncate=truncate)
 
     return out
 

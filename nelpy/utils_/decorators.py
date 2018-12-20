@@ -2,11 +2,48 @@ import functools
 import inspect
 import warnings
 
-__all__ = ['add_method_to_instance',
+__all__ = ['keyword_deprecation',
+'           add_method_to_instance',
            'add_method_to_class',
            'add_prop_to_instance',
            'add_prop_to_class',
            'deprecated']
+
+def keyword_deprecation(func=None, *, replace_x_with_y=None):
+    """
+    Keyword deprecator.
+
+    Parameters
+    ----------
+    replace_x_with_y : dict
+        Dictionary of kwargs to replace, {'old': 'new'}
+
+    Example
+    -------
+    @keyword_deprecation(replace_x_with_y={'old1':'new1', 'old2':'new2'})
+    def myfunc(arg1, arg2, *, new1=None, new2=5):
+        pass
+    """
+    def _decorate(function):
+        @functools.wraps(function)
+        def wrapped_function(*args, **kwargs):
+            if replace_x_with_y is not None:
+                for oldkwarg, newkwarg in replace_x_with_y.items():
+                    newvalue = kwargs.pop(newkwarg, None)
+                    oldvalue = kwargs.pop(oldkwarg, None)
+                    if newvalue is not None and oldvalue is not None:
+                        raise ValueError("Cannot pass both '{}' and '{}'. Use '{}' instead.".format(oldkwarg, newkwarg, newkwarg))
+                    if oldvalue is not None:
+                        import warnings
+                        warnings.warn("'{}' has been deprecated, use '{}' instead.".format(oldkwarg, newkwarg))
+                        kwargs[newkwarg] = oldvalue
+            return function(*args, **kwargs)
+        return wrapped_function
+    if func:
+#         print('no args in decorator')
+        return _decorate(func)
+
+    return _decorate
 
 def deprecated(func):
     '''This is a decorator which can be used to mark functions

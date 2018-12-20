@@ -34,6 +34,8 @@ from .. import core
 from .. import utils
 from .. import version
 
+from ..utils_.decorators import keyword_deprecation
+
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -1812,7 +1814,8 @@ class BinnedEventArray(BaseEventArray):
         supportdata = np.vstack([support_starts, support_stops]).T
         self._abscissa.support = type(self._abscissa.support)(supportdata) # set support to TRUE bin support
 
-    def smooth(self, *, sigma=None, inplace=False,  bw=None, within_intervals=False):
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def smooth(self, *, sigma=None, inplace=False,  truncate=None, within_intervals=False):
         """Smooth BinnedEventArray by convolving with a Gaussian kernel.
 
         Smoothing is applied in data, and the same smoothing is applied
@@ -1824,7 +1827,7 @@ class BinnedEventArray(BaseEventArray):
         ----------
         sigma : float, optional
             Standard deviation of Gaussian kernel, in seconds. Default is 0.01 (10 ms)
-        bw : float, optional
+        truncate : float, optional
             Bandwidth outside of which the filter value will be zero. Default is 4.0
         inplace : bool
             If True the data will be replaced with the smoothed data.
@@ -1836,14 +1839,14 @@ class BinnedEventArray(BaseEventArray):
             New BinnedEventArray with smoothed data.
         """
 
-        if bw is None:
-            bw=4
+        if truncate is None:
+            truncate = 4
         if sigma is None:
             sigma = 0.01 # 10 ms default
 
         fs = 1 / self.ds
 
-        return utils.gaussian_filter(self, fs=fs, sigma=sigma, bw=bw, inplace=inplace, within_intervals=within_intervals)
+        return utils.gaussian_filter(self, fs=fs, sigma=sigma, truncate=truncate, inplace=inplace, within_intervals=within_intervals)
 
     @staticmethod
     def _smooth_array(arr, w=None):

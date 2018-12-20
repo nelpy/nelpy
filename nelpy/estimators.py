@@ -9,6 +9,8 @@ from .preprocessing import DataWindow
 from . import core
 from.plotting import _plot_ratemap
 
+from .utils_.decorators import keyword_deprecation
+
 """
 FiringRateEstimator(BaseEstimator) DRAFT SPECIFICATION
     X : BST / spike counts
@@ -37,6 +39,10 @@ BayesianDecoder(BaseEstimator):
     y = predict(X) : predicts position from spike counts (also called decode)
 
 """
+
+class KeywordError(Exception):
+    def __init__(self, message):
+        self.message = message
 
 class RateMap(BaseEstimator):
     """
@@ -422,20 +428,26 @@ class RateMap(BaseEstimator):
         pad = kwargs.pop('pad', None)
         _plot_ratemap(self, pad=pad, **kwargs)
 
-    def smooth(self, *, sigma=None, bw=None, inplace=False, mode=None, cval=None):
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
 
         mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
             The mode parameter determines how the array borders are handled,
             where cval is the value when mode is equal to ‘constant’. Default is
             ‘reflect’
+        truncate : float
+            Truncate the filter at this many standard deviations. Default is 4.0.
+        truncate : float, deprecated
+            Truncate the filter at this many standard deviations. Default is 4.0.
         cval : scalar, optional
             Value to fill past edges of input if mode is ‘constant’. Default is 0.0
         """
+
         if sigma is None:
             sigma = 0.1 # in units of extern
-        if bw is None:
-            bw = 4
+        if truncate is None:
+            truncate = 4
         if mode is None:
             mode = 'reflect'
         if cval is None:
