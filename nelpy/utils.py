@@ -1383,6 +1383,7 @@ def nextfastpower(n):
     n2 = nextpower (n / n35)
     return int (min (n2 * n35))
 
+@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
 def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, mode=None, cval=None, within_intervals=False):
     """Smooths with a Gaussian kernel.
 
@@ -1510,6 +1511,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, m
 
     return out
 
+@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
 def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=None, norm=False):
     """Numerical differentiation of a regularly sampled AnalogSignalArray.
 
@@ -1590,6 +1592,7 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=No
 
     return out
 
+@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
 def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=None):
     """Numerical differentiation of a regularly sampled AnalogSignalArray.
 
