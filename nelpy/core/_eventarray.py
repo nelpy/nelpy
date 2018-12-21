@@ -34,7 +34,7 @@ from .. import core
 from .. import utils
 from .. import version
 
-from ..utils_.decorators import keyword_deprecation
+from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -391,6 +391,7 @@ class BaseEventArray(ABC):
 
 
     @abstractmethod
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
@@ -760,6 +761,7 @@ class EventArray(BaseEventArray):
 
         self._data = data
 
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
@@ -1390,6 +1392,7 @@ class BinnedEventArray(BaseEventArray):
 
         return out
 
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
@@ -2299,11 +2302,12 @@ class SpikeTrainArray(EventArray):
 
         super().__init__(*args, **kwargs)
 
-    def partition(self, ds=None, n_intervals=None, n_epochs=None):
-        if n_intervals is None:
-            n_intervals = n_epochs
-        kwargs = {'ds':ds, 'n_intervals': n_intervals}
-        return super().partition(**kwargs)
+    # @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    # def partition(self, ds=None, n_intervals=None, n_epochs=None):
+    #     if n_intervals is None:
+    #         n_intervals = n_epochs
+    #     kwargs = {'ds':ds, 'n_intervals': n_intervals}
+    #     return super().partition(**kwargs)
 
     def bin(self, *, ds=None):
         """Return a BinnedSpikeTrainArray."""
@@ -2351,8 +2355,8 @@ class BinnedSpikeTrainArray(BinnedEventArray):
 
         super().__init__(*args, **kwargs)
 
-    def partition(self, ds=None, n_intervals=None, n_epochs=None):
-        if n_intervals is None:
-            n_intervals = n_epochs
-        kwargs = {'ds':ds, 'n_intervals': n_intervals}
-        return super().partition(**kwargs)
+    # def partition(self, ds=None, n_intervals=None, n_epochs=None):
+    #     if n_intervals is None:
+    #         n_intervals = n_epochs
+    #     kwargs = {'ds':ds, 'n_intervals': n_intervals}
+    #     return super().partition(**kwargs)

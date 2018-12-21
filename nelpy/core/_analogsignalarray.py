@@ -29,7 +29,7 @@ from .. import auxiliary
 from .. import utils
 from .. import version
 
-from ..utils_.decorators import keyword_deprecation
+from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -1139,6 +1139,7 @@ class RegularlySampledAnalogSignalArray:
         dstr = " for a total of {}".format(self._abscissa.formatter(self.support.length))
         return "<%s%s:%s>%s" % (self.type_name, address_str, nstr, dstr)
 
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
         """Returns an RegularlySampledAnalogSignalArray whose support has been
         partitioned.

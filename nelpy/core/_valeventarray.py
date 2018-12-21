@@ -77,6 +77,8 @@ from .. import core
 from .. import utils
 from .. import version
 
+from ..utils_.decorators import keyword_equivalence
+
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -299,6 +301,7 @@ class BaseValueEventArray(ABC):
         return "<BaseValueEventArray" + address_str + ">"
 
     @abstractmethod
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
@@ -761,6 +764,7 @@ class ValueEventArray(BaseValueEventArray):
         self._data = data
         return
 
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
@@ -1168,11 +1172,12 @@ class MarkedSpikeTrainArray(ValueEventArray):
 
         super().__init__(*args, **kwargs)
 
-    def partition(self, ds=None, n_intervals=None, n_epochs=None):
-        if n_intervals is None:
-            n_intervals = n_epochs
-        kwargs = {'ds':ds, 'n_intervals': n_intervals}
-        return super().partition(**kwargs)
+    # @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    # def partition(self, ds=None, n_intervals=None, n_epochs=None):
+    #     if n_intervals is None:
+    #         n_intervals = n_epochs
+    #     kwargs = {'ds':ds, 'n_intervals': n_intervals}
+    #     return super().partition(**kwargs)
 
     def bin(self, *, ds=None):
         """Return a BinnedSpikeTrainArray."""
@@ -1406,7 +1411,8 @@ class StatefulValueEventArray(BaseValueEventArray):
         """Event datas in seconds."""
         return self._data
 
-    def partition(self, ds=None, n_intervals=None,  n_epochs=None):
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
         # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
@@ -1427,9 +1433,6 @@ class StatefulValueEventArray(BaseValueEventArray):
         out : BaseEventArray
             BaseEventArray that has been partitioned.
         """
-
-        if n_intervals is None:
-            n_intervals = n_epochs
 
         out = copy.copy(self)
         abscissa = copy.deepcopy(out._abscissa)

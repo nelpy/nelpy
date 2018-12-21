@@ -11,6 +11,8 @@ from .. import formatters
 from .. import utils
 from .. import version
 
+from ..utils_.decorators import keyword_equivalence
+
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -319,6 +321,7 @@ class IntervalArray:
         """Remove duplicate intervals."""
         raise NotImplementedError
 
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, *, ds=None, n_intervals=None):
         """Returns an IntervalArray that has been partitioned.
 
@@ -996,33 +999,34 @@ class EpochArray(IntervalArray):
         self.formatter = formatters.PrettyDuration
         self.base_unit = self.formatter.base_unit
 
-    # override some functions for API backwards compatibility:
-    def partition(self, *, ds=None, n_epochs=None, n_intervals=None):
-        """Returns an EpochArray that has been partitioned.
+    # # override some functions for API backwards compatibility:
+    # @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    # def partition(self, *, ds=None, n_epochs=None, n_intervals=None):
+    #     """Returns an EpochArray that has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
+    #     # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
+    #     # underlying support is propagated, and the first and last points
+    #     # of the supports are always included, even if this would cause
+    #     # n_points or ds to be violated.
 
-        Parameters
-        ----------
-        ds : float, optional
-            Maximum length, for each interval.
-        n_epochs : int, optional
-            Number of epochs / intervals. If ds is None and n_epochs is None,
-            then default is to use n_epochs = 100
+    #     Parameters
+    #     ----------
+    #     ds : float, optional
+    #         Maximum length, for each interval.
+    #     n_epochs : int, optional
+    #         Number of epochs / intervals. If ds is None and n_epochs is None,
+    #         then default is to use n_epochs = 100
 
-        Returns
-        -------
-        out : EpochArray
-            EpochArray that has been partitioned.
-        """
+    #     Returns
+    #     -------
+    #     out : EpochArray
+    #         EpochArray that has been partitioned.
+    #     """
 
-        if n_intervals is None:
-            n_intervals = n_epochs
-        kwargs = {'ds':ds, 'n_intervals': n_intervals}
-        return super().partition(**kwargs)
+    #     if n_intervals is None:
+    #         n_intervals = n_epochs
+    #     kwargs = {'ds':ds, 'n_intervals': n_intervals}
+    #     return super().partition(**kwargs)
 
 class SpaceArray(IntervalArray):
     """IntervalArray containing spatial intervals (in cm)."""
