@@ -8,12 +8,13 @@ from sklearn.utils.validation import check_is_fitted, NotFittedError
 from .preprocessing import DataWindow
 from . import core
 from.plotting import _plot_ratemap
+from .auxiliary import TuningCurve1D, TuningCurve2D
 
 from .utils_.decorators import keyword_deprecation
 
 """
 FiringRateEstimator(BaseEstimator) DRAFT SPECIFICATION
-    X : BST / spike counts
+    X : BST / spike counts (or actual spikes?)
     y : firing rate (not used)
     z : position (response variable)
     mode = ['hist', 'glm-poisson', 'glm-binomial', 'glm', 'gvm', 'bars', 'gp']
@@ -44,6 +45,108 @@ class KeywordError(Exception):
     def __init__(self, message):
         self.message = message
 
+class UnitSlicer(object):
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, *args):
+        """units ids"""
+        # by default, keep all units
+        unitslice = slice(None, None, None)
+        if isinstance(*args, int):
+            unitslice = args[0]
+        else:
+            slices = np.s_[args];
+            slices = slices[0]
+            unitslice = slices
+
+        if isinstance(unitslice, slice):
+            start = unitslice.start
+            stop = unitslice.stop
+            istep = unitslice.step
+
+            try:
+                if start is None:
+                    istart = 0
+                else:
+                    istart = list(self.obj.unit_ids).index(start)
+            except ValueError:
+                raise KeyError('unit_id {} could not be found in RateMap!'.format(start))
+
+            try:
+                if stop is None:
+                    istop = self.obj.n_units
+                else:
+                    istop = list(self.obj.unit_ids).index(stop) + 1
+            except ValueError:
+                raise KeyError('unit_id {} could not be found in RateMap!'.format(stop))
+            if istep is None:
+                istep = 1
+            if istep < 0:
+                istop -=1
+                istart -=1
+                istart, istop = istop, istart
+            unit_idx_list = list(range(istart, istop, istep))
+        else:
+            unit_idx_list = []
+            unitslice = np.atleast_1d(unitslice)
+            for unit in unitslice:
+                try:
+                    uidx = list(self.obj.unit_ids).index(unit)
+                except ValueError:
+                    raise KeyError("unit_id {} could not be found in RateMap!".format(unit))
+                else:
+                    unit_idx_list.append(uidx)
+
+        return unit_idx_list
+
+class ItemGetter_loc(object):
+    """.loc is primarily label based (that is, unit_id based)
+
+    .loc will raise KeyError when the items are not found.
+
+    Allowed inputs are:
+        - A single label, e.g. 5 or 'a', (note that 5 is interpreted
+            as a label of the index. This use is not an integer
+            position along the index)
+        - A list or array of labels ['a', 'b', 'c']
+        - A slice object with labels 'a':'f', (note that contrary to
+            usual python slices, both the start and the stop are
+            included!)
+    """
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, idx):
+        """unit_ids"""
+        unit_idx_list = self.obj._slicer[idx]
+
+        return self.obj[unit_idx_list]
+
+class ItemGetter_iloc(object):
+    """.iloc is primarily integer position based (from 0 to length-1
+    of the axis).
+
+    .iloc will raise IndexError if a requested indexer is
+    out-of-bounds, except slice indexers which allow out-of-bounds
+    indexing. (this conforms with python/numpy slice semantics).
+
+    Allowed inputs are:
+        - An integer e.g. 5
+        - A list or array of integers [4, 3, 0]
+        - A slice object with ints 1:7
+    """
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, idx):
+        """intervals, series"""
+        unit_idx_list = idx
+        if isinstance(idx, int):
+            unit_idx_list = [idx]
+
+        return self.obj[unit_idx_list]
+
 class RateMap(BaseEstimator):
     """
     RateMap with persistent unit_ids and firing rates in Hz.
@@ -66,6 +169,10 @@ class RateMap(BaseEstimator):
 
     def __init__(self, connectivity='continuous'):
         self.connectivity = connectivity
+
+        self._slicer = UnitSlicer(self)
+        self.loc = ItemGetter_loc(self)
+        self.iloc = ItemGetter_iloc(self)
 
     def __repr__(self):
         r = super().__repr__()
@@ -97,13 +204,36 @@ class RateMap(BaseEstimator):
         """
         n_units, n_bins_x, n_bins_y = self._check_X_y(X, y)
         if n_bins_y > 0:
-            self.ratemap_ = np.zeros((n_units, n_bins_x, n_bins_y)) #FIXME
-            self.ratemap_ = y #FIXME
+            # self.ratemap_ = np.zeros((n_units, n_bins_x, n_bins_y)) #FIXME
+            self.ratemap_ = y/dt
+            bin_centers_x = np.squeeze(X[:,0])
+            bin_centers_y = np.squeeze(X[:,1])
+            bin_dx = np.median(np.diff(bin_centers_x))
+            bin_dy = np.median(np.diff(bin_centers_y))
+            bins_x = np.insert(bin_centers_x[:-1] + np.diff(bin_centers_x)/2, 0, bin_centers_x[0] - bin_dx/2)
+            bins_x = np.append(bins_x, bins_x[-1] + bin_dx)
+            bins_y = np.insert(bin_centers_y[:-1] + np.diff(bin_centers_y)/2, 0, bin_centers_y[0] - bin_dy/2)
+            bins_y = np.append(bins_y, bins_y[-1] + bin_dy)
+            self._bins_x = bins_x
+            self._bins_y = bins_y
+            self._bin_centers_x = bin_centers_x
+            self._bin_centers_y = X[:,1]
         else:
-            self.ratemap_ = np.zeros((n_units, n_bins_x)) #FIXME
-            self.ratemap_ = y #FIXME
+            # self.ratemap_ = np.zeros((n_units, n_bins_x)) #FIXME
+            self.ratemap_ = y/dt
+            bin_centers_x = np.squeeze(X)
+            bin_dx = np.median(np.diff(bin_centers_x))
+            bins_x = np.insert(bin_centers_x[:-1] + np.diff(bin_centers_x)/2, 0, bin_centers_x[0] - bin_dx/2)
+            bins_x = np.append(bins_x, bins_x[-1] + bin_dx)
+            self._bins_x = bins_x
+            self._bin_centers_x = bin_centers_x
 
-        self._unit_ids = np.arange(n_units) #FIXME
+        if unit_ids is not None:
+            if len(unit_ids) != n_units:
+                raise ValueError("'unit_ids' must have same number of elements as 'n_units'. {} != {}".format(len(unit_ids), n_units))
+            self._unit_ids = unit_ids
+        else:
+            self._unit_ids = np.arange(n_units)
 
     def predict(self, X):
         check_is_fitted(self, 'ratemap_')
@@ -134,7 +264,10 @@ class RateMap(BaseEstimator):
         return out
 
     def __getitem__(self, *idx):
-        """TuningCurve1D index access.
+        """RateMap unit index access.
+
+        NOTE: this is index-based, not label-based. For label-based,
+              use loc[...]
 
         Accepts integers, slices, and lists"""
         idx = [ii for ii in idx]
@@ -146,7 +279,10 @@ class RateMap(BaseEstimator):
         try:
             out = copy.copy(self)
             out.ratemap_ = self.ratemap_[[idx]]
-            out._unit_ids = out._unit_ids[idx]
+            out._unit_ids = list(np.array(out._unit_ids)[[idx]])
+            out._slicer = UnitSlicer(out)
+            out.loc = ItemGetter_loc(out)
+            out.iloc = ItemGetter_iloc(out)
             return out
         except Exception:
             raise TypeError(
@@ -252,7 +388,7 @@ class RateMap(BaseEstimator):
     def _is_fitted(self):
         try:
             check_is_fitted(self, 'ratemap_')
-        except NotFittedError:
+        except Exception: # should really be except NotFitterError
             return False
         return True
 
@@ -389,27 +525,37 @@ class RateMap(BaseEstimator):
 
     @property
     def bins(self):
-        raise NotImplementedError
+        if self.is_1d:
+            return self._bins_x
+        return np.vstack((self._bins_x, self._bins_y))
 
     @property
     def bins_x(self):
-        raise NotImplementedError
+        return self._bins_x
 
     @property
     def bins_y(self):
-        raise NotImplementedError
+        if self.is_2d:
+            return self._bins_y
+        else:
+            raise ValueError('only valid for 2D RateMap() objects.')
 
     @property
-    def bins_centers(self):
-        raise NotImplementedError
+    def bin_centers(self):
+        if self.is_1d:
+            return self._bin_centers_x
+        return np.vstack((self._bin_centers_x, self._bin_centers_y))
 
     @property
-    def bins_centers_x(self):
-        raise NotImplementedError
+    def bin_centers_x(self):
+        return self._bin_centers_x
 
     @property
-    def bins_centers_y(self):
-        raise NotImplementedError
+    def bin_centers_y(self):
+        if self.is_2d:
+            return self._bin_centers_y
+        else:
+            raise ValueError('only valid for 2D RateMap() objects.')
 
     @property
     def mask(self):
@@ -491,25 +637,38 @@ class BayesianDecoderTemp(BaseEstimator):
 
     """
 
-    def __init__(self, mode='hist', w=None):
-        self._mode = self._validate_mode(mode)
+    def __init__(self, rate_estimator=None, w=None, ratemap=None):
+        self._rate_estimator = self._validate_rate_estimator(rate_estimator)
+        self._ratemap = self._validate_ratemap(ratemap)
         self._w = self._validate_window(w)
 
     @property
-    def mode(self):
-        return self._mode
+    def rate_estimator(self):
+        return self._rate_estimator
+
+    @property
+    def ratemap(self):
+        return self._ratemap
 
     @property
     def w(self):
         return self._w
 
     @staticmethod
-    def _validate_mode(mode):
-        mode = str(mode).strip().lower()
-        valid_modes = ['hist']
-        if mode in valid_modes:
-            return mode
-        raise NotImplementedError("mode '{}' is not supported yet!".format(str(mode)))
+    def _validate_rate_estimator(rate_estimator):
+        if rate_estimator is None:
+            rate_estimator = FiringRateEstimator()
+        elif not isinstance(rate_estimator, FiringRateEstimator):
+            raise TypeError("'rate_estimator' must be a nelpy FiringRateEstimator() type!")
+        return rate_estimator
+
+    @staticmethod
+    def _validate_ratemap(ratemap):
+        if ratemap is None:
+            ratemap = RateMap()
+        elif not isinstance(ratemap, RateMap):
+            raise TypeError("'ratemap' must be a nelpy RateMap() type!")
+        return ratemap
 
     @staticmethod
     def _validate_window(w):
@@ -627,12 +786,20 @@ class BayesianDecoderTemp(BaseEstimator):
         self : object
         """
 
+        # estimate the firing rate(s):
+        self.rate_estimator.fit(X,y)
+        # store the estimated firing rates as a rate map:
+        bin_centers = self.rate_estimator.tc_.bin_centers #temp code FIXME
+        bins = self.rate_estimator.tc_.bins #temp code FIXME
+        rates = self.rate_estimator.tc_.ratemap #temp code FIXME
+        unit_ids = np.array(self.rate_estimator.tc_.unit_ids) #temp code FIXME
+        self.ratemap.fit(X=bin_centers,
+                         y=rates,
+                         unit_ids=unit_ids) #temp code FIXME
+
         # self._check_unit_ids(X, unit_ids, method='fit')
         X, y = self._check_X_y(X, y, method='fit')
-
-        self.ratemap_ = None
-        # return self._partial_fit(X, y, np.unique(y), _refit=True,
-        #                          sample_weight=sample_weight)
+        self.ratemap_ = self.ratemap.ratemap_
 
     def predict(self, X, *, output=None, lengths=None, unit_ids=None):
         # if output is 'asa', then return an ASA
@@ -700,7 +867,7 @@ class FiringRateEstimator(BaseEstimator):
 
     """
 
-    def __init__(self, mode='hist', *args, **kwargs):
+    def __init__(self, mode='hist'):
         self._mode = mode
         #TODO: check that mode is valid:
 
@@ -724,9 +891,17 @@ class FiringRateEstimator(BaseEstimator):
         -------
         self : object
         """
-        X, y = check_X_y(X, y)
-        return self._partial_fit(X, y, np.unique(y), _refit=True,
-                                 sample_weight=sample_weight)
+        #TODO: implement sophisticated firing rate estimation here;
+        # TuninCurve1D is a deprecated drop-in.
+        self.tc_ = TuningCurve1D(bst=X, extern=y, n_extern=100, extmin=y.min(), extmax=y.max(), sigma=2.5, min_duration=0)
+        # X, y = check_X_y(X, y)
+
+        # return self._partial_fit(X, y, np.unique(y), _refit=True,
+        #                          sample_weight=sample_weight)
+
+    @property
+    def mode(self):
+        return self._mode
 
     def predict(self, X, lengths=None):
         raise NotImplementedError
