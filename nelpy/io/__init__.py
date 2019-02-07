@@ -11,6 +11,7 @@ This is the nelpy IO module.
 
 from . import hc3
 from . import hc18
+from . import hc11
 from . import matlab
 from . import neuralynx
 from . import neo
