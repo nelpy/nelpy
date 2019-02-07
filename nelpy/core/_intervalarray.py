@@ -11,6 +11,8 @@ from .. import formatters
 from .. import utils
 from .. import version
 
+from ..utils_.decorators import keyword_equivalence
+
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -45,13 +47,13 @@ class IntervalArray:
     __aliases__ = {}
     __attributes__ = ["_data", "_meta", "_domain"]
 
-    def __init__(self, data=None, *args, length=None, 
+    def __init__(self, data=None, *args, length=None,
                  meta=None, empty=False, domain=None, label=None):
 
         self.__version__ = version.__version__
 
         self.type_name = self.__class__.__name__
-        self.interval_name = 'interval'
+        self._interval_label = 'interval'
         self.formatter = formatters.ArbitraryFormatter
         self.base_unit = self.formatter.base_unit
 
@@ -164,9 +166,9 @@ class IntervalArray:
         if self.isempty:
             return "<empty " + self.type_name + address_str + ">"
         if self.n_intervals > 1:
-            nstr = "%s %ss" % (self.n_intervals, self.interval_name)
+            nstr = "%s %ss" % (self.n_intervals, self._interval_label)
         else:
-            nstr = "1 %s" % self.interval_name
+            nstr = "1 %s" % self._interval_label
         dstr = "of length {}".format(self.formatter(self.length))
         return "<%s%s: %s> %s" % (self.type_name, address_str, nstr, dstr)
 
@@ -183,6 +185,13 @@ class IntervalArray:
         #return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
+    def _copy_without_data(self):
+        """Return a copy of self, without data."""
+        out = copy.copy(self) # shallow copy
+        out._data = np.zeros((self.n_intervals, 2))
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        return out
+
     def __iter__(self):
         """IntervalArray iterator initialization."""
         # initialize the internal index to zero when used as iterator
@@ -194,18 +203,9 @@ class IntervalArray:
         index = self._index
         if index > self.n_intervals - 1:
             raise StopIteration
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            intervalarray = type(self)(empty=True)
 
-            exclude = ["_data"]
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("intervalarray." + attr + " = self." + attr)
-            intervalarray._data = np.array([self.data[index, :]])
+        intervalarray = self._copy_without_data()
+        intervalarray._data = np.array([self.data[index, :]])
         self._index += 1
         return intervalarray
 
@@ -321,6 +321,7 @@ class IntervalArray:
         """Remove duplicate intervals."""
         raise NotImplementedError
 
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, *, ds=None, n_intervals=None):
         """Returns an IntervalArray that has been partitioned.
 
@@ -637,10 +638,12 @@ class IntervalArray:
         this = copy.deepcopy(self)
         new_intervals = []
         for epa in this:
-            for epb in interval:
-                new_interval = self._intersect(epa,epb, boundaries=boundaries)
-                if not new_interval.isempty:
-                    new_intervals.append([new_interval.start, new_interval.stop])
+            cand_ep_idx = np.argwhere((interval.starts < epa.stop) & (interval.stops > epa.start)).squeeze()
+            if np.size(cand_ep_idx) > 0:
+                for epb in interval[cand_ep_idx.tolist()]:
+                    new_interval = self._intersect(epa, epb, boundaries=boundaries)
+                    if not new_interval.isempty:
+                        new_intervals.append([new_interval.start, new_interval.stop])
         out = type(self)(new_intervals)
         out._domain = self.domain
         return out
@@ -708,6 +711,71 @@ class IntervalArray:
                 np.array(new_stops)[..., np.newaxis]])
 
         return interval_a
+
+    # def intersect2(self, interval, *, boundaries=True):
+    #     """Returns intersection (overlap) between current IntervalArray (self) and
+    #        other interval array ('interval').
+    #     """
+
+    #     this = copy.deepcopy(self)
+    #     new_intervals = []
+    #     for epa in self.data:
+    #         for epb in interval.data:
+    #             new_interval = self._intersect2(epa, epb)
+    #             print(new_interval)
+    #             if len(new_interval) > 0:
+    #                 new_intervals.append(new_interval)
+    #     print(new_intervals)
+    #     new_intervals = np.array(new_intervals)
+    #     print(new_intervals.shape)
+    #     out = type(self)(new_intervals)
+    #     out._domain = self.domain
+    #     return out
+
+    # def _intersect2(self, aa, bb, *, boundaries=True, meta=None):
+    #     """Finds intersection (overlap) between two sets of interval arrays.
+
+    #     TODO: verify if this requires a merged IntervalArray to work properly?
+    #     ISSUE_261: not fixed yet
+
+    #     TODO: domains are not preserved yet! careful consideration is necessary.
+
+    #     Parameters
+    #     ----------
+    #     interval : nelpy.IntervalArray
+    #     boundaries : bool
+    #         If True, limits start, stop to interval start and stop.
+    #     meta : dict, optional
+    #         New dictionary of meta data for interval ontersection.
+
+    #     Returns
+    #     -------
+    #     intersect_intervals : nelpy.IntervalArray
+    #     """
+    #     if len(aa) == 0 or len(bb) == 0:
+    #         warnings.warn('interval intersection is empty')
+    #         return []
+
+    #     new_start = []
+    #     new_stop = []
+
+    #     if (aa[0] <= bb[0] < aa[1]) and (aa[0] < bb[1] <= aa[1]):
+    #         new_start = bb[0]
+    #         new_stops = bb[1]
+    #     elif (aa[0] < bb[0] < aa[1]) and (aa[0] < bb[1] > aa[1]):
+    #         new_start = bb[0]
+    #         new_stop = aa[1]
+    #     elif (aa[0] > bb[0] < aa[1]) and (aa[0] < bb[1] < aa[1]):
+    #         new_start = aa[0]
+    #         new_stop = bb[1]
+    #     # else (aa[0] >= bb[0] < aa[1]) and (aa[0] < bb[1] >= aa[1]):
+    #     else:
+    #         new_start = aa[0]
+    #         new_stop = aa[1]
+
+    #     out = [new_start, new_stop]
+
+    #     return out
 
     def merge(self, *, gap=0.0, overlap=0.0):
         """Merge intervals that are close or overlapping.
@@ -781,74 +849,6 @@ class IntervalArray:
             # then we just need to keep merging...
             gap = 0.0
             overlap_ = 0.0
-
-        return newintervalarray
-
-    def merge_old(self, *, gap=0.0, overlap=0.0):
-        """Merge intervals that are close or overlapping.
-
-        if gap == 0 and overlap == 0:
-            [a, b) U [b, c) = [a, c)
-        if gap == None and overlap > 0:
-            [a, b) U [b, c) = [a, b) U [b, c)
-            [a, b + overlap) U [b, c) = [a, c)
-            [a, b) U [b - overlap, c) = [a, c)
-        if gap > 0 and overlap == None:
-            [a, b) U [b, c) = [a, c)
-            [a, b) U [b + gap, c) = [a, c)
-            [a, b - gap) U [b, c) = [a, c)
-
-
-        WARNING! Algorithm only works on SORTED intervals.
-
-        Parameters
-        ----------
-        gap : float, optional
-            Amount (in base units) to consider intervals close enough to merge.
-            Defaults to 0.0 (no gap).
-        Returns
-        -------
-        merged_intervals : nelpy.IntervalArray
-        """
-
-        if gap < 0:
-            raise ValueError("gap cannot be negative")
-
-        if (self.ismerged) and (gap==0.0):
-            # already merged
-            return self
-
-        newintervalarray = copy.copy(self)
-
-        if not newintervalarray.issorted:
-            newintervalarray._sort()
-
-        while not newintervalarray.ismerged or gap>0:
-            stops = newintervalarray.stops[:-1] + gap
-            starts = newintervalarray.starts[1:]
-            to_merge = (stops - starts) >= 0
-
-            new_starts = [newintervalarray.starts[0]]
-            new_stops = []
-
-            next_stop = newintervalarray.stops[0]
-            for i in range(newintervalarray.data.shape[0] - 1):
-                this_stop = newintervalarray.stops[i]
-                next_stop = max(next_stop, this_stop)
-                if not to_merge[i]:
-                    new_stops.append(next_stop)
-                    new_starts.append(newintervalarray.starts[i + 1])
-
-            new_stops.append(newintervalarray.stops[-1])
-
-            new_starts = np.array(new_starts)
-            new_stops = np.array(new_stops)
-
-            newintervalarray._data = np.vstack([new_starts, new_stops]).T
-
-            # after one pass, all the gap offsets have been added, and
-            # then we just need to keep merging...
-            gap = 0.0
 
         return newintervalarray
 
@@ -995,37 +995,38 @@ class EpochArray(IntervalArray):
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
         super().__init__(*args, **kwargs)
 
-        self.interval_name = 'epoch'
+        self._interval_label = 'epoch'
         self.formatter = formatters.PrettyDuration
         self.base_unit = self.formatter.base_unit
 
-    # override some functions for API backwards compatibility:
-    def partition(self, *, ds=None, n_epochs=None, n_intervals=None):
-        """Returns an EpochArray that has been partitioned.
+    # # override some functions for API backwards compatibility:
+    # @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    # def partition(self, *, ds=None, n_epochs=None, n_intervals=None):
+    #     """Returns an EpochArray that has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
+    #     # Irrespective of whether 'ds' or 'n_epochs' are used, the exact
+    #     # underlying support is propagated, and the first and last points
+    #     # of the supports are always included, even if this would cause
+    #     # n_points or ds to be violated.
 
-        Parameters
-        ----------
-        ds : float, optional
-            Maximum length, for each interval.
-        n_epochs : int, optional
-            Number of epochs / intervals. If ds is None and n_epochs is None,
-            then default is to use n_epochs = 100
+    #     Parameters
+    #     ----------
+    #     ds : float, optional
+    #         Maximum length, for each interval.
+    #     n_epochs : int, optional
+    #         Number of epochs / intervals. If ds is None and n_epochs is None,
+    #         then default is to use n_epochs = 100
 
-        Returns
-        -------
-        out : EpochArray
-            EpochArray that has been partitioned.
-        """
+    #     Returns
+    #     -------
+    #     out : EpochArray
+    #         EpochArray that has been partitioned.
+    #     """
 
-        if n_intervals is None:
-            n_intervals = n_epochs
-        kwargs = {'ds':ds, 'n_intervals': n_intervals}
-        return super().partition(**kwargs)
+    #     if n_intervals is None:
+    #         n_intervals = n_epochs
+    #     kwargs = {'ds':ds, 'n_intervals': n_intervals}
+    #     return super().partition(**kwargs)
 
 class SpaceArray(IntervalArray):
     """IntervalArray containing spatial intervals (in cm)."""

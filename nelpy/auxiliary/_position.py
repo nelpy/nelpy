@@ -5,6 +5,7 @@ import numpy as np
 
 from ..core import _analogsignalarray, _epocharray
 from .. import utils
+from ..utils_.decorators import keyword_deprecation
 
 class PositionArray(_analogsignalarray.AnalogSignalArray):
 
@@ -143,7 +144,8 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         """Bin position into grid."""
         raise NotImplementedError
 
-    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False,
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def smooth(self, *, fs=None, sigma=None, truncate=None, inplace=False,
                Kalman=False):
         """Smooths the regularly sampled PositionArray with a Gaussian kernel.
 
@@ -161,7 +163,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
             be obtained from asa.fs
         sigma : float, optional
             Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
-        bw : float, optional
+        truncate : float, optional
             Bandwidth outside of which the filter value will be zero. Default is 4.0
         inplace : bool
             If True the data will be replaced with the smoothed data.
@@ -189,7 +191,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         kwargs = {'inplace' : inplace,
                 'fs' : fs,
                 'sigma' : sigma,
-                'bw' : bw}
+                'truncate' : truncate}
 
         out = utils.gaussian_filter(self, **kwargs)
         out.__renew__()

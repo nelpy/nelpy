@@ -1,5 +1,6 @@
 __all__ = ['decode_and_plot_events1D',
-           'plot_cum_error_dist']
+           'plot_cum_error_dist',
+           'plot_posteriors']
 
 import numpy as np
 # import matplotlib as mpl
@@ -15,6 +16,45 @@ from .. import decoding
 from . import utils as plotutils
 from ..utils import is_sorted, collapse_time
 from .core import rasterplot, imagesc
+
+def plot_posteriors(bst, tuningcurve, idx=None, w=1, bin_px_size=0.08):
+
+    if idx is not None:
+        bst = bst[idx]
+    tc = tuningcurve
+
+    # decode neural activity
+    posterior, bdries, mode_pth, mean_pth = decoding.decode1D(bst=bst, ratemap=tc, xmin=tc.bins[0], xmax=tc.bins[-1], w=w)
+
+    pixel_width = 0.5
+
+    n_ext, n_bins = posterior.shape
+    lengths = np.diff(bdries)
+
+    plt.figure(figsize=(bin_px_size*n_bins,2))
+    ax = plt.gca()
+
+    imagesc(x=np.arange(n_bins), y=np.arange(int(tc.bins[-1]+1)), data=posterior, cmap=plt.cm.Spectral_r, ax=ax)
+    plotutils.yticks_interval(tc.bins[-1])
+    plotutils.no_yticks(ax)
+    # plt.imshow(posterior, cmap=plt.cm.Spectral_r, interpolation='none', aspect='auto')
+    ax.vlines(np.arange(lengths.sum())-pixel_width, *ax.get_ylim(), lw=1, linestyle=':', color='0.8')
+    ax.vlines(np.cumsum(lengths)-pixel_width, *ax.get_ylim(), lw=1)
+
+    ax.set_xlim(-pixel_width, lengths.sum()-pixel_width)
+
+    event_centers = np.insert(np.cumsum(lengths),0,0)
+    event_centers = event_centers[:-1] + lengths/2 - 0.5
+
+    ax.set_xticks(event_centers);
+    if idx is not None:
+        ax.set_xticklabels(idx);
+    else:
+        ax.set_xticklabels(np.arange(bst.n_intervals));
+
+    plotutils.no_xticks(ax)
+
+    return ax
 
 def decode_and_plot_events1D(*, bst, tc, raster=True, st=None, st_order='track',
                              evt_subset=None, **kwargs):
@@ -196,17 +236,13 @@ def plot_cum_error_dist(*, cumhist=None, bincenters=None,
 
         # annotate inset
         thresh1 = 0.7
-        bcidx = np.asscalar(np.argwhere(cumhist>thresh1)[0]-1)
-        inset_ax.hlines(thresh1, 0, bincenters[bcidx], color=color, alpha=0.9, linestyle='--')
-        inset_ax.vlines(bincenters[bcidx], 0, thresh1, color=color, alpha=0.9, linestyle='--')
-
-        inset_ax.set_xlim(0,12*np.ceil(bincenters[bcidx]/10))
+        inset_ax.hlines(thresh1, 0, cumhist(thresh1), color=color, alpha=0.9, lw=lw, linestyle='--')
+        inset_ax.vlines(cumhist(thresh1), 0, thresh1, color=color, alpha=0.9, lw=lw, linestyle='--')
+        inset_ax.set_xlim(0,12*np.ceil(cumhist(thresh1)/10))
 
         thresh2 = 0.5
-        bcidx = np.asscalar(np.argwhere(cumhist>thresh2)[0]-1)
-
-        inset_ax.hlines(thresh2, 0, bincenters[bcidx], color=color, alpha=0.6, linestyle='--')
-        inset_ax.vlines(bincenters[bcidx], 0, thresh2, color=color, alpha=0.6, linestyle='--')
+        inset_ax.hlines(thresh2, 0, cumhist(thresh2), color=color, alpha=0.6, lw=lw, linestyle='--')
+        inset_ax.vlines(cumhist(thresh2), 0, thresh2, color=color, alpha=0.6, lw=lw, linestyle='--')
 
         inset_ax.set_yticks((0,thresh1, thresh2, 1))
         inset_ax.set_ylim(0)

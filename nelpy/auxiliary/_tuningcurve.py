@@ -7,6 +7,7 @@ import scipy.ndimage.filters
 import warnings
 
 from .. import utils
+from ..utils_.decorators import keyword_deprecation
 
 # TODO: TuningCurve2D
 # 1. init from rate map
@@ -40,8 +41,9 @@ class TuningCurve2D:
     __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels",
                       "_unit_tags", "_label", "_mask"]
 
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
     def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None,
-                 bw=None, ext_nx=None, ext_ny=None, transform_func=None,
+                 truncate=None, ext_nx=None, ext_ny=None, transform_func=None,
                  minbgrate=None, ext_xmin=0, ext_ymin=0, ext_xmax=1, ext_ymax=1,
                  extlabels=None, min_duration=None, unit_ids=None,
                  unit_labels=None, unit_tags=None, label=None, empty=False):
@@ -152,7 +154,7 @@ class TuningCurve2D:
         # TODO: support 2D sigma
         if sigma is not None:
             if sigma > 0:
-                self.smooth(sigma=sigma, bw=bw, inplace=True)
+                self.smooth(sigma=sigma, truncate=truncate, inplace=True)
 
         # optionally detach _bst and _extern to save space when pickling, for example
         self._detach()
@@ -197,8 +199,6 @@ class TuningCurve2D:
         -------
         si : array of shape (n_units,)
             spatial information (in bits) per unit
-        sparsity: array of shape (n_units,)
-            sparsity (in percent) for each unit
         """
 
         return utils.spatial_information(ratemap=self.ratemap)
@@ -559,7 +559,8 @@ class TuningCurve2D:
     def __len__(self):
         return self.n_units
 
-    def smooth(self, *, sigma=None, bw=None, inplace=False, mode=None, cval=None):
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
 
         mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
@@ -571,8 +572,8 @@ class TuningCurve2D:
         """
         if sigma is None:
             sigma = 0.1 # in units of extern
-        if bw is None:
-            bw = 4
+        if truncate is None:
+            truncate = 4
         if mode is None:
             mode = 'reflect'
         if cval is None:
@@ -590,9 +591,9 @@ class TuningCurve2D:
 
         if self.mask is None:
             if self.n_units > 1:
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
+                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
             else:
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
+                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
         else: # we have a mask!
             # smooth, dealing properly with NANs
             # NB! see https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
@@ -604,13 +605,13 @@ class TuningCurve2D:
             W[masked_ratemap!=masked_ratemap]=0
 
             if self.n_units > 1:
-                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(0, sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
-                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(0, sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
+                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(0, sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
+                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(0, sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
                 Z=VV/WW
                 out._ratemap = Z*self.mask
             else:
-                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
-                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(sigma_x, sigma_y), truncate=bw, mode=mode, cval=cval)
+                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
+                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
                 Z=VV/WW
                 out._ratemap = Z*self.mask
 
@@ -743,8 +744,9 @@ class TuningCurve1D:
 
     __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
 
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
     def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None,
-                 bw=None, n_extern=None, transform_func=None, minbgrate=None,
+                 truncate=None, n_extern=None, transform_func=None, minbgrate=None,
                  extmin=0, extmax=1, extlabels=None, unit_ids=None,
                  unit_labels=None, unit_tags=None, label=None,
                  min_duration=None, empty=False):
@@ -825,7 +827,7 @@ class TuningCurve1D:
 
         if sigma is not None:
             if sigma > 0:
-                self.smooth(sigma=sigma, bw=bw, inplace=True)
+                self.smooth(sigma=sigma, truncate=truncate, inplace=True)
 
         # optionally detach _bst and _extern to save space when pickling, for example
         self._detach()
@@ -1242,7 +1244,8 @@ class TuningCurve1D:
     def __len__(self):
         return self.n_units
 
-    def smooth(self, *, sigma=None, bw=None, inplace=False, mode=None, cval=None):
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
 
         mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
@@ -1254,8 +1257,8 @@ class TuningCurve1D:
         """
         if sigma is None:
             sigma = 0.1 # in units of extern
-        if bw is None:
-            bw = 4
+        if truncate is None:
+            truncate = 4
         if mode is None:
             mode = 'reflect'
         if cval is None:
@@ -1270,9 +1273,9 @@ class TuningCurve1D:
             out = self
 
         if self.n_units > 1:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma), truncate=bw, mode=mode, cval=cval)
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma), truncate=truncate, mode=mode, cval=cval)
         else:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=sigma, truncate=bw, mode=mode, cval=cval)
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=sigma, truncate=truncate, mode=mode, cval=cval)
 
         return out
 
@@ -1487,7 +1490,7 @@ class TuningCurve1D:
 
 #     __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
 
-#     def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False):
+#     def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None, truncate=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False):
 #         """
 
 #         If sigma is nonzero, then smoothing is applied.
@@ -1535,7 +1538,8 @@ class DirectionalTuningCurve1D(TuningCurve1D):
     __attributes__ = ["_unit_ids_l2r", "_unit_ids_r2l"]
     __attributes__.extend(TuningCurve1D.__attributes__)
 
-    def __init__(self, *, bst_l2r, bst_r2l, bst_combined, extern, sigma=None, bw=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False,
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def __init__(self, *, bst_l2r, bst_r2l, bst_combined, extern, sigma=None, truncate=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False,
     min_peakfiringrate=None, max_avgfiringrate=None, unimodal=False):
         """
 
@@ -1599,7 +1603,7 @@ class DirectionalTuningCurve1D(TuningCurve1D):
         self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
         if sigma is not None:
             if sigma > 0:
-                self.smooth(sigma=sigma, bw=bw, inplace=True)
+                self.smooth(sigma=sigma, truncate=truncate, inplace=True)
         # store l2r ratemap
         ratemap_l2r = self.ratemap.copy()
 
@@ -1615,7 +1619,7 @@ class DirectionalTuningCurve1D(TuningCurve1D):
         self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
         if sigma is not None:
             if sigma > 0:
-                self.smooth(sigma=sigma, bw=bw, inplace=True)
+                self.smooth(sigma=sigma, truncate=truncate, inplace=True)
         # store r2l ratemap
         ratemap_r2l = self.ratemap.copy()
 
@@ -1631,7 +1635,7 @@ class DirectionalTuningCurve1D(TuningCurve1D):
         self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
         if sigma is not None:
             if sigma > 0:
-                self.smooth(sigma=sigma, bw=bw, inplace=True)
+                self.smooth(sigma=sigma, truncate=truncate, inplace=True)
         # store combined ratemap
         ratemap = self.ratemap
 

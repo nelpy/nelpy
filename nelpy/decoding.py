@@ -9,7 +9,14 @@ __all__ = ['decode1D',
            'get_mean_pth_from_array']
 
 import numpy as np
+import numbers
+
+from scipy.special import logsumexp
+
 from . import auxiliary
+from . import core
+from . import utils
+from . core._eventarray import ItemGetter_iloc, ItemGetter_loc
 
 def get_mode_pth_from_array(posterior, tuningcurve=None):
     """If tuningcurve is provided, then we map it back to the external coordinates / units.
@@ -128,7 +135,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
 
     if nospk_prior is None:
         nospk_prior = np.full(n_xbins, np.nan)
-    elif isinstance(nospk_priors, numbers.Number):
+    elif isinstance(nospk_prior, numbers.Number):
         nospk_prior = np.full(n_xbins, 1.0)
 
     assert nospk_prior.shape[0] == n_xbins, "prior must have length {}".format(n_xbins)
@@ -184,7 +191,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
                 posterior[:,post_idx] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
 
     # normalize posterior:
-    posterior = np.exp(posterior) / np.tile(np.exp(posterior).sum(axis=0),(n_xbins,1))
+    posterior = np.exp(posterior - logsumexp(posterior, axis=0))
 
     # TODO: what was my rationale behid the following? Why not use bin centers?
     # _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
@@ -273,7 +280,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
 
     if nospk_prior is None:
         nospk_prior = np.full((n_xbins, n_ybins), np.nan)
-    elif isinstance(nospk_priors, numbers.Number):
+    elif isinstance(nospk_prior, numbers.Number):
         nospk_prior = np.full((n_xbins, n_ybins), 1.0)
 
     assert nospk_prior.shape == (n_xbins, n_ybins), "prior must have shape ({}, {})".format(n_xbins, n_ybins)
@@ -314,7 +321,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
                 obs = datacum[:, re] - datacum[:, re-w] # spikes in window of size w
                 re+=1
                 post_idx = cum_posterior_lengths[ii] + tt
-                if obs.sum() == 0 and _skip_empty_bins:
+                if obs.sum() == 0 and not _skip_empty_bins:
                     # no spikes to decode in window!
                     posterior[:,:,post_idx] = nospk_prior
                 else:
@@ -323,7 +330,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
               # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
             post_idx = cum_posterior_lengths[ii]
             obs = datacum[:, -1] # spikes in window of size at most w
-            if obs.sum() == 0 and _skip_empty_bins:
+            if obs.sum() == 0 and not _skip_empty_bins:
                 # no spikes to decode in window!
                 posterior[:,:,post_idx] = nospk_prior
             else:
@@ -331,6 +338,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
 
     # normalize posterior:
     # see http://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
+
     for tt in range(n_tbins):
         posterior[:,:,tt] = posterior[:,:,tt] - posterior[:,:,tt].max()
         posterior[:,:,tt] = np.exp(posterior[:,:,tt])
@@ -411,7 +419,29 @@ def k_fold_cross_validation(X, k=None, randomize=False):
         validation = [x for i, x in enumerate(X) if i % k == _k_]
         yield training, validation
 
-def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, tuningcurve=None, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins=None):
+from scipy import interpolate
+
+class Cumhist(np.ndarray):
+
+    def __new__(cls, cumhist, bincenters):
+        obj = np.asarray(cumhist).view(cls)
+        obj._bincenters = bincenters
+        return obj
+
+    def __call__(self, *val):
+
+        f = interpolate.interp1d(x=self,
+                                 y=self._bincenters,
+                                 kind='linear',
+                                 fill_value=np.NaN)
+        try:
+            vals = np.asscalar(f(*val))
+        except ValueError:
+            vals = f(*val)
+
+        return vals
+
+def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins=None, randomize=False):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
     procedure.
@@ -422,7 +452,6 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
         BinnedSpikeTrainArray containing all the epochs to be decoded.
         Should typically have the same type of epochs as the ratemap
         (e.g., online epochs), but this is not a requirement.
-    tuningcurve : TuningCurve1D
     extern : query-able object of external correlates (e.g. pos AnalogSignalArray)
     ratemap : array_like
         The ratemap (in Hz) with shape (n_units, n_ext) where n_ext are
@@ -462,7 +491,7 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
     # indices of training and validation epochs / events
 
     hist = np.zeros(n_bins)
-    for training, validation in k_fold_cross_validation(bst.n_epochs, k=k):
+    for training, validation in k_fold_cross_validation(bst.n_epochs, k=k, randomize=randomize):
         # estimate place fields using bst[training]
         tc = auxiliary.TuningCurve1D(bst=bst[training], extern=extern, n_extern=n_extern, extmin=extmin, extmax=extmax, sigma=sigma)
         # decode position using bst[validation]
@@ -487,6 +516,7 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
     cumhist = np.append(cumhist, 1)
     bincenters = np.append(bincenters, max_error)
 
+    cumhist = Cumhist(cumhist, bincenters)
     return cumhist, bincenters
 
 def cumulative_dist_decoding_error(bst, *, tuningcurve, extern,
@@ -552,6 +582,8 @@ def cumulative_dist_decoding_error(bst, *, tuningcurve, extern,
     cumhist = np.append(cumhist, 1)
     bincenters = np.append(bincenters, max_error)
 
+    cumhist = Cumhist(cumhist, bincenters)
+
     return cumhist, bincenters
 
 def rmse(predictions, targets):
@@ -573,3 +605,101 @@ def rmse(predictions, targets):
     targets = np.asanyarray(targets)
     rmse = np.sqrt(np.nanmean((predictions - targets) ** 2))
     return rmse
+
+
+class BayesianDecoder(object):
+    """
+    current nelpy Bayesian decoding lacks several potentially important elements:
+        - (1) directional tuning curves
+        - (2) theta (and gamma?) phase information (esp. in PFC)
+        - (4) a unified approach for 1D, 2D, and ND decoding?
+        - (3) a scikit-like API with support for numpy and nelpy
+        - full Bayesian incorporation on prior information
+        - arbitraty bin-and-stride specification
+        - dynamical model, e.g., Kalman smoother
+        - adaptive mode for model to be updated?
+
+    To support (1) and (2), we need
+        a. easy ways to extract spikes at a particular phase,
+        b. ways to incorporate multiple tuning curves (per condition/phase) in
+           one decoder model?
+        c. ways to easily extract direction
+        d. support to decode using multiple alternatives, and return best one?
+
+    For example, for a given bst, we could split data into different conditions,
+    e.g., theta phase bin (x8), and direction (x2), for a total of 16 conditions.
+    Then we would learn a model for each of the 16 conditions, and subsequently
+    when we decode, we would combine the results.
+
+    Q1. Is there a nice hierarchical way in which we can share some information
+        between the different conditions? Otherwise we really don't have much
+        data...
+    Q2. How do we deal with the unknown direction during decoding? Is this an EM
+        or missing value problem? Or do we marginalize?
+
+    Q3. How do we bin in time? Does theta-phase-augmented decoding now become a
+        binning-in-phase, rather than a binning-in-time problem? How do we
+        extend all our existing machinery to deal with that? (we won't have a
+        fixed bst.ds anymore, for example).
+
+        ==> an alternative is to bin into something relatively small (thata/8?)
+            and then to associate a phase with the (fixed-duration) temporal bin.
+            Q. can we weigh bins by their phase?
+
+    See https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3129134/
+        http://rstb.royalsocietypublishing.org/content/364/1521/1193
+        and Jensen & Lisman 2000
+    """
+
+    def __init__(self, tuningcurve=None):
+        if tuningcurve is not None:
+            self.tuningcurve = tuningcurve
+        pass
+
+    # def __new__(cls, *args):
+    #     raise NotImplementedError
+
+    def fit(self, X):
+        raise NotImplementedError
+
+    def predict(self, X):
+        raise NotImplementedError
+
+    def predict_proba(self, X):
+        raise NotImplementedError
+
+    def predict_proba_bst(self, X, sigma=0, w=1):
+        if isinstance(X, core.BinnedEventArray):
+            posteriors, bdries, mode_pth, mean_pth = decode1D(X, self.tuningcurve.smooth(sigma=sigma), w=w)
+
+            m, n = posteriors.shape
+
+            bins, bin_centers, binnedSupport, support = utils._bst_get_bins(X.support, ds=X.ds, w=w)
+            bst = core.BinnedSpikeTrainArray(empty=True)
+            bst._binnedSupport = binnedSupport
+            bst._bins = bins
+            bst._data = posteriors
+            # selfs die support mag dalk verander het, maar dit is altyd KLEINER as die oorspronkilke
+            bst._abscissa.support = support
+            bst._bin_centers = bin_centers
+            bst.loc = ItemGetter_loc(bst)
+            bst.iloc = ItemGetter_iloc(bst)
+            bst._ds = X.ds # funksie van bst.ds en w ?
+            bst.series_ids = np.array(list(range(1, m + 1)), ndmin=1)
+            bst.series_labels = np.array(list(range(1, m + 1)), ndmin=1)
+            bst._series_tags = None
+
+            # asa = nel.PositionArray(data=mean_pth, timestamps=bst.bin_centers, support=bst.support, fs=1/bst.ds)
+            # asa._ordinate.label = 'position ({})'
+            # asa._ordinate.base_unit = 'cm'
+
+        else:
+            raise NotImplementedError
+
+        return bst
+
+    def predict_asa(self, X):
+        raise NotImplementedError
+
+    def __repr__(self):
+        raise NotImplementedError

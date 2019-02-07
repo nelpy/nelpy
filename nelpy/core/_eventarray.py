@@ -25,12 +25,16 @@ __all__ = ['EventArray',
 import warnings
 import numpy as np
 import copy
+import numbers
+import logging
 
 from abc import ABC, abstractmethod
 
 from .. import core
 from .. import utils
 from .. import version
+
+from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -97,14 +101,14 @@ class ItemGetter_loc(object):
                 else:
                     istart = self.obj._series_ids.index(start)
             except ValueError:
-                raise KeyError('series_id {} could not be found in EventArrayABC!'.format(start))
+                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(start))
             try:
                 if stop is None:
                     istop = self.obj.n_series
                 else:
                     istop = self.obj._series_ids.index(stop) + 1
             except ValueError:
-                raise KeyError('series_id {} could not be found in EventArrayABC!'.format(stop))
+                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(stop))
             if istep is None:
                 istep = 1
             if istep < 0:
@@ -119,7 +123,7 @@ class ItemGetter_loc(object):
                 try:
                     uidx = self.obj.series_ids.index(series)
                 except ValueError:
-                    raise KeyError("series_id {} could not be found in EventArrayABC!".format(series))
+                    raise KeyError("series_id {} could not be found in BaseEventArray!".format(series))
                 else:
                     series_idx_list.append(uidx)
 
@@ -188,9 +192,9 @@ class ItemGetter_iloc(object):
         return out
 
 ########################################################################
-# class EventArrayABC
+# class BaseEventArray
 ########################################################################
-class EventArrayABC(ABC):
+class BaseEventArray(ABC):
     """Base class for EventArray and BinnedEventArray.
 
     NOTE: This class can't really be instantiated, almost like a pseudo
@@ -237,7 +241,7 @@ class EventArrayABC(ABC):
     __attributes__ = ["_fs", "_series_ids", "_series_labels", "_series_tags", "_label"]
 
     def __init__(self, *, fs=None, series_ids=None, series_labels=None,
-                 series_tags=None, label=None, empty=False, abscissa=None, ordinate=None):
+                 series_tags=None, label=None, empty=False, abscissa=None, ordinate=None, **kwargs):
 
         self.__version__ = version.__version__
         self.type_name = self.__class__.__name__
@@ -247,6 +251,11 @@ class EventArrayABC(ABC):
             ordinate = core.Ordinate() #TODO: integrate into constructor?
         self._abscissa = abscissa
         self._ordinate = ordinate
+
+        series_label = kwargs.pop('series_label', None)
+        if series_label is None:
+            series_label = 'series'
+        self._series_label = series_label
 
         # if an empty object is requested, return it:
         if empty:
@@ -296,11 +305,95 @@ class EventArrayABC(ABC):
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
-        return "<EventArrayABC" + address_str + ">"
+        return "<BaseEventArray" + address_str + ">"
+
+    def __mul__(self, other):
+        """Overloaded * operator"""
+
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data * other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T * other).T
+            neweva.__renew__()
+            return neweva
+        else:
+            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+    def __rmul__(self, other):
+        """Overloaded * operator"""
+        return self.__mul__(other)
+
+    def __sub__(self, other):
+        """Overloaded - operator"""
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data - other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T - other).T
+            neweva.__renew__()
+            return neweva
+        else:
+            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+
+    def __add__(self, other):
+        """Overloaded + operator"""
+
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data + other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T + other).T
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, type(self)):
+
+            #TODO: additional checks need to be done, e.g., same series ids...
+            assert self.n_series == other.n_series
+            support = self._abscissa.support + other.support
+
+            newdata = []
+            for series in range(self.n_series):
+                newdata.append(np.append(self.data[series], other.data[series]))
+
+            fs = self.fs
+            if self.fs != other.fs:
+                fs = None
+            return type(self)(newdata, support=support, fs=fs)
+        else:
+            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+    def __truediv__(self, other):
+        """Overloaded / operator"""
+
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data / other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T / other).T
+            neweva.__renew__()
+            return neweva
+        else:
+            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
 
     @abstractmethod
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
-        """Returns a EventArrayABC whose support has been partitioned.
+        """Returns a BaseEventArray whose support has been partitioned.
 
         # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
         # underlying support is propagated, and the first and last points
@@ -317,14 +410,14 @@ class EventArrayABC(ABC):
 
         Returns
         -------
-        out : EventArrayABC
-            EventArrayABC that has been partitioned.
+        out : BaseEventArray
+            BaseEventArray that has been partitioned.
         """
         return
 
     @abstractmethod
     def isempty(self):
-        """(bool) Empty EventArrayABC."""
+        """(bool) Empty BaseEventArray."""
         return
 
     @abstractmethod
@@ -341,7 +434,7 @@ class EventArrayABC(ABC):
 
     @property
     def series_ids(self):
-        """Unit IDs contained in the EventArrayABC."""
+        """Unit IDs contained in the BaseEventArray."""
         return self._series_ids
 
     @series_ids.setter
@@ -360,9 +453,10 @@ class EventArrayABC(ABC):
 
     @property
     def series_labels(self):
-        """Labels corresponding to series contained in the EventArrayABC."""
+        """Labels corresponding to series contained in the BaseEventArray."""
         if self._series_labels is None:
             warnings.warn("series labels have not yet been specified")
+            return self.series_ids
         return self._series_labels
 
     @series_labels.setter
@@ -379,7 +473,7 @@ class EventArrayABC(ABC):
 
     @property
     def series_tags(self):
-        """Tags corresponding to series contained in the EventArrayABC"""
+        """Tags corresponding to series contained in the BaseEventArray"""
         if self._series_tags is None:
             warnings.warn("series tags have not yet been specified")
         return self._series_tags
@@ -466,71 +560,14 @@ class EventArrayABC(ABC):
         self._label = label
 
     def _series_subset(self, series_list):
-        """Return a EventArrayABC restricted to a subset of series.
+        """Return a BaseEventArray restricted to a subset of series.
 
         Parameters
         ----------
         series_list : array-like
             Array or list of series_ids.
         """
-        series_subset_ids = []
-        for series in series_list:
-            try:
-                id = self.series_ids.index(series)
-            except ValueError:
-                warnings.warn("series_id " + str(series) + " not found in EventArrayABC; ignoring")
-                pass
-            else:
-                series_subset_ids.append(id)
-
-        new_series_ids = (np.asarray(self.series_ids)[series_subset_ids]).tolist()
-        new_series_labels = (np.asarray(self.series_labels)[series_subset_ids]).tolist()
-
-        if isinstance(self, EventArray):
-            if len(series_subset_ids) == 0:
-                warnings.warn("no series remaining in requested series subset")
-                return EventArray(empty=True)
-
-            eventarray = EventArray(empty=True)
-            exclude = ["_data", "series_ids", "series_labels"]
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("eventarray." + attr + " = self." + attr)
-
-            eventarray._data = self.data[series_subset_ids]
-            eventarray._series_ids = new_series_ids
-            eventarray._series_labels = new_series_labels
-            eventarray.loc = ItemGetter_loc(eventarray)
-            eventarray.iloc = ItemGetter_iloc(eventarray)
-
-            return eventarray
-        elif isinstance(self, BinnedEventArray):
-            if len(series_subset_ids) == 0:
-                warnings.warn("no series remaining in requested series subset")
-                return BinnedEventArray(empty=True)
-
-            binnedeventarray = BinnedEventArray(empty=True)
-            exclude = ["_data", "series_ids", "series_labels"]
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("binnedeventarray." + attr + " = self." + attr)
-
-            binnedeventarray._data = self.data[series_subset_ids,:]
-            binnedeventarray._series_ids = new_series_ids
-            binnedeventarray._series_labels = new_series_labels
-            binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
-            binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
-
-            return binnedeventarray
-        else:
-            raise NotImplementedError(
-            "EventArrayABC._series_slice() not supported for this type yet!")
+        return self.loc[:,series_list]
 
     def __setattr__(self, name, value):
         # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
@@ -545,11 +582,10 @@ class EventArrayABC(ABC):
         #return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
-
 ########################################################################
 # class EventArray
 ########################################################################
-class EventArray(EventArrayABC):
+class EventArray(BaseEventArray):
     """A multiseries eventarray with shared support.
 
     Parameters
@@ -589,7 +625,7 @@ class EventArray(EventArrayABC):
     """
 
     __attributes__ = ["_data"]
-    __attributes__.extend(EventArrayABC.__attributes__)
+    __attributes__.extend(BaseEventArray.__attributes__)
     def __init__(self, abscissa_vals=None, *, fs=None, support=None,
                  series_ids=None, series_labels=None, series_tags=None,
                  label=None, empty=False, **kwargs):
@@ -633,9 +669,12 @@ class EventArray(EventArrayABC):
             """
             try:
                 if isinstance(data[0][0], list) or isinstance(data[0][0], np.ndarray):
-                    warnings.warn("event datas input has too many layers!")
-                    if max(np.array(data).shape[:-1]) > 1:
-        #                 singletons = True
+                    logging.info("event datas input has too many layers!")
+                    try:
+                        if max(np.array(data).shape[:-1]) > 1:
+            #                 singletons = True
+                            return False
+                    except ValueError:
                         return False
                     data = np.squeeze(data)
             except (IndexError, TypeError):
@@ -716,14 +755,15 @@ class EventArray(EventArrayABC):
             self.support = support
 
         # TODO: if sorted, we may as well use the fast restrict here as well?
-        data = self._restrict_to_interval_array(
+        data = self._restrict_to_interval_array_fast(
             intervalarray=self.support,
             data=data)
 
         self._data = data
 
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
-        """Returns a EventArrayABC whose support has been partitioned.
+        """Returns a BaseEventArray whose support has been partitioned.
 
         # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
         # underlying support is propagated, and the first and last points
@@ -740,8 +780,8 @@ class EventArray(EventArrayABC):
 
         Returns
         -------
-        out : EventArrayABC
-            EventArrayABC that has been partitioned.
+        out : BaseEventArray
+            BaseEventArray that has been partitioned.
         """
 
         out = copy.copy(self)
@@ -750,8 +790,6 @@ class EventArray(EventArrayABC):
         out._abscissa = abscissa
         out.loc = ItemGetter_loc(out)
         out.iloc = ItemGetter_iloc(out)
-
-        #TODO: renew interval slicers !
 
         return out
 
@@ -769,22 +807,6 @@ class EventArray(EventArrayABC):
         newcopy.iloc = ItemGetter_iloc(newcopy)
         return newcopy
 
-    def __add__(self, other):
-        """Overloaded + operator"""
-
-        #TODO: additional checks need to be done, e.g., same series ids...
-        assert self.n_series == other.n_series
-        support = self._abscissa.support + other.support
-
-        newdata = []
-        for series in range(self.n_series):
-            newdata.append(np.append(self.data[series], other.data[series]))
-
-        fs = self.fs
-        if self.fs != other.fs:
-            fs = None
-        return EventArray(newdata, support=support, fs=fs)
-
     def __iter__(self):
         """EventArray iterator initialization."""
         # initialize the internal index to zero when used as iterator
@@ -796,25 +818,9 @@ class EventArray(EventArrayABC):
         index = self._index
         if index > self._abscissa.support.n_intervals - 1:
             raise StopIteration
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            support = self._abscissa.support[index]
-            data = self._restrict_to_interval_array_fast(
-                intervalarray=support,
-                data=self.data,
-                copyover=True
-                )
-            eventarray = EventArray(empty=True)
-            exclude = ["_data", "_support"]
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-            for attr in attrs:
-                exec("eventarray." + attr + " = self." + attr)
-            eventarray._data = data
-            eventarray._abscissa.support = support
-            eventarray.loc = ItemGetter_loc(eventarray)
-            eventarray.iloc = ItemGetter_iloc(eventarray)
+
         self._index += 1
-        return eventarray
+        return self.loc[index]
 
     def _intervalslicer(self, idx):
         """Helper function to restrict object to EpochArray."""
@@ -823,13 +829,13 @@ class EventArray(EventArrayABC):
 
         if isinstance(idx, core.IntervalArray):
             if idx.isempty:
-                return EventArray(empty=True)
+                return type(self)(empty=True)
             support = self._abscissa.support.intersect(
                     interval=idx,
                     boundaries=True
                     ) # what if fs of slicing interval is different?
             if support.isempty:
-                return EventArray(empty=True)
+                return type(self)(empty=True)
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -1003,7 +1009,7 @@ class EventArray(EventArrayABC):
                     data_list.extend(evt_data[start:stop])
                 data_ = data.tolist()
                 data_[series] = np.array(data_list)
-                data = np.array(data_)
+                data = utils.ragged_array(data_)
         return data
 
     @staticmethod
@@ -1052,7 +1058,7 @@ class EventArray(EventArrayABC):
                 data_ = data.tolist()
                 data_[series] = np.array(data_[series])
                 data_[series] = data_[series][indices]
-                data = np.array(data_)
+                data = utils.ragged_array(data_)
         return data
 
     def __repr__(self):
@@ -1073,7 +1079,7 @@ class EventArray(EventArrayABC):
                 labelstr = " from %s" % self.label
             else:
                 labelstr = ""
-            numstr = " %s series" % self.n_series # TODO # FIXME swap this with type specific label, e.g., 'units'
+            numstr = " %s %s" % (self.n_series, self._series_label)
         return "<%s%s:%s%s>%s%s" % (self.type_name, address_str, numstr, epstr, fsstr, labelstr)
 
     def bin(self, *, ds=None):
@@ -1192,6 +1198,24 @@ class EventArray(EventArrayABC):
 
         return firing_order
 
+    @property
+    def first_event(self):
+        """Returns the [time of the] first event across all series."""
+        first = np.inf
+        for series in self.data:
+            if series[0] < first:
+                first = series[0]
+        return first
+
+    @property
+    def last_event(self):
+        """Returns the [time of the] last event across all series."""
+        last = -np.inf
+        for series in self.data:
+            if series[-1] > last:
+                last = series[-1]
+        return last
+
 #----------------------------------------------------------------------#
 #======================================================================#
 
@@ -1199,7 +1223,7 @@ class EventArray(EventArrayABC):
 ########################################################################
 # class BinnedEventArray
 ########################################################################
-class BinnedEventArray(EventArrayABC):
+class BinnedEventArray(BaseEventArray):
     """Binned eventarray.
 
     Parameters
@@ -1216,7 +1240,7 @@ class BinnedEventArray(EventArrayABC):
 
     __attributes__ = ["_ds", "_bins", "_data", "_bin_centers",
                       "_binnedSupport", "_eventarray"]
-    __attributes__.extend(EventArrayABC.__attributes__)
+    __attributes__.extend(BaseEventArray.__attributes__)
 
     def __init__(self, eventarray=None, *, ds=None, empty=False, **kwargs):
 
@@ -1315,8 +1339,62 @@ class BinnedEventArray(EventArrayABC):
             ds=ds
             )
 
+    def mean(self,*,axis=1):
+        """Returns the mean of each series in BinnedEventArray."""
+        try:
+            means = np.nanmean(self.data, axis=axis).squeeze()
+            if means.size == 1:
+                return np.asscalar(means)
+            return means
+        except IndexError:
+            raise IndexError("Empty BinnedEventArray; cannot calculate mean.")
+
+    def std(self,*,axis=1):
+        """Returns the standard deviation of each series in BinnedEventArray."""
+        try:
+            stds = np.nanstd(self.data,axis=axis).squeeze()
+            if stds.size == 1:
+                return np.asscalar(stds)
+            return stds
+        except IndexError:
+            raise IndexError("Empty BinnedEventArray; cannot calculate standard deviation")
+
+    def center(self, inplace=False):
+        """Center data (zero mean)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T - out.mean()).T
+        return out
+
+    def normalize(self, inplace=False):
+        """Normalize data (unit standard deviation)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        std = out.std()
+        std[std==0] = 1
+        out._data = (out._data.T / std).T
+        return out
+
+    def standardize(self, inplace=False):
+        """Standardize data (zero mean and unit std deviation)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T - out.mean()).T
+        std = out.std()
+        std[std==0] = 1
+        out._data = (out._data.T / std).T
+
+        return out
+
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
-        """Returns a EventArrayABC whose support has been partitioned.
+        """Returns a BaseEventArray whose support has been partitioned.
 
         # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
         # underlying support is propagated, and the first and last points
@@ -1333,8 +1411,8 @@ class BinnedEventArray(EventArrayABC):
 
         Returns
         -------
-        out : EventArrayABC
-            EventArrayABC that has been partitioned.
+        out : BaseEventArray
+            BaseEventArray that has been partitioned.
         """
 
         partitioned = type(self)(core.RegularlySampledAnalogSignalArray(self).partition(ds=ds, n_intervals=n_intervals))
@@ -1347,9 +1425,9 @@ class BinnedEventArray(EventArrayABC):
     def _copy_without_data(self):
         """Returns a copy of the BinnedEventArray, without data."""
         out = copy.copy(self) # shallow copy
-        out._bin_centers = None
-        out._binnedSupport = None
-        out._bins = None
+        # out._bin_centers = None
+        # out._binnedSupport = None
+        # out._bins = None
         out._data = np.zeros((self.n_series,0))
         out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
@@ -1365,7 +1443,7 @@ class BinnedEventArray(EventArrayABC):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
             return "<empty " + self.type_name + address_str + ">"
-        ustr = " {} series".format(self.n_series)
+        ustr = " {} {}".format(self.n_series, self._series_label)
         if self._abscissa.support.n_intervals > 1:
             epstr = " ({} segments) in".format(self._abscissa.support.n_intervals)
         else:
@@ -1391,6 +1469,7 @@ class BinnedEventArray(EventArrayABC):
         if index > self._abscissa.support.n_intervals - 1:
             raise StopIteration
 
+        # TODO: return self.loc[index], and make sure that __getitem__ is updated
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             support = self._abscissa.support[index]
@@ -1595,7 +1674,7 @@ class BinnedEventArray(EventArrayABC):
     @property
     def data(self):
         """(np.array) Event counts in all bins, with shape (n_series, n_bins).
-        See also BinnedEventArrayABC.centers
+        See also BinnedBaseEventArray.centers
         """
         return self._data
 
@@ -1736,9 +1815,10 @@ class BinnedEventArray(EventArrayABC):
         support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
         support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
         supportdata = np.vstack([support_starts, support_stops]).T
-        self.support = type(self._abscissa.support)(supportdata) # set support to TRUE bin support
+        self._abscissa.support = type(self._abscissa.support)(supportdata) # set support to TRUE bin support
 
-    def smooth(self, *, sigma=None, inplace=False,  bw=None, within_intervals=False):
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def smooth(self, *, sigma=None, inplace=False,  truncate=None, within_intervals=False):
         """Smooth BinnedEventArray by convolving with a Gaussian kernel.
 
         Smoothing is applied in data, and the same smoothing is applied
@@ -1750,7 +1830,7 @@ class BinnedEventArray(EventArrayABC):
         ----------
         sigma : float, optional
             Standard deviation of Gaussian kernel, in seconds. Default is 0.01 (10 ms)
-        bw : float, optional
+        truncate : float, optional
             Bandwidth outside of which the filter value will be zero. Default is 4.0
         inplace : bool
             If True the data will be replaced with the smoothed data.
@@ -1762,14 +1842,14 @@ class BinnedEventArray(EventArrayABC):
             New BinnedEventArray with smoothed data.
         """
 
-        if bw is None:
-            bw=4
+        if truncate is None:
+            truncate = 4
         if sigma is None:
             sigma = 0.01 # 10 ms default
 
         fs = 1 / self.ds
 
-        return utils.gaussian_filter(self, fs=fs, sigma=sigma, bw=bw, inplace=inplace, within_intervals=within_intervals)
+        return utils.gaussian_filter(self, fs=fs, sigma=sigma, truncate=truncate, inplace=inplace, within_intervals=within_intervals)
 
     @staticmethod
     def _smooth_array(arr, w=None):
@@ -2082,15 +2162,8 @@ class BinnedEventArray(EventArrayABC):
         if series_label is None:
             series_label = "flattened"
 
-        binnedeventarray = BinnedEventArray(empty=True)
+        binnedeventarray = self._copy_without_data()
 
-        exclude = ["_data", "series_ids", "series_labels", "series_tags"]
-        attrs = (x for x in self.__attributes__ if x not in "_data")
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("binnedeventarray." + attr + " = self." + attr)
         binnedeventarray._data = np.array(self.data.sum(axis=0), ndmin=2)
         binnedeventarray._series_ids = [series_id]
         binnedeventarray._series_labels = [series_label]
@@ -2098,6 +2171,32 @@ class BinnedEventArray(EventArrayABC):
         binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
         binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
         return binnedeventarray
+
+    @property
+    def support(self):
+        """(nelpy.IntervalArray) The support of the underlying BinnedEventArray."""
+        return self._abscissa.support
+
+    @support.setter
+    def support(self, val):
+        """(nelpy.IntervalArray) The support of the underlying BinnedEventArray."""
+        # modify support
+        if isinstance(val, type(self._abscissa.support)):
+            self._abscissa.support = val
+        elif isinstance(val, (tuple, list)):
+            prev_domain = self._abscissa.domain
+            self._abscissa.support = type(self._abscissa.support)([val[0], val[1]])
+            self._abscissa.domain = prev_domain
+        else:
+            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+        # restrict data to new support
+        self._data = self._restrict_to_interval_array_fast(
+                intervalarray=self._abscissa.support,
+                data=self.data,
+                copyover=True
+                )
+        #TODO: modify binnedSupport attribute to match new support
+        raise NotImplementedError('setting the support of a BST does not yet propagate properly to the data and binnedSupport attributes')
 
     @staticmethod
     def _restrict_to_interval_array_fast(intervalarray, data, copyover=True):
@@ -2141,6 +2240,14 @@ def legacySTAkwargs(**kwargs):
     if abscissa_vals is not None:
         kwargs['abscissa_vals'] = abscissa_vals
 
+    series_ids = kwargs.pop('unit_ids', None)
+    series_tags = kwargs.pop('unit_tags', None)
+    series_labels = kwargs.pop('unit_labels', None)
+
+    kwargs['series_ids'] = series_ids
+    kwargs['series_tags'] = series_tags
+    kwargs['series_labels'] = series_labels
+
     return kwargs
 
 class SpikeTrainArray(EventArray):
@@ -2156,7 +2263,7 @@ class SpikeTrainArray(EventArray):
         'n_epochs': 'n_intervals',
         'n_units' : 'n_series',
         '_unit_subset' : '_series_subset', # requires kw change
-        # 'get_event_firing_order' : 'get_spike_firing_order'
+        'get_event_firing_order' : 'get_spike_firing_order',
         'reorder_units_by_ids' : 'reorder_series_by_ids',
         'reorder_units' : 'reorder_series',
         '_reorder_units_by_idx' : '_reorder_series_by_idx',
@@ -2166,12 +2273,19 @@ class SpikeTrainArray(EventArray):
         'unit_tags': 'series_tags',
         '_unit_ids' : '_series_ids',
         '_unit_labels': '_series_labels',
-        '_unit_tags': '_series_tags'
+        '_unit_tags': '_series_tags',
+        'first_spike': 'first_event',
+        'last_spike': 'last_event',
         }
 
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+
+        series_label = kwargs.pop('series_label', None)
+        if series_label is None:
+            series_label = 'units'
+        kwargs['series_label'] = series_label
 
         # legacy STA constructor support for backward compatibility
         kwargs = legacySTAkwargs(**kwargs)
@@ -2188,17 +2302,16 @@ class SpikeTrainArray(EventArray):
 
         super().__init__(*args, **kwargs)
 
-    def partition(self, ds=None, n_intervals=None, n_epochs=None):
-        if n_intervals is None:
-            n_intervals = n_epochs
-        kwargs = {'ds':ds, 'n_intervals': n_intervals}
-        return super().partition(**kwargs)
-
+    # @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    # def partition(self, ds=None, n_intervals=None, n_epochs=None):
+    #     if n_intervals is None:
+    #         n_intervals = n_epochs
+    #     kwargs = {'ds':ds, 'n_intervals': n_intervals}
+    #     return super().partition(**kwargs)
 
     def bin(self, *, ds=None):
         """Return a BinnedSpikeTrainArray."""
         return BinnedSpikeTrainArray(self, ds=ds) # TODO #FIXME
-
 
 class BinnedSpikeTrainArray(BinnedEventArray):
     """Custom SpikeTrainArray docstring with kwarg descriptions.
@@ -2242,8 +2355,8 @@ class BinnedSpikeTrainArray(BinnedEventArray):
 
         super().__init__(*args, **kwargs)
 
-    def partition(self, ds=None, n_intervals=None, n_epochs=None):
-        if n_intervals is None:
-            n_intervals = n_epochs
-        kwargs = {'ds':ds, 'n_intervals': n_intervals}
-        return super().partition(**kwargs)
+    # def partition(self, ds=None, n_intervals=None, n_epochs=None):
+    #     if n_intervals is None:
+    #         n_intervals = n_epochs
+    #     kwargs = {'ds':ds, 'n_intervals': n_intervals}
+    #     return super().partition(**kwargs)

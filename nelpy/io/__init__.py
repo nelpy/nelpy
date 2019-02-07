@@ -10,6 +10,8 @@ This is the nelpy IO module.
 # also add hdf5 support, especially for pandas
 
 from . import hc3
+from . import hc18
+from . import hc11
 from . import matlab
 from . import neuralynx
 from . import neo

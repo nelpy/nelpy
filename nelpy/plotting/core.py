@@ -24,7 +24,8 @@ __all__ = ['plot',
            'matshow',
            'epochplot',
            'rasterplot',
-           'rastercountplot']
+           'rastercountplot',
+           '_plot_ratemap']
 
 def colorline(x, y, cmap=None, cm_range=(0, 0.7), **kwargs):
     """Colorline plots a trajectory of (x,y) points with a colormap"""
@@ -53,6 +54,67 @@ def colorline(x, y, cmap=None, cm_range=(0, 0.7), **kwargs):
     ax.add_collection(lc)
 
     return lc
+
+def _plot_ratemap(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None):
+    """
+    WARNING! This function is not complete, and hence 'private',
+    and may be moved somewhere else later on.
+
+    If pad=0 then the y-axis is assumed to be firing rate
+    """
+    if ax is None:
+        ax = plt.gca()
+
+    # xmin = ratemap.bins[0]
+    # xmax = ratemap.bins[-1]
+    # xvals = ratemap.bin_centers
+    if unit_labels is None:
+        unit_labels = ratemap.unit_ids
+    ratemap = ratemap.ratemap_
+
+    if pad is None:
+        pad = ratemap.mean()/2
+
+    n_units, n_ext = ratemap.shape
+
+    if normalize:
+        peak_firing_rates = ratemap.max(axis=1)
+        ratemap = (ratemap.T / peak_firing_rates).T
+
+    # determine max firing rate
+    max_firing_rate = ratemap.max()
+    xvals = np.arange(n_ext)
+
+    for unit, curve in enumerate(ratemap):
+        if color is None:
+            line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit))
+        else:
+            line = ax.plot(xvals, unit*pad + curve, zorder=int(10+2*n_units-2*unit), color=color)
+        if fill:
+            # Get the color from the current curve
+            fillcolor = line[0].get_color()
+            ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=0.3, color=fillcolor, zorder=int(10+2*n_units-2*unit-1))
+
+    # ax.set_xlim(xmin, xmax)
+    if pad != 0:
+        yticks = np.arange(n_units)*pad + 0.5*pad
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(unit_labels)
+        ax.set_xlabel('external variable')
+        ax.set_ylabel('unit')
+        utils.no_yticks(ax)
+        utils.clear_left(ax)
+    else:
+        if normalize:
+            ax.set_ylabel('normalized firing rate')
+        else:
+            ax.set_ylabel('firing rate [Hz]')
+        ax.set_ylim(0)
+
+    utils.clear_top(ax)
+    utils.clear_right(ax)
+
+    return ax
 
 def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None):
     """
@@ -324,7 +386,10 @@ def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
     """
 
     def extents(f):
-        delta = f[1] - f[0]
+        if len(f) > 1:
+            delta = f[1] - f[0]
+        else:
+            delta = 1
         return [f[0] - delta/2, f[-1] + delta/2]
 
     if ax is None:
@@ -345,7 +410,7 @@ def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
     if not large:
         # Matplotlib imshow
         image = ax.imshow(data, aspect='auto', interpolation='none',
-            extent=extents(x) + extents(y), origin='lower', **kwargs)
+                extent=extents(x) + extents(y), origin='lower', **kwargs)
     else:
         # ModestImage imshow for large images, but 'extent' is still not working well
         image = utils.imshow(axes=ax, X=data, aspect='auto', interpolation='none',
@@ -682,6 +747,13 @@ def plot2d(npl_obj, data=None, *, ax=None, mew=None, color=None,
                             markerfacecolor='w',
                             **kwargs
                             )
+
+    if isinstance(npl_obj, core.PositionArray):
+        xlim, ylim = npl_obj.xlim, npl_obj.ylim
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
     return ax
 
 def imshow(data, *, ax=None, interpolation=None, **kwargs):
@@ -734,7 +806,7 @@ def occupancy():
     """Docstring goes here. TODO: complete me."""
     raise NotImplementedError("occupancy() not implemented yet")
 
-def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None):
+def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None, **kwargs):
     """Plot an epoch array similar to vscode scrollbar, to show gaps in e.g.
     matshow plots. TODO: complete me.
 
@@ -750,7 +822,7 @@ def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None):
     ax_ = divider.append_axes("top", size=0.2, pad=0.05)
 
     for epoch in epochs:
-        ax_.plot([epoch.start, epoch.stop], [1,1], lw=lw, solid_capstyle=solid_capstyle)
+        ax_.plot([epoch.start, epoch.stop], [1,1], lw=lw, solid_capstyle=solid_capstyle, **kwargs)
 
     if label is not None:
         ax_.set_yticks([1])
@@ -867,66 +939,66 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
 
     # override labels
     if labels is not None:
-        unit_labels = labels
+        series_labels = labels
     else:
-        unit_labels = []
+        series_labels = []
 
     hh = lh/2.0  # half the line height
 
     # Handle different types of input data
-    if isinstance(data, core.SpikeTrainArray):
+    if isinstance(data, core.EventArray):
 
         label_data = ax.findobj(match=RasterLabelData)[0].label_data
-        unitlist = [np.NINF for element in data.unit_ids]
+        serieslist = [np.NINF for element in data.series_ids]
         # no override labels so use unit_labels from input
-        if not unit_labels:
-            unit_labels = data.unit_labels
+        if not series_labels:
+            series_labels = data.series_labels
 
         if firstplot:
             if vertstack:
                 minunit = 1
-                maxunit = data.n_units
-                unitlist = range(1, data.n_units + 1)
+                maxunit = data.n_series
+                serieslist = range(1, data.n_series + 1)
             else:
-                minunit = np.array(data.unit_ids).min()
-                maxunit = np.array(data.unit_ids).max()
-                unitlist = data.unit_ids
-        # see if any of the unit_ids has already been plotted. If so,
+                minunit = np.array(data.series_ids).min()
+                maxunit = np.array(data.series_ids).max()
+                serieslist = data.series_ids
+        # see if any of the series_ids has already been plotted. If so,
         # then merge
         else:
-            for idx, unit_id in enumerate(data.unit_ids):
-                if unit_id in label_data.keys():
-                    position, _ = label_data[unit_id]
-                    unitlist[idx] = position
+            for idx, series_id in enumerate(data.series_ids):
+                if series_id in label_data.keys():
+                    position, _ = label_data[series_id]
+                    serieslist[idx] = position
                 else:  # unit not yet plotted
                     if vertstack:
-                        unitlist[idx] = 1 + max(int(ax.get_yticks()[-1]),
-                                                max(unitlist))
+                        serieslist[idx] = 1 + max(int(ax.get_yticks()[-1]),
+                                                max(serieslist))
                     else:
                         warnings.warn("Spike trains may be plotted in "
                                       "the same vertical position as "
                                       "another unit")
-                        unitlist[idx] = data.unit_ids[idx]
+                        serieslist[idx] = data.series_ids[idx]
 
         if firstplot:
             minunit = int(minunit)
             maxunit = int(maxunit)
         else:
             (prev_ymin, prev_ymax) = ax.findobj(match=RasterLabelData)[0].yrange
-            minunit = int(np.min([np.ceil(prev_ymin), np.min(unitlist)]))
-            maxunit = int(np.max([np.floor(prev_ymax), np.max(unitlist)]))
+            minunit = int(np.min([np.ceil(prev_ymin), np.min(serieslist)]))
+            maxunit = int(np.max([np.floor(prev_ymax), np.max(serieslist)]))
 
         yrange = (minunit - 0.5, maxunit + 0.5)
 
         if cmap is not None:
-            color_range = range(data.n_units)
+            color_range = range(data.n_series)
             # TODO: if we go from 0 then most colormaps are invisible at one end of the spectrum
-            colors = cmap(np.linspace(cmap_lo, cmap_hi, data.n_units))
-            for unit, spiketrain, color_idx in zip(unitlist, data.time, color_range):
-                ax.vlines(spiketrain, unit - hh, unit + hh, colors=colors[color_idx], lw=lw, **kwargs)
+            colors = cmap(np.linspace(cmap_lo, cmap_hi, data.n_series))
+            for series_ii, series, color_idx in zip(serieslist, data.data, color_range):
+                ax.vlines(series, series_ii - hh, series_ii + hh, colors=colors[color_idx], lw=lw, **kwargs)
         else:  # use a constant color:
-            for unit, spiketrain in zip(unitlist, data.time):
-                ax.vlines(spiketrain, unit - hh, unit + hh, colors=color, lw=lw, **kwargs)
+            for series_ii, series in zip(serieslist, data.data):
+                ax.vlines(series, series_ii - hh, series_ii + hh, colors=color, lw=lw, **kwargs)
 
         # get existing label data so we can set some attributes
         rld = ax.findobj(match=RasterLabelData)[0]
@@ -934,15 +1006,15 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
         ax.set_ylim(yrange)
         rld.yrange = yrange
 
-        for unit_id, loc, label in zip(data.unit_ids, unitlist, unit_labels):
-            rld.label_data[unit_id] = (loc, label)
-        unitlocs = []
-        unitlabels = []
+        for series_id, loc, label in zip(data.series_ids, serieslist, series_labels):
+            rld.label_data[series_id] = (loc, label)
+        serieslocs = []
+        serieslabels = []
         for loc, label in label_data.values():
-            unitlocs.append(loc)
-            unitlabels.append(label)
-        ax.set_yticks(unitlocs)
-        ax.set_yticklabels(unitlabels)
+            serieslocs.append(loc)
+            serieslabels.append(label)
+        ax.set_yticks(serieslocs)
+        ax.set_yticklabels(serieslabels)
 
     else:
         raise NotImplementedError(
@@ -950,7 +1022,7 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     return ax
 
 def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
-                      alpha=0.5, hatch='////', label=None, hc=None,**kwargs):
+                      alpha=0.5, hatch='', label=None, hc=None,**kwargs):
     """Docstring goes here.
     """
     if ax is None:
@@ -984,11 +1056,8 @@ def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
             warnings.warn("Hatch color not supported for matplotlib <2.0")
 
     for ii, (start, stop) in enumerate(zip(epochs.starts, epochs.stops)):
-        ax.add_patch(
-            patches.Rectangle(
-                (start, ymin),   # (x,y)
-                width=stop - start ,          # width
-                height=height,          # height
+        ax.axvspan(start,
+                stop,
                 hatch=hatch,
                 facecolor=fc,
                 edgecolor=ec,
@@ -996,7 +1065,6 @@ def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
                 label=label if ii == 0 else "_nolegend_",
                 **kwargs
             )
-        )
 
     if epochs.start < xmin:
         xmin = epochs.start

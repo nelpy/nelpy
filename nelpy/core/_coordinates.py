@@ -1,7 +1,12 @@
 """This module contains abscissa and ordinate objects for core nelpy objects."""
-__all__ = ['Abscissa', 'Ordinate', 'AnalogSignalArrayAbscissa', 'AnalogSignalArrayOrdinate', 'TemporalAbscissa']
 
-import numpy as np
+__all__ = ['Abscissa',
+           'Ordinate',
+           'AnalogSignalArrayAbscissa',
+           'AnalogSignalArrayOrdinate',
+           'TemporalAbscissa']
+
+from numpy import inf
 
 from .. import core
 from .. import formatters
@@ -11,8 +16,12 @@ class Abscissa():
 
     Parameters
     ----------
-    data : np.array
-        The
+    support : nelpy.IntervalArray, optional
+        The support associated with the absicca.
+        Default is an empty IntervalArray.
+    is_wrapping : boolean, optional
+        Whether or not the abscissa is wrapping (continuous). Default is False.
+    labelstring : string, optional
 
     Attributes
     ----------
@@ -94,7 +103,7 @@ class Ordinate():
             labelstring = '{}'
 
         if _range is None:
-            _range = core.IntervalArray([-np.inf, np.inf])
+            _range = core.IntervalArray([-inf, inf])
 
         self.base_unit = base_unit
         self._labelstring = labelstring

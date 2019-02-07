@@ -1,4 +1,5 @@
 from nelpy.core import *
+from nelpy.utils import ragged_array
 import numpy as np
 
 class TestSpikeTrainArrayEtienne:
@@ -62,9 +63,11 @@ class TestSpikeTrainArrayEtienne:
     def test_15(self):
         sta = SpikeTrainArray([[1,2,3,5,10,11,12,15], [1,2,3,5,10,11,12,15]], fs=5)
         sta = sta.partition(n_epochs=5)
-        assert np.allclose(np.array([[1, 2, 3], [1, 2, 3]]), sta.iloc[0].time)
+        for aa, bb in zip(ragged_array([np.array([1, 2, 3]), np.array([1, 2, 3])]),  sta.iloc[0].data):
+            assert np.allclose(aa, bb)
 
     def test_16(self):
         sta = SpikeTrainArray([[1,2,3,5,10,11,12,15], [1,2,3,5,10,11,12,15]], fs=5)
         sta = sta.partition(n_epochs=5)
-        assert np.allclose(np.array([[5, 15], [5, 15]]), sta.iloc[[1,4],:].time)
+        for aa, bb in zip(ragged_array([np.array([5, 15]), np.array([5, 15])]),  sta.iloc[[1,4],:].data):
+            assert np.allclose(aa, bb)

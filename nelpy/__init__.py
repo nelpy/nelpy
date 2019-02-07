@@ -13,6 +13,7 @@ from .core import *
 from .auxiliary import *
 
 # from . import analysis
+from . import preprocessing
 from . import filtering
 from . import plotting
 from . import utils
@@ -28,6 +29,7 @@ from . import core
 # sys.modules['nelpy.core'] = core
 # sys.modules['nelpy.core._analogsignalarray'] = core._analogsignalarray
 sys.modules['nelpy.core._analogsignalarray'].EpochSignalSlicer = core._analogsignalarray.IntervalSignalSlicer
+sys.modules['nelpy.core._analogsignalarray'].TimestampSlicer = core._analogsignalarray.AbscissaSlicer
 sys.modules['nelpy.core._epocharray'] = core._intervalarray
 sys.modules['nelpy.core._spiketrain'] = core._eventarray
 sys.modules['nelpy.core._spiketrain'].EpochUnitSlicer = core._eventarray.IntervalSeriesSlicer

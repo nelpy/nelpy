@@ -29,6 +29,8 @@ from .. import auxiliary
 from .. import utils
 from .. import version
 
+from ..utils_.decorators import keyword_deprecation, keyword_equivalence
+
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
 warnings.formatwarning = lambda message, category, filename, lineno, \
@@ -255,10 +257,9 @@ class RegularlySampledAnalogSignalArray:
     """Continuous analog signal(s) with regular sampling rates (irregular
     sampling rates can be corrected with operations on the support) and same
     support. NOTE: data that is not equal dimensionality will NOT work
-    and error/warning messages may/may not be sent out. Also, in this
-    current rendition, I am assuming abscissa_vals are the exact same for all
-    signals passed through. As such, abscissa_vals are expected to be single
-    dimensional.
+    and error/warning messages may/may not be sent out. Assumes abscissa_vals
+    are identical for all signals passed through and are therefore expected
+    to be 1-dimensional
 
     Parameters
     ----------
@@ -353,11 +354,12 @@ class RegularlySampledAnalogSignalArray:
             self.__renew__()
             return
 
-        if(empty):
+        if (empty):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._abscissa.support = type(self._abscissa.support)(empty=True)
             self._data = np.array([])
+            self._abscissa_vals = np.array([])
             self.__bake__()
             return
 
@@ -458,6 +460,38 @@ class RegularlySampledAnalogSignalArray:
         """RegularlySampledAnalogSignalArray callable method; by default returns interpolated yvals"""
         f = lambda x: self.asarray(at=x).yvals
         return f(args)
+
+    def center(self, inplace=False):
+        """Center data (zero mean)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T - out.mean()).T
+        return out
+
+    def normalize(self, inplace=False):
+        """Normalize data (unit standard deviation)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        std = out.std()
+        std[std==0] = 1
+        out._data = (out._data.T / std).T
+        return out
+
+    def standardize(self, inplace=False):
+        """Standardize data (zero mean and unit std deviation)."""
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+        out._data = (out._data.T - out.mean()).T
+        std = out.std()
+        std[std==0] = 1
+        out._data = (out._data.T / std).T
+        return out
 
     @property
     def is_1d(self):
@@ -641,6 +675,11 @@ class RegularlySampledAnalogSignalArray:
             newasa._data = self.data * other
             newasa.__renew__()
             return newasa
+        elif isinstance(other, np.ndarray):
+            newasa = copy.copy(self)
+            newasa._data = (self.data.T * other).T
+            newasa.__renew__()
+            return newasa
         else:
             raise TypeError("unsupported operand type(s) for *: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
 
@@ -651,6 +690,11 @@ class RegularlySampledAnalogSignalArray:
             newasa._data = self.data + other
             newasa.__renew__()
             return newasa
+        elif isinstance(other, np.ndarray):
+            newasa = copy.copy(self)
+            newasa._data = (self.data.T + other).T
+            newasa.__renew__()
+            return newasa
         else:
             raise TypeError("unsupported operand type(s) for +: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
 
@@ -659,6 +703,11 @@ class RegularlySampledAnalogSignalArray:
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._data = self.data - other
+            newasa.__renew__()
+            return newasa
+        elif isinstance(other, np.ndarray):
+            newasa = copy.copy(self)
+            newasa._data = (self.data.T - other).T
             newasa.__renew__()
             return newasa
         else:
@@ -678,6 +727,11 @@ class RegularlySampledAnalogSignalArray:
         if isinstance(other, numbers.Number):
             newasa = copy.copy(self)
             newasa._data = self.data / other
+            newasa.__renew__()
+            return newasa
+        elif isinstance(other, np.ndarray):
+            newasa = copy.copy(self)
+            newasa._data = (self.data.T / other).T
             newasa.__renew__()
             return newasa
         else:
@@ -718,8 +772,28 @@ class RegularlySampledAnalogSignalArray:
             abscissa_vals = self._abscissa_vals
         return 1.0/np.median(np.diff(abscissa_vals))
 
-    def downsample(self, *, fs_out, aafilter=True, inplace=False):
-        out = utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, inplace=inplace)
+    def downsample(self, *, fs_out, aafilter=True, inplace=False, **kwargs):
+        """Downsamples the RegularlySampledAnalogSignalArray
+
+        Parameters
+        ----------
+        fs_out : float, optional
+            Desired output sampling rate in Hz
+        aafilter : boolean, optional
+            Whether to apply an anti-aliasing filter before performing the actual
+            downsampling. Default is True
+        inplace : boolean, optional
+            If True, the output ASA will replace the input ASA. Default is False
+        kwargs : 
+            Other keyword arguments are passed to utils.downsample_analogsignalarray()
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            The downsampled RegularlySampledAnalogSignalArray
+        """
+        out = utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, 
+                               inplace=inplace, **kwargs)
         out.__renew__()
         return out
 
@@ -858,7 +932,8 @@ class RegularlySampledAnalogSignalArray:
         if update:
             self._abscissa.support = intervalarray
 
-    def smooth(self, *, fs=None, sigma=None, bw=None, inplace=False, mode=None, cval=None, within_intervals=False):
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def smooth(self, *, fs=None, sigma=None, truncate=None, inplace=False, mode=None, cval=None, within_intervals=False):
         """Smooths the regularly sampled RegularlySampledAnalogSignalArray with a Gaussian kernel.
 
         Smoothing is applied along the abscissa, and the same smoothing is applied to each
@@ -875,7 +950,7 @@ class RegularlySampledAnalogSignalArray:
         sigma : float, optional
             Standard deviation of Gaussian kernel, in obj.base_units. Default is 0.05
             (50 ms if base_unit=seconds).
-        bw : float, optional
+        truncate : float, optional
             Bandwidth outside of which the filter value will be zero. Default is 4.0.
         inplace : bool
             If True the data will be replaced with the smoothed data.
@@ -901,13 +976,13 @@ class RegularlySampledAnalogSignalArray:
 
         if sigma is None:
             sigma = 0.05
-        if bw is None:
-            bw=4
+        if truncate is None:
+            truncate=4
 
         kwargs = {'inplace' : inplace,
                 'fs' : fs,
                 'sigma' : sigma,
-                'bw' : bw,
+                'truncate' : truncate,
                 'mode': mode,
                 'cval' : cval,
                 'within_intervals': within_intervals}
@@ -964,7 +1039,7 @@ class RegularlySampledAnalogSignalArray:
 
             tmp = utils.gaussian_filter(out.unwrap(), **kwargs)
             # (2) (3)
-            n_reps = int(np.ceil((sigma*bw)/float(D)))
+            n_reps = int(np.ceil((sigma*truncate)/float(D)))
 
             smooth_data = []
             for ss, signal in enumerate(tmp.signals):
@@ -1064,6 +1139,7 @@ class RegularlySampledAnalogSignalArray:
         dstr = " for a total of {}".format(self._abscissa.formatter(self.support.length))
         return "<%s%s:%s>%s" % (self.type_name, address_str, nstr, dstr)
 
+    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
         """Returns an RegularlySampledAnalogSignalArray whose support has been
         partitioned.
@@ -1341,7 +1417,7 @@ class RegularlySampledAnalogSignalArray:
     def mean(self,*,axis=1):
         """Returns the mean of each signal in RegularlySampledAnalogSignalArray."""
         try:
-            means = np.mean(self.data, axis=axis).squeeze()
+            means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
                 return np.asscalar(means)
             return means
@@ -1351,7 +1427,7 @@ class RegularlySampledAnalogSignalArray:
     def std(self,*,axis=1):
         """Returns the standard deviation of each signal in RegularlySampledAnalogSignalArray."""
         try:
-            stds = np.std(self.data,axis=axis).squeeze()
+            stds = np.nanstd(self.data,axis=axis).squeeze()
             if stds.size == 1:
                 return np.asscalar(stds)
             return stds
@@ -1664,11 +1740,21 @@ class RegularlySampledAnalogSignalArray:
         return xyarray
 
     def subsample(self, *, fs):
-        """Returns an RegularlySampledAnalogSignalArray where the data has been
-        subsampled to a new rate of fs.
+        """Subsamples a RegularlySampledAnalogSignalArray
 
         WARNING! Aliasing can occur! It is better to use downsample when
         lowering the sampling rate substantially.
+
+        Parameters
+        ----------
+        fs : float, optional
+            Desired output sampling rate, in Hz
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            Copy of RegularlySampledAnalogSignalArray where data is only stored at the
+            new subset of points.
         """
 
         return self.simplify(ds=1/fs)
@@ -1903,6 +1989,55 @@ class RegularlySampledAnalogSignalArray:
 
         return cdf
 
+    def _eegplot(self, ax=None, normalize=False, pad=None, fill=True, color=None):
+        """custom_func docstring goes here."""
+
+        import matplotlib.pyplot as plt
+        from ..plotting import utils as plotutils
+
+        if ax is None:
+            ax = plt.gca()
+
+        xmin = self.support.min
+        xmax = self.support.max
+        xvals = self._abscissa_vals
+
+        if pad is None:
+            pad = np.mean(self.data)/2
+
+        data = self.data.copy()
+
+        if normalize:
+            peak_vals = self.max()
+            data = (data.T / peak_vals).T
+
+        n_traces = self.n_signals
+
+        for tt, trace in enumerate(data):
+            if color is None:
+                line = ax.plot(xvals, tt*pad + trace, zorder=int(10+2*n_traces-2*tt))
+            else:
+                line = ax.plot(xvals, tt*pad + trace, zorder=int(10+2*n_traces-2*tt), color=color)
+            if fill:
+                # Get the color from the current curve
+                fillcolor = line[0].get_color()
+                ax.fill_between(xvals, tt*pad, tt*pad + trace, alpha=0.3, color=fillcolor, zorder=int(10+2*n_traces-2*tt-1))
+
+        ax.set_xlim(xmin, xmax)
+        if pad != 0:
+            # yticks = np.arange(n_traces)*pad + 0.5*pad
+            yticks = []
+            ax.set_yticks(yticks)
+            ax.set_xlabel(self._abscissa.label)
+            ax.set_ylabel(self._ordinate.label)
+            plotutils.no_yticks(ax)
+            plotutils.clear_left(ax)
+
+        plotutils.clear_top(ax)
+        plotutils.clear_right(ax)
+
+        return ax
+
     def __setattr__(self, name, value):
         # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
         name = self.__aliases__.get(name, name)
@@ -2010,7 +2145,11 @@ class PositionArray(AnalogSignalArray):
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+        xlim = kwargs.pop('xlim', None)
+        ylim = kwargs.pop('ylim', None)
         super().__init__(*args, **kwargs)
+        self._xlim = xlim
+        self._ylim = ylim
 
     @property
     def is_2d(self):
@@ -2037,6 +2176,30 @@ class PositionArray(AnalogSignalArray):
         if self.is_2d:
             return self.data[1,:]
         raise ValueError("PositionArray is not 2 dimensional, so y-values are undefined!")
+
+    @property
+    def xlim(self):
+        if self.is_2d:
+            return self._xlim
+        raise ValueError("PositionArray is not 2 dimensional, so xlim is not undefined!")
+
+    @xlim.setter
+    def xlim(self, val):
+        if self.is_2d:
+            self._xlim = xlim
+        raise ValueError("PositionArray is not 2 dimensional, so xlim cannot be defined!")
+
+    @property
+    def ylim(self):
+        if self.is_2d:
+            return self._ylim
+        raise ValueError("PositionArray is not 2 dimensional, so ylim is not undefined!")
+
+    @ylim.setter
+    def ylim(self, val):
+        if self.is_2d:
+            self._ylim = ylim
+        raise ValueError("PositionArray is not 2 dimensional, so ylim cannot be defined!")
 
 
 class IMUSensorArray(RegularlySampledAnalogSignalArray):

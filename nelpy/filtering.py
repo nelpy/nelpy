@@ -4,16 +4,22 @@
 
 __all__ = ['sosfiltfilt']
 
-import copy
-import numpy as np
+import ctypes
+import sys
 import warnings
+import numpy as np
+import scipy.signal as sig
 
-from .core import AnalogSignalArray
+from . import core
+from copy import deepcopy
+from itertools import repeat
+from multiprocessing import Process, Array, cpu_count
+from multiprocessing.pool import Pool
 
-def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False,
-                gpass=None, gstop=None, ftype='cheby2', buffer_len=4194304,
-                overlap_len=None, max_len=None, **kwargs):
-    """Zero-phase forward backward second-order-segment Chebyshev II filter.
+def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False,
+                gpass=None, gstop=None, ftype=None, buffer_len=None, overlap_len=None,
+                **kwargs):
+    """Zero-phase forward backward filtering using second-order-segments.
 
     # spike  600--6000
     # ripple 150--250
@@ -36,14 +42,14 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
 
     Parameters
     ----------
-    asa : nelpy.core.AnalogSignalArray (preferred), ndarray, or list
+    timeseries : nelpy.core.AnalogSignalArray (preferred), ndarray, or list
         Object or data to filter.
     fs : float, optional only if AnalogSignalArray is passed
-        The sampling frequency (Hz). Obtained from asa.
+        The sampling frequency (Hz). Obtained from the input timeseries.
     fl : float, optional
         Lower cut-off frequency (in Hz), 0 or None to ignore. Default is None.
     fh : float, optional
-        Upper cut-off frequency (in Hz), 0 or None to ignore. Default is None.
+        Upper cut-off frequency (in Hz), np.inf or None to ignore. Default is None.
     bandstop : boolean, optional
         If False, passband is between fl and fh. If True, stopband is between
         fl and fh. Default is False.
@@ -61,26 +67,24 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
     buffer_len : int, optional
         How much data to process at a time. Default is 2**22 = 4194304 samples.
     overlap_len : int, optional
-        How much data do we add to the end of each chunk to smooth out filter
-        transients
-    max_len : int, optional
-        When max_len == -1 or max_len == None, then argument is effectively
-        ignored. If max_len is a positive integer, thenmax_len specifies how
-        many samples to process.
+        How much data we add to the end of each chunk to smooth out filter
+        transients.
+    kwargs : optional
+        Other keyword arguments are passed to scipy.signal's iirdesign method
 
     Returns
     -------
     out : nelpy.core.AnalogSignalArray, ndarray, or list
-        Same output type as input asa.
+        Same output type as input timeseries.
     """
 
     # make sure that fs is specified, unless AnalogSignalArray is passed in
-    if isinstance(asa, (np.ndarray, list)):
+    if isinstance(timeseries, (np.ndarray, list)):
         if fs is None:
             raise ValueError("sampling frequency, fs, must be specified!")
-    elif isinstance(asa, AnalogSignalArray):
+    elif isinstance(timeseries, core.AnalogSignalArray):
         if fs is None:
-            fs = asa.fs
+            fs = timeseries.fs
     else:
         raise TypeError('unsupported input type!')
 
@@ -93,25 +97,20 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
     except TypeError:
         pass
 
-    from scipy.signal import sosfiltfilt, iirdesign
-
     if inplace:
-        out = asa
+        out = timeseries
     else:
-        from copy import deepcopy
-        out = deepcopy(asa)
-
+        out = deepcopy(timeseries)
     if overlap_len is None:
         overlap_len = int(fs*2)
-
-    buffer_len = 4194304
+    if buffer_len is None:
+        buffer_len = 4194304
     if gpass is None:
         gpass = 0.1 # max loss in passband, dB
-
     if gstop is None:
         gstop = 30 # min attenuation in stopband (dB)
-
-    fso2 = fs/2.0
+    if ftype is None:
+        ftype = 'cheby2'
 
     try:
         if np.isinf(fh):
@@ -121,6 +120,8 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
     if fl == 0:
         fl = None
 
+    # Handle cutoff frequencies
+    fso2 = fs/2.0
     if (fl is None) and (fh is None):
         raise ValueError('nonsensical all-pass filter requested...')
     elif fl is None: # lowpass
@@ -135,39 +136,90 @@ def sosfiltfilt(asa, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False
     if bandstop: # notch / bandstop filter
         wp, ws = ws, wp
 
-    sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype=ftype, output='sos')
+    sos = sig.iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype=ftype, output='sos', **kwargs)
 
-    if isinstance(asa, (np.ndarray, list)):
-        if len(np.array(out).squeeze().shape) > 1:
-            raise NotImplementedError('filtering for multidimensional ndarrays and lists not yet implemented; use an AnalogSignalArray, or a single dimensional list or ndarray')
-        # ignore epochs (information not contained in list or array) so filter directly
-        dims = np.array(out).shape
-        out = np.squeeze(out)
-        start, stop = 0, np.array(out).shape[-1]
-        for buff_st_idx in range(start, stop, buffer_len):
-                chk_st_idx = int(max(start, buff_st_idx - overlap_len))
-                buff_nd_idx = int(min(stop, buff_st_idx + buffer_len))
-                chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
-                rel_st_idx = int(buff_st_idx - chk_st_idx)
-                rel_nd_idx = int(buff_nd_idx - chk_st_idx)
-                this_y_chk = sosfiltfilt(sos, out[chk_st_idx:chk_nd_idx])
-                out[buff_st_idx:buff_nd_idx] = this_y_chk[rel_st_idx:rel_nd_idx]
-        out = np.reshape(out, dims)
-        if isinstance(asa, list):
-            out = out.tolist()
-    elif isinstance(asa, AnalogSignalArray):
-        # filter within epochs
-        fei = np.insert(np.cumsum(out.lengths), 0, 0) # filter epoch indices, fei
-        for ii in range(len(fei)-1):
-            start, stop = fei[ii], fei[ii+1]
-            for buff_st_idx in range(start, stop, buffer_len):
-                chk_st_idx = int(max(start, buff_st_idx - overlap_len))
-                buff_nd_idx = int(min(stop, buff_st_idx + buffer_len))
-                chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
-                rel_st_idx = int(buff_st_idx - chk_st_idx)
-                rel_nd_idx = int(buff_nd_idx - chk_st_idx)
-                this_y_chk = sosfiltfilt(sos, out._data_rowsig[:,chk_st_idx:chk_nd_idx])
-                out._data[:,buff_st_idx:buff_nd_idx] = this_y_chk[:,rel_st_idx:rel_nd_idx]
+    # Prepare input and output data structures
+    # Output array lives in shared memory and will reduce overhead from pickling/de-pickling
+    # data if we're doing parallelized filtering
+    if isinstance(timeseries, (np.ndarray, list)):
+        temp_array = np.array(timeseries)
+        dims = temp_array.shape
+        if len(temp_array.shape) > 2:
+            raise NotImplementedError('Filtering for >2D ndarray or list is not implemented')
+        shared_array_base = Array(ctypes.c_double, temp_array.size, lock=False)
+        shared_array_out = np.ctypeslib.as_array(shared_array_base)
+        # Force input and output arrays to be 2D (N x T) where N is number of signals
+        # and T is number of time points
+        if len(temp_array.squeeze().shape) == 1:
+            shared_array_out = np.ctypeslib.as_array(shared_array_base).reshape((1, temp_array.size))
+            input_asarray = temp_array.reshape((1, temp_array.size))
+        else:
+            shared_array_out = np.ctypeslib.as_array(shared_array_base).reshape(dims)
+            input_asarray = temp_array
+    elif isinstance(timeseries, core.AnalogSignalArray):
+        dims = timeseries._data.shape
+        shared_array_base = Array(ctypes.c_double, timeseries._data_rowsig.size, lock=False)
+        shared_array_out = np.ctypeslib.as_array(shared_array_base).reshape(dims)
+        input_asarray = timeseries._data
+
+    # Embedded function to avoid pickling data but need global to make this function
+    # module-visible (required by multiprocessing). I know, a bit of a hack
+    global filter_chunk
+    def filter_chunk(it):
+        """The function that performs the chunked filtering"""
+
+        start, stop, buffer_len, overlap_len, buff_st_idx = it
+        buff_nd_idx = int(min(stop, buff_st_idx + buffer_len))
+        chk_st_idx = int(max(start, buff_st_idx - overlap_len))
+        chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
+        rel_st_idx = int(buff_st_idx - chk_st_idx)
+        rel_nd_idx = int(buff_nd_idx - chk_st_idx)
+        this_y_chk = sig.sosfiltfilt(sos, input_asarray[:, chk_st_idx:chk_nd_idx], axis=1)
+        shared_array_out[:,buff_st_idx:buff_nd_idx] = this_y_chk[:, rel_st_idx:rel_nd_idx]
+
+    # Do the actual parallellized filtering
+    if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
+        pool = Pool(processes=cpu_count())
+        if isinstance(timeseries, (np.ndarray, list)):
+            # ignore epochs (information not contained in list or array) so filter directly
+            start, stop = 0, input_asarray.shape[1]
+            pool.map(filter_chunk, zip(repeat(start), repeat(stop), repeat(buffer_len),
+                                     repeat(overlap_len), range(start, stop, buffer_len)),
+                                    chunksize=1)
+        elif isinstance(timeseries, core.AnalogSignalArray):
+            fei = np.insert(np.cumsum(timeseries.lengths), 0, 0) # filter epoch indices, fei
+            for ii in range(len(fei)-1): # filter within epochs
+                start, stop = fei[ii], fei[ii+1]
+                pool.map(filter_chunk, zip(repeat(start), repeat(stop), repeat(buffer_len),
+                         repeat(overlap_len), range(start, stop, buffer_len)),
+                         chunksize=1)
+        pool.close()
+        pool.join()
+    # No easy parallelized filtering for other OSes
+    else:
+        if isinstance(timeseries, (np.ndarray, list)):
+            # ignore epochs (information not contained in list or array) so filter directly
+            start, stop = 0, input_asarray.shape[1]
+            iterator = zip(repeat(start), repeat(stop), repeat(buffer_len),
+                           repeat(overlap_len), range(start, stop, buffer_len))
+            for item in iterator:
+                filter_chunk(item)
+        elif isinstance(timeseries, core.AnalogSignalArray):
+            fei = np.insert(np.cumsum(timeseries.lengths), 0, 0) # filter epoch indices, fei
+            for ii in range(len(fei)-1): # filter within epochs
+                start, stop = fei[ii], fei[ii+1]
+                iterator = zip(repeat(start), repeat(stop), repeat(buffer_len),
+                               repeat(overlap_len), range(start, stop, buffer_len))
+                for item in iterator:
+                    filter_chunk(item)
+
+    if isinstance(timeseries, np.ndarray):
+        out[:] = np.reshape(shared_array_out, dims)
+    elif isinstance(timeseries, list):
+        out[:] = np.reshape(shared_array_out, dims).tolist()
+    elif isinstance(timeseries, core.AnalogSignalArray):
+        out._data[:] = shared_array_out
+
     return out
 
 def getsos(*, fs, fl=None, fh=None, bandstop=False,
@@ -235,15 +287,10 @@ def getsos(*, fs, fl=None, fh=None, bandstop=False,
     except TypeError:
         pass
 
-    from scipy.signal import iirdesign
-
     if gpass is None:
         gpass = 0.1 # max loss in passband, dB
-
     if gstop is None:
         gstop = 30 # min attenuation in stopband (dB)
-
-    fso2 = fs/2.0
 
     try:
         if np.isinf(fh):
@@ -253,6 +300,8 @@ def getsos(*, fs, fl=None, fh=None, bandstop=False,
     if fl == 0:
         fl = None
 
+    # Handle cutoff frequencies
+    fso2 = fs/2.0
     if (fl is None) and (fh is None):
         raise ValueError('nonsensical all-pass filter requested...')
     elif fl is None: # lowpass
@@ -267,6 +316,6 @@ def getsos(*, fs, fl=None, fh=None, bandstop=False,
     if bandstop: # notch / bandstop filter
         wp, ws = ws, wp
 
-    sos = iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype=ftype, output='sos')
+    sos = sig.iirdesign(wp, ws, gpass=gpass, gstop=gstop, ftype=ftype, output='sos')
 
     return sos
