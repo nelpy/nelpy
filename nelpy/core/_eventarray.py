@@ -2002,7 +2002,7 @@ class BinnedEventArray(BaseEventArray):
 
         # assemble new binned event series array:
         newedges = np.cumsum(newlengths)
-        newbst = copy.copy(bst) #deep, otherwise support gets overwritten
+        newbst = copy.copy(bst)
         abscissa = copy.copy(bst._abscissa)
         if newdata is not None:
             newbst._data = newdata
