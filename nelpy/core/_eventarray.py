@@ -2002,9 +2002,11 @@ class BinnedEventArray(BaseEventArray):
 
         # assemble new binned event series array:
         newedges = np.cumsum(newlengths)
-        newbst = copy.copy(bst)
+        newbst = copy.copy(bst) #deep, otherwise support gets overwritten
+        abscissa = copy.copy(bst._abscissa)
         if newdata is not None:
             newbst._data = newdata
+            newbst._abscissa = abscissa
             newbst._abscissa.support = type(bst.support)(newsupport)
             newbst._bins = newbins
             newbst._bin_centers = newcenters
@@ -2013,6 +2015,7 @@ class BinnedEventArray(BaseEventArray):
         else:
             warnings.warn("No events are long enough to contain any bins of width {}".format(utils.PrettyDuration(ds)))
             newbst._data = None
+            newbst._abscissa = abscissa
             newbst._abscissa.support = None
             newbst._binnedSupport = None
             newbst._bin_centers = None
