@@ -1263,6 +1263,16 @@ class BinnedEventArray(BaseEventArray):
                 self._abscissa.support = type(eventarray._abscissa.support)(empty=True)
                 self._event_centers = None
                 return
+            eventarray = eventarray.copy() # Note: this is a deep copy
+            n_empty_epochs = np.sum(eventarray.support.lengths==0)
+            if n_empty_epochs > 0:
+                warnings.warn("Detected {} empty epochs. Removing these in the cast object"
+                              .format(n_empty_epochs))
+                eventarray.support = eventarray.support._drop_empty_intervals()
+            if not eventarray.support.ismerged:
+                warnings.warn("Detected overlapping epochs. Merging these in the cast object")
+                eventarray.support = eventarray.support.merge()
+
             self._eventarray = None
             self._ds = 1/eventarray.fs
             self._series_labels = eventarray.labels
