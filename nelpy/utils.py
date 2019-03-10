@@ -1272,6 +1272,11 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
     ----------
     data : numpy array, list, or AnalogSignalArray
         Input data
+        If data is a numpy array, it is expected to have shape
+        (n_signals, n_samples)
+        If data is a list, it is expected to have length n_signals,
+        where each sublist has length n_samples, i.e. data is not
+        jagged
     sigma : float, optional
         Standard deviation of the Gaussian kernel used to
         smooth the envelope after applying the Hilbert transform.
@@ -1297,21 +1302,37 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             fs = data.fs
 
     if isinstance(data, (np.ndarray, list)):
+        data_array = np.array(data)
+        n_dims = np.array(data).ndim
+        assert n_dims <= 2, "Only 1D signals supported!"
+        if n_dims == 1:
+            input_data = data_array.reshape((1, data_array.size))
+        else:
+            input_data = data_array
+        n_signals, n_samples = input_data.shape
         # Compute number of samples to compute fast FFTs
-        padlen = nextfastpower(len(data)) - len(data)
+        padlen = nextfastpower(n_samples) - n_samples
         # Pad data
-        paddeddata = np.pad(data, (0, padlen), 'constant')
+        paddeddata = np.hstack( (input_data, np.zeros((n_signals, padlen))) )
         # Use hilbert transform to get an envelope
-        envelope = np.absolute(hilbert(paddeddata))
+        envelope = np.absolute(hilbert(paddeddata, axis=-1))
+        # free up memory
+        del paddeddata
         # Truncate results back to original length
-        envelope = envelope[:len(data)]
+        envelope = envelope[..., :n_samples]
         if sigma:
             # Smooth envelope with a gaussian (sigma = 4 ms default)
             EnvelopeSmoothingSD = sigma*fs
-            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
+            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, 
+                                                                        mode='constant', axis=-1)
             envelope = smoothed_envelope
+        if isinstance(data, list):
+            envelope = envelope.tolist()
+        return envelope
     elif isinstance(data, core.AnalogSignalArray):
         newasa = copy.deepcopy(data)
+        # Only ASA data of shape (n_signals, n_timepoints) -> 2D currently supported
+        assert newasa.data.ndim == 2
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             cum_lengths = np.insert(np.cumsum(data.lengths), 0, 0)
@@ -1321,25 +1342,24 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             # print('hilberting epoch {}/{}'.format(idx+1, data.n_epochs))
             segment_data = data._data[:,cum_lengths[idx]:cum_lengths[idx+1]]
             n_signals, n_samples = segment_data.shape
-            assert n_signals == 1, 'only 1D signals supported!'
             # Compute number of samples to compute fast FFTs:
             padlen = nextfastpower(n_samples) - n_samples
             # Pad data
-            paddeddata = np.pad(segment_data.squeeze(), (0, padlen), 'constant')
+            paddeddata = np.hstack( (segment_data, np.zeros((n_signals, padlen))) )
             # Use hilbert transform to get an envelope
-            envelope = np.absolute(hilbert(paddeddata))
+            envelope = np.absolute(hilbert(paddeddata, axis=-1))
             # free up memory
             del paddeddata
             # Truncate results back to original length
-            envelope = envelope[:n_samples]
+            envelope = envelope[..., :n_samples]
             if sigma:
                 # Smooth envelope with a gaussian (sigma = 4 ms default)
                 EnvelopeSmoothingSD = sigma*fs
-                smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, mode='constant')
+                smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, 
+                                                                            mode='constant', axis=-1)
                 envelope = smoothed_envelope
             newasa._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.atleast_2d(envelope)
         return newasa
-    return envelope
 
 def nextpower(n, base=2.0):
     """Return the next integral power of two greater than the given number.
