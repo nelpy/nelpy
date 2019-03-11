@@ -590,7 +590,7 @@ class EventArray(BaseEventArray):
 
     Parameters
     ----------
-    data : array of np.array(dtype=np.float64) event datas in seconds.
+    abscissa_vals : array of np.array(dtype=np.float64) event datas in seconds.
         Array of length n_series, each entry with shape (n_data,)
     fs : float, optional
         Sampling rate in Hz. Default is 30,000
