@@ -479,51 +479,6 @@ def plot(obj, *args, **kwargs):
             ylabel = obj._ordinate.label
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
-
-    elif (isinstance(obj, core.RegularlySampledAnalogSignalArray)):
-        if obj.n_signals == 1:
-            label = kwargs.pop('label', None)
-            for ii, (timestamps, data) in enumerate(zip(obj._epochtime.plot_generator(), obj._epochdata.plot_generator())):
-                ax.plot(timestamps, data.T, label=label if ii == 0 else '_nolegend_', *args, **kwargs)
-        elif obj.n_signals > 1:
-            # TODO: intercept when any color is requested. This could happen
-            # multiple ways, such as plt.plot(x, '-r') or plt.plot(x, c='0.7')
-            # or plt.plot(x, color='red'), and maybe some others? Probably have
-            # dig into the matplotlib code to see how they parse this and do
-            # conflict resolution... Update: they use the last specified color.
-            # but I still need to know how to detect a color that was passed in
-            # the *args part, e.g., '-r'
-
-            color = kwargs.pop('color', None)
-            carg = kwargs.pop('c', None)
-
-            if color is not None and carg is not None:
-                # TODO: fix this so that a warning is issued, not raised
-                raise ValueError("saw kwargs ['c', 'color']")
-                # raise UserWarning("saw kwargs ['c', 'color'] which are all aliases for 'color'.  Kept value from 'color'")
-            if carg:
-                color = carg
-
-            if not color:
-                colors = []
-                for ii in range(obj.n_signals):
-                    line, = ax.plot(0, 0.5)
-                    colors.append(line.get_color())
-                    line.remove()
-
-                for ee, (timestamps, data) in enumerate(zip(obj._epochtime.plot_generator(), obj._epochdata.plot_generator())):
-                    if ee > 0:
-                        kwargs['label'] = '_nolegend_'
-                    for ii, snippet in enumerate(data):
-                        ax.plot(timestamps, snippet, *args, color=colors[ii], **kwargs)
-            else:
-                kwargs['color'] = color
-                for ee, (timestamps, data) in enumerate(zip(obj._epochtime.plot_generator(), obj._epochdata.plot_generator())):
-                    if ee > 0:
-                        kwargs['label'] = '_nolegend_'
-                    for ii, snippet in enumerate(data):
-                        ax.plot(timestamps, snippet, *args, **kwargs)
-
     else: # if we didn't handle it yet, just pass it through to matplotlib...
         ax.plot(obj, *args, **kwargs)
 
