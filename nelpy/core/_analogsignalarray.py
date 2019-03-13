@@ -793,7 +793,7 @@ class RegularlySampledAnalogSignalArray:
             The downsampled RegularlySampledAnalogSignalArray
         """
         out = utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, 
-                               inplace=inplace, **kwargs)
+                                                 inplace=inplace, **kwargs)
         out.__renew__()
         return out
 
@@ -1413,6 +1413,16 @@ class RegularlySampledAnalogSignalArray:
         #     pass
         # asa.__renew__()
         return out
+
+    def median(self,*,axis=1):
+        """Returns the median of each signal in RegularlySampledAnalogSignalArray."""
+        try:
+            medians = np.nanmedian(self.data, axis=axis).squeeze()
+            if medians.size == 1:
+                return np.asscalar(medians)
+            return medians
+        except IndexError:
+            raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate median")
 
     def mean(self,*,axis=1):
         """Returns the mean of each signal in RegularlySampledAnalogSignalArray."""
