@@ -42,6 +42,7 @@ warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
 
+
 class IntervalSeriesSlicer(object):
     def __init__(self, obj):
         self.obj = obj
@@ -68,6 +69,7 @@ class IntervalSeriesSlicer(object):
                 intervalslice = slices
 
         return intervalslice, seriesslice
+
 
 class ItemGetter_loc(object):
     """.loc is primarily label based (that is, series_id based)
@@ -152,6 +154,7 @@ class ItemGetter_loc(object):
         out.iloc = ItemGetter_iloc(out)
         return out
 
+
 class ItemGetter_iloc(object):
     """.iloc is primarily integer position based (from 0 to length-1
     of the axis).
@@ -191,6 +194,7 @@ class ItemGetter_iloc(object):
         out.iloc = ItemGetter_iloc(out)
         return out
 
+
 ########################################################################
 # class BaseEventArray
 ########################################################################
@@ -204,32 +208,54 @@ class BaseEventArray(ABC):
     may actually succeed in creating an instance of this class, but it
     will be pretty useless.
 
+    This docstring only applies to this base class, as subclasses may have
+    different behavior. Therefore read the particular subclass' docstring
+    for the most accurate information.
+
     Parameters
     ----------
     fs: float, optional
         Sampling rate / frequency (Hz).
     series_ids : list of int, optional
-        Unit IDs preferabbly in integers
+        Unit IDs
     series_labels : list of str, optional
         Labels corresponding to series. Default casts series_ids to str.
-    label : str or None, optional
+    series_tags : optional
+        Tags correponding to series.
+        NOTE: Currently we do not do any input validation so these can
+        be any type. We also don't use these for anything yet.
+    label : str, optional
         Information pertaining to the source of the event series.
-
+        Default is None.
+    empty : bool, optional
+        Whether to create an empty class instance (no data).
+        Default is False
+    abscissa : optional
+        Object for the abscissa (x-axis) coordinate
+    ordinate : optional
+        Object for the ordinate (y-axis) coordinate
+    kwargs : optional
+        Other keyword arguments. NOTE: Currently we do not do anything
+        with these.
 
     Attributes
     ----------
     n_series : int
         Number of series in event series.
+    issempty : bool
+        Whether the class instance is empty (no data)
     series_ids : list of int
-        Unit integer IDs.
+        Unit IDs
     series_labels : list of str
         Labels corresponding to series. Default casts series_ids to str.
-    series_tags : dict of tags and corresponding series_ids
+    series_tags :
         Tags corresponding to series.
-    issempty
-    **********
-    support
-    **********
+        NOTE: Currently we do not do any input validation so these can
+        be any type. We also don't use these for anything yet.
+    n_intervals : int
+        The number of underlying intervals.
+    support : nelpy.IntervalArray
+        The support of the EventArray.
     fs: float
         Sampling frequency (Hz).
     label : str or None
@@ -342,7 +368,6 @@ class BaseEventArray(ABC):
         else:
             raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(str(type(self)), str(type(other))))
 
-
     def __add__(self, other):
         """Overloaded + operator"""
 
@@ -389,13 +414,12 @@ class BaseEventArray(ABC):
         else:
             raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(str(type(self)), str(type(other))))
 
-
     @abstractmethod
     @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        # Regardless of whether 'ds' or 'n_intervals' are used, the exact
         # underlying support is propagated, and the first and last points
         # of the supports are always included, even if this would cause
         # n_points or ds to be violated.
@@ -404,7 +428,7 @@ class BaseEventArray(ABC):
         ----------
         ds : float, optional
             Maximum duration (in seconds), for each interval.
-        n_points : int, optional
+        n_intervals : int, optional
             Number of intervals. If ds is None and n_intervals is None, then
             default is to use n_intervals = 100
 
@@ -480,12 +504,12 @@ class BaseEventArray(ABC):
 
     @property
     def support(self):
-        """(nelpy.IntervalArray) The support of the underlying EventArray."""
+        """(nelpy.IntervalArray) The support of the EventArray."""
         return self._abscissa.support
 
     @support.setter
     def support(self, val):
-        """(nelpy.IntervalArray) The support of the underlying EventArray."""
+        """(nelpy.IntervalArray) The support of the EventArray."""
         # modify support
         if isinstance(val, type(self._abscissa.support)):
             self._abscissa.support = val
@@ -504,12 +528,12 @@ class BaseEventArray(ABC):
 
     @property
     def domain(self):
-        """(nelpy.IntervalArray) The domain of the underlying EventArray."""
+        """(nelpy.IntervalArray) The domain of the EventArray."""
         return self._abscissa.domain
 
     @domain.setter
     def domain(self, val):
-        """(nelpy.IntervalArray) The domain of the underlying EventArray."""
+        """(nelpy.IntervalArray) The domain of the EventArray."""
         # modify domain
         if isinstance(val, type(self._abscissa.support)):
             self._abscissa.domain = val
@@ -591,37 +615,49 @@ class EventArray(BaseEventArray):
     Parameters
     ----------
     abscissa_vals : array of np.array(dtype=np.float64) event datas in seconds.
-        Array of length n_series, each entry with shape (n_data,)
+        Array of length n_series, each entry with shape (n_data,).
     fs : float, optional
-        Sampling rate in Hz. Default is 30,000
+        Sampling rate in Hz. Default is 30,000.
     support : EpochArray, optional
         EpochArray on which eventarrays are defined.
         Default is [0, last event] inclusive.
+    series_ids : list of int, optional
+        Unit IDs.
+    series_labels : list of str, optional
+        Labels corresponding to series. Default casts series_ids to str.
+    series_tags : optional
+        Tags correponding to series.
+        NOTE: Currently we do not do any input validation so these can
+        be any type. We also don't use these for anything yet.
     label : str or None, optional
         Information pertaining to the source of the eventarray.
-    cell_type : list (of length n_series) of str or other, optional
-        Identified cell type indicator, e.g., 'pyr', 'int'.
-    series_ids : list (of length n_series) of indices corresponding to
-        curated data. If no series_ids are specified, then [1,...,n_series]
-        will be used. WARNING! The first series will have index 1, not 0!
-    meta : dict
-        Metadata associated with eventarray.
+    empty : bool, optional
+        Whether an empty EventArray should be constructed (no data).
+    kwargs : optional
+        Additional keyword arguments to forward along to the BaseEventArray
+        constructor.
 
     Attributes
     ----------
+    Note : Read the docstring for the BaseEventArray superclass for additional
+    attributes that are defined there.
+    isempty : bool
+        Whether the EventArray is empty (no data).
+    n_series : int
+        The number of series.
+    n_active : int
+        The number of active series. A series is considered active if
+        it fired at least one event.
     data : array of np.array(dtype=np.float64) event datas in seconds.
-        Array of length n_series, each entry with shape (n_data,)
-    support : EpochArray on which eventarray is defined.
-    n_events: np.array(dtype=np.int) of shape (n_series,)
-        Number of events in each series.
-    fs: float
-        Sampling frequency (Hz).
-    cell_types : np.array of str or other
-        Identified cell type for each series.
-    label : str or None
-        Information pertaining to the source of the eventarray.
-    meta : dict
-        Metadata associated with eventseries.
+        Array of length n_series, each entry with shape (n_data,).
+    n_events : np.ndarray
+        The number of events in each series.
+    issorted : bool
+        Whether the data are sorted.
+    first_event : np.float
+        The time of the very first event, across all series.
+    last_event : np.float
+        The time of the very last event, across all series.
     """
 
     __attributes__ = ["_data"]
@@ -888,7 +924,6 @@ class EventArray(BaseEventArray):
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
-
 
     def __getitem__(self, idx):
         """EventArray index access.
@@ -1216,26 +1251,65 @@ class EventArray(BaseEventArray):
                 last = series[-1]
         return last
 
-#----------------------------------------------------------------------#
-#======================================================================#
-
 
 ########################################################################
 # class BinnedEventArray
 ########################################################################
 class BinnedEventArray(BaseEventArray):
-    """Binned eventarray.
+    """BinnedEventArray.
 
     Parameters
     ----------
+    eventarray : nelpy.EventArray or nelpy.RegularlySampledAnalogSignalArray
+        Input data.
+    ds : float
+        The bin width, in seconds.
+        Default is 0.0625 (62.5 ms)
+    empty : bool, optional
+        Whether an empty BinnedEventArray should be constructed (no data).
     fs : float, optional
         Sampling rate in Hz. If fs is passed as a parameter, then data
         is assumed to be in sample numbers instead of actual data.
+    kwargs : optional
+        Additional keyword arguments to forward along to the BaseEventArray
+        constructor.
 
     Attributes
     ----------
-    data : np.array
-        The start and stop datas for each interval. With shape (n_intervals, 2).
+    Note : Read the docstring for the BaseEventArray superclass for additional
+    attributes that are defined there.
+    isempty : bool
+        Whether the BinnedEventArray is empty (no data).
+    n_series : int
+        The number of series.
+    bin_centers : np.ndarray
+        The bin centers, in seconds.
+    event_centers : np.ndarray
+        The centers of each event, in seconds.
+    data : np.array, with shape (n_series, n_bins)
+        Event counts in all bins.
+    bins : np.ndarray
+        The bin edges, in seconds.
+    binnedSupport : np.ndarray, with shape (n_intervals, 2)
+        The binned support of the BinnedEventArray (in
+        bin IDs).
+    lengths : np.ndarray
+        Lengths of contiguous segments, in number of bins.
+    eventarray : nelpy.EventArray
+        The original eventarray associated with the binned data.
+    n_bins : int
+        The number of bins.
+    ds : float
+        Bin width, in seconds.
+    n_active : int
+        The number of active series. A series is considered active if
+        it fired at least one event.
+    n_active_per_bin : np.ndarray, with shape (n_bins, )
+        Number of active series per data bin.
+    n_events : np.ndarray
+        The number of events in each series.
+    support : nelpy.IntervalArray
+        The support of the BinnedEventArray.
     """
 
     __attributes__ = ["_ds", "_bins", "_data", "_bin_centers",
@@ -1683,9 +1757,7 @@ class BinnedEventArray(BaseEventArray):
 
     @property
     def data(self):
-        """(np.array) Event counts in all bins, with shape (n_series, n_bins).
-        See also BinnedBaseEventArray.centers
-        """
+        """(np.array) Event counts in all bins, with shape (n_series, n_bins)."""
         return self._data
 
     @property
@@ -1695,19 +1767,19 @@ class BinnedEventArray(BaseEventArray):
 
     @property
     def binnedSupport(self):
-        """(np.array) The binned support of the binned eventarray (in
+        """(np.array) The binned support of the BinnedEventArray (in
         bin IDs) of shape (n_intervals, 2).
         """
         return self._binnedSupport
 
     @property
     def lengths(self):
-        """Lenghts of contiguous segments, in number of bins."""
+        """Lengths of contiguous segments, in number of bins."""
         return np.atleast_1d((self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1).squeeze())
 
     @property
     def eventarray(self):
-        """(nelpy.EventArray) The original eventarray associated with
+        """(nelpy.EventArray) The original EventArray associated with
         the binned data.
         """
         return self._eventarray
@@ -2217,9 +2289,6 @@ class BinnedEventArray(BaseEventArray):
         return data
 
 
-#----------------------------------------------------------------------#
-#======================================================================#
-
 def legacySTAkwargs(**kwargs):
     """Provide support for legacy SpikeTrainArray kwargs.
 
@@ -2263,6 +2332,10 @@ def legacySTAkwargs(**kwargs):
 
     return kwargs
 
+
+########################################################################
+# class SpikeTrainArray
+########################################################################
 class SpikeTrainArray(EventArray):
     """Custom SpikeTrainArray docstring with kwarg descriptions.
 
@@ -2326,6 +2399,10 @@ class SpikeTrainArray(EventArray):
         """Return a BinnedSpikeTrainArray."""
         return BinnedSpikeTrainArray(self, ds=ds) # TODO #FIXME
 
+
+########################################################################
+# class BinnedSpikeTrainArray
+########################################################################
 class BinnedSpikeTrainArray(BinnedEventArray):
     """Custom SpikeTrainArray docstring with kwarg descriptions.
 

@@ -37,6 +37,7 @@ warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
 
+
 class IntervalSignalSlicer(object):
     def __init__(self, obj):
         self.obj = obj
@@ -249,6 +250,7 @@ def rsasa_init_wrapper(func):
         return
 
     return wrapper
+
 
 ########################################################################
 # class RegularlySampledAnalogSignalArray
@@ -2061,8 +2063,6 @@ class RegularlySampledAnalogSignalArray:
         #return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
-#----------------------------------------------------------------------#
-#======================================================================#
 
 def legacyASAkwargs(**kwargs):
     """Provide support for legacy AnalogSignalArray kwargs.
@@ -2109,6 +2109,9 @@ def legacyASAkwargs(**kwargs):
     return kwargs
 
 
+########################################################################
+# class AnalogSignalArray
+########################################################################
 class AnalogSignalArray(RegularlySampledAnalogSignalArray):
     """Custom ASA docstring with kwarg descriptions.
 
@@ -2141,6 +2144,9 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
         super().__init__(*args, **kwargs)
 
 
+########################################################################
+# class PositionArray
+########################################################################
 class PositionArray(AnalogSignalArray):
     """Custom PositionArray docstring with kwarg descriptions.
 
@@ -2212,8 +2218,14 @@ class PositionArray(AnalogSignalArray):
         raise ValueError("PositionArray is not 2 dimensional, so ylim cannot be defined!")
 
 
+########################################################################
+# class IMUSensorArray
+########################################################################
 class IMUSensorArray(RegularlySampledAnalogSignalArray):
-    """IMUSensorArray docstring goes here."""
+    """Custom IMUSensorArray docstring with kwarg descriptions.
+
+    TODO: add the docstring here, using the aliases in the constructor.
+    """
 
     # specify class-specific aliases:
     __aliases__ = {}
@@ -2223,8 +2235,15 @@ class IMUSensorArray(RegularlySampledAnalogSignalArray):
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
         super().__init__(*args, **kwargs)
 
+
+########################################################################
+# class MinimalExampleArray
+########################################################################
 class MinimalExampleArray(RegularlySampledAnalogSignalArray):
-    """Class MinimalExampleArray docstring goes here."""
+    """Custom MinimalExampleArray docstring with kwarg descriptions.
+
+    TODO: add the docstring here, using the aliases in the constructor.
+    """
 
     # specify class-specific aliases:
     __aliases__ = {}
