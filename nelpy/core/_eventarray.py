@@ -1423,6 +1423,16 @@ class BinnedEventArray(BaseEventArray):
             ds=ds
             )
 
+    def median(self,*,axis=1):
+        """Returns the median of each series in BinnedEventArray."""
+        try:
+            medians = np.nanmedian(self.data, axis=axis).squeeze()
+            if medians.size == 1:
+                return np.asscalar(medians)
+            return medians
+        except IndexError:
+            raise IndexError("Empty BinnedEventArray; cannot calculate median.")
+
     def mean(self,*,axis=1):
         """Returns the mean of each series in BinnedEventArray."""
         try:
