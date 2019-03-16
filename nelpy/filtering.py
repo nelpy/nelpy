@@ -136,7 +136,7 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
         wp = fl/fso2
         ws = 0.8*fl/fso2
     else: # bandpass
-        wp = [fl/fso2, fh/fso2]
+        wp = [fl/fso2, fh/fso2] 
         ws = [0.8*fl/fso2,1.4*fh/fso2]
     if bandstop: # notch / bandstop filter
         wp, ws = ws, wp
@@ -173,14 +173,18 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
     def filter_chunk(it):
         """The function that performs the chunked filtering"""
 
-        start, stop, buffer_len, overlap_len, buff_st_idx = it
-        buff_nd_idx = int(min(stop, buff_st_idx + buffer_len))
-        chk_st_idx = int(max(start, buff_st_idx - overlap_len))
-        chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
-        rel_st_idx = int(buff_st_idx - chk_st_idx)
-        rel_nd_idx = int(buff_nd_idx - chk_st_idx)
-        this_y_chk = sig.sosfiltfilt(sos, input_asarray[:, chk_st_idx:chk_nd_idx], axis=1)
-        shared_array_out[:,buff_st_idx:buff_nd_idx] = this_y_chk[:, rel_st_idx:rel_nd_idx]
+        try:
+            start, stop, buffer_len, overlap_len, buff_st_idx = it
+            buff_nd_idx = int(min(stop, buff_st_idx + buffer_len))
+            chk_st_idx = int(max(start, buff_st_idx - overlap_len))
+            chk_nd_idx = int(min(stop, buff_nd_idx + overlap_len))
+            rel_st_idx = int(buff_st_idx - chk_st_idx)
+            rel_nd_idx = int(buff_nd_idx - chk_st_idx)
+            this_y_chk = sig.sosfiltfilt(sos, input_asarray[:, chk_st_idx:chk_nd_idx], axis=1)
+            shared_array_out[:,buff_st_idx:buff_nd_idx] = this_y_chk[:, rel_st_idx:rel_nd_idx]
+        except:
+            raise ValueError(("Some epochs were too short to filter. Try dropping those first,"
+                              " filtering, and then inserting them back in"))
 
     # Do the actual parallellized filtering
     if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
