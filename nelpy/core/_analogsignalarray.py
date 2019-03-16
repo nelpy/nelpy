@@ -261,23 +261,30 @@ class RegularlySampledAnalogSignalArray:
     support. NOTE: data that is not equal dimensionality will NOT work
     and error/warning messages may/may not be sent out. Assumes abscissa_vals
     are identical for all signals passed through and are therefore expected
-    to be 1-dimensional
+    to be 1-dimensional.
 
     Parameters
     ----------
-    data : np.array(dtype=np.float, dimensions=(n_signals, n_samples)
-    abscissa_vals : np.array(dtype=np.float, dimension=N), optional
-        Timestamps in seconds (ideally). Timestamps are assumed to be sampled
-        regularly in order to generate intervals. Irregular sampling rates can be
+    data=[], *, abscissa_vals=None, fs=None,
+                 step=None, merge_sample_gap=0, support=None,
+                 in_core=True, labels=None, empty=False,
+                 abscissa=None, ordinate=None
+
+    data : np.ndarray, with shape (n_signals, n_samples).
+        Data samples.
+    abscissa_vals : np.ndarray, with shape (n_samples, ).
+        The abscissa coordinate values. Currently we assume that (1) these values
+        are timestamps, and (2) the timestamps are sampled regularly (we rely on
+        these assumptions to generate intervals). Irregular sampling rates can be
         corrected with operations on the support.
     fs : float, optional
-        Sampling rate in Hz. abscissa_vals are still expected to be in units of
+        The sampling rate. abscissa_vals are still expected to be in units of
         time and fs is expected to be in the corresponding sampling rate (e.g.
-        abscissa_vals in seconds, fs in Hz)
-    support : IntervalArray, optional
-        IntervalArray array on which LFP is defined.
-        Default is [0, last spike] inclusive.
-    step : int
+        abscissa_vals in seconds, fs in Hz).
+        Default is 1 Hz.
+    step : float, optional
+        The sampling interval of the data, in seconds.
+        Default is None.
         specifies step size of samples passed as tdata if fs is given,
         default is None. If not passed it is inferred by the minimum
         difference in between samples of tdata passed in (based on if FS
@@ -287,37 +294,90 @@ class RegularlySampledAnalogSignalArray:
         Optional merging of gaps between support intervals. If intervals are within
         a certain amount of time, gap, they will be merged as one interval. Example
         use case is when there is a dropped sample
-    labels : np.array(dtype=np.str,dimension=N)
-        Labeling each one of the signals in RegularlySampledAnalogSignalArray. By default this
-        will be set to None. It is expected that all signals will be labeled if
-        labels are passed in. If any signals are not labeled we will label them
-        as Nones and if more labels are passed in than the number of signals
-        given, the extras will be truncated. If we're nice (which we are for
-        the most part), we will display a warning upon doing any of these
-        things! :P Lastly, it is worth noting that most logical and type error
-        checking for this is expected to be done by the user. Inputs are casted
-        to string snad stored in a numpy array.
-    empty : bool
-        Return an empty RegularlySampledAnalogSignalArray if true else false. Default
-        set to false.
+    support : nelpy.IntervalArray, optional
+        Where the data are defined. Default is [0, last abscissa value] inclusive.
+    in_core : bool, optional
+        Whether the abscissa values should be treated as residing in core memory.
+        During RSASA construction, np.diff() is called, so for large data, passing
+        in in_core=True might help. In that case, a slower but much smaller memory
+        footprint function is used.
+    labels : np.array, dtype=np.str
+        Labels for each of the signals. If fewer labels than signals are passed in,
+        labels are padded with None's to match the number of signals. If more labels
+        than signals are passed in, labels are truncated to match the number of
+        signals.
+        Default is None.
+    empty : bool, optional
+        Return an empty RegularlySampledAnalogSignalArray if true else false. 
+        Default is false.
+    abscissa : optional
+        The object handling the abscissa values. It is recommended to leave
+        this parameter alone and let nelpy take care of this.
+        Default is a nelpy.core.Abscissa object.
+    ordinate : optional
+        The object handling the ordinate values. It is recommended to leave
+        this parameter alone and let nelpy take care of this.
+        Default is a nelpy.core.Ordinate object.
 
     Attributes
     ----------
-    data : np.array
-        With shape (n_data,N).
-    abscissa_vals : np.array
-        With shape (n_tdata,N).
-    fs : float, scalar, optional
-        See Parameters
-    step : int
-        See Parameters
-    support : IntervalArray, optional
-        See Parameters
-    labels : np.array
-        See Parameters
-    interp : array of interpolation objects from scipy.interpolate
-
-        See Parameters
+    data : np.ndarray, with shape (n_signals, n_samples)
+        The underlying data.
+    abscissa_vals : np.ndarray, with shape (n_samples, )
+        The values of the abscissa coordinate.
+    is1d : bool
+        Whether there is only 1 signal in the RSASA
+    iswrapped : bool
+        Whether the RSASA's data is wrapping.
+    base_unit : string
+        Base unit of the abscissa.
+    signals : list
+        A list of RegularlySampledAnalogSignalArrays, each RSASA containing
+        a single signal (channel).
+        WARNING: this method creates a copy of each signal, so is not
+        particularly efficient at this time.
+    isreal : bool
+        Whether ALL of the values in the RSASA's data are real.
+    iscomplex : bool
+        Whether ANY values in the data are complex.
+    abs : nelpy.RegularlySampledAnalogSignalArray
+        A copy of the RSASA, whose data is the absolute value of the original
+        original RSASA's (potentially complex) data.
+    phase : nelpy.RegularlySampledAnalogSignalArray
+        A copy of the RSASA, whose data is just the phase angle (in radians) of 
+        the original RSASA's data.
+    real : nelpy.RegularlySampledAnalogSignalArray
+        A copy of the RSASA, whose data is just the real part of the original 
+        RSASA's data.
+    imag : nelpy.RegularlySampledAnalogSignalArray
+        A copy of the RSASA, whose data is just the imaginary part of the 
+        original RSASA's data.
+    lengths : list
+        The number of samples in each interval.
+    labels : list
+        The labels corresponding to each signal.
+    n_signals : int
+        The number of signals in the RSASA.
+    support : nelpy.IntervalArray
+        The support of the RSASA.
+    domain : nelpy.IntervalArray
+        The domain of the RSASA.
+    range : nelpy.IntervalArray
+        The range of the RSASA's data.
+    step : float
+        The sampling interval of the RSASA. Currently the units are
+        in seconds.
+    fs : float
+        The sampling frequency of the RSASA. Currently the units are 
+        in Hz.
+    isempty : bool
+        Whether the underlying data has zero length, i.e. 0 samples
+    n_bytes : int
+        Approximate number of bytes taken up by the RSASA.
+    n_intervals : int
+        The number of underlying intervals in the RSASA.
+    n_samples : int
+        The number of abscissa values in the RSASA.
     """
     __aliases__ = {}
 
@@ -327,7 +387,7 @@ class RegularlySampledAnalogSignalArray:
     @rsasa_init_wrapper
     def __init__(self, data=[], *, abscissa_vals=None, fs=None,
                  step=None, merge_sample_gap=0, support=None,
-                 in_memory=True, labels=None, empty=False,
+                 in_core=True, labels=None, empty=False,
                  abscissa=None, ordinate=None):
 
         self._intervalsignalslicer = IntervalSignalSlicer(self)
@@ -405,11 +465,11 @@ class RegularlySampledAnalogSignalArray:
             labels = np.asarray(labels,dtype=np.str)
             #label size doesn't match
             if labels.shape[0] > data.shape[0]:
-                warnings.warn("More labels than data! labels are sliced to "
+                warnings.warn("More labels than data! Labels are truncated to "
                               "size of data")
                 labels = labels[0:data.shape[0]]
             elif labels.shape[0] < data.shape[0]:
-                warnings.warn("Less labels than abscissa_vals! labels are filled with "
+                warnings.warn("Fewer labels than abscissa_vals! Labels are filled with "
                               "None to match data shape")
                 for i in range(labels.shape[0],data.shape[0]):
                     labels.append(None)
@@ -426,7 +486,7 @@ class RegularlySampledAnalogSignalArray:
                     self._abscissa_vals,
                     step=self._step,
                     fs=fs,
-                    in_memory=in_memory))
+                    in_core=in_core))
             if merge_sample_gap > 0:
                 self._abscissa.support = self._abscissa.support.merge(gap=merge_sample_gap)
 
@@ -805,7 +865,7 @@ class RegularlySampledAnalogSignalArray:
 
         downsampled = out.simplify(ds=1/fs_out)
         out._data = downsampled._data
-        out._absissa_vals = downsampled.abscissa_vals
+        out._abscissa_vals = downsampled._abscissa_vals
         out._fs = fs_out
 
         out.__renew__()
