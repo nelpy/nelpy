@@ -74,19 +74,24 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
 
     Returns
     -------
-    out : nelpy.core.AnalogSignalArray, ndarray, or list
+    out : nelpy.core.RegularlySampledAnalogSignalArray, ndarray, or list
         Same output type as input timeseries.
+
+    WARNING : The data type of the output object is the same as that of the input.
+    Thus it is highly recommended to have your input data be floats before calling
+    this function. If the input is an RSASA, you do not need to worry because
+    the underlying data are already floats.
     """
 
     # make sure that fs is specified, unless AnalogSignalArray is passed in
     if isinstance(timeseries, (np.ndarray, list)):
         if fs is None:
-            raise ValueError("sampling frequency, fs, must be specified!")
-    elif isinstance(timeseries, core.AnalogSignalArray):
+            raise ValueError("Sampling frequency, fs, must be specified!")
+    elif isinstance(timeseries, core.RegularlySampledAnalogSignalArray):
         if fs is None:
             fs = timeseries.fs
     else:
-        raise TypeError('unsupported input type!')
+        raise TypeError('Unsupported input type!')
 
     try:
         assert fh < fs, "fh must be less than sampling rate!"
@@ -123,7 +128,7 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
     # Handle cutoff frequencies
     fso2 = fs/2.0
     if (fl is None) and (fh is None):
-        raise ValueError('nonsensical all-pass filter requested...')
+        raise ValueError('Nonsensical all-pass filter requested...')
     elif fl is None: # lowpass
         wp = fh/fso2
         ws = 1.4*fh/fso2
@@ -303,7 +308,7 @@ def getsos(*, fs, fl=None, fh=None, bandstop=False,
     # Handle cutoff frequencies
     fso2 = fs/2.0
     if (fl is None) and (fh is None):
-        raise ValueError('nonsensical all-pass filter requested...')
+        raise ValueError('Nonsensical all-pass filter requested...')
     elif fl is None: # lowpass
         wp = fh/fso2
         ws = 1.4*fh/fso2

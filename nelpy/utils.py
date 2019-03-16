@@ -16,16 +16,20 @@ __all__ = ['spatial_information',
 
 import numpy as np
 import warnings
-from itertools import tee
+from itertools import tee, repeat
 from collections import namedtuple
 from math import floor
 from scipy.signal import hilbert
 import scipy.ndimage.filters #import gaussian_filter1d, gaussian_filter
 from numpy import log, ceil
 import copy
+import sys
+import ctypes
+from multiprocessing import Array, cpu_count
+from multiprocessing.pool import Pool
+import pdb
 
-# from . import core # so that core.AnalogSignalArray is exposed
-from . import core # so that core.AnalogSignalArray is exposed
+from . import core # so that core.RegularlyAnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 from . import filtering
 
@@ -219,46 +223,6 @@ def spatial_sparsity(ratemap):
             raise TypeError("rate map shape not supported / understood!")
 
         return sparsity/number_of_spatial_bins
-
-def downsample_analogsignalarray(obj, *, fs_out, aafilter=True, inplace=False, **kwargs):
-    """Downsamples the data
-
-    Parameters
-    ----------
-    obj : AnalogSignalArray
-        The AnalogSignalArray to downsample
-    fs_out : float
-        Desired output sampling rate, in Hz
-    aafilter : boolean, optional
-        Whether to apply an anti-aliasing filter before performing the actual
-        downsampling. Default is True
-    inplace : boolean, optional
-        If True, the output ASA will replace the input ASA. Default is False
-    kwargs :
-        Other keyword arguments are passed to sosfiltfilt() in the `filtering`
-        module
-
-    Returns
-    -------
-    out : AnalogSignalArray
-        The downsampled AnalogSignalArray
-    """
-    # TODO: Implement this for ndarray and list as well
-
-    if not isinstance(obj, core.AnalogSignalArray):
-        raise TypeError('obj is expected to be a nelpy.core.AnalogSignalArray!')
-
-    assert fs_out < obj.fs, "fs_out must be less than current sampling rate!"
-
-    if aafilter:
-        fh = fs_out/2.0
-        out = filtering.sosfiltfilt(obj, fl=None, fh=fh, inplace=inplace, **kwargs)
-
-    downsampled = out.simplify(ds=1/fs_out)
-    out._data = downsampled._data
-    out._time = downsampled.time
-    out._fs = fs_out
-    return out
 
 def _bst_get_bins_inside_interval(interval, ds, w=1):
     """(np.array) Return bin edges entirely contained inside an interval.
@@ -1270,7 +1234,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
 
     Parameters
     ----------
-    data : numpy array, list, or AnalogSignalArray
+    data : numpy array, list, or RegularlySampledAnalogSignalArray
         Input data
         If data is a numpy array, it is expected to have shape
         (n_signals, n_samples)
@@ -1298,7 +1262,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
     if fs is None:
         if isinstance(data, (np.ndarray, list)):
             raise ValueError("sampling frequency must be specified!")
-        elif isinstance(data, core.AnalogSignalArray):
+        elif isinstance(data, core.RegularlyAnalogSignalArray):
             fs = data.fs
 
     if isinstance(data, (np.ndarray, list)):
@@ -1329,14 +1293,14 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
         if isinstance(data, list):
             envelope = envelope.tolist()
         return envelope
-    elif isinstance(data, core.AnalogSignalArray):
-        newasa = copy.deepcopy(data)
+    elif isinstance(data, core.RegularlySampledAnalogSignalArray):
         # Only ASA data of shape (n_signals, n_timepoints) -> 2D currently supported
-        assert newasa.data.ndim == 2
+        assert data.data.ndim == 2
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             cum_lengths = np.insert(np.cumsum(data.lengths), 0, 0)
 
+        newasa = copy.deepcopy(data)
         # for segment in data:
         for idx in range(data.n_epochs):
             # print('hilberting epoch {}/{}'.format(idx+1, data.n_epochs))

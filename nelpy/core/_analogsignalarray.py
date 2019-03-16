@@ -786,14 +786,69 @@ class RegularlySampledAnalogSignalArray:
             downsampling. Default is True
         inplace : boolean, optional
             If True, the output ASA will replace the input ASA. Default is False
-        kwargs : 
-            Other keyword arguments are passed to utils.downsample_analogsignalarray()
+        kwargs :
+            Other keyword arguments are passed to sosfiltfilt() in the `filtering`
+            module
 
         Returns
         -------
         out : RegularlySampledAnalogSignalArray
             The downsampled RegularlySampledAnalogSignalArray
         """
+        if fs_out < obj.fs:
+            raise ValueError("fs_out must be less than current sampling rate!")
+
+        if aafilter:
+            fh = fs_out/2.0
+            out = filtering.sosfiltfilt(obj, fl=None, fh=fh, inplace=inplace, **kwargs)
+
+        downsampled = out.simplify(ds=1/fs_out)
+        out._data = downsampled._data
+        out._abscissa_vals = downsampled.time
+        out._fs = fs_out
+        return out
+            out = utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, 
+                                                    inplace=inplace, **kwargs)
+            out.__renew__()
+            return out
+
+
+    """Downsamples the data
+    Parameters
+    ----------
+    obj : AnalogSignalArray
+        The AnalogSignalArray to downsample
+    fs_out : float
+        Desired output sampling rate, in Hz
+    aafilter : boolean, optional
+        Whether to apply an anti-aliasing filter before performing the actual
+        downsampling. Default is True
+    inplace : boolean, optional
+        If True, the output ASA will replace the input ASA. Default is False
+    kwargs :
+        Other keyword arguments are passed to sosfiltfilt() in the `filtering`
+        module
+    Returns
+    -------
+    out : AnalogSignalArray
+        The downsampled AnalogSignalArray
+    """
+    # TODO: Implement this for ndarray and list as well
+
+    if not isinstance(obj, core.AnalogSignalArray):
+        raise TypeError('obj is expected to be a nelpy.core.AnalogSignalArray!')
+
+    assert fs_out < obj.fs, "fs_out must be less than current sampling rate!"
+
+    if aafilter:
+        fh = fs_out/2.0
+        out = filtering.sosfiltfilt(obj, fl=None, fh=fh, inplace=inplace, **kwargs)
+
+    downsampled = out.simplify(ds=1/fs_out)
+    out._data = downsampled._data
+    out._time = downsampled.time
+    out._fs = fs_out
+    return out
         out = utils.downsample_analogsignalarray(self, fs_out=fs_out, aafilter=aafilter, 
                                                  inplace=inplace, **kwargs)
         out.__renew__()
