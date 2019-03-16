@@ -805,7 +805,7 @@ class RegularlySampledAnalogSignalArray:
 
         downsampled = out.simplify(ds=1/fs_out)
         out._data = downsampled._data
-        out._time = downsampled.time
+        out._absissa_vals = downsampled.abscissa_vals
         out._fs = fs_out
 
         out.__renew__()
