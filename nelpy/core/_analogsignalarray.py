@@ -513,10 +513,24 @@ class RegularlySampledAnalogSignalArray:
         self._interp = None
         self.__bake__()
 
-    def __call__(self, *args):
-        """RegularlySampledAnalogSignalArray callable method; by default returns interpolated yvals"""
-        f = lambda x: self.asarray(at=x).yvals
-        return f(args)
+    def __call__(self, x):
+        """RegularlySampledAnalogSignalArray callable method. Returns
+        interpolated data at requested points. Note that points falling
+        outside the support will not be interpolated.
+
+        Parameters
+        ----------
+        x : np.ndarray, list, or tuple, with length n_requested_samples
+            Points at which to interpolate the RSASA's data
+
+        Returns
+        -------
+        A np.ndarray with shape (n_signals, n_samples). If all the requested
+        points lie in the support, then n_samples = n_requested_samples.
+        Otherwise n_samples < n_requested_samples.
+        """
+
+        return self.asarray(at=x).yvals
 
     def center(self, inplace=False):
         """Center data (zero mean)."""
@@ -620,7 +634,6 @@ class RegularlySampledAnalogSignalArray:
         if the signal oscillates around the maximum or minimum range.
         """
         raise NotImplementedError
-
 
     @property
     def base_unit(self):
@@ -1725,7 +1738,7 @@ class RegularlySampledAnalogSignalArray:
             array corresponding to np where condition
             e.g., where=(data[1,:]>5) or tuple where=(speed>5,tspeed)
         at : array_like, optional
-            Array of oints to evaluate array at. If none given, use
+            Array of points to evaluate array at. If none given, use
             self._abscissa_vals together with 'where' if applicable.
         n_samples: int, optional
             Number of points to interplate at. These points will be
@@ -1737,6 +1750,7 @@ class RegularlySampledAnalogSignalArray:
         out : (array, array)
             namedtuple tuple (xvals, yvals) of arrays, where xvals is an
             array of abscissa values for which (interpolated) data are returned.
+            yvals has shape (n_signals, n_samples)
         """
 
         # TODO: implement splitting by interval
@@ -1766,12 +1780,12 @@ class RegularlySampledAnalogSignalArray:
         else:
             at = np.linspace(self.support.start, self.support.stop, n_samples)
 
-        if isinstance(at, tuple):
-            at = at[0]
-        at = at.squeeze()
+        at = np.array(at)
         if at.ndim > 1:
-            raise ValueError("Requested interpolation points must be 1-dimensional!")
-
+            raise ValueError("Requested points must be one-dimensional!")
+        if at.shape[0] == 0:
+            raise ValueError("No points were requested to interpolate")
+        
         # if we made it this far, either at or where has been specified, and at is now well defined.
 
         kwargs = {'kind':kind,
@@ -1832,9 +1846,7 @@ class RegularlySampledAnalogSignalArray:
                     self._interp = interpobj
                 out = interpobj(at)
 
-        # TODO: set all values outside of self.support to fill_value
-
-        xyarray = XYArray(xvals=np.asanyarray(at), yvals=np.asanyarray(out).squeeze())
+        xyarray = XYArray(xvals=np.asanyarray(at), yvals=np.asanyarray(out))
         return xyarray
 
     def subsample(self, *, fs):
