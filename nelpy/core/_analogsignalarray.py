@@ -1766,6 +1766,11 @@ class RegularlySampledAnalogSignalArray:
         else:
             at = np.linspace(self.support.start, self.support.stop, n_samples)
 
+        if isinstance(at, tuple):
+            at = at[0].squeeze()
+        if at.ndim > 1:
+            raise ValueError("Requested interpolation points must be 1-dimensional!")
+
         # if we made it this far, either at or where has been specified, and at is now well defined.
 
         kwargs = {'kind':kind,
@@ -1790,8 +1795,6 @@ class RegularlySampledAnalogSignalArray:
             self._interp = interpobj
 
         # do not interpolate points that lie outside the support
-        if isinstance(at, tuple): # at might be a tuple if __call__ was called
-            at = at[0]
         interval_data = self.support.data[:, :, None]
         # use broadcasting to check in a vectorized manner if
         # each sample falls within the support, haha aren't we clever?
