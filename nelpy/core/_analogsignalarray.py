@@ -37,7 +37,6 @@ warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
 
-
 class IntervalSignalSlicer(object):
     def __init__(self, obj):
         self.obj = obj
@@ -64,7 +63,6 @@ class IntervalSignalSlicer(object):
                 intervalslice = slices
 
         return intervalslice, signalslice
-
 
 class DataSlicer(object):
 
@@ -109,7 +107,6 @@ class DataSlicer(object):
         self._index +=1
 
         return self._parent._data[:, start: stop]
-
 
 class AbscissaSlicer(object):
 
@@ -250,7 +247,6 @@ def rsasa_init_wrapper(func):
         return
 
     return wrapper
-
 
 ########################################################################
 # class RegularlySampledAnalogSignalArray
@@ -709,46 +705,40 @@ class RegularlySampledAnalogSignalArray:
     @property
     def abs(self):
         """RegularlySampledAnalogSignalArray with absolute value of (potentially complex) data."""
-        out = copy.copy(self)
+        out = self.copy()
         out._data = np.abs(self.data)
-        out.__renew__()
         return out
 
     @property
     def angle(self):
         """RegularlySampledAnalogSignalArray with only phase angle (in radians) of data."""
-        out = copy.copy(self)
+        out = self.copy()
         out._data = np.angle(self.data)
-        out.__renew__()
         return out
 
     @property
     def imag(self):
         """RegularlySampledAnalogSignalArray with only imaginary part of data."""
-        out = copy.copy(self)
+        out = self.copy()
         out._data = self.data.imag
-        out.__renew__()
         return out
 
     @property
     def real(self):
         """RegularlySampledAnalogSignalArray with only real part of data."""
-        out = copy.copy(self)
+        out = self.copy()
         out._data = self.data.real
-        out.__renew__()
         return out
 
     def __mul__(self, other):
         """overloaded * operator."""
         if isinstance(other, numbers.Number):
-            newasa = copy.copy(self)
+            newasa = self.copy()
             newasa._data = self.data * other
-            newasa.__renew__()
             return newasa
         elif isinstance(other, np.ndarray):
-            newasa = copy.copy(self)
+            newasa = self.copy()
             newasa._data = (self.data.T * other).T
-            newasa.__renew__()
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for *: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
@@ -756,14 +746,12 @@ class RegularlySampledAnalogSignalArray:
     def __add__(self, other):
         """overloaded + operator."""
         if isinstance(other, numbers.Number):
-            newasa = copy.copy(self)
+            newasa = self.copy()
             newasa._data = self.data + other
-            newasa.__renew__()
             return newasa
         elif isinstance(other, np.ndarray):
-            newasa = copy.copy(self)
+            newasa = self.copy()
             newasa._data = (self.data.T + other).T
-            newasa.__renew__()
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for +: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
@@ -771,21 +759,19 @@ class RegularlySampledAnalogSignalArray:
     def __sub__(self, other):
         """overloaded - operator."""
         if isinstance(other, numbers.Number):
-            newasa = copy.copy(self)
+            newasa = self.copy()
             newasa._data = self.data - other
-            newasa.__renew__()
             return newasa
         elif isinstance(other, np.ndarray):
-            newasa = copy.copy(self)
+            newasa = self.copy()
             newasa._data = (self.data.T - other).T
-            newasa.__renew__()
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for -: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
 
     def zscore(self):
         """Returns an object where each signal has been normalized using z scores."""
-        out = copy.deepcopy(self)
+        out = self.copy()
         out._data = zscore(out._data, axis=1)
         return out
 
@@ -795,14 +781,12 @@ class RegularlySampledAnalogSignalArray:
     def __truediv__(self, other):
         """overloaded / operator."""
         if isinstance(other, numbers.Number):
-            newasa = copy.copy(self)
+            newasa = self.copy()
             newasa._data = self.data / other
-            newasa.__renew__()
             return newasa
         elif isinstance(other, np.ndarray):
-            newasa = copy.copy(self)
+            newasa = self.copy()
             newasa._data = (self.data.T / other).T
-            newasa.__renew__()
             return newasa
         else:
             raise TypeError("unsupported operand type(s) for /: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
@@ -1245,9 +1229,8 @@ class RegularlySampledAnalogSignalArray:
             RegularlySampledAnalogSignalArray that has been partitioned.
         """
 
-        out = copy.deepcopy(self)
+        out = self.copy()
         out._abscissa.support = out.support.partition(ds=ds, n_intervals=n_intervals)
-        out.__renew__()
         return out
 
     # @property
@@ -1566,7 +1549,6 @@ class RegularlySampledAnalogSignalArray:
         new_data = np.clip(self.data, min, max)
         newasa = self.copy()
         newasa._data = new_data
-        newasa.__renew__()
         return newasa
 
     def trim(self, start, stop=None, *, fs=None):
@@ -1951,12 +1933,11 @@ class RegularlySampledAnalogSignalArray:
         _, yvals = self.asarray(at=at, recalculate=True, store_interp=False)
         yvals = np.array(yvals, ndmin=2)
 
-        asa = copy.copy(self)
+        asa = self.copy()
         asa._abscissa_vals = np.asanyarray(at)
         asa._data = yvals
         asa._fs = 1/ds
 
-        asa.__renew__()
         return asa
 
     def join(self, other, *, mode=None, inplace=False):
@@ -1989,7 +1970,7 @@ class RegularlySampledAnalogSignalArray:
         if mode is None:
             mode = 'left'
 
-        asa = copy.deepcopy(self)
+        asa = self.copy()    # copy without data since we change data at the end?
 
         times = np.zeros((1,0))
         data = np.zeros((asa.n_signals,0))
@@ -2206,7 +2187,6 @@ def legacyASAkwargs(**kwargs):
 
     return kwargs
 
-
 ########################################################################
 # class AnalogSignalArray
 ########################################################################
@@ -2240,7 +2220,6 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
         kwargs['ordinate'] = ordinate
 
         super().__init__(*args, **kwargs)
-
 
 ########################################################################
 # class PositionArray
@@ -2332,7 +2311,6 @@ class IMUSensorArray(RegularlySampledAnalogSignalArray):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
         super().__init__(*args, **kwargs)
-
 
 ########################################################################
 # class MinimalExampleArray
