@@ -42,7 +42,6 @@ warnings.formatwarning = lambda message, category, filename, lineno, \
     line=None: formatwarning_orig(
         message, category, filename, lineno, line='')
 
-
 class IntervalSeriesSlicer(object):
     def __init__(self, obj):
         self.obj = obj
@@ -69,7 +68,6 @@ class IntervalSeriesSlicer(object):
                 intervalslice = slices
 
         return intervalslice, seriesslice
-
 
 class ItemGetter_loc(object):
     """.loc is primarily label based (that is, series_id based)
@@ -154,7 +152,6 @@ class ItemGetter_loc(object):
         out.iloc = ItemGetter_iloc(out)
         return out
 
-
 class ItemGetter_iloc(object):
     """.iloc is primarily integer position based (from 0 to length-1
     of the axis).
@@ -193,7 +190,6 @@ class ItemGetter_iloc(object):
         out.loc = ItemGetter_loc(out)
         out.iloc = ItemGetter_iloc(out)
         return out
-
 
 ########################################################################
 # class BaseEventArray
@@ -739,12 +735,11 @@ class EventArray(BaseEventArray):
             BaseEventArray that has been partitioned.
         """
 
-        out = copy.copy(self)
+        out = self.copy()
         abscissa = copy.deepcopy(out._abscissa)
         abscissa.support = abscissa.support.partition(ds=ds, n_intervals=n_intervals)
         out._abscissa = abscissa
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
+        out.__renew__()
 
         return out
 
@@ -758,8 +753,7 @@ class EventArray(BaseEventArray):
     def copy(self):
         """Returns a copy of the EventArray."""
         newcopy = copy.deepcopy(self)
-        newcopy.loc = ItemGetter_loc(newcopy)
-        newcopy.iloc = ItemGetter_iloc(newcopy)
+        newcopy.__renew__()
         return newcopy
 
     def __iter__(self):
@@ -802,16 +796,14 @@ class EventArray(BaseEventArray):
                 eventarray = self._copy_without_data()
                 eventarray._data = data
                 eventarray._abscissa.support = support
-                eventarray.loc = ItemGetter_loc(eventarray)
-                eventarray.iloc = ItemGetter_iloc(eventarray)
+                eventarray.__renew__()
             return eventarray
         elif isinstance(idx, int):
             eventarray = self._copy_without_data()
             support = self._abscissa.support[idx]
             eventarray._abscissa.support = support
             if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
-                eventarray.loc = ItemGetter_loc(eventarray)
-                eventarray.iloc = ItemGetter_iloc(eventarray)
+                eventarray.__renew__()
                 return eventarray
             else:
                 data = self._restrict_to_interval_array_fast(
@@ -821,8 +813,7 @@ class EventArray(BaseEventArray):
                         )
                 eventarray._data = data
                 eventarray._abscissa.support = support
-                eventarray.loc = ItemGetter_loc(eventarray)
-                eventarray.iloc = ItemGetter_iloc(eventarray)
+                eventarray.__renew__()
                 return eventarray
         else:  # most likely slice indexing
             try:
@@ -837,8 +828,7 @@ class EventArray(BaseEventArray):
                     eventarray = self._copy_without_data()
                     eventarray._data = data
                     eventarray._abscissa.support = support
-                    eventarray.loc = ItemGetter_loc(eventarray)
-                    eventarray.iloc = ItemGetter_iloc(eventarray)
+                    eventarray.__renew__()
                 return eventarray
             except Exception:
                 raise TypeError(
@@ -909,8 +899,7 @@ class EventArray(BaseEventArray):
             alldatas = utils.linear_merge(alldatas, self.data[series])
 
         flattened._data = np.array(list(alldatas), ndmin=2)
-        flattened.loc = ItemGetter_loc(flattened)
-        flattened.iloc = ItemGetter_iloc(flattened)
+        flattened.__renew__()
         return flattened
 
     @staticmethod
@@ -1074,7 +1063,7 @@ class EventArray(BaseEventArray):
         if inplace:
             out = self
         else:
-            out = copy.deepcopy(self)
+            out = self.copy()
 
         oldorder = list(range(len(neworder)))
         for oi, ni in enumerate(neworder):
@@ -1085,8 +1074,8 @@ class EventArray(BaseEventArray):
             out._series_labels[frm], out._series_labels[to] = out._series_labels[to], out._series_labels[frm]
             # TODO: re-build series tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
+ 
+        out.__renew__()
         return out
 
     def reorder_series(self, neworder, *, inplace=False):
@@ -1114,7 +1103,7 @@ class EventArray(BaseEventArray):
         if inplace:
             out = self
         else:
-            out = copy.deepcopy(self)
+            out = self.copy()
 
         neworder = [self.series_ids.index(x) for x in neworder]
 
@@ -1128,8 +1117,7 @@ class EventArray(BaseEventArray):
             # TODO: re-build series tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
+        out.__renew__()
         return out
 
     def get_event_firing_order(self):
@@ -1169,7 +1157,6 @@ class EventArray(BaseEventArray):
             if series[-1] > last:
                 last = series[-1]
         return last
-
 
 ########################################################################
 # class BinnedEventArray
@@ -1346,14 +1333,12 @@ class BinnedEventArray(BaseEventArray):
         """Overloaded * operator"""
 
         if isinstance(other, numbers.Number):
-            neweva = copy.copy(self)
+            neweva = self.copy()
             neweva._data = self.data * other
-            neweva.__renew__()
             return neweva
         elif isinstance(other, np.ndarray):
-            neweva = copy.copy(self)
+            neweva = self.copy()
             neweva._data = (self.data.T * other).T
-            neweva.__renew__()
             return neweva
         else:
             raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(str(type(self)), str(type(other))))
@@ -1365,14 +1350,12 @@ class BinnedEventArray(BaseEventArray):
     def __sub__(self, other):
         """Overloaded - operator"""
         if isinstance(other, numbers.Number):
-            neweva = copy.copy(self)
+            neweva = self.copy()
             neweva._data = self.data - other
-            neweva.__renew__()
             return neweva
         elif isinstance(other, np.ndarray):
-            neweva = copy.copy(self)
+            neweva = self.copy()
             neweva._data = (self.data.T - other).T
-            neweva.__renew__()
             return neweva
         else:
             raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(str(type(self)), str(type(other))))
@@ -1381,14 +1364,12 @@ class BinnedEventArray(BaseEventArray):
         """Overloaded + operator"""
 
         if isinstance(other, numbers.Number):
-            neweva = copy.copy(self)
+            neweva = self.copy()
             neweva._data = self.data + other
-            neweva.__renew__()
             return neweva
         elif isinstance(other, np.ndarray):
-            neweva = copy.copy(self)
+            neweva = self.copy()
             neweva._data = (self.data.T + other).T
-            neweva.__renew__()
             return neweva
         elif isinstance(other, type(self)):
 
@@ -1411,14 +1392,12 @@ class BinnedEventArray(BaseEventArray):
         """Overloaded / operator"""
 
         if isinstance(other, numbers.Number):
-            neweva = copy.copy(self)
+            neweva = self.copy()
             neweva._data = self.data / other
-            neweva.__renew__()
             return neweva
         elif isinstance(other, np.ndarray):
-            neweva = copy.copy(self)
+            neweva = self.copy()
             neweva._data = (self.data.T / other).T
-            neweva.__renew__()
             return neweva
         else:
             raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(str(type(self)), str(type(other))))
@@ -1583,8 +1562,7 @@ class BinnedEventArray(BaseEventArray):
             binnedeventarray._bin_centers = self._bin_centers[bsupport[0][0]:bsupport[0][1]+1]
             binnedeventarray._binnedSupport = bsupport - bsupport[0,0]
         self._index += 1
-        binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
-        binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
+        binnedeventarray.__renew__()
         return binnedeventarray
 
     def empty(self, inplace=False):
@@ -1643,8 +1621,7 @@ class BinnedEventArray(BaseEventArray):
             support = self._abscissa.support[idx]
             binnedeventarray._abscissa.support = support
             if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
-                binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
-                binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
+                binnedeventarray.__renew__()
                 return binnedeventarray
             else:
                 bsupport = self.binnedSupport[[idx],:]
@@ -1656,8 +1633,7 @@ class BinnedEventArray(BaseEventArray):
                 binnedeventarray._bins = self._bins[binstart:binstop]
                 binnedeventarray._binnedSupport = bsupport - bsupport[0,0]
                 binnedeventarray._bin_centers = centers
-                binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
-                binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
+                binnedeventarray.__renew__()
                 return binnedeventarray
         else:  # most likely a slice
             try:
@@ -1694,8 +1670,7 @@ class BinnedEventArray(BaseEventArray):
                 for start, stop in zip(binstarts, binstops):
                     ll.extend(np.arange(start,stop,step=1))
                 binnedeventarray._bins = self._bins[ll]
-                binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
-                binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
+                binnedeventarray.__renew__()
 
                 return binnedeventarray
 
@@ -2094,7 +2069,7 @@ class BinnedEventArray(BaseEventArray):
 
         # assemble new binned event series array:
         newedges = np.cumsum(newlengths)
-        newbst = copy.copy(bst)
+        newbst = bst._copy_without_data()
         abscissa = copy.copy(bst._abscissa)
         if newdata is not None:
             newbst._data = newdata
@@ -2113,8 +2088,7 @@ class BinnedEventArray(BaseEventArray):
             newbst._bin_centers = None
             newbst._bins = None
 
-        newbst.loc = ItemGetter_loc(newbst)
-        newbst.iloc = ItemGetter_iloc(newbst)
+        newbst.__renew__()
 
         return newbst
 
@@ -2134,7 +2108,7 @@ class BinnedEventArray(BaseEventArray):
 
         idx = np.atleast_2d(idx)
 
-        newbst = copy.copy(self)
+        newbst = self._copy_without_data()
         ds = self.ds
         bin_centers_ = []
         bins_ = []
@@ -2171,8 +2145,7 @@ class BinnedEventArray(BaseEventArray):
         newbst._abscissa.support = support
         newbst._data = newbst.data[:,all_abscissa_vals]
 
-        newbst.loc = ItemGetter_loc(newbst)
-        newbst.iloc = ItemGetter_iloc(newbst)
+        newbst.__renew()__
 
         return newbst
 
@@ -2263,8 +2236,8 @@ class BinnedEventArray(BaseEventArray):
         binnedeventarray._series_ids = [series_id]
         binnedeventarray._series_labels = [series_label]
         binnedeventarray._series_tags = None
-        binnedeventarray.loc = ItemGetter_loc(binnedeventarray)
-        binnedeventarray.iloc = ItemGetter_iloc(binnedeventarray)
+        binnedeventarray.__renew__()
+        
         return binnedeventarray
 
     @property
@@ -2297,7 +2270,6 @@ class BinnedEventArray(BaseEventArray):
     def _restrict_to_interval_array_fast(intervalarray, data, copyover=True):
         warnings.warn('_restrict_to_interval_array() not yet implemented for BinnedTypes')
         return data
-
 
 def legacySTAkwargs(**kwargs):
     """Provide support for legacy SpikeTrainArray kwargs.
@@ -2341,7 +2313,6 @@ def legacySTAkwargs(**kwargs):
     kwargs['series_labels'] = series_labels
 
     return kwargs
-
 
 ########################################################################
 # class SpikeTrainArray
@@ -2408,7 +2379,6 @@ class SpikeTrainArray(EventArray):
     def bin(self, *, ds=None):
         """Return a BinnedSpikeTrainArray."""
         return BinnedSpikeTrainArray(self, ds=ds) # TODO #FIXME
-
 
 ########################################################################
 # class BinnedSpikeTrainArray

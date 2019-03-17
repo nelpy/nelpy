@@ -368,8 +368,7 @@ class BaseValueEventArray(ABC):
     def copy(self):
         """Returns a copy of the EventArray."""
         newcopy = copy.deepcopy(self)
-        newcopy.loc = ItemGetter_loc(newcopy)
-        newcopy.iloc = ItemGetter_iloc(newcopy)
+        newcopy.__renew__()
         return newcopy
 
     @property
@@ -787,12 +786,11 @@ class ValueEventArray(BaseValueEventArray):
             BaseEventArray that has been partitioned.
         """
 
-        out = copy.copy(self)
+        out = self.copy()
         abscissa = copy.deepcopy(out._abscissa)
         abscissa.support = abscissa.support.partition(ds=ds, n_intervals=n_intervals)
         out._abscissa = abscissa
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
+        out.__renew__()
 
         return out
 
@@ -836,16 +834,14 @@ class ValueEventArray(BaseValueEventArray):
                 eventarray = self._copy_without_data()
                 eventarray._data = data
                 eventarray._abscissa.support = support
-                eventarray.loc = ItemGetter_loc(eventarray)
-                eventarray.iloc = ItemGetter_iloc(eventarray)
+                eventarray.__renew__()
             return eventarray
         elif isinstance(idx, int):
             eventarray = self._copy_without_data()
             support = self._abscissa.support[idx]
             eventarray._abscissa.support = support
             if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
-                eventarray.loc = ItemGetter_loc(eventarray)
-                eventarray.iloc = ItemGetter_iloc(eventarray)
+                eventarray.__renew__()
                 return eventarray
             else:
                 data = self._restrict_to_interval_array_fast(
@@ -855,8 +851,7 @@ class ValueEventArray(BaseValueEventArray):
                         )
                 eventarray._data = data
                 eventarray._abscissa.support = support
-                eventarray.loc = ItemGetter_loc(eventarray)
-                eventarray.iloc = ItemGetter_iloc(eventarray)
+                eventarray.__renew__()
                 return eventarray
         else:  # most likely slice indexing
             try:
@@ -871,8 +866,7 @@ class ValueEventArray(BaseValueEventArray):
                     eventarray = self._copy_without_data()
                     eventarray._data = data
                     eventarray._abscissa.support = support
-                    eventarray.loc = ItemGetter_loc(eventarray)
-                    eventarray.iloc = ItemGetter_iloc(eventarray)
+                    eventarray.__renew__()
                 return eventarray
             except Exception:
                 raise TypeError(
@@ -936,8 +930,7 @@ class ValueEventArray(BaseValueEventArray):
             alldatas = utils.linear_merge(alldatas, self.data[series])
 
         flattened._data = np.array(list(alldatas), ndmin=2)
-        flattened.loc = ItemGetter_loc(flattened)
-        flattened.iloc = ItemGetter_iloc(flattened)
+        flattened.__renew__()
         return flattened
 
     @staticmethod
@@ -1057,7 +1050,7 @@ class ValueEventArray(BaseValueEventArray):
         if inplace:
             out = self
         else:
-            out = copy.deepcopy(self)
+            out = self.copy()
 
         oldorder = list(range(len(neworder)))
         for oi, ni in enumerate(neworder):
@@ -1067,8 +1060,8 @@ class ValueEventArray(BaseValueEventArray):
             out._series_ids[frm], out._series_ids[to] = out._series_ids[to], out._series_ids[frm]
             # TODO: re-build series tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
+        out.__renew__()
+
         return out
 
     def reorder_series_by_ids(self, neworder, *, inplace=False):
@@ -1084,7 +1077,7 @@ class ValueEventArray(BaseValueEventArray):
         if inplace:
             out = self
         else:
-            out = copy.deepcopy(self)
+            out = self.copy()
 
         neworder = [self.series_ids.index(x) for x in neworder]
 
@@ -1097,8 +1090,7 @@ class ValueEventArray(BaseValueEventArray):
             # TODO: re-build series tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
+        out.__renew__()
         return out
 
     def make_stateful(self):
@@ -1434,12 +1426,11 @@ class StatefulValueEventArray(BaseValueEventArray):
             BaseEventArray that has been partitioned.
         """
 
-        out = copy.copy(self)
+        out = self.copy()
         abscissa = copy.deepcopy(out._abscissa)
         abscissa.support = abscissa.support.partition(ds=ds, n_intervals=n_intervals)
         out._abscissa = abscissa
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
+        out.__renew__()
 
         return out
 
@@ -1536,16 +1527,14 @@ class StatefulValueEventArray(BaseValueEventArray):
                 eventarray = self._copy_without_data()
                 eventarray._data = data
                 eventarray._abscissa.support = support
-                eventarray.loc = ItemGetter_loc(eventarray)
-                eventarray.iloc = ItemGetter_iloc(eventarray)
+                eventarray.__renew__()
             return eventarray
         elif isinstance(idx, int):
             eventarray = self._copy_without_data()
             support = self._abscissa.support[idx]
             eventarray._abscissa.support = support
             if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
-                eventarray.loc = ItemGetter_loc(eventarray)
-                eventarray.iloc = ItemGetter_iloc(eventarray)
+                eventarray.__renew__()
                 return eventarray
             else:
                 data = self._restrict_to_interval_array_value_fast(
@@ -1555,8 +1544,7 @@ class StatefulValueEventArray(BaseValueEventArray):
                         )
                 eventarray._data = data
                 eventarray._abscissa.support = support
-                eventarray.loc = ItemGetter_loc(eventarray)
-                eventarray.iloc = ItemGetter_iloc(eventarray)
+                eventarray.__renew__()
                 return eventarray
         else:  # most likely slice indexing
             try:
@@ -1571,13 +1559,11 @@ class StatefulValueEventArray(BaseValueEventArray):
                     eventarray = self._copy_without_data()
                     eventarray._data = data
                     eventarray._abscissa.support = support
-                    eventarray.loc = ItemGetter_loc(eventarray)
-                    eventarray.iloc = ItemGetter_iloc(eventarray)
+                    eventarray.__renew__()
                 return eventarray
             except Exception:
                 raise TypeError(
                     'unsupported subsctipting type {}'.format(type(idx)))
-
 
     @staticmethod
     def _restrict_to_interval_array_fast(intervalarray, data, copyover=True):
