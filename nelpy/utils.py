@@ -1300,7 +1300,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
             warnings.simplefilter("ignore")
             cum_lengths = np.insert(np.cumsum(data.lengths), 0, 0)
 
-        newasa = copy.deepcopy(data)
+        newasa = data.copy()
         # for segment in data:
         for idx in range(data.n_epochs):
             # print('hilberting epoch {}/{}'.format(idx+1, data.n_epochs))
@@ -1508,10 +1508,11 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=No
 
     Parameters
     ----------
-    asa : AnalogSignalArray
+    asa : nelpy.RegularlySampledAnalogSignalArray
+        Input object.
     fs : float, optional
-        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
-        be obtained from asa.fs
+        Sampling rate (in Hz) of input RSASA. If not provided, it will be obtained
+        from asa.fs.
     smooth : bool, optional
         If true, result will be smoothed. Default is False
     rectify : bool, optional
@@ -1525,22 +1526,23 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=No
         If True, then apply the L2 norm to the result.
     Returns
     -------
-    out : AnalogSignalArray
-        An AnalogSignalArray with derivative data (in units per second) is returned.
+    out : nelpy.RegularlySampledAnalogSignalArray
+        A RegularlySampledAnalogSignalArray with derivative data (in units 
+        per second) is returned.
 
     Notes
     -----
     Central differences are used here.
     """
 
+    if not isinstance(core.RegularlySampledAnalogSignalArray):
+        raise TypeError("Input object must be a RegularlySampledAnalogSignalArray!")
     if fs is None:
         fs = asa.fs
-    if fs is None:
-        raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
     if sigma is None:
         sigma = 0.05 # 50 ms default
 
-    out = copy.deepcopy(asa)
+    out = asa.copy()
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
 
     # ensure that datatype is float
