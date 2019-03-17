@@ -333,87 +333,6 @@ class BaseEventArray(ABC):
         address_str = " at " + str(hex(id(self)))
         return "<BaseEventArray" + address_str + ">"
 
-    def __mul__(self, other):
-        """Overloaded * operator"""
-
-        if isinstance(other, numbers.Number):
-            neweva = copy.copy(self)
-            neweva._data = self.data * other
-            neweva.__renew__()
-            return neweva
-        elif isinstance(other, np.ndarray):
-            neweva = copy.copy(self)
-            neweva._data = (self.data.T * other).T
-            neweva.__renew__()
-            return neweva
-        else:
-            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(str(type(self)), str(type(other))))
-
-    def __rmul__(self, other):
-        """Overloaded * operator"""
-        return self.__mul__(other)
-
-    def __sub__(self, other):
-        """Overloaded - operator"""
-        if isinstance(other, numbers.Number):
-            neweva = copy.copy(self)
-            neweva._data = self.data - other
-            neweva.__renew__()
-            return neweva
-        elif isinstance(other, np.ndarray):
-            neweva = copy.copy(self)
-            neweva._data = (self.data.T - other).T
-            neweva.__renew__()
-            return neweva
-        else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(str(type(self)), str(type(other))))
-
-    def __add__(self, other):
-        """Overloaded + operator"""
-
-        if isinstance(other, numbers.Number):
-            neweva = copy.copy(self)
-            neweva._data = self.data + other
-            neweva.__renew__()
-            return neweva
-        elif isinstance(other, np.ndarray):
-            neweva = copy.copy(self)
-            neweva._data = (self.data.T + other).T
-            neweva.__renew__()
-            return neweva
-        elif isinstance(other, type(self)):
-
-            #TODO: additional checks need to be done, e.g., same series ids...
-            assert self.n_series == other.n_series
-            support = self._abscissa.support + other.support
-
-            newdata = []
-            for series in range(self.n_series):
-                newdata.append(np.append(self.data[series], other.data[series]))
-
-            fs = self.fs
-            if self.fs != other.fs:
-                fs = None
-            return type(self)(newdata, support=support, fs=fs)
-        else:
-            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(str(type(self)), str(type(other))))
-
-    def __truediv__(self, other):
-        """Overloaded / operator"""
-
-        if isinstance(other, numbers.Number):
-            neweva = copy.copy(self)
-            neweva._data = self.data / other
-            neweva.__renew__()
-            return neweva
-        elif isinstance(other, np.ndarray):
-            neweva = copy.copy(self)
-            neweva._data = (self.data.T / other).T
-            neweva.__renew__()
-            return neweva
-        else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(str(type(self)), str(type(other))))
-
     @abstractmethod
     @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
@@ -1422,6 +1341,87 @@ class BinnedEventArray(BaseEventArray):
             intervalArray=eventarray.support,
             ds=ds
             )
+
+    def __mul__(self, other):
+        """Overloaded * operator"""
+
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data * other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T * other).T
+            neweva.__renew__()
+            return neweva
+        else:
+            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+    def __rmul__(self, other):
+        """Overloaded * operator"""
+        return self.__mul__(other)
+
+    def __sub__(self, other):
+        """Overloaded - operator"""
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data - other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T - other).T
+            neweva.__renew__()
+            return neweva
+        else:
+            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+    def __add__(self, other):
+        """Overloaded + operator"""
+
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data + other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T + other).T
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, type(self)):
+
+            #TODO: additional checks need to be done, e.g., same series ids...
+            assert self.n_series == other.n_series
+            support = self._abscissa.support + other.support
+
+            newdata = []
+            for series in range(self.n_series):
+                newdata.append(np.append(self.data[series], other.data[series]))
+
+            fs = self.fs
+            if self.fs != other.fs:
+                fs = None
+            return type(self)(newdata, support=support, fs=fs)
+        else:
+            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(str(type(self)), str(type(other))))
+
+    def __truediv__(self, other):
+        """Overloaded / operator"""
+
+        if isinstance(other, numbers.Number):
+            neweva = copy.copy(self)
+            neweva._data = self.data / other
+            neweva.__renew__()
+            return neweva
+        elif isinstance(other, np.ndarray):
+            neweva = copy.copy(self)
+            neweva._data = (self.data.T / other).T
+            neweva.__renew__()
+            return neweva
+        else:
+            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(str(type(self)), str(type(other))))
 
     def median(self,*,axis=1):
         """Returns the median of each series in BinnedEventArray."""
