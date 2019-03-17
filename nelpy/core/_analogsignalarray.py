@@ -1767,7 +1767,8 @@ class RegularlySampledAnalogSignalArray:
             at = np.linspace(self.support.start, self.support.stop, n_samples)
 
         if isinstance(at, tuple):
-            at = at[0].squeeze()
+            at = at[0]
+        at = at.squeeze()
         if at.ndim > 1:
             raise ValueError("Requested interpolation points must be 1-dimensional!")
 
