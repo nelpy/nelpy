@@ -265,11 +265,6 @@ class RegularlySampledAnalogSignalArray:
 
     Parameters
     ----------
-    data=[], *, abscissa_vals=None, fs=None,
-                 step=None, merge_sample_gap=0, support=None,
-                 in_core=True, labels=None, empty=False,
-                 abscissa=None, ordinate=None
-
     data : np.ndarray, with shape (n_signals, n_samples).
         Data samples.
     abscissa_vals : np.ndarray, with shape (n_samples, ).
@@ -1793,6 +1788,21 @@ class RegularlySampledAnalogSignalArray:
         # store interpolation object, if desired
         if store_interp:
             self._interp = interpobj
+
+        # do not interpolate points that lie outside the support
+        if isinstance(at, tuple): # at might be a tuple if __call__ was called
+            at = at[0]
+        interval_data = self.support.data[:, :, None]
+        # use broadcasting to check in a vectorized manner if
+        # each sample falls within the support, haha aren't we clever?
+        # (n_intervals, n_requested_samples)
+        valid = np.logical_and(at >= interval_data[:, 0, :],
+                               at <= interval_data[:, 1, :])
+        valid_mask = np.any(valid, axis=0)
+        n_invalid = at.size - np.sum(valid_mask)
+        if n_invalid > 0:
+            warnings.warn("{} values outside the support were removed".format(n_invalid))
+        at = at[valid_mask]
 
         # do the actual interpolation
         if self._ordinate.is_wrapping:
