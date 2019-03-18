@@ -1293,20 +1293,19 @@ class BinnedEventArray(BaseEventArray):
                 pass
 
         if not isinstance(eventarray, EventArray):
-            raise TypeError(
-                'eventarray must be a nelpy.EventArray object.')
+            raise TypeError('eventarray must be a nelpy.EventArray object.')
 
         self._ds = None
         self._bin_centers = np.array([])
         self._event_centers = None
 
         with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                kwargs = {"fs": eventarray.fs,
-                        "series_ids": eventarray.series_ids,
-                        "series_labels": eventarray.series_labels,
-                        "series_tags": eventarray.series_tags,
-                        "label": eventarray.label}
+            warnings.simplefilter("ignore")
+            kwargs = {'fs': eventarray.fs,
+                      'series_ids': eventarray.series_ids,
+                      'series_labels': eventarray.series_labels,
+                      'series_tags': eventarray.series_tags,
+                      'label': eventarray.label}
 
         # initialize super so that self.fs is set:
         self._data = np.zeros((eventarray.n_series,0))
@@ -2271,26 +2270,23 @@ class BinnedEventArray(BaseEventArray):
         warnings.warn('_restrict_to_interval_array() not yet implemented for BinnedTypes')
         return data
 
-def legacykwargs(is_bst, **kwargs):
+def legacySTAkwargs(**kwargs):
     """Provide support for legacy SpikeTrainArray 
-    and BinnedSpikeTrainArray kwargs. This function is
-    primarily intended to be a helper for the new STA
-    and BST constructors, not for general-purpose use.
+    kwargs. This function is primarily intended to be
+    a helper for the new STA constructor, not for
+    general-purpose use.
 
-    For SpikeTrainArrays:
-        kwarg: time <==> timestamps <==> abscissa_vals
-        kwarg: data <==> ydata
+    kwarg: time        <==> timestamps <==> abscissa_vals
+    kwarg: data        <==> ydata
+    kwarg: unit_ids    <==> series_ids
+    kwarg: unit_labels <==> series_labels
+    kwarg: unit_tags   <==> series_tags
 
-        Examples
-        --------
-        sta = nel.SpikeTrainArray(time=..., )
-        sta = nel.SpikeTrainArray(timestamps=..., )
-        sta = nel.SpikeTrainArray(abscissa_vals=..., )
-
-    For SpikeTrainArrays AND BinnedSpikeTrainArrays:
-        kwarg: unit_ids    <==> series_ids
-        kwarg: unit_labels <==> series_labels
-        kwarg: unit_tags   <==> series_tags
+    Examples
+    --------
+    sta = nel.SpikeTrainArray(time=..., )
+    sta = nel.SpikeTrainArray(timestamps=..., )
+    sta = nel.SpikeTrainArray(abscissa_vals=..., )
     """
 
     def only_one_of(*args):
@@ -2304,16 +2300,14 @@ def legacykwargs(is_bst, **kwargs):
             raise ValueError ('multiple conflicting arguments received')
         return out
 
-    # These attributes only apply to STA's
-    if not is_bst:
-        # legacy STA constructor support for backward compatibility
-        abscissa_vals = kwargs.pop('abscissa_vals', None)
-        timestamps = kwargs.pop('timestamps', None)
-        time = kwargs.pop('time', None)
-        # only one of the above, otherwise raise exception
-        abscissa_vals = only_one_of(abscissa_vals, timestamps, time)
-        if abscissa_vals is not None:
-            kwargs['abscissa_vals'] = abscissa_vals
+    # legacy STA constructor support for backward compatibility
+    abscissa_vals = kwargs.pop('abscissa_vals', None)
+    timestamps = kwargs.pop('timestamps', None)
+    time = kwargs.pop('time', None)
+    # only one of the above, otherwise raise exception
+    abscissa_vals = only_one_of(abscissa_vals, timestamps, time)
+    if abscissa_vals is not None:
+        kwargs['abscissa_vals'] = abscissa_vals
 
     # Other legacy attributes
     series_ids = kwargs.pop('series_ids', None)
@@ -2374,7 +2368,7 @@ class SpikeTrainArray(EventArray):
         kwargs['label'] = label
 
         # legacy STA constructor support for backward compatibility
-        kwargs = legacykwargs(is_bst=False, **kwargs)
+        kwargs = legacySTAkwargs(**kwargs)
 
         support = kwargs.get('support', None)
         if support is not None:
@@ -2431,14 +2425,6 @@ class BinnedSpikeTrainArray(BinnedEventArray):
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
-
-        label = kwargs.pop('label', None)
-        if label is None:
-            label = 'units'
-        kwargs['label'] = label
-
-        # legacy BST constructor support for backward compatibility
-        kwargs = legacykwargs(is_bst=True, **kwargs)
 
         support = kwargs.get('support', None)
         if support is not None:

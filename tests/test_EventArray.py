@@ -55,3 +55,70 @@ class TestBinnedEventArray:
         assert np.all(bea._bin_centers == copied_bea._bin_centers)
         assert np.all(bea._binnedSupport == copied_bea._binnedSupport)
         assert bea._eventarray == bea._eventarray
+
+
+class TestSpikeTrainArray:
+
+    def test_construct(self):
+    
+        fs = 1
+        series_ids    = [21]
+        series_labels = ['pyr']
+        series_tags   = ['CA1']
+        label         = 'hippocampal units'
+        sta = SpikeTrainArray([0, 1.5, 3], fs=fs,
+                              label=label,
+                              series_ids=series_ids,
+                              series_labels=series_labels,
+                              series_tags=series_tags)
+
+        # Verify STA's attributes are same as arguments
+        # passed to the constructor
+        assert sta.fs == fs
+        assert sta.series_ids == series_ids
+        assert sta.series_tags == series_tags
+        assert sta.series_labels == series_labels
+        assert sta.label == label
+
+        # Verify other attributes
+        assert sta.n_series == 1
+
+class TestBinnedSpikeTrainArray:
+
+    def test_construct_with_sta(self):
+
+        fs            = 1
+        series_ids    = [21]
+        series_labels = ['pyr']
+        series_tags   = ['CA1']
+        label         = 'hippocampal units'
+        sta = SpikeTrainArray([0, 1.5, 3], fs=fs,
+                              label=label,
+                              series_ids=series_ids,
+                              series_labels=series_labels,
+                              series_tags=series_tags)
+
+        ds = 0.2
+        bst = BinnedSpikeTrainArray(sta, ds=ds)
+
+        # Verify BST's attributes are same as those
+        # passed to the constructor
+        assert bst.ds == ds
+
+        # Verify BST's attributes are inherited from STA
+        assert bst.fs == sta.fs
+        assert bst.series_ids == sta.series_ids
+        assert bst.series_labels == sta.series_labels
+        assert bst.series_tags == sta.series_tags
+        assert bst.label == sta.label
+        
+        # Verify BST's eventarray's attributes are also
+        # inherited from STA
+        assert bst.eventarray.fs == sta.fs
+        assert bst.eventarray.series_ids == sta.series_ids
+        assert bst.eventarray.series_labels == sta.series_labels
+        assert bst.eventarray.series_tags == sta.series_tags
+        assert bst.eventarray.label == sta.label
+
+        # Verify other attributes
+        assert bst.n_series == 1
