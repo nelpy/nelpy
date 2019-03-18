@@ -2271,17 +2271,26 @@ class BinnedEventArray(BaseEventArray):
         warnings.warn('_restrict_to_interval_array() not yet implemented for BinnedTypes')
         return data
 
-def legacySTAkwargs(**kwargs):
-    """Provide support for legacy SpikeTrainArray kwargs.
+def legacykwargs(is_bst, **kwargs):
+    """Provide support for legacy SpikeTrainArray 
+    and BinnedSpikeTrainArray kwargs. This function is
+    primarily intended to be a helper for the new STA
+    and BST constructors, not for general-purpose use.
 
-    kwarg: time <==> timestamps <==> abscissa_vals
-    kwarg: data <==> ydata
+    For SpikeTrainArrays:
+        kwarg: time <==> timestamps <==> abscissa_vals
+        kwarg: data <==> ydata
 
-    Examples
-    --------
-    sta = nel.SpikeTrainArray(time=..., )
-    sta = nel.SpikeTrainArray(timestamps=..., )
-    sta = nel.SpikeTrainArray(abscissa_vals=..., )
+        Examples
+        --------
+        sta = nel.SpikeTrainArray(time=..., )
+        sta = nel.SpikeTrainArray(timestamps=..., )
+        sta = nel.SpikeTrainArray(abscissa_vals=..., )
+
+    For SpikeTrainArrays AND BinnedSpikeTrainArrays:
+        kwarg: unit_ids    <==> series_ids
+        kwarg: unit_labels <==> series_labels
+        kwarg: unit_tags   <==> series_tags
     """
 
     def only_one_of(*args):
@@ -2295,22 +2304,32 @@ def legacySTAkwargs(**kwargs):
             raise ValueError ('multiple conflicting arguments received')
         return out
 
-     # legacy STA constructor support for backward compatibility
-    abscissa_vals = kwargs.pop('abscissa_vals', None)
-    timestamps = kwargs.pop('timestamps', None)
-    time = kwargs.pop('time', None)
-    # only one of the above, else raise exception
-    abscissa_vals = only_one_of(abscissa_vals, timestamps, time)
-    if abscissa_vals is not None:
-        kwargs['abscissa_vals'] = abscissa_vals
+    # These attributes only apply to STA's
+    if not is_bst:
+        # legacy STA constructor support for backward compatibility
+        abscissa_vals = kwargs.pop('abscissa_vals', None)
+        timestamps = kwargs.pop('timestamps', None)
+        time = kwargs.pop('time', None)
+        # only one of the above, otherwise raise exception
+        abscissa_vals = only_one_of(abscissa_vals, timestamps, time)
+        if abscissa_vals is not None:
+            kwargs['abscissa_vals'] = abscissa_vals
 
-    series_ids = kwargs.pop('unit_ids', None)
-    series_tags = kwargs.pop('unit_tags', None)
-    series_labels = kwargs.pop('unit_labels', None)
-
+    # Other legacy attributes
+    series_ids = kwargs.pop('series_ids', None)
+    unit_ids = kwargs.pop('unit_ids', None)
+    series_ids = only_one_of(series_ids, unit_ids)
     kwargs['series_ids'] = series_ids
-    kwargs['series_tags'] = series_tags
+
+    series_labels = kwargs.pop('series_labels', None)
+    unit_labels = kwargs.pop('unit_labels', None)
+    series_labels = only_one_of(series_labels, unit_labels)
     kwargs['series_labels'] = series_labels
+
+    series_tags = kwargs.pop('series_tags', None)
+    unit_tags = kwargs.pop('unit_tags', None)
+    series_tags = only_one_of(series_tags, unit_tags)
+    kwargs['series_tags'] = series_tags
 
     return kwargs
 
@@ -2349,13 +2368,13 @@ class SpikeTrainArray(EventArray):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
 
-        series_label = kwargs.pop('series_label', None)
-        if series_label is None:
-            series_label = 'units'
-        kwargs['series_label'] = series_label
+        label = kwargs.pop('label', None)
+        if label is None:
+            label = 'units'
+        kwargs['label'] = label
 
         # legacy STA constructor support for backward compatibility
-        kwargs = legacySTAkwargs(**kwargs)
+        kwargs = legacykwargs(is_bst=False, **kwargs)
 
         support = kwargs.get('support', None)
         if support is not None:
@@ -2412,6 +2431,14 @@ class BinnedSpikeTrainArray(BinnedEventArray):
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
+
+        label = kwargs.pop('label', None)
+        if label is None:
+            label = 'units'
+        kwargs['label'] = label
+
+        # legacy BST constructor support for backward compatibility
+        kwargs = legacykwargs(is_bst=True, **kwargs)
 
         support = kwargs.get('support', None)
         if support is not None:
