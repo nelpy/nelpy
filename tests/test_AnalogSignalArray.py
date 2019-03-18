@@ -1,4 +1,12 @@
-"""Tests for AnalogSignalArray"""
+from nelpy.core import *
+import numpy as np
 
-# sig = nel.AnalogSignalArray(ydata=[1,2,3,4,5,4,7,8,9,10], timestamps=np.array([1,2,3,5,6,7,11,12,13,14])/5)
-# sig2 = nel.AnalogSignalArray(ydata=[[1,2,4,8,15,6,7,4,3,10],[10,11,13,14,15,16,17,18,19,110]], timestamps=np.array([1,2,3,5,6,7,11,12,13,14])/5)
+class TestRegularlySampledAnalogSignalArray:
+
+    def test_copy(self):
+        data = np.arange(100)
+        fs = 10
+        rsasa = RegularlySampledAnalogSignalArray(data, abscissa_vals=data/fs, fs=fs)
+        copied_rsasa = rsasa.copy()
+
+        assert hex(id(copied_rsasa)) == hex(id(copied_rsasa._intervalsignalslicer.obj))

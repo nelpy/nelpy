@@ -2145,7 +2145,7 @@ class BinnedEventArray(BaseEventArray):
         newbst._abscissa.support = support
         newbst._data = newbst.data[:,all_abscissa_vals]
 
-        newbst.__renew()__
+        newbst.__renew__()
 
         return newbst
 
