@@ -1892,7 +1892,7 @@ def collapse_time(obj, gap=0):
         if gap > 0:
             raise ValueError("gaps not supported for SpikeTrainArrays yet!")
         new_obj = type(obj)(empty=True)
-        new_time = lists = [[] for _ in range(obj.n_series)]
+        new_time = [[] for _ in range(obj.n_series)]
         duration = 0
         for st_ in obj:
             le = st_.support.start

@@ -10,7 +10,7 @@ from sklearn.utils.validation import check_is_fitted, NotFittedError
 
 from .preprocessing import DataWindow
 from . import core
-from.plotting import _plot_ratemap
+from .plotting import _plot_ratemap
 from .auxiliary import TuningCurve1D, TuningCurve2D
 
 from .utils_.decorators import keyword_deprecation
@@ -261,7 +261,7 @@ class RateMap(BaseEstimator):
         if index > self.n_units - 1:
             raise StopIteration
         out = copy.copy(self)
-        out.ratemap_ = self.ratemap_[[index]]
+        out.ratemap_ = self.ratemap_[tuple([index])]
         out._unit_ids = self._unit_ids[index]
         self._index += 1
         return out
@@ -304,7 +304,7 @@ class RateMap(BaseEstimator):
         if self.is_2d:
             raise NotImplementedError("get_peak_firing_order_ids() only implemented for 1D RateMaps.")
         peakorder = np.argmax(self.ratemap_, axis=1).argsort()
-        return self.unit_ids[peakorder]
+        return np.array(self.unit_ids)[peakorder]
 
     def reorder_units_by_ids(self, unit_ids, inplace=False):
         """Permute the unit ordering.
@@ -324,7 +324,7 @@ class RateMap(BaseEstimator):
         """
         def swap_units(arr, frm, to):
             """swap 'units' of a 3D np.array"""
-            arr[[frm, to],:] = arr[[to, frm],:]
+            arr[(frm, to),:] = arr[(to, frm),:]
 
         self._validate_unit_ids(unit_ids)
         if len(unit_ids) != len(self._unit_ids):
