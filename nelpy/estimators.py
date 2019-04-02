@@ -1,6 +1,9 @@
 import numpy as np
 import logging
 import copy
+import numbers
+
+from scipy.special import logsumexp
 
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted, NotFittedError
@@ -278,8 +281,8 @@ class RateMap(BaseEstimator):
 
         try:
             out = copy.copy(self)
-            out.ratemap_ = self.ratemap_[[idx]]
-            out._unit_ids = list(np.array(out._unit_ids)[[idx]])
+            out.ratemap_ = self.ratemap_[tuple([idx])]
+            out._unit_ids = list(np.array(out._unit_ids)[tuple([idx])])
             out._slicer = UnitSlicer(out)
             out.loc = ItemGetter_loc(out)
             out.iloc = ItemGetter_iloc(out)
@@ -342,7 +345,6 @@ class RateMap(BaseEstimator):
             out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
         return out
-
 
     def _check_X_y(self, X, y):
         X = np.atleast_1d(X)
@@ -685,9 +687,17 @@ class BayesianDecoderTemp(BaseEstimator):
             w.bin_width = 1
         return w
 
-    def _check_X_y(self, X, y, *, method='fit', unit_ids=None):
+    def _check_X(self, X, *, lengths=None):
 
-        unit_ids = self._check_unit_ids_from_X(X, method=method, unit_ids=unit_ids)
+        if isinstance(X, core.BinnedEventArray):
+            if self._w.bin_width != X.ds:
+                raise ValueError('BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}'.format(self.w.bin_width, X.ds))
+            X, T = self.w.transform(X, lengths=lengths, sum=True)
+
+        return X
+
+    def _check_X_y(self, X, y, *, method='score', lengths=None):
+
         if isinstance(X, core.BinnedEventArray):
             if method == 'fit':
                 self._w.bin_width = X.ds
@@ -696,7 +706,7 @@ class BayesianDecoderTemp(BaseEstimator):
                 if self._w.bin_width != X.ds:
                     raise ValueError('BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}'.format(self.w.bin_width, X.ds))
 
-            X, T = self.w.transform(X)
+            X, T = self.w.transform(X, lengths=lengths, sum=True)
 
             if isinstance(y, core.RegularlySampledAnalogSignalArray):
                 y = y(T).T
@@ -708,7 +718,7 @@ class BayesianDecoderTemp(BaseEstimator):
 
         return X, y
 
-    def _ratemap_permute_unit_order(self, unit_ids):
+    def _ratemap_permute_unit_order(self, unit_ids, inplace=False):
         """Permute the unit ordering.
 
         If no order is specified, and an ordering exists from fit(), then the
@@ -719,38 +729,68 @@ class BayesianDecoderTemp(BaseEstimator):
         ----------
         unit_ids : array-like, shape (n_units,)
         """
-        unit_ids = self._check_unit_ids(unit_ids)
-        if len(unit_ids) != len(self._unit_ids):
+        unit_ids = self._check_unit_ids(unit_ids=unit_ids)
+        if len(unit_ids) != len(self.unit_ids):
             raise ValueError("To re-order (permute) units, 'unit_ids' must have the same length as self._unit_ids.")
-        raise NotImplementedError("Ratemap re-ordering has not yet been implemented.")
+        self._ratemap.reorder_units_by_ids(unit_ids, inplace=inplace)
 
-    def _check_unit_ids(self, unit_ids):
-        for unit_id in unit_ids:
-            # NOTE: the check below allows for predict() to pass on only
-            # a subset of the units that were used during fit! So we
-            # could fit on 100 units, and then predict on only 10 of
-            # them, if we wanted.
-            if unit_id not in self._unit_ids:
-                raise ValueError('unit_id {} was not present during fit(); aborting...'.format(unit_id))
+    def _check_unit_ids(self,*, X=None, unit_ids=None, fit=False):
+        """Check that unit_ids are valid (if provided), and return unit_ids.
 
-    def _check_unit_ids_from_X(self, X, *, method='fit', unit_ids=None):
+        if calling from fit(), pass in fit=True, which will skip checks against
+        self.ratemap, which doesn't exist before fitting...
+
+        """
+        def a_contains_b(a, b):
+            """Returns True iff 'b' is a subset of 'a'."""
+            for bb in b:
+                if bb not in a:
+                    logging.warning("{} was not found in set".format(bb))
+                    return False
+            return True
+
         if isinstance(X, core.BinnedEventArray):
             if unit_ids is not None:
-                logging.warning("X is a nelpy BinnedEventArray; kwarg 'unit_ids' will be ignored")
-            unit_ids = X.series_ids
-            n_units = X.n_series
-        else:
-            n_units = X.shape[-1]
-            if unit_ids is None:
-                unit_ids = np.arange(n_units)
-
-        if len(unit_ids) != n_units:
-            raise ValueError("'X' has {} units, but 'unit_ids' has shape ({},).".format(n_units, len(unit_ids)))
-        if method == 'fit':
-            self._unit_ids = unit_ids
-        else:
-            self._check_unit_ids(unit_ids)
+                # unit_ids were passed in, even though it's also contained in X.unit_ids
+                # 1. check that unit_ids are contained in the data:
+                if not a_contains_b(X.series_ids, unit_ids):
+                    raise ValueError('Some unit_ids were not contained in X!')
+                # 2. check that unit_ids are contained in self (decoder ratemap)
+                if not fit:
+                    if not a_contains_b(self.unit_ids, unit_ids):
+                        raise ValueError('Some unit_ids were not contained in ratemap!')
+            else:
+                # infer unit_ids from X
+                unit_ids = X.series_ids
+                # check that unit_ids are contained in self (decoder ratemap)
+                if not fit:
+                    if not a_contains_b(self.unit_ids, unit_ids):
+                        raise ValueError('Some unit_ids from X were not contained in ratemap!')
+        else: # a non-nelpy X was passed, possibly X=None
+            if unit_ids is not None:
+                # 1. check that unit_ids are contained in self (decoder ratemap)
+                if not fit:
+                    if not a_contains_b(self.unit_ids, unit_ids):
+                        raise ValueError('Some unit_ids were not contained in ratemap!')
+            else: # no unit_ids were passed, only a non-nelpy X
+                if X is not None:
+                    n_samples, n_units = X.shape
+                    if not fit:
+                        if n_units > self.n_units:
+                            raise ValueError("X contains more units than decoder! {} > {}".format(n_units, self.n_units))
+                        unit_ids = self.unit_ids[:n_units]
+                    else:
+                        unit_ids = np.arange(n_units)
+                else:
+                    raise NotImplementedError ("unexpected branch reached...")
         return unit_ids
+
+    def _get_transformed_ratemap(self, unit_ids):
+            # first, trim ratemap to subset of units
+        ratemap = self.ratemap.loc[unit_ids]
+        # then, permute the ratemap
+        ratemap = ratemap.reorder_units_by_ids(unit_ids) # maybe unneccessary, since .loc already permutes
+        return ratemap
 
     def fit(self, X, y, *, lengths=None, unit_ids=None, sample_weight=None):
         """Fit Gaussian Naive Bayes according to X, y
@@ -785,6 +825,7 @@ class BayesianDecoderTemp(BaseEstimator):
         -------
         self : object
         """
+        unit_ids = self._check_unit_ids(X=X, unit_ids=unit_ids, fit=True)
 
         # estimate the firing rate(s):
         self.rate_estimator.fit(X,y)
@@ -792,43 +833,70 @@ class BayesianDecoderTemp(BaseEstimator):
         bin_centers = self.rate_estimator.tc_.bin_centers #temp code FIXME
         bins = self.rate_estimator.tc_.bins #temp code FIXME
         rates = self.rate_estimator.tc_.ratemap #temp code FIXME
-        unit_ids = np.array(self.rate_estimator.tc_.unit_ids) #temp code FIXME
+        # unit_ids = np.array(self.rate_estimator.tc_.unit_ids) #temp code FIXME
         self.ratemap.fit(X=bin_centers,
                          y=rates,
                          unit_ids=unit_ids) #temp code FIXME
 
-        # self._check_unit_ids(X, unit_ids, method='fit')
-        X, y = self._check_X_y(X, y, method='fit')
+        X, y = self._check_X_y(X, y, method='fit', lengths=lengths)
         self.ratemap_ = self.ratemap.ratemap_
 
-    def predict(self, X, *, output=None, lengths=None, unit_ids=None):
+    def predict(self, X, *, output=None, mode='mean', lengths=None, unit_ids=None):
         # if output is 'asa', then return an ASA
         check_is_fitted(self, 'ratemap_')
-        unit_ids = self._check_unit_ids_from_X(X, unit_ids=unit_ids)
-        raise NotImplementedError
-        ratemap = self._get_temp_ratemap(unit_ids)
-        return self._predict_from_ratemap(X, ratemap)
+        unit_ids = self._check_unit_ids(X=X, unit_ids=unit_ids)
+        ratemap = self._get_transformed_ratemap(unit_ids)
+        if isinstance(X, core.BinnedEventArray):
+            dt = X.ds
+        else:
+            dt = 1
+        X = self._check_X(X=X, lengths=lengths)
+        if ratemap.is_1d:
+            posterior, mode, mean = decode_bayes_from_ratemap_1d(X=X,
+                                               ratemap=ratemap.ratemap_,
+                                               dt=dt,
+                                               xmin=ratemap.bins[0],
+                                               xmax=ratemap.bins[-1],
+                                               bin_centers=ratemap.bin_centers)
+        if output is not None:
+            raise NotImplementedError("output mode not implemented yet")
+        return posterior, mode, mean
 
     def predict_proba(self, X, *, lengths=None, unit_ids=None):
         check_is_fitted(self, 'ratemap_')
-        unit_ids = self._check_unit_ids_from_X(X, unit_ids=unit_ids)
         raise NotImplementedError
-        ratemap = self._get_temp_ratemap(unit_ids)
+        ratemap = self._get_transformed_ratemap(unit_ids)
         return self._predict_proba_from_ratemap(X, ratemap)
 
     def score(self, X, y, *, lengths=None, unit_ids=None):
+
+        # check that unit_ids are valid
+        # THEN, transform X, y into standardized form (including trimming and permutation) and continue with scoring
+
         check_is_fitted(self, 'ratemap_')
+        unit_ids = self._check_unit_ids(X=X, unit_ids=unit_ids)
+        ratemap = self._get_transformed_ratemap(unit_ids)
         # X = self._permute_unit_order(X)
-        X, y = self._check_X_y(X, y, method='score', unit_ids=unit_ids)
-        unit_ids = self._check_unit_ids_from_X(X, unit_ids=unit_ids)
+        # X, y = self._check_X_y(X, y, method='score', unit_ids=unit_ids)
+
         raise NotImplementedError
-        ratemap = self._get_temp_ratemap(unit_ids)
+        ratemap = self._get_transformed_ratemap(unit_ids)
         return self._score_from_ratemap(X, ratemap)
 
     def score_samples(self, X, y, *, lengths=None, unit_ids=None):
         # X = self._permute_unit_order(X)
         check_is_fitted(self, 'ratemap_')
         raise NotImplementedError
+
+    @property
+    def unit_ids(self):
+        check_is_fitted(self, 'ratemap_')
+        return self.ratemap.unit_ids
+
+    @property
+    def n_units(self):
+        check_is_fitted(self, 'ratemap_')
+        return len(self.unit_ids)
 
 
 class FiringRateEstimator(BaseEstimator):
@@ -916,3 +984,32 @@ class FiringRateEstimator(BaseEstimator):
         raise NotImplementedError
 
 
+def decode_bayes_from_ratemap_1d(X, ratemap, dt, xmin, xmax, bin_centers):
+    """
+    X has been standardized to (n_samples, n_units), where each sample is a singleton window
+    """
+    n_samples, n_features = X.shape
+    n_units, n_xbins = ratemap.shape
+
+    assert n_features == n_units, "X has {} units, whereas ratemap has {}".format(n_features, n_units)
+
+    lfx = np.log(ratemap)
+    eterm = -ratemap.sum(axis=0)*dt
+
+    posterior = np.empty((n_xbins, n_samples))
+    posterior[:] = np.nan
+
+    # decode each sample / bin separately
+    for tt in range(n_samples):
+        obs = X[tt]
+        if obs.sum() > 0:
+            posterior[:,tt] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
+
+    # normalize posterior:
+    posterior = np.exp(posterior - logsumexp(posterior, axis=0))
+
+    mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
+    mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
+    mean_pth = (bin_centers * posterior.T).sum(axis=1)
+
+    return posterior, mode_pth, mean_pth

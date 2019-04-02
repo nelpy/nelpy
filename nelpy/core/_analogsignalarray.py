@@ -1374,7 +1374,7 @@ class RegularlySampledAnalogSignalArray:
                 for attr in attrs:
                     exec("intervalarray." + attr + " = self._abscissa.support." + attr)
                 try:
-                    intervalarray._data = self._abscissa.support.data[[index], :]  # use np integer indexing! Cool!
+                    intervalarray._data = self._abscissa.support.data[tuple([index]), :]  # use np integer indexing! Cool!
                 except IndexError:
                     # index is out of bounds, so return an empty IntervalArray
                     pass

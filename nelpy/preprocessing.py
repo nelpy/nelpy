@@ -278,7 +278,7 @@ class DataWindow(BaseEstimator):
     def _tidy(self, X, T=None, lengths=None):
         """Transform data into a tidy, standardized, minimalist form.
 
-        NOTE: No windowing is present in tidy data; windowind is APPLIED
+        NOTE: No windowing is present in tidy data; windowing is APPLIED
               to tidy data when using DataWindow.apply().
 
         Parameters

@@ -1130,7 +1130,7 @@ class EventArray(BaseEventArray):
         """
 
         first_events = [(ii, series[0]) for (ii, series) in enumerate(self.data) if len(series) !=0]
-        first_events_series_ids = np.array(self.series_ids)[[fs[0] for fs in first_events]]
+        first_events_series_ids = np.array(self.series_ids)[tuple([fs[0] for fs in first_events])]
         first_events_datas = np.array([fs[1] for fs in first_events])
         sortorder = np.argsort(first_events_datas)
         first_events_series_ids = first_events_series_ids[sortorder]
@@ -1545,7 +1545,7 @@ class BinnedEventArray(BaseEventArray):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             support = self._abscissa.support[index]
-            bsupport = self.binnedSupport[[index],:]
+            bsupport = self.binnedSupport[tuple([index]),:]
 
             binnedeventarray = type(self)(empty=True)
             exclude = ["_bins", "_data", "_support", "_bin_centers", "_binnedSupport"]
@@ -1623,7 +1623,7 @@ class BinnedEventArray(BaseEventArray):
                 binnedeventarray.__renew__()
                 return binnedeventarray
             else:
-                bsupport = self.binnedSupport[[idx],:]
+                bsupport = self.binnedSupport[tuple([idx]),:]
                 centers = self._bin_centers[bsupport[0,0]:bsupport[0,1]+1]
                 binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
                 binstart = binindices[idx]
@@ -1656,7 +1656,7 @@ class BinnedEventArray(BaseEventArray):
                 binnedeventarray._bin_centers = self._bin_centers[ll]
                 binnedeventarray._data = self._data[:,ll]
 
-                lengths = self.lengths[[idx]]
+                lengths = self.lengths[tuple([idx])]
                 # lengths = bsupport[:,1] - bsupport[:,0]
                 bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
                 bsends = np.cumsum(lengths) - 1
