@@ -521,6 +521,50 @@ class BaseEventArray(ABC):
         #return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
+    def reorder_series_by_ids(self, neworder, *, inplace=False):
+        """Reorder series according to a specified order.
+
+        neworder must be list-like, of size (n_series,) and in terms of
+        series_ids
+
+        Return
+        ------
+        out : reordered EventArray
+        """
+        if inplace:
+            out = self
+        else:
+            out = self.copy()
+
+        neworder = [self.series_ids.index(x) for x in neworder]
+
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            utils.swap_rows(out._data, frm, to)
+            out._series_ids[frm], out._series_ids[to] = out._series_ids[to], out._series_ids[frm]
+            out._series_labels[frm], out._series_labels[to] = out._series_labels[to], out._series_labels[frm]
+            # TODO: re-build series tags (tag system not yet implemented)
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
+
+        out.__renew__()
+        return out
+
+    def copy(self):
+        """Returns a copy of the BaseEventArray."""
+        newcopy = copy.deepcopy(self)
+        newcopy.__renew__()
+        return newcopy
+
+    def _copy_without_data(self):
+        """Return a copy of self, without event datas."""
+        out = copy.copy(self) # shallow copy
+        out._data = np.zeros((self.n_series,0))
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out.__renew__()
+        return out
+
 ########################################################################
 # class EventArray
 ########################################################################
@@ -743,18 +787,18 @@ class EventArray(BaseEventArray):
 
         return out
 
-    def _copy_without_data(self):
-        """Return a copy of self, without event datas."""
-        out = copy.copy(self) # shallow copy
-        out._data = None
-        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
-        return out
+    # def _copy_without_data(self):
+    #     """Return a copy of self, without event datas."""
+    #     out = copy.copy(self) # shallow copy
+    #     out._data = None
+    #     out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+    #     return out
 
-    def copy(self):
-        """Returns a copy of the EventArray."""
-        newcopy = copy.deepcopy(self)
-        newcopy.__renew__()
-        return newcopy
+    # def copy(self):
+    #     """Returns a copy of the EventArray."""
+    #     newcopy = copy.deepcopy(self)
+    #     newcopy.__renew__()
+    #     return newcopy
 
     def __iter__(self):
         """EventArray iterator initialization."""
@@ -1505,11 +1549,11 @@ class BinnedEventArray(BaseEventArray):
         out.__renew__()
         return out
 
-    def copy(self):
-        """Returns a copy of the BinnedEventArray."""
-        newcopy = copy.deepcopy(self)
-        newcopy.__renew__()
-        return newcopy
+    # def copy(self):
+    #     """Returns a copy of the BinnedEventArray."""
+    #     newcopy = copy.deepcopy(self)
+    #     newcopy.__renew__()
+    #     return newcopy
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
