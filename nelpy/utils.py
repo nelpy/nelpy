@@ -1535,7 +1535,7 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=No
     Central differences are used here.
     """
 
-    if not isinstance(core.RegularlySampledAnalogSignalArray):
+    if not isinstance(asa, core.RegularlySampledAnalogSignalArray):
         raise TypeError("Input object must be a RegularlySampledAnalogSignalArray!")
     if fs is None:
         fs = asa.fs

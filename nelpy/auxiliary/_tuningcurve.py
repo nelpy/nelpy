@@ -460,8 +460,8 @@ class TuningCurve2D:
 
         x, y = self.trans_func(self._extern, at=self._bst.bin_centers)
 
-        ext_bin_idx_x = np.digitize(x, self.xbins, right=True)
-        ext_bin_idx_y = np.digitize(y, self.ybins, right=True)
+        ext_bin_idx_x = np.squeeze(np.digitize(x, self.xbins, right=True))
+        ext_bin_idx_y = np.squeeze(np.digitize(y, self.ybins, right=True))
 
         # make sure that all the events fit between extmin and extmax:
         # TODO: this might rather be a warning, but it's a pretty serious warning...
@@ -1104,7 +1104,7 @@ class TuningCurve1D:
 
         ext = self.trans_func(self._extern, at=self._bst.bin_centers)
 
-        ext_bin_idx = np.digitize(ext, self.bins, right=True)
+        ext_bin_idx = np.squeeze(np.digitize(ext, self.bins, right=True))
         # make sure that all the events fit between extmin and extmax:
         # TODO: this might rather be a warning, but it's a pretty serious warning...
         if ext_bin_idx.max() > self.n_bins:
