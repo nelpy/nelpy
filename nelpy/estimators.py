@@ -851,16 +851,13 @@ class BayesianDecoderTemp(BaseEstimator):
         else:
             dt = 1
         X = self._check_X(X=X, lengths=lengths)
-        if ratemap.is_1d:
-            posterior, mode, mean = decode_bayes_from_ratemap_1d(X=X,
-                                               ratemap=ratemap.ratemap_,
-                                               dt=dt,
-                                               xmin=ratemap.bins[0],
-                                               xmax=ratemap.bins[-1],
-                                               bin_centers=ratemap.bin_centers)
+        posterior, mean_pth = decode_bayesian_memoryless_nd(X=X,
+                                ratemap=ratemap.ratemap_,
+                                dt=dt,
+                                bin_centers=ratemap.bin_centers)
         if output is not None:
             raise NotImplementedError("output mode not implemented yet")
-        return posterior, mode, mean
+        return posterior, mean_pth
 
     def predict_proba(self, X, *, lengths=None, unit_ids=None):
         check_is_fitted(self, 'ratemap_')
@@ -984,32 +981,78 @@ class FiringRateEstimator(BaseEstimator):
         raise NotImplementedError
 
 
-def decode_bayes_from_ratemap_1d(X, ratemap, dt, xmin, xmax, bin_centers):
+# def decode_bayes_from_ratemap_1d(X, ratemap, dt, xmin, xmax, bin_centers):
+#     """
+#     X has been standardized to (n_samples, n_units), where each sample is a singleton window
+#     """
+#     n_samples, n_features = X.shape
+#     n_units, n_xbins = ratemap.shape
+
+#     assert n_features == n_units, "X has {} units, whereas ratemap has {}".format(n_features, n_units)
+
+#     lfx = np.log(ratemap)
+#     eterm = -ratemap.sum(axis=0)*dt
+
+#     posterior = np.empty((n_xbins, n_samples))
+#     posterior[:] = np.nan
+
+#     # decode each sample / bin separately
+#     for tt in range(n_samples):
+#         obs = X[tt]
+#         if obs.sum() > 0:
+#             posterior[:,tt] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
+
+#     # normalize posterior:
+#     posterior = np.exp(posterior - logsumexp(posterior, axis=0))
+
+#     mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
+#     mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
+#     mean_pth = (bin_centers * posterior.T).sum(axis=1)
+
+#     return posterior, mode_pth, mean_pth
+
+def decode_bayesian_memoryless_nd(X, ratemap, dt, bin_centers):
     """
     X has been standardized to (n_samples, n_units), where each sample is a singleton window
+    ratemap has shape (n_units, n1, n2, ... nd)
+    bin_centers is a list of external (receptive field) bin centers
     """
+    def tile_obs(obs, *n_bins):
+        n_units = len(obs)
+        out = np.zeros((n_units, *n_bins))
+        for unit in range(n_units):
+            out[unit,:] = obs[unit]
+        return out
+
     n_samples, n_features = X.shape
-    n_units, n_xbins = ratemap.shape
+    n_units = ratemap.shape[0]
+    n_bins = np.atleast_1d(ratemap.shape[1:])
+    n_dims = len(n_bins)
 
     assert n_features == n_units, "X has {} units, whereas ratemap has {}".format(n_features, n_units)
 
     lfx = np.log(ratemap)
     eterm = -ratemap.sum(axis=0)*dt
 
-    posterior = np.empty((n_xbins, n_samples))
+    posterior = np.empty((n_samples, *n_bins))
     posterior[:] = np.nan
 
     # decode each sample / bin separately
     for tt in range(n_samples):
         obs = X[tt]
         if obs.sum() > 0:
-            posterior[:,tt] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
+            posterior[tt] = (tile_obs(obs, *n_bins) * lfx).sum(axis=0) + eterm
 
     # normalize posterior:
-    posterior = np.exp(posterior - logsumexp(posterior, axis=0))
+    posterior = np.exp(posterior - logsumexp(posterior, axis=tuple(np.arange(1, n_dims+1)), keepdims=True))
 
-    mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
-    mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
-    mean_pth = (bin_centers * posterior.T).sum(axis=1)
+    if n_dims > 1:
+        expected = []
+        for dd in range(1, n_dims+1):
+            axes = tuple(set(np.arange(1, n_dims)) - set([dd]))
+            expected.append(bin_centers[dd-1] * posterior.sum(axis=axes)).sum(axis=1)
+        expected_pth = np.vstack(expected)
+    else:
+        expected_pth = (bin_centers * posterior).sum(axis=1)
 
-    return posterior, mode_pth, mean_pth
+    return posterior, expected_pth
