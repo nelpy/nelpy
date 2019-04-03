@@ -1,6 +1,7 @@
 """Data preprocessing objects and functions."""
 
 import numpy as np
+import logging
 
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
@@ -327,6 +328,10 @@ class DataWindow(BaseEstimator):
                 if self._bin_width != X.ds:
                     raise ValueError('The DataWindow has ``bin_width``={}, whereas ``X.ds``={}.'
                                      .format(self._bin_width, X.ds))
+
+            if (T is not None) or (lengths is not None):
+                logging.warning("A {} was passed in, so 'T' and 'lengths' will be ignored...".format(X.type_name))
+
             T = X.bin_centers
             lengths = X.lengths
             X = X.data.T

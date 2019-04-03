@@ -15,6 +15,8 @@ from .auxiliary import TuningCurve1D, TuningCurve2D
 
 from .utils_.decorators import keyword_deprecation
 
+# from .estimators2 import NDRateMap
+
 """
 FiringRateEstimator(BaseEstimator) DRAFT SPECIFICATION
     X : BST / spike counts (or actual spikes?)
@@ -667,8 +669,8 @@ class BayesianDecoderTemp(BaseEstimator):
     @staticmethod
     def _validate_ratemap(ratemap):
         if ratemap is None:
-            ratemap = RateMap()
-        elif not isinstance(ratemap, RateMap):
+            ratemap = NDRateMap()
+        elif not isinstance(ratemap, NDRateMap):
             raise TypeError("'ratemap' must be a nelpy RateMap() type!")
         return ratemap
 
@@ -838,7 +840,7 @@ class BayesianDecoderTemp(BaseEstimator):
                          y=rates,
                          unit_ids=unit_ids) #temp code FIXME
 
-        X, y = self._check_X_y(X, y, method='fit', lengths=lengths)
+        X, y = self._check_X_y(X, y, method='fit', lengths=lengths) # can I remove this? no; it sets the bin width... but maybe we should refactor...
         self.ratemap_ = self.ratemap.ratemap_
 
     def predict(self, X, *, output=None, mode='mean', lengths=None, unit_ids=None):
@@ -849,7 +851,7 @@ class BayesianDecoderTemp(BaseEstimator):
         if isinstance(X, core.BinnedEventArray):
             dt = X.ds
         else:
-            dt = 1
+            dt = 1 # TODO: be more careful
         X = self._check_X(X=X, lengths=lengths)
         posterior, mean_pth = decode_bayesian_memoryless_nd(X=X,
                                 ratemap=ratemap.ratemap_,
@@ -958,7 +960,12 @@ class FiringRateEstimator(BaseEstimator):
         """
         #TODO: implement sophisticated firing rate estimation here;
         # TuninCurve1D is a deprecated drop-in.
-        self.tc_ = TuningCurve1D(bst=X, extern=y, n_extern=100, extmin=y.min(), extmax=y.max(), sigma=2.5, min_duration=0)
+        if y.n_signals == 1:
+            self.tc_ = TuningCurve1D(bst=X, extern=y, n_extern=100, extmin=y.min(), extmax=y.max(), sigma=2.5, min_duration=0)
+        if y.n_signals == 2:
+            xmin, ymin = y.min()
+            xmax, ymax = y.max()
+            self.tc_ = TuningCurve2D(bst=X, extern=y, ext_nx=30, ext_ny=12, ext_xmin=xmin, ext_xmax=xmax, ext_ymin=ymin, ext_ymax=ymax, sigma=2.5, min_duration=0)
         # X, y = check_X_y(X, y)
 
         # return self._partial_fit(X, y, np.unique(y), _refit=True,
@@ -1049,10 +1056,398 @@ def decode_bayesian_memoryless_nd(X, ratemap, dt, bin_centers):
     if n_dims > 1:
         expected = []
         for dd in range(1, n_dims+1):
-            axes = tuple(set(np.arange(1, n_dims)) - set([dd]))
-            expected.append(bin_centers[dd-1] * posterior.sum(axis=axes)).sum(axis=1)
+            axes = tuple(set(np.arange(1, n_dims+1)) - set([dd]))
+            expected.append((bin_centers[dd-1] * posterior.sum(axis=axes)).sum(axis=1))
         expected_pth = np.vstack(expected)
     else:
         expected_pth = (bin_centers * posterior).sum(axis=1)
 
     return posterior, expected_pth
+
+
+class NDRateMap(BaseEstimator):
+    """
+    RateMap with persistent unit_ids and firing rates in Hz.
+
+    NOTE: RateMap assumes a [uniform] isometric spacing in all dimensions of the
+          rate map. This is only relevant when smoothing is applied.
+
+    mode = ['continuous', 'discrete', 'circular']
+
+    fit(X, y) estimates ratemap [discrete, continuous, circular]
+    predict(X) predicts firing rate
+    synthesize(X) generates spikes based on input (inhomogenous Poisson?)
+
+    Parameters
+    ----------
+    connectivity : string ['continuous', 'discrete', 'circular'], optional
+        Defines how smoothing is applied. If 'discrete', then no smoothing is
+        applied. Default is 'continuous'.
+    """
+
+    def __init__(self, connectivity='continuous'):
+        self.connectivity = connectivity
+
+        self._slicer = UnitSlicer(self)
+        self.loc = ItemGetter_loc(self)
+        self.iloc = ItemGetter_iloc(self)
+
+    def __repr__(self):
+        r = super().__repr__()
+        if self._is_fitted():
+            dimstr = ''
+            for dd in range(self.n_dims):
+                dimstr += ", n_bins_d{}={}".format(dd+1, self.shape[dd+1])
+            r += ' with shape (n_units={}{})'.format(self.n_units, dimstr)
+        return r
+
+    def fit(self, X, y, dt=1, unit_ids=None):
+        """Fit firing rates
+
+        Parameters
+        ----------
+        X : array-like, with shape (n_dims, ), each element of which has
+            shape (n_bins_dn, ) for n=1, ..., N; N=n_dims.
+            Bin locations (centers) where ratemap is defined.
+        y : array-like, shape (n_units, n_bins_d1, ..., n_bins_dN)
+            Expected number of spikes in a temporal bin of width dt, for each of
+            the predictor bins specified in X.
+        dt : float, optional (default=1)
+            Temporal bin size with which firing rate y is defined.
+            For example, if dt==1, then the firing rate is in Hz. If dt==0.001,
+            then the firing rate is in kHz, and so on.
+        unit_ids : array-like, shape (n_units,), optional (default=None)
+            Persistent unit IDs that are used to associate units after
+            permutation. Unit IDs are inherited from nelpy.core.BinnedEventArray
+            objects, or initialized to np.arange(n_units).
+        """
+        n_units, n_bins, n_dims = self._check_X_y(X, y)
+
+        self.ratemap_ = y/dt
+        self._bin_centers = X
+        self._bins = np.array(n_dims*[None])
+
+        if n_dims > 1:
+            for dd in range(n_dims):
+                bin_centers = np.squeeze(X[dd])
+                dx = np.median(np.diff(bin_centers))
+                bins = np.insert(bin_centers[-1] + np.diff(bin_centers)/2, 0, bin_centers[0] - dx/2)
+                bins = np.append(bins, bins[-1] + dx)
+                self._bins[dd] = bins
+        else:
+            bin_centers = np.squeeze(X)
+            dx = np.median(np.diff(bin_centers))
+            bins = np.insert(bin_centers[-1] + np.diff(bin_centers)/2, 0, bin_centers[0] - dx/2)
+            bins = np.append(bins, bins[-1] + dx)
+            self._bins = bins
+
+        if unit_ids is not None:
+            if len(unit_ids) != n_units:
+                raise ValueError("'unit_ids' must have same number of elements as 'n_units'. {} != {}".format(len(unit_ids), n_units))
+            self._unit_ids = unit_ids
+        else:
+            self._unit_ids = np.arange(n_units)
+
+    def predict(self, X):
+        check_is_fitted(self, 'ratemap_')
+        raise NotImplementedError
+
+    def synthesize(self, X):
+        check_is_fitted(self, 'ratemap_')
+        raise NotImplementedError
+
+    def __len__(self):
+        return self.n_units
+
+    def __iter__(self):
+        """TuningCurve1D iterator initialization"""
+        # initialize the internal index to zero when used as iterator
+        self._index = 0
+        return self
+
+    def __next__(self):
+        """TuningCurve1D iterator advancer."""
+        index = self._index
+        if index > self.n_units - 1:
+            raise StopIteration
+        out = copy.copy(self)
+        out.ratemap_ = self.ratemap_[tuple([index])]
+        out._unit_ids = self._unit_ids[index]
+        self._index += 1
+        return out
+
+    def __getitem__(self, *idx):
+        """RateMap unit index access.
+
+        NOTE: this is index-based, not label-based. For label-based,
+              use loc[...]
+
+        Accepts integers, slices, and lists"""
+        idx = [ii for ii in idx]
+        if len(idx) == 1 and not isinstance(idx[0], int):
+            idx = idx[0]
+        if isinstance(idx, tuple):
+            idx = [ii for ii in idx]
+
+        try:
+            out = copy.copy(self)
+            out.ratemap_ = self.ratemap_[tuple([idx])]
+            out._unit_ids = list(np.array(out._unit_ids)[tuple([idx])])
+            out._slicer = UnitSlicer(out)
+            out.loc = ItemGetter_loc(out)
+            out.iloc = ItemGetter_iloc(out)
+            return out
+        except Exception:
+            raise TypeError(
+                'unsupported subsctipting type {}'.format(type(idx)))
+
+    def get_peak_firing_order_ids(self):
+        """Get the unit_ids in order of peak firing location for 1D RateMaps.
+
+        Returns
+        -------
+        unit_ids : array-like
+            The permutaiton of unit_ids such that after reordering, the peak
+            firing locations are ordered along the RateMap.
+        """
+        check_is_fitted(self, 'ratemap_')
+        if self.is_2d:
+            raise NotImplementedError("get_peak_firing_order_ids() only implemented for 1D RateMaps.")
+        peakorder = np.argmax(self.ratemap_, axis=1).argsort()
+        return np.array(self.unit_ids)[peakorder]
+
+    def reorder_units_by_ids(self, unit_ids, inplace=False):
+        """Permute the unit ordering.
+
+        #TODO
+        If no order is specified, and an ordering exists from fit(), then the
+        data in X will automatically be permuted to match that registered during
+        fit().
+
+        Parameters
+        ----------
+        unit_ids : array-like, shape (n_units,)
+
+        Returns
+        -------
+        out : reordered RateMap
+        """
+        def swap_units(arr, frm, to):
+            """swap 'units' of a 3D np.array"""
+            arr[(frm, to),:] = arr[(to, frm),:]
+
+        self._validate_unit_ids(unit_ids)
+        if len(unit_ids) != len(self._unit_ids):
+            raise ValueError('unit_ids must be a permutation of self.unit_ids, not a subset thereof.')
+
+        if inplace:
+            out = self
+        else:
+            out = copy.deepcopy(self)
+
+        neworder = [list(self.unit_ids).index(x) for x in unit_ids]
+
+        oldorder = list(range(len(neworder)))
+        for oi, ni in enumerate(neworder):
+            frm = oldorder.index(ni)
+            to = oi
+            swap_units(out.ratemap_, frm, to)
+            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
+            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
+        return out
+
+    def _check_X_y(self, X, y):
+        y = np.atleast_2d(y)
+
+        n_units = y.shape[0]
+        n_bins = y.shape[1:]
+        n_dims = len(n_bins)
+
+        if n_dims > 1:
+            n_x_bins = tuple([len(x) for x in X])
+        else:
+            n_x_bins = tuple([len(X)])
+
+        assert n_units > 0, "n_units must be a positive integer!"
+        assert n_x_bins == n_bins, "X and y must have the same number of bins!"
+
+        return n_units, n_bins, n_dims
+
+    def _validate_unit_ids(self, unit_ids):
+        self._check_unit_ids_in_ratemap(unit_ids)
+
+        if len(set(unit_ids)) != len(unit_ids):
+            raise ValueError("Duplicate unit_ids are not allowed.")
+
+    def _check_unit_ids_in_ratemap(self, unit_ids):
+        for unit_id in unit_ids:
+            # NOTE: the check below allows for predict() to pass on only
+            # a subset of the units that were used during fit! So we
+            # could fit on 100 units, and then predict on only 10 of
+            # them, if we wanted.
+            if unit_id not in self.unit_ids:
+                raise ValueError('unit_id {} was not present during fit(); aborting...'.format(unit_id))
+
+    def _is_fitted(self):
+        try:
+            check_is_fitted(self, 'ratemap_')
+        except Exception: # should really be except NotFitterError
+            return False
+        return True
+
+    @property
+    def connectivity(self):
+        return self._connectivity
+
+    @connectivity.setter
+    def connectivity(self, val):
+        self._connectivity = self._validate_connectivity(val)
+
+    @staticmethod
+    def _validate_connectivity(connectivity):
+        connectivity = str(connectivity).strip().lower()
+        options = ['continuous', 'discrete', 'circular']
+        if connectivity in options:
+            return connectivity
+        raise NotImplementedError("connectivity '{}' is not supported yet!".format(str(connectivity)))
+
+    @property
+    def shape(self):
+        """
+            RateMap.shape = (n_units, n_features_x, n_features_y)
+                OR
+            RateMap.shape = (n_units, n_features)
+        """
+        check_is_fitted(self, 'ratemap_')
+        return self.ratemap_.shape
+
+    @property
+    def n_dims(self):
+        check_is_fitted(self, 'ratemap_')
+        n_dims = len(self.shape) - 1
+        return n_dims
+
+    @property
+    def is_1d(self):
+        check_is_fitted(self, 'ratemap_')
+        if len(self.ratemap_.shape) == 2:
+            return True
+        return False
+
+    @property
+    def is_2d(self):
+        check_is_fitted(self, 'ratemap_')
+        if len(self.ratemap_.shape) == 3:
+            return True
+        return False
+
+    @property
+    def n_units(self):
+        check_is_fitted(self, 'ratemap_')
+        return self.ratemap_.shape[0]
+
+    @property
+    def unit_ids(self):
+        check_is_fitted(self, 'ratemap_')
+        return self._unit_ids
+
+    @property
+    def n_bins(self):
+        """(int) Number of external correlates (bins) along each dimension."""
+        check_is_fitted(self, 'ratemap_')
+        if self.n_dims > 1:
+            n_bins = tuple([len(x) for x in self.bin_centers])
+        else:
+            n_bins = len(self.bin_centers)
+        return n_bins
+
+    def max(self, axis=None, out=None):
+        """
+        maximum firing rate for each unit:
+            RateMap.max()
+        maximum firing rate across units:
+            RateMap.max(axis=0)
+        """
+        raise NotImplementedError("the code was still for the 1D and 2D only version")
+        check_is_fitted(self, 'ratemap_')
+        if axis == None:
+            if self.is_2d:
+                return self.ratemap_.max(axis=1, out=out).max(axis=1, out=out)
+            else:
+                return self.ratemap_.max(axis=1, out=out)
+        return self.ratemap_.max(axis=axis, out=out)
+
+    def min(self, axis=None, out=None):
+        raise NotImplementedError("the code was still for the 1D and 2D only version")
+        check_is_fitted(self, 'ratemap_')
+        if axis == None:
+            if self.is_2d:
+                return self.ratemap_.min(axis=1, out=out).min(axis=1, out=out)
+            else:
+                return self.ratemap_.min(axis=1, out=out)
+        return self.ratemap_.min(axis=axis, out=out)
+
+    def mean(self, axis=None, dtype=None, out=None, keepdims=False):
+        raise NotImplementedError("the code was still for the 1D and 2D only version")
+        check_is_fitted(self, 'ratemap_')
+        kwargs = {'dtype':dtype,
+                  'out':out,
+                  'keepdims':keepdims}
+        if axis == None:
+            if self.is_2d:
+                return self.ratemap_.mean(axis=1, **kwargs).mean(axis=1, **kwargs)
+            else:
+                return self.ratemap_.mean(axis=1, **kwargs)
+        return self.ratemap_.mean(axis=axis, **kwargs)
+
+    @property
+    def bins(self):
+        return self._bins
+
+    @property
+    def bin_centers(self):
+        return self._bin_centers
+
+    @property
+    def mask(self):
+        return self._mask
+
+    @mask.setter
+    def mask(self, val):
+        #TODO: mask validation
+        raise NotImplementedError
+        self._mask = val
+
+    def plot(self, **kwargs):
+        check_is_fitted(self, 'ratemap_')
+        if self.is_2d:
+            raise NotImplementedError("plot() not yet implemented for 2D RateMaps.")
+        pad = kwargs.pop('pad', None)
+        _plot_ratemap(self, pad=pad, **kwargs)
+
+    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
+        """Smooths the tuning curve with a Gaussian kernel.
+
+        mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+            The mode parameter determines how the array borders are handled,
+            where cval is the value when mode is equal to ‘constant’. Default is
+            ‘reflect’
+        truncate : float
+            Truncate the filter at this many standard deviations. Default is 4.0.
+        truncate : float, deprecated
+            Truncate the filter at this many standard deviations. Default is 4.0.
+        cval : scalar, optional
+            Value to fill past edges of input if mode is ‘constant’. Default is 0.0
+        """
+
+        if sigma is None:
+            sigma = 0.1 # in units of extern
+        if truncate is None:
+            truncate = 4
+        if mode is None:
+            mode = 'reflect'
+        if cval is None:
+            cval = 0.0
+
+        raise NotImplementedError
