@@ -15,8 +15,6 @@ from .auxiliary import TuningCurve1D, TuningCurve2D
 
 from .utils_.decorators import keyword_deprecation
 
-# from .estimators2 import NDRateMap
-
 """
 FiringRateEstimator(BaseEstimator) DRAFT SPECIFICATION
     X : BST / spike counts (or actual spikes?)
@@ -1018,11 +1016,39 @@ class FiringRateEstimator(BaseEstimator):
 
 #     return posterior, mode_pth, mean_pth
 
-def decode_bayesian_memoryless_nd(X, ratemap, dt, bin_centers):
-    """
-    X has been standardized to (n_samples, n_units), where each sample is a singleton window
-    ratemap has shape (n_units, n1, n2, ... nd)
-    bin_centers is a list of external (receptive field) bin centers
+def decode_bayesian_memoryless_nd(X, *, ratemap, bin_centers, dt=1):
+    """Memoryless Bayesian decoding (supports multidimensional decoding).
+
+    Decode binned spike counts (e.g. from a BinnedSpikeTrainArray) to an
+    external correlate (e.g. position), using a memoryless Bayesian decoder and
+    a previously estimated ratemap.
+
+    Parameters
+    ----------
+    X : numpy array with shape (n_samples, n_features),
+        where the features are generally putative units / cells, and where
+        each sample represents spike counts in a singleton data window.
+    ratemap : array-like of shape (n_units, n_bins_d1, ..., n_bins_dN)
+        Expected number of spikes for each unit, within each bin, along each
+        dimension.
+    bin_centers : array-like with shape (n_dims, ), where each element is also
+        an array-like with shape (n_bins_dn, ) containing the bin centers for
+        the particular dimension.
+    dt : float, optional (default=1)
+        Temporal bin width corresponding to X, in seconds.
+
+        NOTE: generally it is assumed that ratemap will be given in Hz (that is,
+        it has dt=1). If ratemap has a different unit, then dt might have to be
+        adjusted to compensate for this. This can get tricky / confusing, so the
+        recommended approach is always to construct ratemap with dt=1, and then
+        to use the data-specific dt here when decoding.
+
+    Returns
+    -------
+    posterior : numpy array of shape (n_samples, n_bins_d1, ..., n_bins_dN)
+        Posterior probabilities for each voxel.
+    expected_pth : numpy array of shape (n_samples, n_dims)
+        Expected (posterior-averaged) decoded trajectory.
     """
     def tile_obs(obs, *n_bins):
         n_units = len(obs)
@@ -1058,7 +1084,7 @@ def decode_bayesian_memoryless_nd(X, ratemap, dt, bin_centers):
         for dd in range(1, n_dims+1):
             axes = tuple(set(np.arange(1, n_dims+1)) - set([dd]))
             expected.append((bin_centers[dd-1] * posterior.sum(axis=axes)).sum(axis=1))
-        expected_pth = np.vstack(expected)
+        expected_pth = np.vstack(expected).T
     else:
         expected_pth = (bin_centers * posterior).sum(axis=1)
 
