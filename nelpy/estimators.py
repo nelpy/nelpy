@@ -687,14 +687,23 @@ class BayesianDecoderTemp(BaseEstimator):
             w.bin_width = 1
         return w
 
-    def _check_X(self, X, *, lengths=None):
+    def _check_X_dt(self, X, *, lengths=None, dt=None):
 
         if isinstance(X, core.BinnedEventArray):
-            if self._w.bin_width != X.ds:
-                raise ValueError('BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}'.format(self.w.bin_width, X.ds))
+            if dt is not None:
+                logging.warning("A {} was passed in, so 'dt' will be ignored...".format(X.type_name))
+            dt = X.ds
+            if self._w.bin_width != dt:
+                raise ValueError('BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}'.format(self.w.bin_width, dt))
             X, T = self.w.transform(X, lengths=lengths, sum=True)
+        else:
+            if dt is not None:
+                if self._w.bin_width != dt:
+                    raise ValueError('BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}'.format(self.w.bin_width, dt))
+            else:
+                dt = self._w.bin_width
 
-        return X
+        return X, dt
 
     def _check_X_y(self, X, y, *, method='score', lengths=None):
 
@@ -824,7 +833,9 @@ class BayesianDecoderTemp(BaseEstimator):
         Returns
         -------
         self : object
+
         """
+
         unit_ids = self._check_unit_ids(X=X, unit_ids=unit_ids, fit=True)
 
         # estimate the firing rate(s):
@@ -841,31 +852,29 @@ class BayesianDecoderTemp(BaseEstimator):
         X, y = self._check_X_y(X, y, method='fit', lengths=lengths) # can I remove this? no; it sets the bin width... but maybe we should refactor...
         self.ratemap_ = self.ratemap.ratemap_
 
-    def predict(self, X, *, output=None, mode='mean', lengths=None, unit_ids=None):
+    def predict(self, X, *, output=None, mode='mean', lengths=None, unit_ids=None, dt=None):
         # if output is 'asa', then return an ASA
         check_is_fitted(self, 'ratemap_')
         unit_ids = self._check_unit_ids(X=X, unit_ids=unit_ids)
         ratemap = self._get_transformed_ratemap(unit_ids)
-        if isinstance(X, core.BinnedEventArray):
-            dt = X.ds
-        else:
-            dt = 1 # TODO: be more careful
-        X = self._check_X(X=X, lengths=lengths)
+        X, dt = self._check_X_dt(X=X, lengths=lengths, dt=dt)
+
         posterior, mean_pth = decode_bayesian_memoryless_nd(X=X,
                                 ratemap=ratemap.ratemap_,
                                 dt=dt,
                                 bin_centers=ratemap.bin_centers)
+
         if output is not None:
             raise NotImplementedError("output mode not implemented yet")
         return posterior, mean_pth
 
-    def predict_proba(self, X, *, lengths=None, unit_ids=None):
+    def predict_proba(self, X, *, lengths=None, unit_ids=None, dt=None):
         check_is_fitted(self, 'ratemap_')
         raise NotImplementedError
         ratemap = self._get_transformed_ratemap(unit_ids)
         return self._predict_proba_from_ratemap(X, ratemap)
 
-    def score(self, X, y, *, lengths=None, unit_ids=None):
+    def score(self, X, y, *, lengths=None, unit_ids=None, dt=None):
 
         # check that unit_ids are valid
         # THEN, transform X, y into standardized form (including trimming and permutation) and continue with scoring
@@ -880,7 +889,7 @@ class BayesianDecoderTemp(BaseEstimator):
         ratemap = self._get_transformed_ratemap(unit_ids)
         return self._score_from_ratemap(X, ratemap)
 
-    def score_samples(self, X, y, *, lengths=None, unit_ids=None):
+    def score_samples(self, X, y, *, lengths=None, unit_ids=None, dt=None):
         # X = self._permute_unit_order(X)
         check_is_fitted(self, 'ratemap_')
         raise NotImplementedError
@@ -963,7 +972,7 @@ class FiringRateEstimator(BaseEstimator):
         if y.n_signals == 2:
             xmin, ymin = y.min()
             xmax, ymax = y.max()
-            self.tc_ = TuningCurve2D(bst=X, extern=y, ext_nx=30, ext_ny=12, ext_xmin=xmin, ext_xmax=xmax, ext_ymin=ymin, ext_ymax=ymax, sigma=2.5, min_duration=0)
+            self.tc_ = TuningCurve2D(bst=X, extern=y, ext_nx=50, ext_ny=50, ext_xmin=xmin, ext_xmax=xmax, ext_ymin=ymin, ext_ymax=ymax, sigma=2.5, min_duration=0)
         # X, y = check_X_y(X, y)
 
         # return self._partial_fit(X, y, np.unique(y), _refit=True,
