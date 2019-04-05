@@ -1,6 +1,6 @@
 .. class:: no-web
 
-    .. image:: https://raw.githubusercontent.com/nelpy/nelpy/develop/nelpy-title.png
+    .. image:: https://raw.githubusercontent.com/nelpy/nelpy/master/nelpy-title.png
         :alt: nelpy-logo
         :width: 10%
         :align: right
@@ -71,7 +71,7 @@ Estimating the place fields can be a complicated affair, and roughly involves th
 
 .. class:: no-web
 
-    .. image:: https://raw.githubusercontent.com/nelpy/nelpy/develop/.placefields.png
+    .. image:: https://raw.githubusercontent.com/nelpy/nelpy/master/.placefields.png
         :alt: nelpy-promo-pic
         :width: 100%
         :align: center
