@@ -3,18 +3,135 @@
 import numpy as np
 import logging
 
+from copy import copy as copycopy # to avoid name clash with local copy variable in StandardScaler
+from functools import wraps
+
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
-
 from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
-from copy import copy as copycopy # to avoid name clash with local copy variable in StandardScaler
 
 from .utils import PrettyDuration
 from . import core
 
-__all__ = ['DataWindow',
+__all__ = ['standardize_asa',
+           'DataWindow',
            'StreamingDataWindow',
            'StandardScaler']
+
+def standardize_asa(func=None, *, asa, lengths=None, timestamps=None, fs=None, n_signals=None):
+    """
+    Standardize nelpy RegularlySampledAnalogSignalArray to numpy representation.
+
+    Parameters
+    ----------
+    asa : string
+        Argument name corresponding to 'asa' in decorated function.
+    lengths : string, optional
+        Argument name corresponding to 'lengths' in decorated function.
+    timestamps : string, optional
+        Argument name corresponding to 'timestamps' in decorated function.
+    fs : string, optional
+        Argument name corresponding to 'fs' in decorated function.
+    n_signals : int, optional
+        Number of signals required in asa.
+
+    Notes
+    -----
+     - asa is replaced with a (n_samples, n_signals) numpy array
+     - lenghts is replaced with a (n_intervals, ) numpy array, each containing
+       the number of samples in the associated interval.
+     - timestmaps is replaced with an (n_samples, ) numpy array, containing the
+       timestamps or abscissa_vals of the RegularlySampledAnalogSignalArray.
+     - fs is replaced with the float corresponding to the sampling frequency.
+
+    Example
+    -------
+    @standardize_asa(asa='X', lengths='lengths', n_signals=2)
+    def myfunc(*args, X=None, lengths=None):
+        pass
+
+    """
+    if n_signals is not None:
+        try:
+            assert float(n_signals).is_integer(), "'n_signals' must be a positive integer!"
+            n_signals = int(n_signals)
+        except ValueError:
+            raise ValueError("'n_signals' must be a positive integer!")
+        assert n_signals > 0, "'n_signals' must be a positive integer!"
+
+    assert isinstance(asa, str), "'asa' decorator argument must be a string!"
+    if lengths is not None:
+        assert isinstance(lengths, str), "'lengths' decorator argument must be a string!"
+    if timestamps is not None:
+        assert isinstance(timestamps, str), "'timestamps' decorator argument must be a string!"
+    if fs is not None:
+        assert isinstance(fs, str), "'fs' decorator argument must be a string!"
+
+    def _decorate(function):
+        @wraps(function)
+        def wrapped_function(*args, **kwargs):
+            kw = True
+            # TODO: check that all decorator kwargs are strings
+            asa_ = kwargs.pop(asa, None)
+            lengths_ = kwargs.pop(lengths, None)
+            fs_ = kwargs.pop(fs, None)
+            timestamps_ = kwargs.pop(timestamps, None)
+
+            if asa_ is None:
+                try:
+                    asa_ = args[0]
+                    kw = False
+                except IndexError:
+                    raise TypeError("{}() missing 1 required positional argument: '{}'".format(function.__name__, asa))
+
+            # standardize asa_ here...
+            if isinstance(asa_, core.RegularlySampledAnalogSignalArray):
+                if n_signals is not None:
+                    if not asa_.n_signals == n_signals:
+                        raise ValueError("Input object '{}'.n_signals=={}, but {} was expected!".format(asa, asa_.n_signals, n_signals))
+                if lengths_ is not None:
+                    logging.warning("'{}' was passed in, but will be overwritten" \
+                                    " by '{}'s 'lengths' attribute".format(lengths, asa))
+                if timestamps_ is not None:
+                    logging.warning("'{}' was passed in, but will be overwritten" \
+                                    " by '{}'s 'abscissa_vals' attribute".format(timestamps, asa))
+                if fs_ is not None:
+                    logging.warning("'{}' was passed in, but will be overwritten" \
+                                    " by '{}'s 'fs' attribute".format(fs, asa))
+
+                fs_ = asa_.fs
+                lengths_ = asa_.lengths
+                timestamps_ = asa_.abscissa_vals
+                asa_ = asa_.data.squeeze().copy()
+
+            elif not isinstance(asa_, np.ndarray):
+                raise TypeError("'{}' was not a nelpy.RegularlySampledAnalogSignalArray" \
+                                " so expected a numpy ndarray but got {}".format(asa, type(asa_)))
+
+            if kw:
+                kwargs[asa] = asa_
+            else:
+                args = tuple([arg if ii > 0 else asa_ for (ii, arg) in enumerate(args)])
+
+            if lengths is not None:
+                if lengths_ is None:
+                    lengths_ = np.array([len(asa_)])
+                kwargs[lengths] = lengths_
+            if timestamps is not None:
+                if timestamps_ is None:
+                    raise TypeError("{}() missing 1 required keyword argument: '{}'".format(function.__name__, timestamps))
+                kwargs[timestamps] = timestamps_
+            if fs is not None:
+                if fs_ is None:
+                    raise TypeError("{}() missing 1 required keyword argument: '{}'".format(function.__name__, fs))
+                kwargs[fs] = fs_
+
+            return function(*args, **kwargs)
+        return wrapped_function
+    if func:
+        return _decorate(func)
+
+    return _decorate
 
 class DataWindow(BaseEstimator):
     """
