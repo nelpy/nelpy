@@ -1,9 +1,14 @@
-=====
-Nelpy
-=====
+.. class:: no-web
+
+    .. image:: https://raw.githubusercontent.com/nelpy/nelpy/master/nelpy-title.png
+        :target: https://github.com/nelpy/nelpy
+        :alt: nelpy-logo
+        :width: 10%
+        :align: right
+
 .. image:: https://zenodo.org/badge/77548623.svg
    :target: https://zenodo.org/badge/latestdoi/77548623
-   
+
 Neuroelectrophysiology object model, data exploration, and analysis in Python.
 
 Overview
