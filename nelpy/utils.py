@@ -16,6 +16,7 @@ __all__ = ['spatial_information',
 
 import numpy as np
 import warnings
+import logging
 from itertools import tee, repeat
 from collections import namedtuple
 from math import floor
@@ -545,7 +546,7 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
     )
 
     if len(mua_bounds_idx) == 0:
-        warnings.warn("no mua events detected")
+        logging.warning("no mua events detected")
         return core.EpochArray(empty=True)
 
     # store MUA bounds in an EpochArray
@@ -775,15 +776,15 @@ def get_contiguous_segments(data, *, step=None, assume_sorted=None,
     # handle deprecated API calls:
     if in_memory:
         in_core = in_memory
-        warnings.warn("'in_memory' has been deprecated; use 'in_core' instead",
+        logging.warning("'in_memory' has been deprecated; use 'in_core' instead",
                       DeprecationWarning)
     if sort:
         assume_sorted = sort
-        warnings.warn("'sort' has been deprecated; use 'assume_sorted' instead",
+        logging.warning("'sort' has been deprecated; use 'assume_sorted' instead",
                       DeprecationWarning)
     if fs:
         step = 1/fs
-        warnings.warn("'fs' has been deprecated; use 'step' instead",
+        logging.warning("'fs' has been deprecated; use 'step' instead",
                       DeprecationWarning)
 
     if inclusive:
@@ -803,7 +804,7 @@ def get_contiguous_segments(data, *, step=None, assume_sorted=None,
         # that t1 = t and t2 = t + 2/fs, i.e. a difference of 2 steps.
 
         if np.any(np.diff(data) < step):
-            warnings.warn("some steps in the data are smaller than the requested step size.")
+            logging.warning("some steps in the data are smaller than the requested step size.")
 
         breaks = np.argwhere(np.diff(data)>=2*step)
         starts = np.insert(breaks+1, 0, 0)
@@ -1171,7 +1172,7 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
 
     if len(events) == 0:
         bounds, maxes, events = [], [], []
-        warnings.warn("no events satisfied criteria")
+        logging.warning("no events satisfied criteria")
         return bounds, maxes, events
 
     # Find periods where value is > SecondaryThreshold; note that the previous periods should be within these!
@@ -1217,7 +1218,7 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
 
     if len(events) == 0:
         bounds, maxes, events = [], [], []
-        warnings.warn("no events satisfied criteria")
+        logging.warning("no events satisfied criteria")
         return bounds, maxes, events
 
     # Now, since all that we care about are the larger windows, so we should get rid of repeats
@@ -1229,6 +1230,10 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
     return bounds, maxes, events
 
 def signal_envelope1D(data, *, sigma=None, fs=None):
+    logging.warnings("'signal_envelope1D' is deprecated; use 'signal_envelope_1d' instead!")
+    return signal_envelope_1d(data, sigma=sigma, fs=fs)
+
+def signal_envelope_1d(data, *, sigma=None, fs=None):
     """Finds the signal envelope by taking the absolute value
     of the Hilbert transform
 
