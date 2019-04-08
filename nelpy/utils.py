@@ -29,7 +29,7 @@ from multiprocessing import Array, cpu_count
 from multiprocessing.pool import Pool
 import pdb
 
-from . import core # so that core.RegularlyAnalogSignalArray is exposed
+from . import core # so that core.RegularlySampledAnalogSignalArray is exposed
 from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
 from . import filtering
 
@@ -1262,7 +1262,7 @@ def signal_envelope1D(data, *, sigma=None, fs=None):
     if fs is None:
         if isinstance(data, (np.ndarray, list)):
             raise ValueError("sampling frequency must be specified!")
-        elif isinstance(data, core.RegularlyAnalogSignalArray):
+        elif isinstance(data, core.RegularlySampledAnalogSignalArray):
             fs = data.fs
 
     if isinstance(data, (np.ndarray, list)):

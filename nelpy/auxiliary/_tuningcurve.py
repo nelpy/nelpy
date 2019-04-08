@@ -399,6 +399,10 @@ class TuningCurve2D:
         return (self.ybins + (self.ybins[1] - self.ybins[0])/2)[:-1]
 
     @property
+    def bin_centers(self):
+        return tuple([self.xbin_centers, self.ybin_centers])
+
+    @property
     def bins(self):
         """External correlate bins."""
         return (self.xbins, self.ybins)

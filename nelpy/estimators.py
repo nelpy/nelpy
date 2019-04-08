@@ -801,7 +801,7 @@ class BayesianDecoderTemp(BaseEstimator):
         ratemap = ratemap.reorder_units_by_ids(unit_ids) # maybe unneccessary, since .loc already permutes
         return ratemap
 
-    def fit(self, X, y, *, lengths=None, unit_ids=None, sample_weight=None):
+    def fit(self, X, y, *, lengths=None, dt=None, unit_ids=None, n_bins=None, sample_weight=None):
         """Fit Gaussian Naive Bayes according to X, y
 
         Parameters
@@ -836,10 +836,16 @@ class BayesianDecoderTemp(BaseEstimator):
 
         """
 
+        #TODO dt should probably come from datawindow specification, but may be overridden here!
+
         unit_ids = self._check_unit_ids(X=X, unit_ids=unit_ids, fit=True)
 
         # estimate the firing rate(s):
-        self.rate_estimator.fit(X,y)
+        self.rate_estimator.fit(X=X,
+                                y=y,
+                                dt=dt,
+                                n_bins=n_bins)
+
         # store the estimated firing rates as a rate map:
         bin_centers = self.rate_estimator.tc_.bin_centers #temp code FIXME
         bins = self.rate_estimator.tc_.bins #temp code FIXME
@@ -942,20 +948,62 @@ class FiringRateEstimator(BaseEstimator):
     """
 
     def __init__(self, mode='hist'):
+
+        if mode not in ['hist']:
+            raise NotImplementedError("mode '{}' not supported / implemented yet!".format(mode))
+
         self._mode = mode
-        #TODO: check that mode is valid:
 
-        # raise Exception if mode not supported or implemented yet
-        pass
+    def _check_X_y_dt(self, X, y, lengths=None, dt=None, timestamps=None, n_bins=None):
+        if isinstance(X, core.BinnedEventArray):
+            T = X.bin_centers
+            if lengths is not None:
+                logging.warning("'lengths' was passed in, but will be" \
+                                " overwritten by 'X's 'lengths' attribute")
+            if timestamps is not None:
+                logging.warning("'timestamps' was passed in, but will be" \
+                                " overwritten by 'X's 'bin_centers' attribute")
+            if dt is not None:
+                logging.warning("'dt' was passed in, but will be overwritten" \
+                                " by 'X's 'ds' attribute")
+            if isinstance(y, core.RegularlySampledAnalogSignalArray):
+                y = y(T).T
 
-    def fit(self, X, y, lengths=None, sample_weight=None):
+            dt = X.ds
+            lengths = X.lengths
+            X = X.data.T
+        elif isinstance(X, np.ndarray):
+            if dt is None:
+                raise ValueError("'dt' is a required argument when 'X' is passed in as a numpy array!")
+            if isinstance(y, core.RegularlySampledAnalogSignalArray):
+                if timestamps is not None:
+                    y = y(timestamps).T
+                else:
+                    raise ValueError("'timestamps' required when passing in 'X' as a numpy array and 'y' as a nelpy RegularlySampledAnalogSignalArray!")
+        else:
+            raise TypeError("'X' should be either a nelpy BinnedEventArray, or a numpy array!")
+
+        n_samples, n_units = X.shape
+        _, n_dims = y.shape
+        print('{}-dimensional y passed in'.format(n_dims))
+
+        assert n_samples == len(y), "'X' and 'y' must have the same number" \
+                    " of samples! len(X)=={} but len(y)=={}".format(n_samples,
+                                                                    len(y))
+        if n_bins is not None:
+            n_bins = np.atleast_1d(n_bins)
+            assert len(n_bins) == n_dims, "'n_bins' must have one entry for each dimension in 'y'!"
+
+        return X, y, dt, n_bins
+
+    def fit(self, X, y, lengths=None, dt=None, timestamps=None, unit_ids=None, n_bins=None, sample_weight=None):
         """Fit Gaussian Naive Bayes according to X, y
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
+        X : array-like, shape (n_samples, n_X_features)
             Training vectors, where n_samples is the number of samples
-            and n_features is the number of features.
-        y : array-like, shape (n_samples,)
+            and n_X_features is the number of features, typically n_units.
+        y : array-like, shape (n_samples, n_y_features)
             Target values.
         sample_weight : array-like, shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
@@ -965,18 +1013,25 @@ class FiringRateEstimator(BaseEstimator):
         -------
         self : object
         """
-        #TODO: implement sophisticated firing rate estimation here;
-        # TuninCurve1D is a deprecated drop-in.
-        if y.n_signals == 1:
-            self.tc_ = TuningCurve1D(bst=X, extern=y, n_extern=100, extmin=y.min(), extmax=y.max(), sigma=2.5, min_duration=0)
-        if y.n_signals == 2:
-            xmin, ymin = y.min()
-            xmax, ymax = y.max()
-            self.tc_ = TuningCurve2D(bst=X, extern=y, ext_nx=50, ext_ny=50, ext_xmin=xmin, ext_xmax=xmax, ext_ymin=ymin, ext_ymax=ymax, sigma=2.5, min_duration=0)
-        # X, y = check_X_y(X, y)
+        X, y, dt, n_bins = self._check_X_y_dt(X=X,
+                                              y=y,
+                                              lengths=lengths,
+                                              dt=dt,
+                                              timestamps=timestamps,
+                                              n_bins=n_bins)
 
-        # return self._partial_fit(X, y, np.unique(y), _refit=True,
-        #                          sample_weight=sample_weight)
+        # 1. estimate mask
+        # 2. estimate occupancy
+        # 3. compute spikes histogram
+        # 4. normalize spike histogram by occupancy
+        # 5. apply mask
+
+        # if y.n_signals == 1:
+        #     self.tc_ = TuningCurve1D(bst=X, extern=y, n_extern=100, extmin=y.min(), extmax=y.max(), sigma=2.5, min_duration=0)
+        # if y.n_signals == 2:
+        #     xmin, ymin = y.min()
+        #     xmax, ymax = y.max()
+        #     self.tc_ = TuningCurve2D(bst=X, extern=y, ext_nx=50, ext_ny=50, ext_xmin=xmin, ext_xmax=xmax, ext_ymin=ymin, ext_ymax=ymax, sigma=2.5, min_duration=0)
 
     @property
     def mode(self):
