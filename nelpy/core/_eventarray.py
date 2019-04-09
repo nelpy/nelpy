@@ -521,50 +521,6 @@ class BaseEventArray(ABC):
         #return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
-    def reorder_series_by_ids(self, neworder, *, inplace=False):
-        """Reorder series according to a specified order.
-
-        neworder must be list-like, of size (n_series,) and in terms of
-        series_ids
-
-        Return
-        ------
-        out : reordered EventArray
-        """
-        if inplace:
-            out = self
-        else:
-            out = self.copy()
-
-        neworder = [self.series_ids.index(x) for x in neworder]
-
-        oldorder = list(range(len(neworder)))
-        for oi, ni in enumerate(neworder):
-            frm = oldorder.index(ni)
-            to = oi
-            utils.swap_rows(out._data, frm, to)
-            out._series_ids[frm], out._series_ids[to] = out._series_ids[to], out._series_ids[frm]
-            out._series_labels[frm], out._series_labels[to] = out._series_labels[to], out._series_labels[frm]
-            # TODO: re-build series tags (tag system not yet implemented)
-            oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
-
-        out.__renew__()
-        return out
-
-    def copy(self):
-        """Returns a copy of the BaseEventArray."""
-        newcopy = copy.deepcopy(self)
-        newcopy.__renew__()
-        return newcopy
-
-    def _copy_without_data(self):
-        """Return a copy of self, without event datas."""
-        out = copy.copy(self) # shallow copy
-        out._data = np.zeros((self.n_series,0))
-        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
-        out.__renew__()
-        return out
-
 ########################################################################
 # class EventArray
 ########################################################################
@@ -592,6 +548,12 @@ class EventArray(BaseEventArray):
         Information pertaining to the source of the eventarray.
     empty : bool, optional
         Whether an empty EventArray should be constructed (no data).
+    assume_sorted : boolean, optional
+        Whether the abscissa values should be treated as sorted (non-decreasing)
+        or not. Significant overhead during RSASA object creation can be removed
+        if this is True, but note that unsorted abscissa values will mess
+        everything up.
+        Default is False
     kwargs : optional
         Additional keyword arguments to forward along to the BaseEventArray
         constructor.
@@ -623,7 +585,10 @@ class EventArray(BaseEventArray):
     __attributes__.extend(BaseEventArray.__attributes__)
     def __init__(self, abscissa_vals=None, *, fs=None, support=None,
                  series_ids=None, series_labels=None, series_tags=None,
-                 label=None, empty=False, **kwargs):
+                 label=None, empty=False, assume_sorted=None, **kwargs):
+
+        if assume_sorted is None:
+            assume_sorted = False
 
         # if an empty object is requested, return it:
         if empty:
@@ -709,9 +674,16 @@ class EventArray(BaseEventArray):
 
         data = standardize_to_2d(abscissa_vals)
 
-        #sort event series, but only if necessary:
+        # If user said to assume the absicssa vals are sorted but they actually
+        # aren't, then the mistake will get propagated down. The responsibility
+        # therefore lies on the user whenever he/she uses assume_sorted=True
+        # as a constructor argument
         for ii, train in enumerate(data):
-            if not utils.is_sorted(train):
+            if not assume_sorted:
+                # sort event series, but only if necessary
+                if not utils.is_sorted(train):
+                    data[ii] = np.sort(train)
+            else:
                 data[ii] = np.sort(train)
 
         kwargs["fs"] = fs
@@ -787,18 +759,19 @@ class EventArray(BaseEventArray):
 
         return out
 
-    # def _copy_without_data(self):
-    #     """Return a copy of self, without event datas."""
-    #     out = copy.copy(self) # shallow copy
-    #     out._data = None
-    #     out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
-    #     return out
+    def _copy_without_data(self):
+        """Return a copy of self, without event datas."""
+        out = copy.copy(self) # shallow copy
+        out._data = None
+        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out.__renew__()
+        return out
 
-    # def copy(self):
-    #     """Returns a copy of the EventArray."""
-    #     newcopy = copy.deepcopy(self)
-    #     newcopy.__renew__()
-    #     return newcopy
+    def copy(self):
+        """Returns a copy of the EventArray."""
+        newcopy = copy.deepcopy(self)
+        newcopy.__renew__()
+        return newcopy
 
     def __iter__(self):
         """EventArray iterator initialization."""
@@ -1174,7 +1147,7 @@ class EventArray(BaseEventArray):
         """
 
         first_events = [(ii, series[0]) for (ii, series) in enumerate(self.data) if len(series) !=0]
-        first_events_series_ids = np.array(self.series_ids)[tuple([fs[0] for fs in first_events])]
+        first_events_series_ids = np.array(self.series_ids)[[fs[0] for fs in first_events]]
         first_events_datas = np.array([fs[1] for fs in first_events])
         sortorder = np.argsort(first_events_datas)
         first_events_series_ids = first_events_series_ids[sortorder]
@@ -1549,11 +1522,11 @@ class BinnedEventArray(BaseEventArray):
         out.__renew__()
         return out
 
-    # def copy(self):
-    #     """Returns a copy of the BinnedEventArray."""
-    #     newcopy = copy.deepcopy(self)
-    #     newcopy.__renew__()
-    #     return newcopy
+    def copy(self):
+        """Returns a copy of the BinnedEventArray."""
+        newcopy = copy.deepcopy(self)
+        newcopy.__renew__()
+        return newcopy
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
@@ -1589,7 +1562,7 @@ class BinnedEventArray(BaseEventArray):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             support = self._abscissa.support[index]
-            bsupport = self.binnedSupport[tuple([index]),:]
+            bsupport = self.binnedSupport[[index],:]
 
             binnedeventarray = type(self)(empty=True)
             exclude = ["_bins", "_data", "_support", "_bin_centers", "_binnedSupport"]
@@ -1628,6 +1601,7 @@ class BinnedEventArray(BaseEventArray):
         if self.isempty:
             return self
         if isinstance(idx, core.IntervalArray):
+            print("slicing by interval array")
             # need to determine if there is any proper subset in self._abscissa.support intersect EpochArray
             # next, we need to identify all the bins that would fall within the EpochArray
 
@@ -1637,6 +1611,7 @@ class BinnedEventArray(BaseEventArray):
             # TODO: code this more directly:
             asa = core.RegularlySampledAnalogSignalArray(self)
             asa = asa[idx]
+            # TODO: issue 229
             if asa.isempty:
                 return self.empty(inplace=False)
             out = BinnedEventArray(asa)
@@ -1653,6 +1628,7 @@ class BinnedEventArray(BaseEventArray):
             # raise NotImplementedError("EpochArray indexing for BinnedEventArrays not supported yet")
 
         elif isinstance(idx, int):
+            print("slicing by int")
             # TODO: issue 229
             binnedeventarray = type(self)(empty=True)
             exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
@@ -1667,7 +1643,7 @@ class BinnedEventArray(BaseEventArray):
                 binnedeventarray.__renew__()
                 return binnedeventarray
             else:
-                bsupport = self.binnedSupport[tuple([idx]),:]
+                bsupport = self.binnedSupport[[idx],:]
                 centers = self._bin_centers[bsupport[0,0]:bsupport[0,1]+1]
                 binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
                 binstart = binindices[idx]
@@ -1682,40 +1658,60 @@ class BinnedEventArray(BaseEventArray):
             try:
                 # have to be careful about re-indexing binnedSupport
                 # TODO: issue 229
-                binnedeventarray = type(self)(empty=True)
-                exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    attrs = (x for x in self.__attributes__ if x not in exclude)
-                    for attr in attrs:
-                        exec("binnedeventarray." + attr + " = self." + attr)
-                support = self._abscissa.support[idx]
-                binnedeventarray._abscissa.support = support
+                print("slicing by slice")
+                ##############################################################################
+                # # ASA indexing, remove when finished
+                # intervalslice, signalslice = self._intervalsignalslicer[idx]
 
-                bsupport = self.binnedSupport[idx,:] # need to re-index!
-                # now build a list of all elements in bsupport:
-                ll = []
-                for bs in bsupport:
-                    ll.extend(np.arange(bs[0],bs[1]+1, step=1))
-                binnedeventarray._bin_centers = self._bin_centers[ll]
-                binnedeventarray._data = self._data[:,ll]
+                # asa = self._subset(signalslice)
 
-                lengths = self.lengths[tuple([idx])]
-                # lengths = bsupport[:,1] - bsupport[:,0]
-                bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
-                bsends = np.cumsum(lengths) - 1
-                binnedeventarray._binnedSupport = np.vstack((bsstarts, bsends)).T
+                # if asa.isempty:
+                #     asa.__renew__()
+                #     return asa
 
-                binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
-                binstarts = binindices[idx]
-                binstops = binindices[1:][idx]  # equivalent to binindices[idx + 1], but if idx is a slice, we can't add 1 to it
-                ll = []
-                for start, stop in zip(binstarts, binstops):
-                    ll.extend(np.arange(start,stop,step=1))
-                binnedeventarray._bins = self._bins[ll]
+                # if isinstance(intervalslice, slice):
+                #     if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+                #         asa.__renew__()
+                #         return asa
+
+                # newintervals = self._abscissa.support[intervalslice]
+                # # TODO: this needs to change so that n_signals etc. are preserved
+                # ################################################################
+                # if newintervals.isempty:
+                #     warnings.warn("Index resulted in empty interval array")
+                #     return self.empty(inplace=False)
+                # ################################################################
+
+                # asa._restrict_to_interval_array_fast(intervalarray=newintervals)
+                # asa.__renew__()
+                # return asa
+                # ##############################################################################
+                
+                intervalslice, signalslice = self._slicer[idx]
+
+                binnedeventarray = self._subset(signalslice)
+
+                if binnedeventarray.isempty:
+                    return binnedeventarray
+
+                if isinstance(intervalslice, slice):
+                    if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+                        return binnedeventarray
+
+                newintervals = self._abscissa.support[intervalslice]
+
+                if newintervals.isempty:
+                    warnings.warn("Index resulted in empty interval array")
+                    binnedeventarray = self._copy_without_data()
+                    binnedeventarray._data = np.zeros((self.n_series, 0))
+                    return binnedeventarray
+
+                binnedeventarray._restrict_beva_to_interval_array_fast(intervalarray=newintervals)
                 binnedeventarray.__renew__()
-
                 return binnedeventarray
+
+
+                # return binnedeventarray
 
             except IndexError:
                 raise TypeError(
@@ -1723,6 +1719,101 @@ class BinnedEventArray(BaseEventArray):
             except Exception:
                 raise TypeError(
                     'unsupported indexing type {}'.format(type(idx)))
+
+    def _subset(self, idx):
+        binnedeventarray = self._copy_without_data()
+        try:
+            binnedeventarray._data = np.atleast_2d(self.data[idx,:])
+        except IndexError:
+            raise IndexError("index {} is out of bounds for n_signals with size {}".format(idx, self.n_series))
+        binnedeventarray.__renew__()
+        return binnedeventarray
+
+    def _restrict_beva_to_interval_array_fast(self, *, intervalarray=None, update=True):
+        """WARNING: This function is documented but not intended to be called
+        directly. Prefer using the indexer, as that does the proper checks.
+
+        Restrict self._abscissa_vals and self._data to an IntervalArray. If no
+        IntervalArray is specified, self._abscissa.support is used.
+
+        Parameters
+        ----------
+        intervalarray : IntervalArray, optional
+        	IntervalArray on which to restrict AnalogSignal. Default is
+        	self._abscissa.support
+        update : bool, optional
+        	Overwrite self._abscissa.support with intervalarray if True (default).
+        """
+        if intervalarray is None:
+            intervalarray = self._abscissa.support
+            update = False # support did not change; no need to update
+        else:
+            if not isinstance(intervalarray, core.IntervalArray):
+                raise AttributeError("nelpy.IntervalArray expected")
+
+        # if we got to this point, we know for sure that intervalarray
+        # is a nelpy.IntervalArray
+
+
+        # What are the things we need to 
+        indices = []
+        for interval in intervalarray.merge().data:
+            a_start = interval[0]
+            a_stop = interval[1]
+            frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop))
+            indices.append((frm, to))
+        indices = np.array(indices, ndmin=2)
+        if np.diff(indices).sum() < len(self._abscissa_vals):
+            warnings.warn(
+                'ignoring signal outside of support')
+        try:
+            data_list = []
+            for start, stop in indices:
+                data_list.append(self._data[:,start:stop])
+            self._data = np.hstack(data_list)
+        except IndexError:
+            self._data = np.zeros([0,self.data.shape[0]])
+            self._data[:] = np.nan
+        time_list = []
+        for start, stop in indices:
+            time_list.extend(self._abscissa_vals[start:stop])
+        self._abscissa_vals = np.array(time_list)
+        if update:
+            self._abscissa.support = intervalarray
+
+
+        # binnedeventarray = type(self)(empty=True)
+        # exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
+        # with warnings.catch_warnings():
+        #     warnings.simplefilter("ignore")
+        #     attrs = (x for x in self.__attributes__ if x not in exclude)
+        #     for attr in attrs:
+        #         exec("binnedeventarray." + attr + " = self." + attr)
+        # support = self._abscissa.support[idx]
+        # binnedeventarray._abscissa.support = support
+
+        # bsupport = self.binnedSupport[idx,:] # need to re-index!
+        # # now build a list of all elements in bsupport:
+        # ll = []
+        # for bs in bsupport:
+        #     ll.extend(np.arange(bs[0],bs[1]+1, step=1))
+        # binnedeventarray._bin_centers = self._bin_centers[ll]
+        # binnedeventarray._data = self._data[:,ll]
+
+        # lengths = self.lengths[[idx]]
+        # # lengths = bsupport[:,1] - bsupport[:,0]
+        # bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
+        # bsends = np.cumsum(lengths) - 1
+        # binnedeventarray._binnedSupport = np.vstack((bsstarts, bsends)).T
+
+        # binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+        # binstarts = binindices[idx]
+        # binstops = binindices[1:][idx]  # equivalent to binindices[idx + 1], but if idx is a slice, we can't add 1 to it
+        # ll = []
+        # for start, stop in zip(binstarts, binstops):
+        #     ll.extend(np.arange(start,stop,step=1))
+        # binnedeventarray._bins = self._bins[ll]
+        # binnedeventarray.__renew__()
 
     @property
     def isempty(self):
@@ -1922,6 +2013,7 @@ class BinnedEventArray(BaseEventArray):
         re = np.array(right_edges)
         re = re[:, np.newaxis]
         self._binnedSupport = np.hstack((le, re))
+        print(self.lengths)
         support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
         support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
         supportdata = np.vstack([support_starts, support_stops]).T

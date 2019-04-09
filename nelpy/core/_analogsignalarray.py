@@ -309,10 +309,11 @@ class RegularlySampledAnalogSignalArray:
         The object handling the ordinate values. It is recommended to leave
         this parameter alone and let nelpy take care of this.
         Default is a nelpy.core.Ordinate object.
-    is_sorted : boolean, optional
-        Whether the abscissa values are sorted or not. Significant overhead
-        during RSASA object creation can be removed if this is True, but
-        note that unsorted abscissa values will mess everything up.
+    assume_sorted : boolean, optional
+        Whether the abscissa values should be treated as sorted (non-decreasing)
+        or not. Significant overhead during RSASA object creation can be removed
+        if this is True, but note that unsorted abscissa values will mess
+        everything up.
         Default is False
 
     Attributes
@@ -384,10 +385,10 @@ class RegularlySampledAnalogSignalArray:
     def __init__(self, data=[], *, abscissa_vals=None, fs=None,
                  step=None, merge_sample_gap=0, support=None,
                  in_core=True, labels=None, empty=False,
-                 abscissa=None, ordinate=None, is_sorted=None):
+                 abscissa=None, ordinate=None, assume_sorted=None):
 
-        if is_sorted is None:
-            is_sorted = False
+        if assume_sorted is None:
+            assume_sorted = False
 
         self._intervalsignalslicer = IntervalSignalSlicer(self)
         self._intervaldata = DataSlicer(self)
@@ -449,12 +450,19 @@ class RegularlySampledAnalogSignalArray:
                             "is expected to have rows containing signals")
         #data is not sorted and user wants it to be
         # TODO: use faster is_sort from jagular
-        if not utils.is_sorted(abscissa_vals):
-            warnings.warn("Data is _not_ sorted! Data will be sorted "\
-                            "automatically.")
-            ind = np.argsort(abscissa_vals)
-            abscissa_vals = abscissa_vals[ind]
-            data = np.take(a=data, indices=ind, axis=-1)
+        # We call get_contiguous_segments later on the abscissa_vals assuming
+        # everything is sorted
+        # If user said to assume the absicssa vals are sorted but they actually
+        # aren't, then the mistake will get propagated down. The responsibility
+        # therefore lies on the user whenever he/she uses assume_sorted=True
+        # as a constructor argument
+        if not assume_sorted:
+            if not utils.is_sorted(abscissa_vals):
+                warnings.warn("Data is _not_ sorted! Data will be sorted "\
+                                "automatically.")
+                ind = np.argsort(abscissa_vals)
+                abscissa_vals = abscissa_vals[ind]
+                data = np.take(a=data, indices=ind, axis=-1)
 
         self._data = data
         self._abscissa_vals = abscissa_vals
@@ -486,7 +494,7 @@ class RegularlySampledAnalogSignalArray:
                     step=self._step, #TODO: pass in either step or fs, not both... sort out this mess!
                     fs=fs,
                     in_core=in_core,
-                    assume_sorted=is_sorted))
+                    assume_sorted=True)) # sorting is already handled
             if merge_sample_gap > 0:
                 self._abscissa.support = self._abscissa.support.merge(gap=merge_sample_gap)
 
