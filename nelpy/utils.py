@@ -776,16 +776,13 @@ def get_contiguous_segments(data, *, step=None, assume_sorted=None,
     # handle deprecated API calls:
     if in_memory:
         in_core = in_memory
-        logging.warning("'in_memory' has been deprecated; use 'in_core' instead",
-                      DeprecationWarning)
+        logging.warning("'in_memory' has been deprecated; use 'in_core' instead")
     if sort:
         assume_sorted = sort
-        logging.warning("'sort' has been deprecated; use 'assume_sorted' instead",
-                      DeprecationWarning)
+        logging.warning("'sort' has been deprecated; use 'assume_sorted' instead")
     if fs:
         step = 1/fs
-        logging.warning("'fs' has been deprecated; use 'step' instead",
-                      DeprecationWarning)
+        logging.warning("'fs' has been deprecated; use 'step' instead")
 
     if inclusive:
         assert index, "option 'inclusive' can only be used with 'index=True'"

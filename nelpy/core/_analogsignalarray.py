@@ -483,7 +483,7 @@ class RegularlySampledAnalogSignalArray:
             self._abscissa.support =type(self._abscissa.support)(
                 utils.get_contiguous_segments(
                     self._abscissa_vals,
-                    step=self._step,
+                    step=self._step, #TODO: pass in either step or fs, not both... sort out this mess!
                     fs=fs,
                     in_core=in_core,
                     assume_sorted=is_sorted))
