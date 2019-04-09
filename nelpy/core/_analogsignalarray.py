@@ -309,6 +309,11 @@ class RegularlySampledAnalogSignalArray:
         The object handling the ordinate values. It is recommended to leave
         this parameter alone and let nelpy take care of this.
         Default is a nelpy.core.Ordinate object.
+    is_sorted : boolean, optional
+        Whether the abscissa values are sorted or not. Significant overhead
+        during RSASA object creation can be removed if this is True, but
+        note that unsorted abscissa values will mess everything up.
+        Default is False
 
     Attributes
     ----------
@@ -379,7 +384,10 @@ class RegularlySampledAnalogSignalArray:
     def __init__(self, data=[], *, abscissa_vals=None, fs=None,
                  step=None, merge_sample_gap=0, support=None,
                  in_core=True, labels=None, empty=False,
-                 abscissa=None, ordinate=None):
+                 abscissa=None, ordinate=None, is_sorted=None):
+
+        if is_sorted is None:
+            is_sorted = False
 
         self._intervalsignalslicer = IntervalSignalSlicer(self)
         self._intervaldata = DataSlicer(self)
@@ -477,7 +485,8 @@ class RegularlySampledAnalogSignalArray:
                     self._abscissa_vals,
                     step=self._step,
                     fs=fs,
-                    in_core=in_core))
+                    in_core=in_core,
+                    assume_sorted=is_sorted))
             if merge_sample_gap > 0:
                 self._abscissa.support = self._abscissa.support.merge(gap=merge_sample_gap)
 
