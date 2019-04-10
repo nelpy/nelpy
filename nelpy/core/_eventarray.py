@@ -760,9 +760,12 @@ class EventArray(BaseEventArray):
         return out
 
     def _copy_without_data(self):
-        """Return a copy of self, without event datas."""
+        """Return a copy of self, without event datas.
+
+        Note: the support is left unchanged.
+        """
         out = copy.copy(self) # shallow copy
-        out._data = None
+        out._data = np.array(self.n_series*[None])
         out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
         return out
@@ -1175,6 +1178,23 @@ class EventArray(BaseEventArray):
                 last = series[-1]
         return last
 
+    def empty(self, inplace=False):
+        """Remove data (but not metadata) from EventArray.
+
+        Attributes 'data', and 'support' are both emptied.
+
+        Note: n_series, series_ids, etc. are all preserved.
+        """
+        if not inplace:
+            out = self._copy_without_data()
+            out._abscissa.support = type(self._abscissa.support)(empty=True)
+            return out
+        out = self
+        out._data = np.array(self.n_series*[None])
+        out._abscissa.support = type(self._abscissa.support)(empty=True)
+        out.__renew__()
+        return out
+
 ########################################################################
 # class BinnedEventArray
 ########################################################################
@@ -1512,12 +1532,15 @@ class BinnedEventArray(BaseEventArray):
         # raise NotImplementedError('workaround: cast to AnalogSignalArray, partition, and cast back to BinnedEventArray')
 
     def _copy_without_data(self):
-        """Returns a copy of the BinnedEventArray, without data."""
+        """Returns a copy of the BinnedEventArray, without data.
+
+        Note: the support is left unchanged, but the binned_support is removed.
+        """
         out = copy.copy(self) # shallow copy
-        # out._bin_centers = None
-        # out._binnedSupport = None
-        # out._bins = None
-        out._data = np.zeros((self.n_series,0))
+        out._bin_centers = None
+        out._binnedSupport = None
+        out._bins = None
+        out._data = np.zeros((self.n_series, 0))
         out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
         return out
@@ -1582,13 +1605,18 @@ class BinnedEventArray(BaseEventArray):
         return binnedeventarray
 
     def empty(self, inplace=False):
-        """Remove data (but not metadata) from BinnedEventArray."""
+        """Remove data (but not metadata) from BinnedEventArray.
+
+        Attributes 'data', and 'support' 'binnedSupport' are all emptied.
+
+        Note: n_series, series_ids, etc. are all preserved.
+        """
         if not inplace:
             out = self._copy_without_data()
             out._abscissa.support = type(self._abscissa.support)(empty=True)
             return out
         out = self
-        out._data = np.zeros((out.n_series,0))
+        out._data = np.zeros((self.n_series, 0))
         out._abscissa.support = type(self._abscissa.support)(empty=True)
         out._binnedSupport = None
         out._bin_centers = None
