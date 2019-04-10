@@ -1423,7 +1423,7 @@ class RegularlySampledAnalogSignalArray:
             out = self._copy_without_data()
         else:
             out = self
-        out._data = np.zeros((n_signals,0))
+            out._data = np.zeros((n_signals,0))
         out._abscissa.support = type(self.support)(empty=True)
         out._abscissa_vals = []
         out.__renew__()
@@ -1476,7 +1476,7 @@ class RegularlySampledAnalogSignalArray:
         """Return a copy of self, without data."""
         out = copy.copy(self) # shallow copy
         out._abscissa_vals = None
-        out._data = np.zeros((self.n_signals,0))
+        out._data = np.zeros((self.n_signals, 0))
         out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
         return out
