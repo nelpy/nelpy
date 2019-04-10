@@ -484,7 +484,7 @@ class RegularlySampledAnalogSignalArray:
 
         # Alright, let's handle all the possible parameter cases!
         if support is not None:
-            self._restrict_to_interval_array_fast(intervalarray=support)
+            self._restrict_to_interval(intervalarray=support)
         else:
             warnings.warn("creating support from abscissa_vals and "
                             "sampling rate, fs!")
@@ -900,121 +900,6 @@ class RegularlySampledAnalogSignalArray:
         self._labels = np.append(self._labels,label)
         return self
 
-    def _restrict_to_interval_array_fast(self, *, intervalarray=None, update=True):
-        """Restrict self._abscissa_vals and self._data to an IntervalArray. If no
-        IntervalArray is specified, self._abscissa.support is used.
-
-        Parameters
-        ----------
-        intervalarray : IntervalArray, optional
-        	IntervalArray on which to restrict AnalogSignal. Default is
-        	self._abscissa.support
-        update : bool, optional
-        	Overwrite self._abscissa.support with intervalarray if True (default).
-        """
-        if intervalarray is None:
-            intervalarray = self._abscissa.support
-            update = False # support did not change; no need to update
-
-        try:
-            if intervalarray.isempty:
-                warnings.warn("Support specified is empty")
-                # self.__init__([],empty=True)
-                exclude = ['_support','_data','_fs','_step']
-                attrs = (x for x in self.__attributes__ if x not in exclude)
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    for attr in attrs:
-                        exec("self." + attr + " = None")
-                self._data = np.zeros([0,self.data.shape[0]])
-                self._data[:] = np.nan
-                self._abscissa.support = intervalarray
-                return
-        except AttributeError:
-            raise AttributeError("IntervalArray expected")
-
-        indices = []
-        for interval in intervalarray.merge().data:
-            a_start = interval[0]
-            a_stop = interval[1]
-            frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop))
-            indices.append((frm, to))
-        indices = np.array(indices, ndmin=2)
-        if np.diff(indices).sum() < len(self._abscissa_vals):
-            warnings.warn(
-                'ignoring signal outside of support')
-        try:
-            data_list = []
-            for start, stop in indices:
-                data_list.append(self._data[:,start:stop])
-            self._data = np.hstack(data_list)
-        except IndexError:
-            self._data = np.zeros([0,self.data.shape[0]])
-            self._data[:] = np.nan
-        time_list = []
-        for start, stop in indices:
-            time_list.extend(self._abscissa_vals[start:stop])
-        self._abscissa_vals = np.array(time_list)
-        if update:
-            self._abscissa.support = intervalarray
-
-    def _restrict_to_interval_array(self, *, intervalarray=None, update=True):
-        """Restrict self._abscissa_vals and self._data to an IntervalArray. If no
-        IntervalArray is specified, self._abscissa.support is used.
-
-        This function is quite slow, as it checks each sample for inclusion.
-        It does this in a vectorized form, which is fast for small or moderately
-        sized objects, but the memory penalty can be large, and it becomes very
-        slow for large objects. Consequently, _restrict_to_interval_array_fast
-        should be used when possible.
-
-        Parameters
-        ----------
-        intervalarray : IntervalArray, optional
-        	IntervalArray on which to restrict AnalogSignal. Default is
-        	self._abscissa.support
-        update : bool, optional
-        	Overwrite self._abscissa.support with intervalarray if True (default).
-        """
-        if intervalarray is None:
-            intervalarray = self._abscissa.support
-            update = False # support did not change; no need to update
-
-        try:
-            if intervalarray.isempty:
-                warnings.warn("Support specified is empty")
-                # self.__init__([],empty=True)
-                exclude = ['_support','_data','_fs','_step']
-                attrs = (x for x in self.__attributes__ if x not in exclude)
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    for attr in attrs:
-                        exec("self." + attr + " = None")
-                self._data = np.zeros([0,self.data.shape[0]])
-                self._data[:] = np.nan
-                self._abscissa.support = intervalarray
-                return
-        except AttributeError:
-            raise AttributeError("IntervalArray expected")
-
-        indices = []
-        for interval in intervalarray.merge().data:
-            a_start = interval[0]
-            a_stop = interval[1]
-            indices.append((self._abscissa_vals >= a_start) & (self._abscissa_vals < a_stop))
-        indices = np.any(np.column_stack(indices), axis=1)
-        if np.count_nonzero(indices) < len(self._abscissa_vals):
-            warnings.warn(
-                'ignoring signal outside of support')
-        try:
-            self._data = self.data[:,indices]
-        except IndexError:
-            self._data = np.zeros([0,self.data.shape[0]])
-            self._data[:] = np.nan
-        self._abscissa_vals = self._abscissa_vals[indices]
-        if update:
-            self._abscissa.support = intervalarray
-
     @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
     def smooth(self, *, fs=None, sigma=None, truncate=None, inplace=False, mode=None, cval=None, within_intervals=False):
         """Smooths the regularly sampled RegularlySampledAnalogSignalArray with a Gaussian kernel.
@@ -1286,7 +1171,7 @@ class RegularlySampledAnalogSignalArray:
         else:
             raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
         # restrict data to new support
-        self._restrict_to_interval_array_fast(intervalarray=self._abscissa.support)
+        self._restrict_to_interval(intervalarray=self._abscissa.support)
 
     @property
     def domain(self):
@@ -1304,7 +1189,7 @@ class RegularlySampledAnalogSignalArray:
         else:
             raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
         # restrict data to new support
-        self._restrict_to_interval_array_fast(intervalarray=self._abscissa.support)
+        self._restrict_to_interval(intervalarray=self._abscissa.support)
 
     @property
     def range(self):
@@ -1405,7 +1290,7 @@ class RegularlySampledAnalogSignalArray:
             warnings.simplefilter("ignore")
             for attr in attrs:
                 exec("asa." + attr + " = self." + attr)
-        asa._restrict_to_interval_array_fast(intervalarray=intervalarray)
+        asa._restrict_to_interval(intervalarray=intervalarray)
         if(asa.support.isempty):
             warnings.warn("Support is empty. Empty RegularlySampledAnalogSignalArray returned")
             asa = type(self)([],empty=True)
@@ -1435,39 +1320,111 @@ class RegularlySampledAnalogSignalArray:
             intersect passed intervalarray with support,
             index particular a singular interval or multiple intervals with slice
         """
-        intervalslice, signalslice = self._intervalsignalslicer[idx]
+        return self.loc[idx]
 
-        asa = self._subset(signalslice)
+    def _restrict(self, intervalslice, signalslice, *, kind=None):
 
-        if asa.isempty:
-            asa.__renew__()
-            return asa
+        # This function should be called by an itemgetter
+        # only because it mutates data
+        # The itemgetter is responsible for creating copies
+        # of objects
+
+        if kind is None:
+            kind = 'loc'
+        if kind not in ('loc', 'iloc'):
+            raise ValueError("Unsupported kind '{}' series restriction".format(kind)) 
+
+        self._restrict_to_signals_subset(signalslice, kind=kind)
+
+        if self.isempty:
+            # don't bother restricting to interval
+            return self
 
         if isinstance(intervalslice, slice):
             if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                asa.__renew__()
-                return asa
+                # no restriction on interval
+                return self
 
         newintervals = self._abscissa.support[intervalslice]
-        # TODO: this needs to change so that n_signals etc. are preserved
-        ################################################################
         if newintervals.isempty:
-            warnings.warn("Index resulted in empty interval array")
-            return self.empty(inplace=False)
-        ################################################################
+            logging.warning("Index resulted in empty interval array")
+            return self.empty(inplace=True)
 
-        asa._restrict_to_interval_array_fast(intervalarray=newintervals)
-        asa.__renew__()
-        return asa
+        self._restrict_to_interval(intervalarray=intervalslice)
+        return self
 
-    def _subset(self, idx):
-        asa = self.copy()
+    def _restrict_to_signals_subset(self, *, idx=None, kind=None):
+
+        # Warning: This function can mutate data
+
+        if idx is None:
+            # no need to restrict to subset
+            return
+        
+        # have to do something depending on whether loc or iloc
         try:
-            asa._data = np.atleast_2d(self.data[idx,:])
+            self._data = np.atleast_2d(self.data[idx,:])
         except IndexError:
             raise IndexError("index {} is out of bounds for n_signals with size {}".format(idx, self.n_signals))
-        asa.__renew__()
-        return asa
+
+    def _restrict_to_interval(self, *, intervalarray=None):
+        """Restrict self._abscissa_vals and self._data to an IntervalArray. If no
+        IntervalArray is specified, self._abscissa.support is used.
+
+        Parameters
+        ----------
+        intervalarray : IntervalArray, optional
+        	IntervalArray on which to restrict AnalogSignal. Default is
+        	self._abscissa.support
+        """
+
+        # Warning: This function can mutate data
+
+        update = True
+
+        if intervalarray is None:
+            intervalarray = self._abscissa.support
+            update = False # support did not change; no need to update
+
+        try:
+            if intervalarray.isempty:
+                warnings.warn("Support specified is empty")
+                # self.__init__([],empty=True)
+                exclude = ['_support','_data','_fs','_step']
+                attrs = (x for x in self.__attributes__ if x not in exclude)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    for attr in attrs:
+                        exec("self." + attr + " = None")
+                self._data = np.zeros((self.n_signals,0))
+                self._abscissa.support = intervalarray
+                return
+        except AttributeError:
+            raise AttributeError("IntervalArray expected")
+
+        indices = []
+        for interval in intervalarray.merge().data:
+            a_start = interval[0]
+            a_stop = interval[1]
+            frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop))
+            indices.append((frm, to))
+        indices = np.array(indices, ndmin=2)
+        if np.diff(indices).sum() < len(self._abscissa_vals):
+            warnings.warn(
+                'ignoring signal outside of support')
+        try:
+            data_list = []
+            for start, stop in indices:
+                data_list.append(self._data[:,start:stop])
+            self._data = np.hstack(data_list)
+        except IndexError:
+            self._data = np.zeros((self.n_signals, 0)
+        time_list = []
+        for start, stop in indices:
+            time_list.extend(self._abscissa_vals[start:stop])
+        self._abscissa_vals = np.array(time_list)
+        if update:
+            self._abscissa.support = intervalarray
 
     def _copy_without_data(self):
         """Return a copy of self, without data."""

@@ -919,6 +919,255 @@ class EventArray(BaseEventArray):
         flattened.__renew__()
         return flattened
 
+    def _restrict(self, intervalslice, seriesslice, *, kind=None):
+
+        if kind is None:
+            kind = 'loc'
+        if kind not in ('loc', 'iloc'):
+            raise ValueError("Unsupported kind '{}' series restriction".format(kind))
+
+        self._restrict_to_series_subset(seriesslice, kind=kind)
+
+        if self.isempty:
+            # don't bother restricting to interval
+            return self
+
+        if isinstance(intervalslice, slice):
+            if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+                # no restriction on interval
+                return self
+
+        newintervals = self._abscissa.support[intervalslice]
+        if newintervals.isempty:
+            logging.warning("Index resulted in empty interval array")
+            return self.empty(inplace=True)
+
+        self._restrict_to_interval(intervalarray=intervalslice)
+        return self
+        
+        
+        
+        # first convert series slice into list
+        if isinstance(seriesslice, slice):
+            start = seriesslice.start
+            stop = seriesslice.stop
+            istep = seriesslice.step
+            try:
+                if start is None:
+                    istart = 0
+                else:
+                    istart = self.obj._series_ids.index(start)
+            except ValueError:
+                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(start))
+            try:
+                if stop is None:
+                    istop = self.obj.n_series
+                else:
+                    istop = self.obj._series_ids.index(stop) + 1
+            except ValueError:
+                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(stop))
+            if istep is None:
+                istep = 1
+            if istep < 0:
+                istop -=1
+                istart -=1
+                istart, istop = istop, istart
+            series_idx_list = list(range(istart, istop, istep))
+        else:
+            series_idx_list = []
+            seriesslice = np.atleast_1d(seriesslice)
+            for series in seriesslice:
+                try:
+                    uidx = self.obj.series_ids.index(series)
+                except ValueError:
+                    raise KeyError("series_id {} could not be found in BaseEventArray!".format(series))
+                else:
+                    series_idx_list.append(uidx)
+
+        if not isinstance(series_idx_list, list):
+            series_idx_list = list(series_idx_list)
+        out = copy.copy(self.obj)
+        try:
+            out._data = out._data[series_idx_list]
+            singleseries = len(out._data)==1
+        except AttributeError:
+            out._data = out._data[series_idx_list]
+            singleseries = len(out._data)==1
+
+        if singleseries:
+            out._data = np.array(out._data[0], ndmin=2)
+        out._series_ids = list(np.atleast_1d(np.atleast_1d(out._series_ids)[series_idx_list]))
+        out._series_labels = list(np.atleast_1d(np.atleast_1d(out._series_labels)[series_idx_list]))
+        
+        # TODO: update tags
+        if isinstance(intervalslice, slice):
+            if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+                out.loc = ItemGetter_loc(out)
+                out.iloc = ItemGetter_iloc(out)
+                return out
+        
+        out = out._intervalslicer(intervalslice)
+        
+        
+        
+        
+        out.loc = ItemGetter_loc(out)
+        out.iloc = ItemGetter_iloc(out)
+        return out
+
+    def _restrict_to_series_subset(self, *, idx=None, kind=None):
+
+        # Warning: This function can mutate data
+
+        if idx is None:
+            # no need to restrict to subset
+            return
+
+        if kind == 'loc':
+
+            # first convert series slice into list
+            if isinstance(seriesslice, slice):
+                start = seriesslice.start
+                stop = seriesslice.stop
+                istep = seriesslice.step
+                try:
+                    if start is None:
+                        istart = 0
+                    else:
+                        istart = self.obj._series_ids.index(start)
+                except ValueError:
+                    raise KeyError('series_id {} could not be found in BaseEventArray!'.format(start))
+                try:
+                    if stop is None:
+                        istop = self.obj.n_series
+                    else:
+                        istop = self.obj._series_ids.index(stop) + 1
+                except ValueError:
+                    raise KeyError('series_id {} could not be found in BaseEventArray!'.format(stop))
+                if istep is None:
+                    istep = 1
+                if istep < 0:
+                    istop -=1
+                    istart -=1
+                    istart, istop = istop, istart
+                series_idx_list = list(range(istart, istop, istep))
+            else:
+                series_idx_list = []
+                seriesslice = np.atleast_1d(seriesslice)
+                for series in seriesslice:
+                    try:
+                        uidx = self.obj.series_ids.index(series)
+                    except ValueError:
+                        raise KeyError("series_id {} could not be found in BaseEventArray!".format(series))
+                    else:
+                        series_idx_list.append(uidx)
+
+            if not isinstance(series_idx_list, list):
+                series_idx_list = list(series_idx_list)
+            out = copy.copy(self.obj)
+            try:
+                out._data = out._data[series_idx_list]
+                singleseries = len(out._data)==1
+            except AttributeError:
+                out._data = out._data[series_idx_list]
+                singleseries = len(out._data)==1
+
+            if singleseries:
+                out._data = np.array(out._data[0], ndmin=2)
+            out._series_ids = list(np.atleast_1d(np.atleast_1d(out._series_ids)[series_idx_list]))
+            out._series_labels = list(np.atleast_1d(np.atleast_1d(out._series_labels)[series_idx_list]))
+            
+            # TODO: update tags
+            if isinstance(intervalslice, slice):
+                if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+                    out.loc = ItemGetter_loc(out)
+                    out.iloc = ItemGetter_iloc(out)
+                    return out
+
+        else: # iloc
+             
+            intervalslice, seriesslice = self.obj._slicer[idx]
+            out = copy.copy(self.obj)
+            if isinstance(seriesslice, int):
+                seriesslice = [seriesslice]
+            out._data = out._data[seriesslice]
+            singleseries = len(out._data)==1
+            if singleseries:
+                out._data = np.array(out._data[0], ndmin=2)
+            out._series_ids = list(np.atleast_1d(np.atleast_1d(out._series_ids)[seriesslice]))
+            out._series_labels = list(np.atleast_1d(np.atleast_1d(out._series_labels)[seriesslice]))
+            # TODO: update tags
+            if isinstance(intervalslice, slice):
+                if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+                    out.loc = ItemGetter_loc(out)
+                    out.iloc = ItemGetter_iloc(out)
+                    return out
+            out = out._intervalslicer(intervalslice)
+            out.loc = ItemGetter_loc(out)
+            out.iloc = ItemGetter_iloc(out)
+            return out
+
+    def _restrict_to_interval(self, *, )  # need to figure out prototype
+
+        if isinstance(idx, core.IntervalArray):
+            if idx.isempty:
+                return type(self)(empty=True)
+            support = self._abscissa.support.intersect(
+                    interval=idx,
+                    boundaries=True
+                    ) # what if fs of slicing interval is different?
+            if support.isempty:
+                return type(self)(empty=True)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                data = self._restrict_to_interval_array_fast(
+                    intervalarray=support,
+                    data=self.data,
+                    copyover=True
+                    )
+                eventarray = self._copy_without_data()
+                eventarray._data = data
+                eventarray._abscissa.support = support
+                eventarray.__renew__()
+            return eventarray
+        elif isinstance(idx, int):
+            eventarray = self._copy_without_data()
+            support = self._abscissa.support[idx]
+            eventarray._abscissa.support = support
+            if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
+                eventarray.__renew__()
+                return eventarray
+            else:
+                data = self._restrict_to_interval_array_fast(
+                        intervalarray=support,
+                        data=self.data,
+                        copyover=True
+                        )
+                eventarray._data = data
+                eventarray._abscissa.support = support
+                eventarray.__renew__()
+                return eventarray
+        else:  # most likely slice indexing
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    support = self._abscissa.support[idx]
+                    data = self._restrict_to_interval_array_fast(
+                        intervalarray=support,
+                        data=self.data,
+                        copyover=True
+                        )
+                    eventarray = self._copy_without_data()
+                    eventarray._data = data
+                    eventarray._abscissa.support = support
+                    eventarray.__renew__()
+                return eventarray
+            except Exception:
+                raise TypeError(
+                    'unsupported subsctipting type {}'.format(type(idx)))
+
+
     @staticmethod
     def _restrict_to_interval_array_fast(intervalarray, data, copyover=True):
         """Return data restricted to an EpochArray.
