@@ -9,7 +9,7 @@ Variables
 
 Variables with leading underscores signify that they are internal to a class implementation and
 not intended to be part of the public API. The exception is an outside class that has knowledge
-of the implementation of the class of interest. In that case, the outside clas may still use the
+of the implementation of the class of interest. In that case, the outside class may still use the
 leading-underscore variable. However, this practice is generally discouraged.
 
 Methods
