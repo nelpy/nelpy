@@ -419,6 +419,28 @@ def is_sorted(iterable, key=lambda a, b: a <= b):
     """Check to see if iterable is monotonic increasing (sorted)."""
     return all(key(a, b) for a, b in pairwise(iterable))
 
+def is_sorted_fast(x, chunk_size=None):
+    """Returns True if iterable is monotonic increasing (sorted).
+
+    NOTE: intended for 1D array.
+
+    This function works in-core with memory footrpint XXX.
+    chunk_size = 100000 is probably a good choice.
+    """
+
+    if isinstance(x, np.ndarray):
+        if chunk_size is None:
+            chunk_size = 500000
+        stop = x.size
+        for chunk_start in range(0, stop, chunk_size):
+            chunk_stop = int(min(stop, chunk_start + chunk_size + 1))
+            chunk = x[chunk_start:chunk_stop]
+            if not np.all(chunk[:-1] <= chunk[1:]):
+                return False
+        return True
+    else:
+        return is_sorted(x)
+
 def linear_merge(list1, list2):
     """Merge two SORTED lists in linear time.
 
