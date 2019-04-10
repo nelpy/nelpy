@@ -28,7 +28,7 @@ from .. import core
 from .. import auxiliary
 from .. import utils
 from .. import version
-from . import accessors
+from . import _accessors
 
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 
@@ -391,7 +391,7 @@ class RegularlySampledAnalogSignalArray:
         if assume_sorted is None:
             assume_sorted = False
 
-        self._slicer = accessors.IntervalSeriesSlicer(self)
+        self._slicer = _accessors.IntervalSeriesSlicer(self)
         self._intervaldata = DataSlicer(self)
         self._intervaltime = AbscissaSlicer(self)
 
@@ -521,7 +521,7 @@ class RegularlySampledAnalogSignalArray:
 
     def __renew__(self):
         """Re-attach data slicers."""
-        self._slicer = accessors.IntervalSeriesSlicer(self)
+        self._slicer = _accessors.IntervalSeriesSlicer(self)
         self._intervaldata = DataSlicer(self)
         self._intervaltime = AbscissaSlicer(self)
         self._interp = None
@@ -1351,7 +1351,7 @@ class RegularlySampledAnalogSignalArray:
             logging.warning("Index resulted in empty interval array")
             return self.empty(inplace=True)
 
-        self._restrict_to_interval(intervalarray=intervalslice)
+        self._restrict_to_interval(intervalarray=newintervals)
         return self
 
     def _restrict_to_signals_subset(self, *, idx=None, kind=None):
@@ -1381,27 +1381,24 @@ class RegularlySampledAnalogSignalArray:
 
         # Warning: This function can mutate data
 
-        update = True
-
         if intervalarray is None:
-            intervalarray = self._abscissa.support
-            update = False # support did not change; no need to update
+            return  # Nothing changed, return
 
-        try:
-            if intervalarray.isempty:
-                warnings.warn("Support specified is empty")
-                # self.__init__([],empty=True)
-                exclude = ['_support','_data','_fs','_step']
-                attrs = (x for x in self.__attributes__ if x not in exclude)
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    for attr in attrs:
-                        exec("self." + attr + " = None")
-                self._data = np.zeros((self.n_signals,0))
-                self._abscissa.support = intervalarray
-                return
-        except AttributeError:
-            raise AttributeError("IntervalArray expected")
+        if not isinstance(core.IntervalArray):
+            raise AttributeError("nelpy.IntervalArray expected")
+
+        if intervalarray.isempty:
+            warnings.warn("Support specified is empty")
+            # self.__init__([],empty=True)
+            exclude = ['_support','_data','_fs','_step']
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for attr in attrs:
+                    exec("self." + attr + " = None")
+            self._data = np.zeros((self.n_signals,0))
+            self._abscissa.support = intervalarray
+            return
 
         indices = []
         for interval in intervalarray.merge().data:
@@ -1419,13 +1416,12 @@ class RegularlySampledAnalogSignalArray:
                 data_list.append(self._data[:,start:stop])
             self._data = np.hstack(data_list)
         except IndexError:
-            self._data = np.zeros((self.n_signals, 0)
+            self._data = np.zeros((self.n_signals, 0))
         time_list = []
         for start, stop in indices:
             time_list.extend(self._abscissa_vals[start:stop])
         self._abscissa_vals = np.array(time_list)
-        if update:
-            self._abscissa.support = intervalarray
+        self._abscissa.support = intervalarray
 
     def _copy_without_data(self):
         """Return a copy of self, without data."""

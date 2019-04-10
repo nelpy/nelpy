@@ -35,7 +35,7 @@ from .. import utils
 from .. import version
 
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
-from . import accessors
+from . import _accessors
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
@@ -285,9 +285,9 @@ class BaseEventArray(ABC):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._abscissa.support = type(self._abscissa.support)(empty=True)
-            self._slicer = accessors.IntervalSeriesSlicer(self)
-            self.loc = accessors.ItemGetterLoc(self)
-            self.iloc = accessors.ItemGetterIloc(self)
+            self._slicer = _accessors.IntervalSeriesSlicer(self)
+            self.loc = _accessors.ItemGetterLoc(self)
+            self.iloc = _accessors.ItemGetterIloc(self)
             return
 
         # set initial fs to None
@@ -318,13 +318,13 @@ class BaseEventArray(ABC):
         self.label = label
 
         self._slicer = IntervalSeriesSlicer(self)
-        self.loc = accessors.ItemGetterLoc(self)
-        self.iloc = accessors.ItemGetterIloc(self)
+        self.loc = _accessors.ItemGetterLoc(self)
+        self.iloc = _accessors.ItemGetterIloc(self)
 
     def __renew__(self):
         """Re-attach slicers and indexers."""
-        self.loc = accessors.ItemGetterLoc(self)
-        self.iloc = accessors.ItemGetterIloc(self)
+        self.loc = _accessors.ItemGetterLoc(self)
+        self.iloc = _accessors.ItemGetterIloc(self)
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
@@ -945,7 +945,7 @@ class EventArray(BaseEventArray):
             logging.warning("Index resulted in empty interval array")
             return self.empty(inplace=True)
 
-        self._restrict_to_interval(intervalarray=intervalslice)
+        self._restrict_to_interval(intervalarray=newintervals)
         return self
 
     def _restrict_to_series_subset(self, *, idx=None, kind=None):
@@ -1013,8 +1013,8 @@ class EventArray(BaseEventArray):
             # TODO: update tags
             if isinstance(intervalslice, slice):
                 if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                    out.loc = accessors.ItemGetterLoc(out)
-                    out.iloc = accessors.ItemGetterIloc(out)
+                    out.loc = _accessors.ItemGetterLoc(out)
+                    out.iloc = _accessors.ItemGetterIloc(out)
                     return out
 
         else: # iloc
@@ -1032,15 +1032,15 @@ class EventArray(BaseEventArray):
             # TODO: update tags
             if isinstance(intervalslice, slice):
                 if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                    out.loc = accessors.ItemGetterLoc(out)
-                    out.iloc = accessors.ItemGetterIloc(out)
+                    out.loc = _accessors.ItemGetterLoc(out)
+                    out.iloc = _accessors.ItemGetterIloc(out)
                     return out
             out = out._intervalslicer(intervalslice)
-            out.loc = accessors.ItemGetterLoc(out)
-            out.iloc = accessors.ItemGetterIloc(out)
+            out.loc = _accessors.ItemGetterLoc(out)
+            out.iloc = _accessors.ItemGetterIloc(out)
             return out
 
-    def _restrict_to_interval(self, *, )  # need to figure out prototype
+    def _restrict_to_interval(self, *, kind=None): # need to figure out prototype
 
         update = True
 
@@ -1944,7 +1944,7 @@ class BinnedEventArray(BaseEventArray):
             logging.warning("Index resulted in empty interval array")
             return self.empty(inplace=True)
 
-        self._restrict_to_interval(intervalarray=intervalslice)
+        self._restrict_to_interval(intervalarray=newintervals)
         return self
 
     def _restrict_to_series_subset(self, *, idx=None, kind=None):
@@ -1963,103 +1963,137 @@ class BinnedEventArray(BaseEventArray):
 
     def _restrict_to_interval(self, *, intervalarray=None):
 
-        # Note: We might be able to handle all index types in one code
-        # block instead of three different instances
-        update = False
+        # Warning: This function can mutate data. It should only be called from
+        # _restrict
 
         if intervalarray is None:
-            intervalarray = self._abscissa.support
-            update = False # support did not change; no need to update
+            return  # nothing changed, return
 
-        if isinstance(intervalarray, core.IntervalArray):
-            if intervalarray.isempty:
-                warnings.warn("Support specified is empty")
-                # self.__init__([],empty=True)
-                exclude = ['_support','_data','_fs','_step']  # What should we exclude here?
-                attrs = (x for x in self.__attributes__ if x not in exclude)
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    for attr in attrs:
-                        exec("self." + attr + " = None")
-                self._data = np.zeros((self.n_series,0))
-                self._abscissa.support = intervalarray
-                return
+        if not isinstance(intervalarray, core.IntervalArray):
+            raise AttributeError("nelpy.IntervalArray expected")
 
-            # can call bin events perhaps?
-
-        elif isinstance(idx, int):
-            print("slicing by int")
-            # TODO: issue 229
-            binnedeventarray = type(self)(empty=True)
-            exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
+        if intervalarray.isempty:
+            warnings.warn("Support specified is empty")
+            # self.__init__([],empty=True)
+            exclude = ['_support','_data','_fs','_step']  # What should we exclude here?
+            attrs = (x for x in self.__attributes__ if x not in exclude)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                attrs = (x for x in self.__attributes__ if x not in exclude)
                 for attr in attrs:
-                    exec("binnedeventarray." + attr + " = self." + attr)
-            support = self._abscissa.support[idx]
-            binnedeventarray._abscissa.support = support
-            if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
-                binnedeventarray.__renew__()
-                return binnedeventarray
-            else:
-                bsupport = self.binnedSupport[[idx],:]
-                centers = self._bin_centers[bsupport[0,0]:bsupport[0,1]+1]
-                binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
-                binstart = binindices[idx]
-                binstop = binindices[idx+1]
-                binnedeventarray._data = self._data[:,bsupport[0,0]:bsupport[0,1]+1]
-                binnedeventarray._bins = self._bins[binstart:binstop]
-                binnedeventarray._binnedSupport = bsupport - bsupport[0,0]
-                binnedeventarray._bin_centers = centers
-                binnedeventarray.__renew__()
-                return binnedeventarray
+                    exec("self." + attr + " = None")
+            self._data = np.zeros((self.n_series,0))
+            self._abscissa.support = intervalarray
+            return
 
-        else:  # most likely a slice
-            try:
-                # have to be careful about re-indexing binnedSupport
-                intervalslice, signalslice = self._slicer[idx]
+        binnedeventarray = type(self)(empty=True)
+        exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            for attr in attrs:
+                exec("binnedeventarray." + attr + " = self." + attr)
+        support = self._abscissa.support[idx]
+        binnedeventarray._abscissa.support = support
 
-                binnedeventarray = self._subset(signalslice)
+        bsupport = self.binnedSupport[idx,:] # need to re-index!
+        # now build a list of all elements in bsupport:
+        ll = []
+        for bs in bsupport:
+            ll.extend(np.arange(bs[0],bs[1]+1, step=1))
+        binnedeventarray._bin_centers = self._bin_centers[ll]
+        binnedeventarray._data = self._data[:,ll]
 
-                if binnedeventarray.isempty:
-                    return binnedeventarray
+        lengths = self.lengths[[idx]]
+        # lengths = bsupport[:,1] - bsupport[:,0]
+        bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
+        bsends = np.cumsum(lengths) - 1
+        binnedeventarray._binnedSupport = np.vstack((bsstarts, bsends)).T
 
-                if isinstance(intervalslice, slice):
-                    if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                        return binnedeventarray
+        binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+        binstarts = binindices[idx]
+        binstops = binindices[1:][idx]  # equivalent to binindices[idx + 1], but if idx is a slice, we can't add 1 to it
+        ll = []
+        for start, stop in zip(binstarts, binstops):
+            ll.extend(np.arange(start,stop,step=1))
+        binnedeventarray._bins = self._bins[ll]
+        binnedeventarray.__renew__()
+        
+        
 
-                newintervals = self._abscissa.support[intervalslice]
+        # Old stuff
 
-                if newintervals.isempty:
-                    warnings.warn("Index resulted in empty interval array")
-                    binnedeventarray = self._copy_without_data()
-                    binnedeventarray._data = np.zeros((self.n_series, 0))
-                    return binnedeventarray
+        # elif isinstance(idx, int):
+        #     # TODO: issue 229
+        #     binnedeventarray = type(self)(empty=True)
+        #     exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
+        #     with warnings.catch_warnings():
+        #         warnings.simplefilter("ignore")
+        #         attrs = (x for x in self.__attributes__ if x not in exclude)
+        #         for attr in attrs:
+        #             exec("binnedeventarray." + attr + " = self." + attr)
+        #     support = self._abscissa.support[idx]
+        #     binnedeventarray._abscissa.support = support
+        #     if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
+        #         binnedeventarray.__renew__()
+        #         return binnedeventarray
+        #     else:
+        #         bsupport = self.binnedSupport[[idx],:]
+        #         centers = self._bin_centers[bsupport[0,0]:bsupport[0,1]+1]
+        #         binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+        #         binstart = binindices[idx]
+        #         binstop = binindices[idx+1]
+        #         binnedeventarray._data = self._data[:,bsupport[0,0]:bsupport[0,1]+1]
+        #         binnedeventarray._bins = self._bins[binstart:binstop]
+        #         binnedeventarray._binnedSupport = bsupport - bsupport[0,0]
+        #         binnedeventarray._bin_centers = centers
+        #         binnedeventarray.__renew__()
+        #         return binnedeventarray
 
-                binnedeventarray._restrict_beva_to_interval_array_fast(intervalarray=newintervals)
-                binnedeventarray.__renew__()
-                return binnedeventarray
+        # else:  # most likely a slice
+        #     try:
+        #         # have to be careful about re-indexing binnedSupport
+        #         intervalslice, signalslice = self._slicer[idx]
 
-            except IndexError:
-                raise TypeError('Index out of range')
-            except Exception:
-                raise TypeError('Unsupported indexing type {}'.format(type(idx)))
+        #         binnedeventarray = self._subset(signalslice)
+
+        #         if binnedeventarray.isempty:
+        #             return binnedeventarray
+
+        #         if isinstance(intervalslice, slice):
+        #             if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+        #                 return binnedeventarray
+
+        #         newintervals = self._abscissa.support[intervalslice]
+
+        #         if newintervals.isempty:
+        #             warnings.warn("Index resulted in empty interval array")
+        #             binnedeventarray = self._copy_without_data()
+        #             binnedeventarray._data = np.zeros((self.n_series, 0))
+        #             return binnedeventarray
+
+        #         binnedeventarray._restrict_beva_to_interval_array_fast(intervalarray=newintervals)
+        #         binnedeventarray.__renew__()
+        #         return binnedeventarray
+
+        #     except IndexError:
+        #         raise TypeError('Index out of range')
+        #     except Exception:
+        #         raise TypeError('Unsupported indexing type {}'.format(type(idx)))
         
 
 
         
 
-    __attributes__ = ["_ds", "_bins", "_data", "_bin_centers",
-                    "_binnedSupport", "_eventarray"]
-    _ds
-    _series_ids
-    _series_labels
-    _series_tags
-    _abscissa
-    _ordinate
-    _series_label
-    _slicer
+    # __attributes__ = ["_ds", "_bins", "_data", "_bin_centers",
+    #                 "_binnedSupport", "_eventarray"]
+    # _ds
+    # _series_ids
+    # _series_labels
+    # _series_tags
+    # _abscissa
+    # _ordinate
+    # _series_label
+    # _slicer
     #################################################################################
     
 
@@ -2094,69 +2128,38 @@ class BinnedEventArray(BaseEventArray):
             if not isinstance(intervalarray, core.IntervalArray):
                 raise AttributeError("nelpy.IntervalArray expected")
 
-        # if we got to this point, we know for sure that intervalarray
-        # is a nelpy.IntervalArray
+        binnedeventarray = type(self)(empty=True)
+        exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            attrs = (x for x in self.__attributes__ if x not in exclude)
+            for attr in attrs:
+                exec("binnedeventarray." + attr + " = self." + attr)
+        support = self._abscissa.support[idx]
+        binnedeventarray._abscissa.support = support
 
+        bsupport = self.binnedSupport[idx,:] # need to re-index!
+        # now build a list of all elements in bsupport:
+        ll = []
+        for bs in bsupport:
+            ll.extend(np.arange(bs[0],bs[1]+1, step=1))
+        binnedeventarray._bin_centers = self._bin_centers[ll]
+        binnedeventarray._data = self._data[:,ll]
 
-        # What are the things we need to 
-        indices = []
-        for interval in intervalarray.merge().data:
-            a_start = interval[0]
-            a_stop = interval[1]
-            frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop))
-            indices.append((frm, to))
-        indices = np.array(indices, ndmin=2)
-        if np.diff(indices).sum() < len(self._abscissa_vals):
-            warnings.warn(
-                'ignoring signal outside of support')
-        try:
-            data_list = []
-            for start, stop in indices:
-                data_list.append(self._data[:,start:stop])
-            self._data = np.hstack(data_list)
-        except IndexError:
-            self._data = np.zeros([0,self.data.shape[0]])
-            self._data[:] = np.nan
-        time_list = []
-        for start, stop in indices:
-            time_list.extend(self._abscissa_vals[start:stop])
-        self._abscissa_vals = np.array(time_list)
-        if update:
-            self._abscissa.support = intervalarray
+        lengths = self.lengths[[idx]]
+        # lengths = bsupport[:,1] - bsupport[:,0]
+        bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
+        bsends = np.cumsum(lengths) - 1
+        binnedeventarray._binnedSupport = np.vstack((bsstarts, bsends)).T
 
-
-        # binnedeventarray = type(self)(empty=True)
-        # exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
-        # with warnings.catch_warnings():
-        #     warnings.simplefilter("ignore")
-        #     attrs = (x for x in self.__attributes__ if x not in exclude)
-        #     for attr in attrs:
-        #         exec("binnedeventarray." + attr + " = self." + attr)
-        # support = self._abscissa.support[idx]
-        # binnedeventarray._abscissa.support = support
-
-        # bsupport = self.binnedSupport[idx,:] # need to re-index!
-        # # now build a list of all elements in bsupport:
-        # ll = []
-        # for bs in bsupport:
-        #     ll.extend(np.arange(bs[0],bs[1]+1, step=1))
-        # binnedeventarray._bin_centers = self._bin_centers[ll]
-        # binnedeventarray._data = self._data[:,ll]
-
-        # lengths = self.lengths[[idx]]
-        # # lengths = bsupport[:,1] - bsupport[:,0]
-        # bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
-        # bsends = np.cumsum(lengths) - 1
-        # binnedeventarray._binnedSupport = np.vstack((bsstarts, bsends)).T
-
-        # binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
-        # binstarts = binindices[idx]
-        # binstops = binindices[1:][idx]  # equivalent to binindices[idx + 1], but if idx is a slice, we can't add 1 to it
-        # ll = []
-        # for start, stop in zip(binstarts, binstops):
-        #     ll.extend(np.arange(start,stop,step=1))
-        # binnedeventarray._bins = self._bins[ll]
-        # binnedeventarray.__renew__()
+        binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+        binstarts = binindices[idx]
+        binstops = binindices[1:][idx]  # equivalent to binindices[idx + 1], but if idx is a slice, we can't add 1 to it
+        ll = []
+        for start, stop in zip(binstarts, binstops):
+            ll.extend(np.arange(start,stop,step=1))
+        binnedeventarray._bins = self._bins[ll]
+        binnedeventarray.__renew__()
 
     @property
     def isempty(self):

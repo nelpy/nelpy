@@ -2,6 +2,8 @@
 
 from .. import core
 
+__all__ = ['IntervalSeriesSlicer', 'ItemGetterLoc', 'ItemGetterIloc']
+
 class IntervalSeriesSlicer(object):
 
     """Note: 'Series' in terms of a data series. Depending on the
