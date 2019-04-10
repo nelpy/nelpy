@@ -1416,6 +1416,8 @@ class RegularlySampledAnalogSignalArray:
     def empty(self, inplace=True):
         """Remove data (but not metadata) from RegularlySampledAnalogSignalArray.
 
+        Attributes 'data', 'abscissa_vals', and 'support' are all emptied.
+
         Note: n_signals is preserved.
         """
         n_signals = self.n_signals
@@ -1473,7 +1475,10 @@ class RegularlySampledAnalogSignalArray:
         return asa
 
     def _copy_without_data(self):
-        """Return a copy of self, without data."""
+        """Return a copy of self, without data and abscissa_vals.
+
+        Note: the support is left unchanged.
+        """
         out = copy.copy(self) # shallow copy
         out._abscissa_vals = None
         out._data = np.zeros((self.n_signals, 0))
