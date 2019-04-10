@@ -33,8 +33,10 @@ Variables without the leading underscore signify the following:
 
 1. If we are setting the variable, it is likely implemented as a property that does the proper checks (bounds checking, 
 type checking, etc.)
+
 2. If we are accessing the variable, we are probably using the public API of an object that isn't implemented in the 
 current class definition. This is a common pattern for classes that use composition
+
 3. If the usage is not one of the points above, it could be that we were lazy and haven't implemented the proper checks
 on the variable yet
 
