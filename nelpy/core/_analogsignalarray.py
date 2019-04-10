@@ -28,6 +28,7 @@ from .. import core
 from .. import auxiliary
 from .. import utils
 from .. import version
+from . import accessors
 
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 
@@ -74,7 +75,7 @@ class DataSlicer(object):
             yield self._parent._data[signalslice, start: stop]
 
     def __getitem__(self, idx):
-        intervalslice, signalslice = self._parent._intervalsignalslicer[idx]
+        intervalslice, signalslice = self._parent._slicer[idx]
 
         interval_indices = self._parent._data_interval_indices()
         interval_indices = np.atleast_2d(interval_indices[intervalslice])
@@ -118,7 +119,7 @@ class AbscissaSlicer(object):
             yield self._parent._abscissa_vals[start: stop]
 
     def __getitem__(self, idx):
-        intervalslice, signalslice = self._parent._intervalsignalslicer[idx]
+        intervalslice, signalslice = self._parent._slicer[idx]
 
         interval_indices = self._parent._data_interval_indices()
         interval_indices = np.atleast_2d(interval_indices[intervalslice])
@@ -390,7 +391,7 @@ class RegularlySampledAnalogSignalArray:
         if assume_sorted is None:
             assume_sorted = False
 
-        self._intervalsignalslicer = IntervalSignalSlicer(self)
+        self._slicer = accessors.IntervalSeriesSlicer(self)
         self._intervaldata = DataSlicer(self)
         self._intervaltime = AbscissaSlicer(self)
 
@@ -520,7 +521,7 @@ class RegularlySampledAnalogSignalArray:
 
     def __renew__(self):
         """Re-attach data slicers."""
-        self._intervalsignalslicer = IntervalSignalSlicer(self)
+        self._slicer = accessors.IntervalSeriesSlicer(self)
         self._intervaldata = DataSlicer(self)
         self._intervaltime = AbscissaSlicer(self)
         self._interp = None
@@ -1324,8 +1325,8 @@ class RegularlySampledAnalogSignalArray:
 
     def _restrict(self, intervalslice, signalslice, *, kind=None):
 
-        # This function should be called by an itemgetter
-        # only because it mutates data
+        # This function should be called only by an itemgetter
+        # because it mutates data.
         # The itemgetter is responsible for creating copies
         # of objects
 

@@ -236,7 +236,7 @@ class IntervalArray:
                 pass
             except Exception:
                 raise TypeError(
-                    'unsupported subsctipting type {}'.format(type(idx)))
+                    'unsupported subscripting type {}'.format(type(idx)))
             finally:
                 return out
 
