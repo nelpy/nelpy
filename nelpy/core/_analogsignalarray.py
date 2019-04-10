@@ -1414,13 +1414,16 @@ class RegularlySampledAnalogSignalArray:
         return asa
 
     def empty(self, inplace=True):
-        """Remove data (but not metadata) from RegularlySampledAnalogSignalArray."""
+        """Remove data (but not metadata) from RegularlySampledAnalogSignalArray.
+
+        Note: n_signals is preserved.
+        """
+        n_signals = self.n_signals
         if not inplace:
             out = self._copy_without_data()
-            out._abscissa.support = type(self.support)(empty=True)
-            return out
-        out = self
-        out._data = np.zeros((out.n_signals,0))
+        else:
+            out = self
+        out._data = np.zeros((n_signals,0))
         out._abscissa.support = type(self.support)(empty=True)
         out._abscissa_vals = []
         out.__renew__()
