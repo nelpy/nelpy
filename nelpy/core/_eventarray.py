@@ -129,7 +129,6 @@ class BaseEventArray(ABC):
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._abscissa.support = type(self._abscissa.support)(empty=True)
-            self._slicer = _accessors.IntervalSeriesSlicer(self)
             self.loc = _accessors.ItemGetterLoc(self)
             self.iloc = _accessors.ItemGetterIloc(self)
             return
@@ -161,13 +160,11 @@ class BaseEventArray(ABC):
         self._series_tags = series_tags  # no input validation yet
         self.label = label
 
-        self._slicer = _accessors.IntervalSeriesSlicer(self)
         self.loc = _accessors.ItemGetterLoc(self)
         self.iloc = _accessors.ItemGetterIloc(self)
 
     def __renew__(self):
         """Re-attach slicers and indexers."""
-        self._slicer = _accessors.IntervalSeriesSlicer(self)
         self.loc = _accessors.ItemGetterLoc(self)
         self.iloc = _accessors.ItemGetterIloc(self)
 

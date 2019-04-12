@@ -125,14 +125,14 @@ class TestHalfOpenIntervals:
     def test_asa_halfopen_2(self):
         asa = nel.AnalogSignalArray([0,0,0,1,1,1,2,2,2])
         epochs = nel.utils.get_run_epochs(asa, v1=2, v2=2)
-        assert np.allclose(epochs.time, np.array([6, 9]))
+        assert np.allclose(epochs.data, np.array([6, 9]))
 
     def test_asa_halfopen_3(self):
         asa = nel.AnalogSignalArray([0,0,0,1,1,1,2,2,2])
         epochs = nel.utils.get_run_epochs(asa, v1=1, v2=1)
-        assert np.allclose(epochs.time, np.array([3, 9]))
+        assert np.allclose(epochs.data, np.array([3, 9]))
 
     def test_asa_halfopen_4(self):
         asa = nel.AnalogSignalArray([0,0,0,1,1,1,2,2,2])
         epochs = nel.utils.get_inactive_epochs(asa, v1=1, v2=1)
-        assert np.allclose(epochs.time, np.array([0, 6]))
+        assert np.allclose(epochs.data, np.array([0, 6]))

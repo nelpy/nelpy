@@ -183,7 +183,7 @@ class TestBinnedSpikeTrainArray:
         # Verify other attributes
         assert bst.n_series == 1
 
-    def test_indexing(self):
+    def test_indexing_1(self):
 
         bst = (nel.SpikeTrainArray([[1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10, 
                                     10.5, 11.4, 15, 18, 19, 20, 21], [4, 8, 17]],
@@ -217,6 +217,26 @@ class TestBinnedSpikeTrainArray:
 
         # make sure metadata didn't get lost!
         assert bst_indexed._desc == bst._desc
+
+    def test_indexing_2(self):
+
+        # support indexing by list
+        bst = (nel.SpikeTrainArray([1, 2, 3, 4, 5, 6, 7, 8, 9.5,
+                                    10, 10.5, 11.4, 15, 18, 19, 20, 21],
+                                    support=nel.EpochArray([[0, 8],
+                                                           [10, 12],
+                                                           [15, 22]]),
+                                    fs=1)
+                                    .bin(ds=1))
+        
+        bst_indexed = bst[[0, 1, 2]]
+        assert bst_indexed.n_intervals == 3
+
+        # Now test if we don't take all epochs, the original object
+        # should not have been mutated
+        bst_indexed = bst[[1, 2]]
+        assert bst_indexed.n_intervals == 2
+        assert bst.n_intervals == 3
 
     def test_empty(self):
 

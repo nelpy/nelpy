@@ -3,38 +3,91 @@
 import numpy as np
 from .. import core
 
-__all__ = ['IntervalSeriesSlicer', 'ItemGetterLoc', 'ItemGetterIloc']
+__all__ = ['SliceExtractor', 'ItemGetterLoc', 'ItemGetterIloc']
 
-class IntervalSeriesSlicer(object):
-
-    """Note: 'Series' in terms of a data series. Depending on the
-    object to which this slicer is attached, this can be interpreted
-    differently. For example, signals for RSASAs and units for STAs"""
-    def __init__(self, obj):
-        self.obj = obj
-
-    def __getitem__(self, *args):
-        """intervals (e.g. epochs), series"""
-        # by default, keep all series
+class SliceExtractor(object):
+    
+    def __init__(self):
+        pass
+    
+    def extract(self, idx):
+    
+        # By default, keep all slices
+        intervalslice = slice(None, None, None)
         seriesslice = slice(None, None, None)
-        if isinstance(*args, int):
-            intervalslice = args[0]
-        elif isinstance(*args, core.IntervalArray):
-            intervalslice = args[0]
-        else:
-            try:
-                slices = np.s_[args][0]
-                if len(slices) > 2:
-                    raise IndexError("only [intervals, series] slicing is supported at this time!")
-                elif len(slices) == 2:
-                    intervalslice, seriesslice = slices
-                else:
-                    intervalslice = slices[0]
-            except TypeError:
-                # only interval to slice:
-                intervalslice = slices
+        eventslice = slice(None, None, None)
 
+        # The one case this breaks is when the idx is a tuple
+        # and no other slices were requested. Otherwise, 
+        # something like obj[tuple, [7, 8, 9], 4] works
+
+        # Handle special case where only one slice is provided
+        if isinstance(idx, (core.IntervalArray, int, list, slice, np.ndarray)):
+            intervalslice = idx
+        elif not isinstance(idx, tuple):
+            raise TypeError("A slice of type {} is not supported".format(idx))
+        # Multidimensional cases
+        elif len(idx) == 2:
+            intervalslice = idx[0]
+            seriesslice   = idx[1]
+        elif len(idx) == 3:
+            intervalslice = idx[0]
+            seriesslice   = idx[1]
+            eventslice    = idx[2]
+        elif len(idx) > 3:
+            raise ValueError("Only [interval, series, events]"
+                             " indexing is supported")            
+        else:
+            raise ValueError("Some other error occurred that we didn't handle."
+                             " Please contact a developer")
+
+        self.verify_interval_slice(intervalslice)
+        self.verify_series_slice(seriesslice)
+        self.verify_event_slice(eventslice)
+
+        # not returning eventslice because haven't implemented yet, but
+        # it's in the works
         return intervalslice, seriesslice
+
+    def verify_interval_slice(self, testslice):
+        if not isinstance(testslice, (int, list, tuple, slice,
+                                      np.ndarray, core.IntervalArray)):
+            raise TypeError("An interval slice of type {}"
+                            " is not supported".format(type(testslice)))
+
+    def verify_series_slice(self, testslice):
+        if not isinstance(testslice, (int, list, tuple, slice, np.ndarray)):
+            raise TypeError("A series slice of type {} is not supported"
+                            .format(type(testslice)))
+
+    def verify_event_slice(self, testslice):
+
+        if not isinstance(testslice, (int, list, tuple, slice, np.ndarray)):
+            raise TypeError("An event indexing slice of type {}"
+                            " is not supported".format(type(testslice)))
+
+        if isinstance(testslice, slice):
+            # Case 1: slice(None, val, stride) 
+            # Case 2: slice(val, None, stride)
+            # Case 3: slice(val1, val2, stride)
+            # Only need to check bounds for case 3 but check stride
+            # for all cases
+
+            is_start_val = (testslice.start is not None)
+            is_stop_val = (testslice.stop is not None)
+            is_step_val = (testslice.step is not None)
+
+            if is_start_val and is_stop_val:
+                if testslice.stop < testslice.start:
+                    raise ValueError("The stop index {} for event indexing"
+                                     " must be greater than or equal to"
+                                     " the start index {}"
+                                     .format(testslice.stop, testslice.start))
+
+            if is_step_val:
+                if testslice.step <= 0:
+                    raise ValueError("The stride for event indexing"
+                                     " must be positive")
 
 class ItemGetterLoc(object):
     """.loc is primarily label based (that is, series_id based)
@@ -52,10 +105,11 @@ class ItemGetterLoc(object):
     """
     def __init__(self, obj):
         self.obj = obj
+        self.slice_extractor = SliceExtractor()
 
     def __getitem__(self, idx):
         """intervals, series"""
-        intervalslice, seriesslice = self.obj._slicer[idx]
+        intervalslice, seriesslice = self.slice_extractor.extract(idx)
 
         # first convert series slice into list
         if isinstance(seriesslice, slice):
@@ -125,10 +179,11 @@ class ItemGetterIloc(object):
     """
     def __init__(self, obj):
         self.obj = obj
+        self.slice_extractor = SliceExtractor()
 
     def __getitem__(self, idx):
         """intervals, series"""
-        intervalslice, seriesslice = self.obj._slicer[idx]
+        intervalslice, seriesslice = self.slice_extractor.extract(idx)
 
         if isinstance(seriesslice, int):
             seriesslice = [seriesslice]
