@@ -1,4 +1,5 @@
 import nelpy as nel
+from nelpy.utils import ragged_array
 import numpy as np
 
 class TestEventArray:
@@ -55,7 +56,6 @@ class TestBinnedEventArray:
         assert np.all(bea._bin_centers == copied_bea._bin_centers)
         assert np.all(bea._binnedSupport == copied_bea._binnedSupport)
         assert bea._eventarray == bea._eventarray
-
 
 class TestSpikeTrainArray:
 
@@ -142,7 +142,6 @@ class TestSpikeTrainArray:
         assert sta_copied.n_series == sta.n_series
         assert sta_copied._desc == sta._desc
         assert sta_copied.isempty
-
 
 class TestBinnedSpikeTrainArray:
 
@@ -267,3 +266,72 @@ class TestBinnedSpikeTrainArray:
         assert bst.isempty
         assert bst.eventarray.isempty
 
+class TestSpikeTrainArrayEtienne:
+
+    def test_1(self):
+        sta = nel.SpikeTrainArray([[],[],[]])
+        assert sta.n_units == 3  # failed before updates
+
+    def test_2(self):
+        sta = nel.SpikeTrainArray([[],[],[3]])
+        assert sta.n_units == 3
+
+    def test_3(self):
+        sta = nel.SpikeTrainArray([[1],[2],[3]])
+        assert sta.n_units == 3  # failed before updates
+
+    def test_4(self):
+        sta = nel.SpikeTrainArray([1])
+        assert sta.n_units == 1
+
+    def test_5(self):
+        sta = nel.SpikeTrainArray([])
+        assert sta.n_units == 1  # failed before updates
+
+    def test_6(self):
+        sta = nel.SpikeTrainArray([[]])
+        assert sta.n_units == 1  # failed before updates
+
+    def test_7(self):
+        sta = nel.SpikeTrainArray(1)
+        assert sta.n_units == 1
+
+    def test_8(self):
+        sta = nel.SpikeTrainArray([[1,2],[3,4]])
+        assert sta.n_units == 2
+
+    def test_9(self):
+        sta = nel.SpikeTrainArray([[1,2,3]])
+        assert sta.n_units == 1
+
+    def test_10(self):
+        sta = nel.SpikeTrainArray([1,2,3])
+        assert sta.n_units == 1
+
+    def test_11(self):
+        sta = nel.SpikeTrainArray([[1,2,3],[]])
+        assert sta.n_units == 2
+
+    def test_12(self):
+        sta = nel.SpikeTrainArray(empty=True)
+        assert sta.n_units == 0
+
+    def test_13(self):
+        sta = nel.SpikeTrainArray([[[3,4],[4],[2]]])  # failed before updates
+        assert sta.n_units == 3
+
+    def test_14(self):
+        sta = nel.SpikeTrainArray([[3,4],[4],[2]])
+        assert sta.n_units == 3
+
+    def test_15(self):
+        sta = nel.SpikeTrainArray([[1,2,3,5,10,11,12,15], [1,2,3,5,10,11,12,15]], fs=5)
+        sta = sta.partition(n_epochs=5)
+        for aa, bb in zip(ragged_array([np.array([1, 2, 3]), np.array([1, 2, 3])]),  sta.iloc[0].data):
+            assert np.allclose(aa, bb)
+
+    def test_16(self):
+        sta = nel.SpikeTrainArray([[1,2,3,5,10,11,12,15], [1,2,3,5,10,11,12,15]], fs=5)
+        sta = sta.partition(n_epochs=5)
+        for aa, bb in zip(ragged_array([np.array([5, 15]), np.array([5, 15])]),  sta.iloc[[1,4],:].data):
+            assert np.allclose(aa, bb)

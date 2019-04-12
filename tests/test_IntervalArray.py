@@ -1,5 +1,6 @@
 """EpochArray tests"""
 import nelpy as nel
+import numpy as np
 
 class TestEpochArray:
 
@@ -8,6 +9,21 @@ class TestEpochArray:
         partitioned = ep.partition(n_epochs=5)
         assert ep.n_epochs == 1
         assert partitioned.n_epochs == 5
+
+    def test_merge(self):
+        times = np.array([[1.0, 3.0],
+                  [4.0, 8.0],
+                  [12.0, 13.0],
+                  [20.0, 25.0],
+                  [1.0, 5.0],
+                  [6.0, 7.0],
+                  [15.0, 18.0],
+                  [30.0, 35.0]])
+
+        epoch = nel.EpochArray(times)
+        merged = epoch.merge()
+        assert np.allclose(merged.starts, np.array([1.0, 12.0, 15.0, 20.0, 30.0]))
+        assert np.allclose(merged.stops, np.array([8.0, 13.0, 18.0, 25.0, 35.0]))
 
 
 # epochs_a = nel.EpochArray([[0, 5], [5,10], [10,12], [12,16], [14,18]])
