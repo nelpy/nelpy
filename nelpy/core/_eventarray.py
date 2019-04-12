@@ -1310,6 +1310,7 @@ class BinnedEventArray(BaseEventArray):
         out._binnedSupport = None
         out._bins = None
         out._data = np.zeros((self.n_series, 0))
+        out._eventarray = out._eventarray._copy_without_data()
         out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
         return out

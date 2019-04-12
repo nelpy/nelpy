@@ -113,12 +113,20 @@ class TestSpikeTrainArray:
         sta._desc = desc
         n_series = sta.n_series
 
+        sta1 = sta.empty(inplace=False)
         sta.empty(inplace=True)
 
         assert sta.n_series == n_series
-        assert sta._desc == desc
+        assert sta._desc == desc    # ensure metadata preserved
         assert sta.isempty
         assert sta.support.isempty
+
+        # Emptying should be consistent whether we do it
+        # in place or not
+        assert sta1.n_series == sta.n_series
+        assert sta1._desc == sta._desc
+        assert sta1.isempty
+        assert sta1.support.isempty
 
     def test_copy_without_data(self):
 
@@ -221,6 +229,7 @@ class TestBinnedSpikeTrainArray:
         bst._desc = desc
         n_series = bst.n_series
 
+        bst1 = bst.empty(inplace=False)
         bst.empty(inplace=True)
 
         assert bst.binnedSupport == None
@@ -231,6 +240,14 @@ class TestBinnedSpikeTrainArray:
         assert bst._desc == desc
         assert bst.support.isempty
 
+        # Emptying should be consistent whether we do it
+        # in place or not
+        assert bst1.binnedSupport == bst.binnedSupport
+        assert bst1.bin_centers == bst.bin_centers
+        assert bst1.bins == bst.bins
+        assert bst1.eventarray.isempty
+        assert bst1._desc == bst._desc
+        assert bst1.support.isempty
 
     def copy_without_data(self):
 
