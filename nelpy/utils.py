@@ -414,11 +414,11 @@ def argsort(seq):
     # http://stackoverflow.com/questions/3071415/efficient-method-to-calculate-the-rank-vector-of-a-list-in-python
     return sorted(range(len(seq)), key=seq.__getitem__)
 
-def is_sorted(iterable, key=lambda a, b: a <= b):
+def is_sorted_slow(iterable, key=lambda a, b: a <= b):
     """Check to see if iterable is monotonic increasing (sorted)."""
     return all(key(a, b) for a, b in pairwise(iterable))
 
-def is_sorted_fast(x, chunk_size=None):
+def is_sorted(x, chunk_size=None):
     """Returns True if iterable is monotonic increasing (sorted).
 
     NOTE: intended for 1D array.
@@ -438,7 +438,7 @@ def is_sorted_fast(x, chunk_size=None):
                 return False
         return True
     else:
-        return is_sorted(x)
+        return is_sorted_slow(x)
 
 def linear_merge(list1, list2):
     """Merge two SORTED lists in linear time.

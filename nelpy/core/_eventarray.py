@@ -1494,15 +1494,6 @@ class BinnedEventArray(BaseEventArray):
 
         self._abscissa.support = type(self._abscissa.support)(support_intervals)
 
-    def _subset(self, idx):
-        binnedeventarray = self._copy_without_data()
-        try:
-            binnedeventarray._data = np.atleast_2d(self.data[idx,:])
-        except IndexError:
-            raise IndexError("index {} is out of bounds for n_signals with size {}".format(idx, self.n_series))
-        binnedeventarray.__renew__()
-        return binnedeventarray
-
     @property
     def isempty(self):
         """(bool) Empty BinnedEventArray."""
