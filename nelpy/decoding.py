@@ -534,7 +534,10 @@ def k_fold_cross_validation(X, k=None, randomize=False):
     for _k_ in range(k):
         training = [x for i, x in enumerate(X) if i % k != _k_]
         validation = [x for i, x in enumerate(X) if i % k == _k_]
-        yield training, validation
+        try:
+            yield training, validation
+        except StopIteration:
+            return
 
 from scipy import interpolate
 

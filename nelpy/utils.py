@@ -444,6 +444,8 @@ def is_sorted_fast(x, chunk_size=None):
 def linear_merge(list1, list2):
     """Merge two SORTED lists in linear time.
 
+    UPDATED TO WORK WITH PYTHON 3.7+ (see https://stackoverflow.com/questions/51700960/runtimeerror-generator-raised-stopiteration-every-time-i-try-to-run-app)
+
     Returns a generator of the merged result.
 
     Examples
@@ -469,12 +471,18 @@ def linear_merge(list1, list2):
         if len(list1) == 0:
             list2 = iter(list2)
             while True:
-                yield next(list2)
+                try:
+                    yield next(list2)
+                except StopIteration:
+                    return
     if isinstance(list2, (list, np.ndarray)):
         if len(list2) == 0:
             list1 = iter(list1)
             while True:
-                yield next(list1)
+                try:
+                    yield next(list1)
+                except StopIteration:
+                    return
 
     list1 = iter(list1)
     list2 = iter(list2)
@@ -487,26 +495,45 @@ def linear_merge(list1, list2):
     while True:
         if value1 <= value2:
             # Yield the lower value.
-            yield value1
+            try:
+                yield value1
+            except StopIteration:
+                return
             try:
                 # Grab the next value from list1.
                 value1 = next(list1)
             except StopIteration:
+                print('in here!')
                 # list1 is empty.  Yield the last value we received from list2, then
                 # yield the rest of list2.
-                yield value2
+                try:
+                    yield value2
+                except StopIteration:
+                    return
                 while True:
-                    yield next(list2)
+                    try:
+                        yield next(list2)
+                    except StopIteration:
+                        return
         else:
-            yield value2
+            try:
+                yield value2
+            except StopIteration:
+                return
             try:
                 value2 = next(list2)
 
             except StopIteration:
                 # list2 is empty.
-                yield value1
+                try:
+                    yield value1
+                except StopIteration:
+                    return
                 while True:
-                    yield next(list1)
+                    try:
+                        yield next(list1)
+                    except StopIteration:
+                        return
 
 def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshold=None, minThresholdLength=None, SecondaryThreshold=None):
     """Determine MUA/PBEs from multiunit activity.

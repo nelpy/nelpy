@@ -522,7 +522,10 @@ class DataWindow(BaseEstimator):
         n_samples = X.shape[0]
 
         if lengths is None:
-            yield 0, n_samples
+            try:
+                yield 0, n_samples
+            except StopIteration:
+                return
         else:
             end = np.cumsum(lengths).astype(np.int)
 
@@ -533,7 +536,10 @@ class DataWindow(BaseEstimator):
             start = end - lengths
 
             for i in range(len(lengths)):
-                yield start[i], end[i]
+                try:
+                    yield start[i], end[i]
+                except StopIteration:
+                    return
 
     @property
     def bins_before(self):

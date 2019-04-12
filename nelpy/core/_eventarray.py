@@ -247,7 +247,7 @@ class BaseEventArray(ABC):
     def series_labels(self):
         """Labels corresponding to series contained in the BaseEventArray."""
         if self._series_labels is None:
-            warnings.warn("series labels have not yet been specified")
+            logging.warning("series labels have not yet been specified")
             return self.series_ids
         return self._series_labels
 
@@ -267,7 +267,7 @@ class BaseEventArray(ABC):
     def series_tags(self):
         """Tags corresponding to series contained in the BaseEventArray"""
         if self._series_tags is None:
-            warnings.warn("series tags have not yet been specified")
+            logging.warning("series tags have not yet been specified")
         return self._series_tags
 
     @property
@@ -329,7 +329,7 @@ class BaseEventArray(ABC):
     def label(self):
         """Label pertaining to the source of the event series."""
         if self._label is None:
-            warnings.warn("label has not yet been specified")
+            logging.warning("label has not yet been specified")
         return self._label
 
     @label.setter
@@ -378,8 +378,8 @@ class EventArray(BaseEventArray):
         Array of length n_series, each entry with shape (n_data,).
     fs : float, optional
         Sampling rate in Hz. Default is 30,000.
-    support : EpochArray, optional
-        EpochArray on which eventarrays are defined.
+    support : IntervalArray, optional
+        IntervalArray on which eventarrays are defined.
         Default is [0, last event] inclusive.
     series_ids : list of int, optional
         Unit IDs.
@@ -446,7 +446,7 @@ class EventArray(BaseEventArray):
         # set default sampling rate
         if fs is None:
             fs = 30000
-            warnings.warn("No sampling rate was specified! Assuming default of {} Hz.".format(fs))
+            logging.warning("No sampling rate was specified! Assuming default of {} Hz.".format(fs))
 
         def is_singletons(data):
             """Returns True if data is a list of singletons (more than one)."""
@@ -548,7 +548,7 @@ class EventArray(BaseEventArray):
         # if only empty data were received AND no support, attach an
         # empty support:
         if np.sum([st.size for st in data]) == 0 and support is None:
-            warnings.warn("no events; cannot automatically determine support")
+            logging.warning("no events; cannot automatically determine support")
             support = type(self._abscissa.support)(empty=True)
 
         # determine eventarray support:
@@ -775,7 +775,7 @@ class EventArray(BaseEventArray):
                     indices.append((frm, to))
                 indices = np.array(indices, ndmin=2)
                 if np.diff(indices).sum() < len(evt_data):
-                    warnings.warn(
+                    logging.warning(
                         'ignoring events outside of eventarray support')
                 singleseries = (len(self._data) == 1)
                 if singleseries:
@@ -1052,11 +1052,11 @@ class BinnedEventArray(BaseEventArray):
             eventarray = eventarray.copy() # Note: this is a deep copy
             n_empty_epochs = np.sum(eventarray.support.lengths==0)
             if n_empty_epochs > 0:
-                warnings.warn("Detected {} empty epochs. Removing these in the cast object"
+                logging.warning("Detected {} empty epochs. Removing these in the cast object"
                               .format(n_empty_epochs))
                 eventarray.support = eventarray.support._drop_empty_intervals()
             if not eventarray.support.ismerged:
-                warnings.warn("Detected overlapping epochs. Merging these in the cast object")
+                logging.warning("Detected overlapping epochs. Merging these in the cast object")
                 eventarray.support = eventarray.support.merge()
 
             self._eventarray = None
@@ -1121,7 +1121,7 @@ class BinnedEventArray(BaseEventArray):
         super().__init__(**kwargs)
 
         if ds is None:
-            warnings.warn('no bin size was given, assuming 62.5 ms')
+            logging.warning('no bin size was given, assuming 62.5 ms')
             ds = 0.0625
 
         self._eventarray = eventarray # TODO: remove this if we don't need it, or decide that it's too wasteful
@@ -1488,7 +1488,7 @@ class BinnedEventArray(BaseEventArray):
             self._data = np.atleast_2d(self._data[:, bcenter_inds])
             self._binnedSupport = bsupport
         
-        self._abscissa.support = core.EpochArray(support_intervals)
+        self._abscissa.support = type(self._abscissa.support)(support_intervals)
 
     def _subset(self, idx):
         binnedeventarray = self._copy_without_data()
@@ -1518,7 +1518,7 @@ class BinnedEventArray(BaseEventArray):
     @property
     def centers(self):
         """(np.array) The bin centers (in seconds)."""
-        warnings.warn("centers is deprecated. Use bin_centers instead.", DeprecationWarning)
+        logging.warning("centers is deprecated. Use bin_centers instead.")
         return self.bin_centers
 
     @property
@@ -1635,8 +1635,8 @@ class BinnedEventArray(BaseEventArray):
 
         Parameters
         ----------
-        interval : EpochArray
-            EpochArray containing a single interval with a start, and stop
+        interval : IntervalArray
+            IntervalArray containing a single interval with a start, and stop
         ds : float
             Time bin width, in seconds.
 
@@ -1651,7 +1651,7 @@ class BinnedEventArray(BaseEventArray):
         """
 
         if interval.length < ds:
-            warnings.warn(
+            logging.warning(
                 "interval duration is less than bin size: ignoring...")
             return None, None
 
@@ -1902,7 +1902,7 @@ class BinnedEventArray(BaseEventArray):
             newbst._ds = bst.ds*w
             newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
         else:
-            warnings.warn("No events are long enough to contain any bins of width {}".format(utils.PrettyDuration(ds)))
+            logging.warning("No events are long enough to contain any bins of width {}".format(utils.PrettyDuration(ds)))
             newbst._data = None
             newbst._abscissa = abscissa
             newbst._abscissa.support = None
