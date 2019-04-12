@@ -1600,7 +1600,8 @@ class BinnedEventArray(BaseEventArray):
         bcenter_inds = []
         bin_inds = []
         start = 0
-        bsupport = np.zeros((newintervals.merge().n_intervals, 2))
+        bsupport = np.zeros((newintervals.merge().n_intervals, 2),
+                            dtype=int)
 
         if not self.isempty:
             for ii, interval in enumerate(newintervals.merge().data):
