@@ -419,8 +419,32 @@ def is_sorted(iterable, key=lambda a, b: a <= b):
     """Check to see if iterable is monotonic increasing (sorted)."""
     return all(key(a, b) for a, b in pairwise(iterable))
 
+def is_sorted_fast(x, chunk_size=None):
+    """Returns True if iterable is monotonic increasing (sorted).
+
+    NOTE: intended for 1D array.
+
+    This function works in-core with memory footrpint XXX.
+    chunk_size = 100000 is probably a good choice.
+    """
+
+    if isinstance(x, np.ndarray):
+        if chunk_size is None:
+            chunk_size = 500000
+        stop = x.size
+        for chunk_start in range(0, stop, chunk_size):
+            chunk_stop = int(min(stop, chunk_start + chunk_size + 1))
+            chunk = x[chunk_start:chunk_stop]
+            if not np.all(chunk[:-1] <= chunk[1:]):
+                return False
+        return True
+    else:
+        return is_sorted(x)
+
 def linear_merge(list1, list2):
     """Merge two SORTED lists in linear time.
+
+    UPDATED TO WORK WITH PYTHON 3.7+ (see https://stackoverflow.com/questions/51700960/runtimeerror-generator-raised-stopiteration-every-time-i-try-to-run-app)
 
     Returns a generator of the merged result.
 
@@ -447,12 +471,18 @@ def linear_merge(list1, list2):
         if len(list1) == 0:
             list2 = iter(list2)
             while True:
-                yield next(list2)
+                try:
+                    yield next(list2)
+                except StopIteration:
+                    return
     if isinstance(list2, (list, np.ndarray)):
         if len(list2) == 0:
             list1 = iter(list1)
             while True:
-                yield next(list1)
+                try:
+                    yield next(list1)
+                except StopIteration:
+                    return
 
     list1 = iter(list1)
     list2 = iter(list2)
@@ -465,26 +495,45 @@ def linear_merge(list1, list2):
     while True:
         if value1 <= value2:
             # Yield the lower value.
-            yield value1
+            try:
+                yield value1
+            except StopIteration:
+                return
             try:
                 # Grab the next value from list1.
                 value1 = next(list1)
             except StopIteration:
+                print('in here!')
                 # list1 is empty.  Yield the last value we received from list2, then
                 # yield the rest of list2.
-                yield value2
+                try:
+                    yield value2
+                except StopIteration:
+                    return
                 while True:
-                    yield next(list2)
+                    try:
+                        yield next(list2)
+                    except StopIteration:
+                        return
         else:
-            yield value2
+            try:
+                yield value2
+            except StopIteration:
+                return
             try:
                 value2 = next(list2)
 
             except StopIteration:
                 # list2 is empty.
-                yield value1
+                try:
+                    yield value1
+                except StopIteration:
+                    return
                 while True:
-                    yield next(list1)
+                    try:
+                        yield next(list1)
+                    except StopIteration:
+                        return
 
 def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshold=None, minThresholdLength=None, SecondaryThreshold=None):
     """Determine MUA/PBEs from multiunit activity.
@@ -1289,7 +1338,7 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
         if sigma:
             # Smooth envelope with a gaussian (sigma = 4 ms default)
             EnvelopeSmoothingSD = sigma*fs
-            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, 
+            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD,
                                                                         mode='constant', axis=-1)
             envelope = smoothed_envelope
         if isinstance(data, list):
@@ -1321,7 +1370,7 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
             if sigma:
                 # Smooth envelope with a gaussian (sigma = 4 ms default)
                 EnvelopeSmoothingSD = sigma*fs
-                smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD, 
+                smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD,
                                                                             mode='constant', axis=-1)
                 envelope = smoothed_envelope
             newasa._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.atleast_2d(envelope)
@@ -1529,7 +1578,7 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=No
     Returns
     -------
     out : nelpy.RegularlySampledAnalogSignalArray
-        A RegularlySampledAnalogSignalArray with derivative data (in units 
+        A RegularlySampledAnalogSignalArray with derivative data (in units
         per second) is returned.
 
     Notes

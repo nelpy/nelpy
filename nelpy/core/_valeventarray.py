@@ -475,7 +475,7 @@ class BaseValueEventArray(ABC):
     def label(self):
         """Label pertaining to the source of the event series."""
         if self._label is None:
-            warnings.warn("label has not yet been specified")
+            logging.warning("label has not yet been specified")
         return self._label
 
     @label.setter
@@ -743,7 +743,7 @@ class ValueEventArray(BaseValueEventArray):
         # if only empty data were received AND no support, attach an
         # empty support:
         if np.sum([st.size for st in data]) == 0 and support is None:
-            warnings.warn("no events; cannot automatically determine support")
+            logging.warning("no events; cannot automatically determine support")
             support = type(self._abscissa.support)(empty=True)
 
         # determine eventarray support:
@@ -1379,7 +1379,7 @@ class StatefulValueEventArray(BaseValueEventArray):
         # if only empty data were received AND no support, attach an
         # empty support:
         if np.sum([st.size for st in data]) == 0 and support is None:
-            warnings.warn("no events; cannot automatically determine support")
+            logging.warning("no events; cannot automatically determine support")
             support = type(self._abscissa.support)(empty=True)
 
         # determine eventarray support:
