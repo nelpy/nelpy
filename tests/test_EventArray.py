@@ -141,6 +141,7 @@ class TestSpikeTrainArray:
 
         assert sta_copied.n_series == sta.n_series
         assert sta_copied._desc == sta._desc
+        assert sta_copied.isempty
 
 
 class TestBinnedSpikeTrainArray:
@@ -263,4 +264,6 @@ class TestBinnedSpikeTrainArray:
 
         assert bst_copied.n_series == bst.n_series
         assert bst._desc == desc
+        assert bst.isempty
+        assert bst.eventarray.isempty
 
