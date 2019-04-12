@@ -36,7 +36,7 @@ class TestBinnedEventArray:
         fs = 2
         series_labels = ['a', 'b']
         ea = nel.EventArray(abscissa_vals=abscissa_vals, fs=fs, series_labels=series_labels)
-        
+
         bea = nel.BinnedEventArray(ea, ds=1)
         copied_bea = bea.copy()
 
@@ -60,7 +60,7 @@ class TestBinnedEventArray:
 class TestSpikeTrainArray:
 
     def test_construct(self):
-    
+
         fs = 1
         series_ids    = [21]
         series_labels = ['pyr']
@@ -85,7 +85,7 @@ class TestSpikeTrainArray:
 
     def test_indexing(self):
 
-        sta = (nel.SpikeTrainArray([[1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10, 
+        sta = (nel.SpikeTrainArray([[1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10,
                                     10.5, 11.4, 15, 18, 19, 20, 21], [4, 8, 17]],
                                     support=nel.EpochArray([[0, 8], [12, 22]]),
                                     fs=1)
@@ -171,7 +171,7 @@ class TestBinnedSpikeTrainArray:
         assert bst.series_labels == sta.series_labels
         assert bst.series_tags == sta.series_tags
         assert bst.label == sta.label
-        
+
         # Verify BST's eventarray's attributes are also
         # inherited from STA
         assert bst.eventarray.fs == sta.fs
@@ -185,7 +185,7 @@ class TestBinnedSpikeTrainArray:
 
     def test_indexing_1(self):
 
-        bst = (nel.SpikeTrainArray([[1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10, 
+        bst = (nel.SpikeTrainArray([[1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10,
                                     10.5, 11.4, 15, 18, 19, 20, 21], [4, 8, 17]],
                                     support=nel.EpochArray([[0, 8], [12, 22]]),
                                     fs=1)
@@ -195,14 +195,14 @@ class TestBinnedSpikeTrainArray:
         bst._desc = 'test case for bst'
 
         expected_bins = np.array([ 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 20, 21, 22])
-        expected_bin_centers = np.array([ 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 
+        expected_bin_centers = np.array([ 2.5, 3.5, 4.5, 5.5, 6.5, 7.5,
                                           12.5, 13.5, 20.5, 21.5])
         expected_binned_support = np.array([[0, 5],
-                                            [6, 7], 
+                                            [6, 7],
                                             [8, 9]])
 
         bst_indexed = bst[nel.EpochArray([[2, 8], [9, 14], [19.5, 25]]), 1]
-        
+
         assert bst_indexed.n_series == 1
 
         # binned support is an int array and should be exact. The others
@@ -211,7 +211,7 @@ class TestBinnedSpikeTrainArray:
         assert np.all(bst_indexed.binnedSupport == expected_binned_support)
         assert np.allclose(bst_indexed.bins, expected_bins)
         assert np.allclose(bst_indexed.bin_centers, expected_bin_centers)
-        
+
         # make sure original object's data didn't get mutated when indexing
         assert np.all(bst.data == data)
 
@@ -228,7 +228,7 @@ class TestBinnedSpikeTrainArray:
                                                            [15, 22]]),
                                     fs=1)
                                     .bin(ds=1))
-        
+
         bst_indexed = bst[[0, 1, 2]]
         assert bst_indexed.n_intervals == 3
 
@@ -275,7 +275,7 @@ class TestBinnedSpikeTrainArray:
                             support=nel.EpochArray([0, 8]),
                             fs=1)
                             .bin(ds=1))
-        
+
         desc = 'test case for bst'
         bst._desc = desc
 
