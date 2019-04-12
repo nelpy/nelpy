@@ -612,11 +612,7 @@ class IntervalArray:
 
     def copy(self):
         """(IntervalArray) Returns a copy of the current interval array."""
-        newcopy = type(self)(empty=True)
-        logging.disable(logging.CRITICAL)
-        for attr in self.__attributes__:
-            exec("newcopy." + attr + " = self." + attr)
-        logging.disable(0)
+        newcopy = copy.deepcopy(self)
         return newcopy
 
     def _drop_empty_intervals(self):
