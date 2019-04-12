@@ -1525,9 +1525,9 @@ class BinnedEventArray(BaseEventArray):
     def isempty(self):
         """(bool) Empty BinnedEventArray."""
         try:
-            return len(self.centers) == 0
+            return len(self.bin_centers) == 0
         except TypeError:
-            return True  # this happens when self.centers == None
+            return True  # this happens when self.bin_centers == None
 
     @property
     def n_series(self):
@@ -1616,7 +1616,7 @@ class BinnedEventArray(BaseEventArray):
         """(int) The number of bins."""
         if self.isempty:
             return 0
-        return utils.PrettyInt(len(self.centers))
+        return utils.PrettyInt(len(self.bin_centers))
 
     @property
     def ds(self):
