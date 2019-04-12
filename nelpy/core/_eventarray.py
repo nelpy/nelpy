@@ -758,6 +758,7 @@ class EventArray(BaseEventArray):
             logging.warning("Index resulted in empty interval array")
             return self.empty(inplace=True)
 
+        issue_warning = False
         if not self.isempty:
             for series, evt_data in enumerate(data):
                 indices = []
@@ -768,8 +769,7 @@ class EventArray(BaseEventArray):
                     indices.append((frm, to))
                 indices = np.array(indices, ndmin=2)
                 if np.diff(indices).sum() < len(evt_data):
-                    logging.warning(
-                        'ignoring events outside of eventarray support')
+                    issue_warning = True
                 singleseries = (len(self._data) == 1)
                 if singleseries:
                     data_list = []
@@ -787,6 +787,9 @@ class EventArray(BaseEventArray):
                     data_[series] = np.array(data_list)
                     data = utils.ragged_array(data_)
             self._data = data
+            if issue_warning:
+                logging.warning(
+                        'ignoring events outside of eventarray support')
 
         self._abscissa.support = newintervals
         return self
