@@ -317,12 +317,13 @@ class BaseEventArray(ABC):
         self._series_tags = series_tags  # no input validation yet
         self.label = label
 
-        self._slicer = IntervalSeriesSlicer(self)
+        self._slicer = _accessors.IntervalSeriesSlicer(self)
         self.loc = _accessors.ItemGetterLoc(self)
         self.iloc = _accessors.ItemGetterIloc(self)
 
     def __renew__(self):
         """Re-attach slicers and indexers."""
+        self._slicer = _accessors.IntervalSeriesSlicer(self)
         self.loc = _accessors.ItemGetterLoc(self)
         self.iloc = _accessors.ItemGetterIloc(self)
 
@@ -436,11 +437,7 @@ class BaseEventArray(ABC):
         else:
             raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
         # restrict data to new support
-        self._data = self._restrict_to_interval_array_fast(
-                intervalarray=self._abscissa.support,
-                data=self.data,
-                copyover=True
-                )
+        self._restrict_to_interval(self._abscissa.support)
 
     @property
     def domain(self):
@@ -458,11 +455,7 @@ class BaseEventArray(ABC):
         else:
             raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
         # restrict data to new support
-        self._data = self._restrict_to_interval_array_fast(
-                intervalarray=self._abscissa.support,
-                data=self.data,
-                copyover=True
-                )
+        self._restrict_to_interval(self._abscissa.support)
 
     @property
     def fs(self):
@@ -723,11 +716,7 @@ class EventArray(BaseEventArray):
             self.support = support
 
         # TODO: if sorted, we may as well use the fast restrict here as well?
-        data = self._restrict_to_interval_array_fast(
-            intervalarray=self.support,
-            data=data)
-
-        self._data = data
+        self._restrict_to_interval(self._abscissa.support, data=data)
 
     @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
     def partition(self, ds=None, n_intervals=None):
@@ -761,9 +750,11 @@ class EventArray(BaseEventArray):
         return out
 
     def _copy_without_data(self):
-        """Return a copy of self, without event datas."""
+        """Return a copy of self, without event datas.
+        Note: the support is left unchanged.
+        """
         out = copy.copy(self) # shallow copy
-        out._data = None
+        out._data = np.array(self.n_series*[None])
         out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
         return out
@@ -788,69 +779,6 @@ class EventArray(BaseEventArray):
 
         self._index += 1
         return self.loc[index]
-
-    def _intervalslicer(self, idx):
-        """Helper function to restrict object to EpochArray."""
-        # if self.isempty:
-        #     return self
-
-        if isinstance(idx, core.IntervalArray):
-            if idx.isempty:
-                return type(self)(empty=True)
-            support = self._abscissa.support.intersect(
-                    interval=idx,
-                    boundaries=True
-                    ) # what if fs of slicing interval is different?
-            if support.isempty:
-                return type(self)(empty=True)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                data = self._restrict_to_interval_array_fast(
-                    intervalarray=support,
-                    data=self.data,
-                    copyover=True
-                    )
-                eventarray = self._copy_without_data()
-                eventarray._data = data
-                eventarray._abscissa.support = support
-                eventarray.__renew__()
-            return eventarray
-        elif isinstance(idx, int):
-            eventarray = self._copy_without_data()
-            support = self._abscissa.support[idx]
-            eventarray._abscissa.support = support
-            if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
-                eventarray.__renew__()
-                return eventarray
-            else:
-                data = self._restrict_to_interval_array_fast(
-                        intervalarray=support,
-                        data=self.data,
-                        copyover=True
-                        )
-                eventarray._data = data
-                eventarray._abscissa.support = support
-                eventarray.__renew__()
-                return eventarray
-        else:  # most likely slice indexing
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    support = self._abscissa.support[idx]
-                    data = self._restrict_to_interval_array_fast(
-                        intervalarray=support,
-                        data=self.data,
-                        copyover=True
-                        )
-                    eventarray = self._copy_without_data()
-                    eventarray._data = data
-                    eventarray._abscissa.support = support
-                    eventarray.__renew__()
-                return eventarray
-            except Exception:
-                raise TypeError(
-                    'unsupported subsctipting type {}'.format(type(idx)))
 
     def __getitem__(self, idx):
         """EventArray index access.
@@ -922,18 +850,61 @@ class EventArray(BaseEventArray):
 
     #############################################################################################
     # My changes
-    def _restrict(self, intervalslice, seriesslice, *, kind=None):
+    def _restrict(self, intervalslice, seriesslice, *, subseriesslice=None):
 
-        if kind is None:
-            kind = 'loc'
-        if kind not in ('loc', 'iloc'):
-            raise ValueError("Unsupported kind '{}' series restriction".format(kind))
+        self._restrict_to_series_subset(seriesslice)
+        self._restrict_to_interval(intervalslice)
+        return self
 
-        self._restrict_to_series_subset(seriesslice, kind=kind)
+    def _restrict_to_series_subset(self, idx):
 
-        if self.isempty:
-            # don't bother restricting to interval
-            return self
+        # Warning: This function can mutate data
+
+        # TODO: Update tags
+        try:
+            self._data = self._data[idx]
+            singleseries = (len(self._data) == 1)
+            if singleseries:
+                self._data = np.array(self._data[0], ndmin=2)
+            self._series_ids = list(np.atleast_1d(np.atleast_1d(self._series_ids)[idx]))
+            self._series_labels = list(np.atleast_1d(np.atleast_1d(self._series_labels)[idx]))
+        except AttributeError:
+            self._data = self._data[idx]
+            singleseries = (len(self._data) == 1)
+            if singleseries:
+                self._data = np.array(self._data[0], ndmin=2)
+            self._series_ids = list(np.atleast_1d(np.atleast_1d(self._series_ids)[idx]))
+            self._series_labels = list(np.atleast_1d(np.atleast_1d(self._series_labels)[idx]))
+        except IndexError:
+            raise IndexError("One of more indices were out of bounds for n_series with size {}"
+                             .format(self.n_series))
+        except Exception:
+            raise TypeError("Unsupported indexing type {}".format(type(idx)))
+
+        return self
+
+    def _restrict_to_interval(self, intervalslice, *, data=None):
+        """Return data restricted to an intervalarray.
+
+        This function assumes sorted event datas, so that binary search can
+        be used to quickly identify slices that should be kept in the
+        restriction. It does not check every event data.
+
+        Parameters
+        ----------
+        intervalarray : nelpy.IntervalArray
+        """
+
+        # Warning: this function can mutate data
+        # This should be called from _restrict only. That's where
+        # intervalarray is first checked against the support.
+        # This function assumes that has happened already, so
+        # every point in intervalarray is also in the support
+
+        # NOTE: this used to assume multiple series for the enumeration to work
+
+        if data is None:
+            data = self._data
 
         if isinstance(intervalslice, slice):
             if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
@@ -945,275 +916,50 @@ class EventArray(BaseEventArray):
             logging.warning("Index resulted in empty interval array")
             return self.empty(inplace=True)
 
-        self._restrict_to_interval(intervalarray=newintervals)
+        if not self.isempty:
+            for series, evt_data in enumerate(data):
+                indices = []
+                for epdata in newintervals.data:
+                    t_start = epdata[0]
+                    t_stop = epdata[1]
+                    frm, to = np.searchsorted(evt_data, (t_start, t_stop))
+                    indices.append((frm, to))
+                indices = np.array(indices, ndmin=2)
+                if np.diff(indices).sum() < len(evt_data):
+                    warnings.warn(
+                        'ignoring events outside of eventarray support')
+                singleseries = (len(self._data) == 1)
+                if singleseries:
+                    data_list = []
+                    for start, stop in indices:
+                        data_list.extend(evt_data[start:stop])
+                    data = np.array(data_list, ndmin=2)
+                else:
+                    # here we have to do some annoying conversion between
+                    # arrays and lists to fully support jagged array
+                    # mutation
+                    data_list = []
+                    for start, stop in indices:
+                        data_list.extend(evt_data[start:stop])
+                    data_ = data.tolist()  # this creates copy
+                    data_[series] = np.array(data_list)
+                    data = utils.ragged_array(data_)
+            self._data = data
+
+        self._abscissa.support = newintervals
         return self
 
-    def _restrict_to_series_subset(self, *, idx=None, kind=None):
-
-        # Warning: This function can mutate data
-
-        if idx is None:
-            # no need to restrict to subset
-            return
-
-        if kind == 'loc':
-
-            # first convert series slice into list
-            if isinstance(seriesslice, slice):
-                start = seriesslice.start
-                stop = seriesslice.stop
-                istep = seriesslice.step
-                try:
-                    if start is None:
-                        istart = 0
-                    else:
-                        istart = self.obj._series_ids.index(start)
-                except ValueError:
-                    raise KeyError('series_id {} could not be found in BaseEventArray!'.format(start))
-                try:
-                    if stop is None:
-                        istop = self.obj.n_series
-                    else:
-                        istop = self.obj._series_ids.index(stop) + 1
-                except ValueError:
-                    raise KeyError('series_id {} could not be found in BaseEventArray!'.format(stop))
-                if istep is None:
-                    istep = 1
-                if istep < 0:
-                    istop -=1
-                    istart -=1
-                    istart, istop = istop, istart
-                series_idx_list = list(range(istart, istop, istep))
-            else:
-                series_idx_list = []
-                seriesslice = np.atleast_1d(seriesslice)
-                for series in seriesslice:
-                    try:
-                        uidx = self.obj.series_ids.index(series)
-                    except ValueError:
-                        raise KeyError("series_id {} could not be found in BaseEventArray!".format(series))
-                    else:
-                        series_idx_list.append(uidx)
-
-            if not isinstance(series_idx_list, list):
-                series_idx_list = list(series_idx_list)
-            out = copy.copy(self.obj)
-            try:
-                out._data = out._data[series_idx_list]
-                singleseries = len(out._data)==1
-            except AttributeError:
-                out._data = out._data[series_idx_list]
-                singleseries = len(out._data)==1
-
-            if singleseries:
-                out._data = np.array(out._data[0], ndmin=2)
-            out._series_ids = list(np.atleast_1d(np.atleast_1d(out._series_ids)[series_idx_list]))
-            out._series_labels = list(np.atleast_1d(np.atleast_1d(out._series_labels)[series_idx_list]))
-            
-            # TODO: update tags
-            if isinstance(intervalslice, slice):
-                if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                    out.loc = _accessors.ItemGetterLoc(out)
-                    out.iloc = _accessors.ItemGetterIloc(out)
-                    return out
-
-        else: # iloc
-             
-            intervalslice, seriesslice = self.obj._slicer[idx]
-            out = copy.copy(self.obj)
-            if isinstance(seriesslice, int):
-                seriesslice = [seriesslice]
-            out._data = out._data[seriesslice]
-            singleseries = len(out._data)==1
-            if singleseries:
-                out._data = np.array(out._data[0], ndmin=2)
-            out._series_ids = list(np.atleast_1d(np.atleast_1d(out._series_ids)[seriesslice]))
-            out._series_labels = list(np.atleast_1d(np.atleast_1d(out._series_labels)[seriesslice]))
-            # TODO: update tags
-            if isinstance(intervalslice, slice):
-                if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                    out.loc = _accessors.ItemGetterLoc(out)
-                    out.iloc = _accessors.ItemGetterIloc(out)
-                    return out
-            out = out._intervalslicer(intervalslice)
-            out.loc = _accessors.ItemGetterLoc(out)
-            out.iloc = _accessors.ItemGetterIloc(out)
-            return out
-
-    def _restrict_to_interval(self, *, kind=None): # need to figure out prototype
-
-        update = True
-
-        if intervalarray is None:
-            intervalarray = self._abscissa.support
-            update = False # support did not change; no need to update
-
-        # Note: We might be able to handle all index types in one code
-        # block instead of three different instances
-        if isinstance(idx, core.IntervalArray):
-            if idx.isempty:
-                return type(self)(empty=True)
-            support = self._abscissa.support.intersect(
-                    interval=idx,
-                    boundaries=True
-                    ) # what if fs of slicing interval is different?
-            if support.isempty:
-                return type(self)(empty=True)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                data = self._restrict_to_interval_array_fast(
-                    intervalarray=support,
-                    data=self.data,
-                    copyover=True
-                    )
-                eventarray = self._copy_without_data()
-                eventarray._data = data
-                eventarray._abscissa.support = support
-                eventarray.__renew__()
-            return eventarray
-        elif isinstance(idx, int):
-            eventarray = self._copy_without_data()
-            support = self._abscissa.support[idx]
-            eventarray._abscissa.support = support
-            if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
-                eventarray.__renew__()
-                return eventarray
-            else:
-                data = self._restrict_to_interval_array_fast(
-                        intervalarray=support,
-                        data=self.data,
-                        copyover=True
-                        )
-                eventarray._data = data
-                eventarray._abscissa.support = support
-                eventarray.__renew__()
-                return eventarray
-        else:  # most likely slice indexing
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    support = self._abscissa.support[idx]
-                    data = self._restrict_to_interval_array_fast(
-                        intervalarray=support,
-                        data=self.data,
-                        copyover=True
-                        )
-                    eventarray = self._copy_without_data()
-                    eventarray._data = data
-                    eventarray._abscissa.support = support
-                    eventarray.__renew__()
-                return eventarray
-            except Exception:
-                raise TypeError(
-                    'unsupported subscripting type {}'.format(type(idx)))
-        
-        # Copied from ASA but may be different for event arrays
-        if update:
-            self._abscissa.support = intervalarray
-    ###########################################################################
-
-    @staticmethod
-    def _restrict_to_interval_array_fast(intervalarray, data, copyover=True):
-        """Return data restricted to an EpochArray.
-
-        This function assumes sorted event datas, so that binary search can
-        be used to quickly identify slices that should be kept in the
-        restriction. It does not check every event data.
-
-        Parameters
-        ----------
-        intervalarray : EpochArray
-        data : array-like
-        """
-        if intervalarray.isempty:
-            n_series = len(data)
-            data = np.zeros((n_series,0))
-            return data
-
-        singleseries = len(data)==1  # bool
-
-        # TODO: is this copy even necessary?
-        if copyover:
-            data = copy.copy(data)
-
-        # NOTE: this used to assume multiple series for the enumeration to work
-        for series, evt_data in enumerate(data):
-            indices = []
-            for epdata in intervalarray.data:
-                t_start = epdata[0]
-                t_stop = epdata[1]
-                frm, to = np.searchsorted(evt_data, (t_start, t_stop))
-                indices.append((frm, to))
-            indices = np.array(indices, ndmin=2)
-            if np.diff(indices).sum() < len(evt_data):
-                warnings.warn(
-                    'ignoring events outside of eventarray support')
-            if singleseries:
-                data_list = []
-                for start, stop in indices:
-                    data_list.extend(evt_data[start:stop])
-                data = np.array(data_list, ndmin=2)
-            else:
-                # here we have to do some annoying conversion between
-                # arrays and lists to fully support jagged array
-                # mutation
-                data_list = []
-                for start, stop in indices:
-                    data_list.extend(evt_data[start:stop])
-                data_ = data.tolist()
-                data_[series] = np.array(data_list)
-                data = utils.ragged_array(data_)
-        return data
-
-    @staticmethod
-    def _restrict_to_interval_array(intervalarray, data, copyover=True):
-        """Return data restricted to an EpochArray.
-
-        This function is quite slow, as it checks each event data for inclusion.
-        It does this in a vectorized form, which is fast for small or moderately
-        sized objects, but the memory penalty can be large, and it becomes very
-        slow for large objects. Consequently, _restrict_to_interval_array_fast
-        should be used when possible.
-
-        Parameters
-        ----------
-        intervalarray : EpochArray
-        data : array-like
-        """
-        if intervalarray.isempty:
-            n_series = len(data)
-            data = np.zeros((n_series,0))
-            return data
-
-        singleseries = len(data)==1  # bool
-
-        # TODO: is this copy even necessary?
-        if copyover:
-            data = copy.copy(data)
-
-        # NOTE: this used to assume multiple series for the enumeration to work
-        for series, evt_data in enumerate(data):
-            indices = []
-            for epdata in intervalarray.data:
-                t_start = epdata[0]
-                t_stop = epdata[1]
-                indices.append((evt_data >= t_start) & (evt_data < t_stop))
-            indices = np.any(np.column_stack(indices), axis=1)
-            if np.count_nonzero(indices) < len(evt_data):
-                warnings.warn(
-                    'ignoring events outside of eventarray support')
-            if singleseries:
-                data = np.array([data[0][indices]], ndmin=2)
-            else:
-                # here we have to do some annoying conversion between
-                # arrays and lists to fully support jagged array
-                # mutation
-                data_ = data.tolist()
-                data_[series] = np.array(data_[series])
-                data_[series] = data_[series][indices]
-                data = utils.ragged_array(data_)
-        return data
+    def empty(self, *, inplace=True):
+        """Remove data (but not metadata) from EventArray."""
+        n_series = self.n_series
+        if not inplace:
+            out = self._copy_without_data()
+        else:
+            out = self
+            out._data = np.array(n_series*[None])
+        out._abscissa.support = type(self._abscissa.support)(empty=True)
+        out.__renew__()
+        return out
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
@@ -1706,12 +1452,14 @@ class BinnedEventArray(BaseEventArray):
         # raise NotImplementedError('workaround: cast to AnalogSignalArray, partition, and cast back to BinnedEventArray')
 
     def _copy_without_data(self):
-        """Returns a copy of the BinnedEventArray, without data."""
+        """Returns a copy of the BinnedEventArray, without data.
+        Note: the support is left unchanged, but the binned_support is removed.
+        """
         out = copy.copy(self) # shallow copy
-        # out._bin_centers = None
-        # out._binnedSupport = None
-        # out._bins = None
-        out._data = np.zeros((self.n_series,0))
+        out._bin_centers = None
+        out._binnedSupport = None
+        out._bins = None
+        out._data = np.zeros((self.n_series, 0))
         out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
         return out
@@ -1775,7 +1523,7 @@ class BinnedEventArray(BaseEventArray):
         binnedeventarray.__renew__()
         return binnedeventarray
 
-    def empty(self, inplace=False):
+    def empty(self, *, inplace=True):
         """Remove data (but not metadata) from BinnedEventArray."""
         if not inplace:
             out = self._copy_without_data()
@@ -1787,155 +1535,60 @@ class BinnedEventArray(BaseEventArray):
         out._binnedSupport = None
         out._bin_centers = None
         out._bins = None
+        out._eventarray.empty(inplace=True)
         out.__renew__()
         return out
-
-    def __getitem__(self, idx):
-        """BinnedEventArray index access."""
-        if self.isempty:
-            return self
-        if isinstance(idx, core.IntervalArray):
-            print("slicing by interval array")
-            # need to determine if there is any proper subset in self._abscissa.support intersect EpochArray
-            # next, we need to identify all the bins that would fall within the EpochArray
-
-            if idx.isempty:
-                return self.empty(inplace=False)
-
-            # TODO: code this more directly:
-            asa = core.RegularlySampledAnalogSignalArray(self)
-            asa = asa[idx]
-            # TODO: issue 229
-            if asa.isempty:
-                return self.empty(inplace=False)
-            out = BinnedEventArray(asa)
-            return out
-            # support = self._abscissa.support.intersect(
-            #         interval=idx,
-            #         boundaries=True
-            #         ) # what if fs of slicing interval is different?
-            # if support.isempty:
-            #     # TODO: issue 229
-            #     return BinnedEventArray(empty=True)
-            # # next we need to determine the binnedSupport:
-
-            # raise NotImplementedError("EpochArray indexing for BinnedEventArrays not supported yet")
-
-        elif isinstance(idx, int):
-            print("slicing by int")
-            # TODO: issue 229
-            binnedeventarray = type(self)(empty=True)
-            exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                attrs = (x for x in self.__attributes__ if x not in exclude)
-                for attr in attrs:
-                    exec("binnedeventarray." + attr + " = self." + attr)
-            support = self._abscissa.support[idx]
-            binnedeventarray._abscissa.support = support
-            if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
-                binnedeventarray.__renew__()
-                return binnedeventarray
-            else:
-                bsupport = self.binnedSupport[[idx],:]
-                centers = self._bin_centers[bsupport[0,0]:bsupport[0,1]+1]
-                binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
-                binstart = binindices[idx]
-                binstop = binindices[idx+1]
-                binnedeventarray._data = self._data[:,bsupport[0,0]:bsupport[0,1]+1]
-                binnedeventarray._bins = self._bins[binstart:binstop]
-                binnedeventarray._binnedSupport = bsupport - bsupport[0,0]
-                binnedeventarray._bin_centers = centers
-                binnedeventarray.__renew__()
-                return binnedeventarray
-        else:  # most likely a slice
-            try:
-                # have to be careful about re-indexing binnedSupport
-                # TODO: issue 229
-                print("slicing by slice")
-                ##############################################################################
-                # # ASA indexing, remove when finished
-                # intervalslice, signalslice = self._intervalsignalslicer[idx]
-
-                # asa = self._subset(signalslice)
-
-                # if asa.isempty:
-                #     asa.__renew__()
-                #     return asa
-
-                # if isinstance(intervalslice, slice):
-                #     if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                #         asa.__renew__()
-                #         return asa
-
-                # newintervals = self._abscissa.support[intervalslice]
-                # # TODO: this needs to change so that n_signals etc. are preserved
-                # ################################################################
-                # if newintervals.isempty:
-                #     warnings.warn("Index resulted in empty interval array")
-                #     return self.empty(inplace=False)
-                # ################################################################
-
-                # asa._restrict_to_interval_array_fast(intervalarray=newintervals)
-                # asa.__renew__()
-                # return asa
-                # ##############################################################################
-                
-                intervalslice, signalslice = self._slicer[idx]
-
-                binnedeventarray = self._subset(signalslice)
-
-                if binnedeventarray.isempty:
-                    return binnedeventarray
-
-                if isinstance(intervalslice, slice):
-                    if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                        return binnedeventarray
-
-                newintervals = self._abscissa.support[intervalslice]
-
-                if newintervals.isempty:
-                    warnings.warn("Index resulted in empty interval array")
-                    binnedeventarray = self._copy_without_data()
-                    binnedeventarray._data = np.zeros((self.n_series, 0))
-                    return binnedeventarray
-
-                binnedeventarray._restrict_beva_to_interval_array_fast(intervalarray=newintervals)
-                binnedeventarray.__renew__()
-                return binnedeventarray
-
-
-                # return binnedeventarray
-
-            except IndexError:
-                raise TypeError(
-                    'index out of range')
-            except Exception:
-                raise TypeError(
-                    'unsupported indexing type {}'.format(type(idx)))
 
     #################################################################################
     # My changes
 
-    def _restrict(self, intervalslice, seriesslice, *, kind=None):
+    def __getitem__(self, idx):
+        """BinnedEventArray index access.
+
+        By default, this method is bound to .loc
+        """
+        return self.loc[idx]
+
+    def _restrict(self, intervalslice, seriesslice):
         # This function should be called only by an itemgetter
         # because it mutates data.
         # The itemgetter is responsible for creating copies
         # of objects
 
-        if kind is None:
-            kind = 'loc'
-        if kind not in ('loc', 'iloc'):
-            raise ValueError("Unsupported kind '{}' series restriction".format(kind))
+        self._restrict_to_series_subset(seriesslice)
+        self._eventarray._restrict_to_series_subset(seriesslice)
 
-        self._restrict_to_series_subset(seriesslice, kind=kind)
+        self._restrict_to_interval(intervalslice)
+        self._eventarray._restrict_to_interval(intervalslice)
+        return self
 
-        if self.isempty:
-            # don't bother restricting to interval
-            return self
+    def _restrict_to_series_subset(self, idx):
+
+        # Warning: This function can mutate data
+
+        if isinstance(idx, core.IntervalArray):
+            raise IndexError("Slicing is [intervals, signal]; perhaps you have the order reversed?")
+
+        # TODO: update tags
+        try:
+            self._data = np.atleast_2d(self.data[idx,:])
+            self._series_ids = list(np.atleast_1d(np.atleast_1d(self._series_ids)[idx]))
+            self._series_labels = list(np.atleast_1d(np.atleast_1d(self._series_labels)[idx]))
+        except IndexError:
+            raise IndexError("One of more indices were out of bounds for n_series with size {}"
+                             .format(self.n_series))
+        except Exception:
+            raise TypeError("Unsupported indexing type {}".format(type(idx)))
+
+    def _restrict_to_interval(self, intervalslice):
+
+        # Warning: This function can mutate data. It should only be called from
+        # _restrict
 
         if isinstance(intervalslice, slice):
-            if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+            if (intervalslice.start == None and
+                intervalslice.stop  == None and
+                intervalslice.step  == None):
                 # no restriction on interval
                 return self
 
@@ -1944,157 +1597,49 @@ class BinnedEventArray(BaseEventArray):
             logging.warning("Index resulted in empty interval array")
             return self.empty(inplace=True)
 
-        self._restrict_to_interval(intervalarray=newintervals)
-        return self
+        bcenter_inds = []
+        bin_inds = []
+        start = 0
+        bsupport = np.zeros((newintervals.merge().n_intervals, 2))
 
-    def _restrict_to_series_subset(self, *, idx=None, kind=None):
+        if not self.isempty:
+            for ii, interval in enumerate(newintervals.merge().data):
 
-        # Warning: This function can mutate data
+                a_start = interval[0]
+                a_stop = interval[1]
+                frm, to = np.searchsorted(self._bins, (a_start, a_stop))
+                # If bin edges equal a_stop, they should still be included
+                if self._bins[to] <= a_stop:
+                    bin_inds.extend(np.arange(frm, to + 1, step=1))
+                else:
+                    bin_inds.extend(np.arange(frm, to, step=1))
+                    to -= 1
+                
+                lind, rind = np.searchsorted(self._bin_centers, 
+                                            (self._bins[frm], self._bins[to]))
+                # We don't have to worry about an if-else block here unlike
+                # for the bin_inds because the bin_centers can NEVER equal
+                # the bins. Therefore we know every interval looks like
+                # the following:
+                #  first desired bin         last desired bin
+                # |------------------|......|-------------------|
+                #          ^                                         ^
+                #          |                                         |
+                #        lind                                      rind
+                # Since arange is half-open, the indices we actually take
+                # will be such that all bin centers fall within the desired
+                # bin edges.
+                bcenter_inds.extend(np.arange(lind, rind, step=1))
 
-        if idx is None:
-            # no need to restrict to subset
-            return
-        
-        # have to do something depending on whether loc or iloc
-        try:
-            self._data = np.atleast_2d(self.data[idx,:])
-        except IndexError:
-            raise IndexError("index {} is out of bounds for n_series with size {}".format(idx, self.n_series))
+                bsupport[ii] = [start, start+(to-frm-1)]
+                start += to - frm
 
-    def _restrict_to_interval(self, *, intervalarray=None):
+            self._bins = self._bins[bin_inds]
+            self._bin_centers = self._bin_centers[bcenter_inds]
+            self._data = np.atleast_2d(self._data[:, bcenter_inds])
+            self._binnedSupport = bsupport
 
-        # Warning: This function can mutate data. It should only be called from
-        # _restrict
-
-        if intervalarray is None:
-            return  # nothing changed, return
-
-        if not isinstance(intervalarray, core.IntervalArray):
-            raise AttributeError("nelpy.IntervalArray expected")
-
-        if intervalarray.isempty:
-            warnings.warn("Support specified is empty")
-            # self.__init__([],empty=True)
-            exclude = ['_support','_data','_fs','_step']  # What should we exclude here?
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("self." + attr + " = None")
-            self._data = np.zeros((self.n_series,0))
-            self._abscissa.support = intervalarray
-            return
-
-        binnedeventarray = type(self)(empty=True)
-        exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            attrs = (x for x in self.__attributes__ if x not in exclude)
-            for attr in attrs:
-                exec("binnedeventarray." + attr + " = self." + attr)
-        support = self._abscissa.support[idx]
-        binnedeventarray._abscissa.support = support
-
-        bsupport = self.binnedSupport[idx,:] # need to re-index!
-        # now build a list of all elements in bsupport:
-        ll = []
-        for bs in bsupport:
-            ll.extend(np.arange(bs[0],bs[1]+1, step=1))
-        binnedeventarray._bin_centers = self._bin_centers[ll]
-        binnedeventarray._data = self._data[:,ll]
-
-        lengths = self.lengths[[idx]]
-        # lengths = bsupport[:,1] - bsupport[:,0]
-        bsstarts = np.insert(np.cumsum(lengths),0,0)[:-1]
-        bsends = np.cumsum(lengths) - 1
-        binnedeventarray._binnedSupport = np.vstack((bsstarts, bsends)).T
-
-        binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
-        binstarts = binindices[idx]
-        binstops = binindices[1:][idx]  # equivalent to binindices[idx + 1], but if idx is a slice, we can't add 1 to it
-        ll = []
-        for start, stop in zip(binstarts, binstops):
-            ll.extend(np.arange(start,stop,step=1))
-        binnedeventarray._bins = self._bins[ll]
-        binnedeventarray.__renew__()
-        
-        
-
-        # Old stuff
-
-        # elif isinstance(idx, int):
-        #     # TODO: issue 229
-        #     binnedeventarray = type(self)(empty=True)
-        #     exclude = ["_data", "_bins", "_support", "_bin_centers", "_eventarray", "_binnedSupport"]
-        #     with warnings.catch_warnings():
-        #         warnings.simplefilter("ignore")
-        #         attrs = (x for x in self.__attributes__ if x not in exclude)
-        #         for attr in attrs:
-        #             exec("binnedeventarray." + attr + " = self." + attr)
-        #     support = self._abscissa.support[idx]
-        #     binnedeventarray._abscissa.support = support
-        #     if (idx >= self._abscissa.support.n_intervals) or idx < (-self._abscissa.support.n_intervals):
-        #         binnedeventarray.__renew__()
-        #         return binnedeventarray
-        #     else:
-        #         bsupport = self.binnedSupport[[idx],:]
-        #         centers = self._bin_centers[bsupport[0,0]:bsupport[0,1]+1]
-        #         binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
-        #         binstart = binindices[idx]
-        #         binstop = binindices[idx+1]
-        #         binnedeventarray._data = self._data[:,bsupport[0,0]:bsupport[0,1]+1]
-        #         binnedeventarray._bins = self._bins[binstart:binstop]
-        #         binnedeventarray._binnedSupport = bsupport - bsupport[0,0]
-        #         binnedeventarray._bin_centers = centers
-        #         binnedeventarray.__renew__()
-        #         return binnedeventarray
-
-        # else:  # most likely a slice
-        #     try:
-        #         # have to be careful about re-indexing binnedSupport
-        #         intervalslice, signalslice = self._slicer[idx]
-
-        #         binnedeventarray = self._subset(signalslice)
-
-        #         if binnedeventarray.isempty:
-        #             return binnedeventarray
-
-        #         if isinstance(intervalslice, slice):
-        #             if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-        #                 return binnedeventarray
-
-        #         newintervals = self._abscissa.support[intervalslice]
-
-        #         if newintervals.isempty:
-        #             warnings.warn("Index resulted in empty interval array")
-        #             binnedeventarray = self._copy_without_data()
-        #             binnedeventarray._data = np.zeros((self.n_series, 0))
-        #             return binnedeventarray
-
-        #         binnedeventarray._restrict_beva_to_interval_array_fast(intervalarray=newintervals)
-        #         binnedeventarray.__renew__()
-        #         return binnedeventarray
-
-        #     except IndexError:
-        #         raise TypeError('Index out of range')
-        #     except Exception:
-        #         raise TypeError('Unsupported indexing type {}'.format(type(idx)))
-        
-
-
-        
-
-    # __attributes__ = ["_ds", "_bins", "_data", "_bin_centers",
-    #                 "_binnedSupport", "_eventarray"]
-    # _ds
-    # _series_ids
-    # _series_labels
-    # _series_tags
-    # _abscissa
-    # _ordinate
-    # _series_label
-    # _slicer
-    #################################################################################
+        self._abscissa.support = newintervals
     
 
     def _subset(self, idx):
@@ -2726,6 +2271,7 @@ class BinnedEventArray(BaseEventArray):
         """(nelpy.IntervalArray) The support of the underlying BinnedEventArray."""
         return self._abscissa.support
 
+    # THIS NEEDS TO BE REWORKED
     @support.setter
     def support(self, val):
         """(nelpy.IntervalArray) The support of the underlying BinnedEventArray."""

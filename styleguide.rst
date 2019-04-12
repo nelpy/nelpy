@@ -46,4 +46,4 @@ Methods
 
 Class methods
 -------------
-The return value of class methods is often ``self``. This is to allow chaining e.g. ```testobj.do_something().do_something_else()```
+The return value of class methods is often ``self``. This is to allow chaining e.g. ``testobj.do_something().do_something_else()``

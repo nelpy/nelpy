@@ -1,5 +1,6 @@
 """This file contains generic accessors to handle getting data from core objects"""
 
+import numpy as np
 from .. import core
 
 __all__ = ['IntervalSeriesSlicer', 'ItemGetterLoc', 'ItemGetterIloc']
@@ -22,7 +23,7 @@ class IntervalSeriesSlicer(object):
             intervalslice = args[0]
         else:
             try:
-                slices = np.s_[args]; slices = slices[0]
+                slices = np.s_[args][0]
                 if len(slices) > 2:
                     raise IndexError("only [intervals, series] slicing is supported at this time!")
                 elif len(slices) == 2:
@@ -56,16 +57,6 @@ class ItemGetterLoc(object):
         """intervals, series"""
         intervalslice, seriesslice = self.obj._slicer[idx]
 
-        # process the seriesslice to get the indices correctly
-        out = self.obj.copy()
-        out._restrict(intervalslice, seriesslice, kind='loc')
-        out.__renew__()
-        out.loc = ItemGetterLoc(out)
-        out.iloc = ItemGetterIloc(out)
-
-        return out
-
-###############################################################################################
         # first convert series slice into list
         if isinstance(seriesslice, slice):
             start = seriesslice.start
@@ -77,14 +68,14 @@ class ItemGetterLoc(object):
                 else:
                     istart = self.obj._series_ids.index(start)
             except ValueError:
-                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(start))
+                raise KeyError('series_id {} could not be found!'.format(start))
             try:
                 if stop is None:
                     istop = self.obj.n_series
                 else:
                     istop = self.obj._series_ids.index(stop) + 1
             except ValueError:
-                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(stop))
+                raise KeyError('series_id {} could not be found!'.format(stop))
             if istep is None:
                 istep = 1
             if istep < 0:
@@ -99,33 +90,24 @@ class ItemGetterLoc(object):
                 try:
                     uidx = self.obj.series_ids.index(series)
                 except ValueError:
-                    raise KeyError("series_id {} could not be found in BaseEventArray!".format(series))
+                    raise KeyError("series_id {} could not be found!".format(series))
                 else:
                     series_idx_list.append(uidx)
 
         if not isinstance(series_idx_list, list):
             series_idx_list = list(series_idx_list)
-        out = copy.copy(self.obj)
-        try:
-            out._data = out._data[series_idx_list]
-            singleseries = len(out._data)==1
-        except AttributeError:
-            out._data = out._data[series_idx_list]
-            singleseries = len(out._data)==1
 
-        if singleseries:
-            out._data = np.array(out._data[0], ndmin=2)
-        out._series_ids = list(np.atleast_1d(np.atleast_1d(out._series_ids)[series_idx_list]))
-        out._series_labels = list(np.atleast_1d(np.atleast_1d(out._series_labels)[series_idx_list]))
-        # TODO: update tags
-        if isinstance(intervalslice, slice):
-            if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                out.loc = ItemGetter_loc(out)
-                out.iloc = ItemGetter_iloc(out)
-                return out
-        out = out._intervalslicer(intervalslice)
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
+        # this is mainly to make code easier to read since the _restrict
+        # function prototypes say they accept intervalslice and
+        # seriesslies
+        seriesslice = series_idx_list
+
+        out = self.obj.copy()
+        # It is now the object's responsibility to do the
+        # restriction and set its attributes properly
+        out._restrict(intervalslice, seriesslice)
+        out.__renew__()
+
         return out
 
 class ItemGetterIloc(object):
@@ -148,32 +130,14 @@ class ItemGetterIloc(object):
         """intervals, series"""
         intervalslice, seriesslice = self.obj._slicer[idx]
 
-        # process the seriesslice to get the indices correctly
-        out = self.obj.copy()
-        out._restrict(intervalslice, seriesslice, kind='iloc')
-        out.__renew__()
-
-        return out
-
-
-#########################################################################################
-        out = copy.copy(self.obj)
         if isinstance(seriesslice, int):
             seriesslice = [seriesslice]
-        out._data = out._data[seriesslice]
-        singleseries = len(out._data)==1
-        if singleseries:
-            out._data = np.array(out._data[0], ndmin=2)
-        out._series_ids = list(np.atleast_1d(np.atleast_1d(out._series_ids)[seriesslice]))
-        out._series_labels = list(np.atleast_1d(np.atleast_1d(out._series_labels)[seriesslice]))
-        # TODO: update tags
-        if isinstance(intervalslice, slice):
-            if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
-                out.loc = ItemGetter_loc(out)
-                out.iloc = ItemGetter_iloc(out)
-                return out
-        out = out._intervalslicer(intervalslice)
-        out.loc = ItemGetter_loc(out)
-        out.iloc = ItemGetter_iloc(out)
+
+        out = self.obj.copy()
+        # It is now the object's responsibility to do the
+        # restriction and set its attributes properly
+        out._restrict(intervalslice, seriesslice)
+        out.__renew__()
+
         return out
 
