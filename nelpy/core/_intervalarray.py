@@ -221,18 +221,18 @@ class IntervalArray:
             if idx.isempty:  # case 0:
                 return type(self)(empty=True)
             return self.intersect(interval=idx)
+        elif isinstance(idx, IntervalArray):
+            raise TypeError("Error taking intersection. {} expected, but got {}".format(self.type_name, idx.type_name))
         else:
             try: # works for ints, lists, and slices
-                out = copy.copy(self)
-                out._data = None
+                out = self.copy()
                 out._data = self.data[idx,:]
             except IndexError:
-                pass
+                raise IndexError('{} index out of range'.format(self.type_name))
             except Exception:
                 raise TypeError(
                     'unsupported subscripting type {}'.format(type(idx)))
-            finally:
-                return out
+        return out
 
     def __add__(self, other):
         """add length to start and stop of each interval, or join two interval arrays without merging"""
