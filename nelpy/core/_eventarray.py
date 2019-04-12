@@ -794,18 +794,6 @@ class EventArray(BaseEventArray):
         self._abscissa.support = newintervals
         return self
 
-    def empty(self, *, inplace=False):
-        """Remove data (but not metadata) from EventArray."""
-        n_series = self.n_series
-        if not inplace:
-            out = self._copy_without_data()
-        else:
-            out = self
-            out._data = np.array(n_series*[None])
-        out._abscissa.support = type(self._abscissa.support)(empty=True)
-        out.__renew__()
-        return out
-
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
         logging.disable(logging.CRITICAL)
