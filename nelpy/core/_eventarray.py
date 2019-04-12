@@ -1785,6 +1785,8 @@ class BinnedEventArray(BaseEventArray):
     @property
     def lengths(self):
         """Lengths of contiguous segments, in number of bins."""
+        if self.isempty:
+            return 0
         return np.atleast_1d((self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1).squeeze())
 
     @property
@@ -1797,6 +1799,8 @@ class BinnedEventArray(BaseEventArray):
     @property
     def n_bins(self):
         """(int) The number of bins."""
+        if self.isempty:
+            return 0
         return utils.PrettyInt(len(self.centers))
 
     @property
@@ -1904,7 +1908,6 @@ class BinnedEventArray(BaseEventArray):
         re = np.array(right_edges)
         re = re[:, np.newaxis]
         self._binnedSupport = np.hstack((le, re))
-        print(self.lengths)
         support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
         support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
         supportdata = np.vstack([support_starts, support_stops]).T
