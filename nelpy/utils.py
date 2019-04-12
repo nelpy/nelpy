@@ -421,13 +421,13 @@ def is_sorted_slow(iterable, key=lambda a, b: a <= b):
 def is_sorted(x, chunk_size=None):
     """Returns True if iterable is monotonic increasing (sorted).
 
-    NOTE: intended for 1D array.
+    NOTE: intended for 1D array, list or tuple. Will not work on
+    more than 1D
 
     This function works in-core with memory footrpint XXX.
     chunk_size = 100000 is probably a good choice.
     """
-
-    if isinstance(x, np.ndarray):
+    if isinstance(x, (np.ndarray, list, tuple)):
         if chunk_size is None:
             chunk_size = 500000
         stop = x.size
