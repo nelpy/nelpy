@@ -414,7 +414,7 @@ def argsort(seq):
     # http://stackoverflow.com/questions/3071415/efficient-method-to-calculate-the-rank-vector-of-a-list-in-python
     return sorted(range(len(seq)), key=seq.__getitem__)
 
-def is_sorted_slow(iterable, key=lambda a, b: a <= b):
+def is_sorted_general(iterable, key=lambda a, b: a <= b):
     """Check to see if iterable is monotonic increasing (sorted)."""
     return all(key(a, b) for a, b in pairwise(iterable))
 
@@ -427,18 +427,23 @@ def is_sorted(x, chunk_size=None):
     This function works in-core with memory footrpint XXX.
     chunk_size = 100000 is probably a good choice.
     """
-    if isinstance(x, (np.ndarray, list, tuple)):
-        if chunk_size is None:
-            chunk_size = 500000
-        stop = x.size
-        for chunk_start in range(0, stop, chunk_size):
-            chunk_stop = int(min(stop, chunk_start + chunk_size + 1))
-            chunk = x[chunk_start:chunk_stop]
-            if not np.all(chunk[:-1] <= chunk[1:]):
-                return False
-        return True
-    else:
-        return is_sorted_slow(x)
+
+    if not isinstance(x, (tuple, list, np.ndarray)):
+        raise TypeError("Unsupported type {}".format(type(x)))
+
+    x = np.atleast_1d(np.array(x).squeeze())
+    if x.ndim > 1:
+            raise ValueError("Input x must be 1-dimensional")
+
+    if chunk_size is None:
+        chunk_size = 500000
+    stop = x.size
+    for chunk_start in range(0, stop, chunk_size):
+        chunk_stop = int(min(stop, chunk_start + chunk_size + 1))
+        chunk = x[chunk_start:chunk_stop]
+        if not np.all(chunk[:-1] <= chunk[1:]):
+            return False
+    return True
 
 def linear_merge(list1, list2):
     """Merge two SORTED lists in linear time.
