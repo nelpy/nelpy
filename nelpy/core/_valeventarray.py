@@ -65,7 +65,6 @@ BaseValueEventArray (ABC)
 
 """
 
-import warnings
 import logging
 import numpy as np
 import copy
@@ -78,12 +77,6 @@ from .. import utils
 from .. import version
 
 from ..utils_.decorators import keyword_equivalence
-
-# Force warnings.warn() to omit the source code line in the message
-formatwarning_orig = warnings.formatwarning
-warnings.formatwarning = lambda message, category, filename, lineno, \
-    line=None: formatwarning_orig(
-        message, category, filename, lineno, line='')
 
 class IntervalSeriesSlicer(object):
     def __init__(self):
@@ -824,17 +817,17 @@ class ValueEventArray(BaseValueEventArray):
             if support.isempty:
                 return type(self)(empty=True)
 
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                data = self._restrict_to_interval_array_fast(
-                    intervalarray=support,
-                    data=self.data,
-                    copyover=True
-                    )
-                eventarray = self._copy_without_data()
-                eventarray._data = data
-                eventarray._abscissa.support = support
-                eventarray.__renew__()
+            logging.disable(logging.CRITICAL)
+            data = self._restrict_to_interval_array_fast(
+                intervalarray=support,
+                data=self.data,
+                copyover=True
+                )
+            eventarray = self._copy_without_data()
+            eventarray._data = data
+            eventarray._abscissa.support = support
+            eventarray.__renew__()
+            logging.disable(0)
             return eventarray
         elif isinstance(idx, int):
             eventarray = self._copy_without_data()
@@ -855,18 +848,18 @@ class ValueEventArray(BaseValueEventArray):
                 return eventarray
         else:  # most likely slice indexing
             try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    support = self._abscissa.support[idx]
-                    data = self._restrict_to_interval_array_fast(
-                        intervalarray=support,
-                        data=self.data,
-                        copyover=True
-                        )
-                    eventarray = self._copy_without_data()
-                    eventarray._data = data
-                    eventarray._abscissa.support = support
-                    eventarray.__renew__()
+                logging.disable(logging.CRITICAL)
+                support = self._abscissa.support[idx]
+                data = self._restrict_to_interval_array_fast(
+                    intervalarray=support,
+                    data=self.data,
+                    copyover=True
+                    )
+                eventarray = self._copy_without_data()
+                eventarray._data = data
+                eventarray._abscissa.support = support
+                eventarray.__renew__()
+                logging.disable(0)
                 return eventarray
             except Exception:
                 raise TypeError(
@@ -988,19 +981,19 @@ class ValueEventArray(BaseValueEventArray):
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            if self.isempty:
-                return "<empty " + self.type_name + address_str + ">"
-            if self._abscissa.support.n_intervals > 1:
-                epstr = " ({} segments)".format(self._abscissa.support.n_intervals)
-            else:
-                epstr = ""
-            if self.fs is not None:
-                fsstr = " at %s Hz" % self.fs
-            else:
-                fsstr = ""
-            numstr = " %s %s" % (self.n_series, self._series_label)
+        logging.disable(logging.CRITICAL)
+        if self.isempty:
+            return "<empty " + self.type_name + address_str + ">"
+        if self._abscissa.support.n_intervals > 1:
+            epstr = " ({} segments)".format(self._abscissa.support.n_intervals)
+        else:
+            epstr = ""
+        if self.fs is not None:
+            fsstr = " at %s Hz" % self.fs
+        else:
+            fsstr = ""
+        numstr = " %s %s" % (self.n_series, self._series_label)
+        logging.disable(0)
         return "<%s%s:%s%s>%s" % (self.type_name, address_str, numstr, epstr, fsstr)
 
     def bin(self, *, ds=None, method='sum'):
@@ -1517,17 +1510,17 @@ class StatefulValueEventArray(BaseValueEventArray):
             if support.isempty:
                 return type(self)(empty=True)
 
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                data = self._restrict_to_interval_array_value_fast(
-                    intervalarray=support,
-                    data=self.data,
-                    copyover=True
-                    )
-                eventarray = self._copy_without_data()
-                eventarray._data = data
-                eventarray._abscissa.support = support
-                eventarray.__renew__()
+            logging.disable(logging.CRITICAL)
+            data = self._restrict_to_interval_array_value_fast(
+                intervalarray=support,
+                data=self.data,
+                copyover=True
+                )
+            eventarray = self._copy_without_data()
+            eventarray._data = data
+            eventarray._abscissa.support = support
+            eventarray.__renew__()
+            logging.disable(0)
             return eventarray
         elif isinstance(idx, int):
             eventarray = self._copy_without_data()
@@ -1548,18 +1541,18 @@ class StatefulValueEventArray(BaseValueEventArray):
                 return eventarray
         else:  # most likely slice indexing
             try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    support = self._abscissa.support[idx]
-                    data = self._restrict_to_interval_array_value_fast(
-                        intervalarray=support,
-                        data=self.data,
-                        copyover=True
-                        )
-                    eventarray = self._copy_without_data()
-                    eventarray._data = data
-                    eventarray._abscissa.support = support
-                    eventarray.__renew__()
+                logging.disable(logging.CRITICAL)
+                support = self._abscissa.support[idx]
+                data = self._restrict_to_interval_array_value_fast(
+                    intervalarray=support,
+                    data=self.data,
+                    copyover=True
+                    )
+                eventarray = self._copy_without_data()
+                eventarray._data = data
+                eventarray._abscissa.support = support
+                eventarray.__renew__()
+                logging.disable(0)
                 return eventarray
             except Exception:
                 raise TypeError(
@@ -1842,19 +1835,19 @@ class StatefulValueEventArray(BaseValueEventArray):
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            if self.isempty:
-                return "<empty " + self.type_name + address_str + ">"
-            if self._abscissa.support.n_intervals > 1:
-                epstr = " ({} segments)".format(self._abscissa.support.n_intervals)
-            else:
-                epstr = ""
-            if self.fs is not None:
-                fsstr = " at %s Hz" % self.fs
-            else:
-                fsstr = ""
-            numstr = " %s %s" % (self.n_series, self._series_label)
+        logging.disable(logging.CRITICAL)
+        if self.isempty:
+            return "<empty " + self.type_name + address_str + ">"
+        if self._abscissa.support.n_intervals > 1:
+            epstr = " ({} segments)".format(self._abscissa.support.n_intervals)
+        else:
+            epstr = ""
+        if self.fs is not None:
+            fsstr = " at %s Hz" % self.fs
+        else:
+            fsstr = ""
+        numstr = " %s %s" % (self.n_series, self._series_label)
+        logging.disable(0)
         return "<%s%s:%s%s>%s" % (self.type_name, address_str, numstr, epstr, fsstr)
 
     @property

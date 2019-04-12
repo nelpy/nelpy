@@ -12,7 +12,6 @@ __all__ = ['RegularlySampledAnalogSignalArray',
            'IMUSensorArray',
            'MinimalExampleArray']
 
-import warnings
 import logging
 import numpy as np
 import copy
@@ -31,12 +30,6 @@ from .. import utils
 from .. import version
 
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
-
-# Force warnings.warn() to omit the source code line in the message
-formatwarning_orig = warnings.formatwarning
-warnings.formatwarning = lambda message, category, filename, lineno, \
-    line=None: formatwarning_orig(
-        message, category, filename, lineno, line='')
 
 class IntervalSignalSlicer(object):
     def __init__(self, obj):
@@ -918,10 +911,10 @@ class RegularlySampledAnalogSignalArray:
                 # self.__init__([],empty=True)
                 exclude = ['_support','_data','_fs','_step']
                 attrs = (x for x in self.__attributes__ if x not in exclude)
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    for attr in attrs:
-                        exec("self." + attr + " = None")
+                logging.disable(logging.CRITICAL)
+                for attr in attrs:
+                    exec("self." + attr + " = None")
+                logging.disable(0)
                 self._data = np.zeros([0,self.data.shape[0]])
                 self._data[:] = np.nan
                 self._abscissa.support = intervalarray
@@ -982,10 +975,10 @@ class RegularlySampledAnalogSignalArray:
                 # self.__init__([],empty=True)
                 exclude = ['_support','_data','_fs','_step']
                 attrs = (x for x in self.__attributes__ if x not in exclude)
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    for attr in attrs:
-                        exec("self." + attr + " = None")
+                logging.disable(logging.CRITICAL)
+                for attr in attrs:
+                    exec("self." + attr + " = None")
+                logging.disable(0)
                 self._data = np.zeros([0,self.data.shape[0]])
                 self._data[:] = np.nan
                 self._abscissa.support = intervalarray
@@ -1377,30 +1370,29 @@ class RegularlySampledAnalogSignalArray:
         index = self._index
         if index > self.n_intervals - 1:
             raise StopIteration
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            intervalarray = type(self.support)(empty=True)
-            exclude = ["_abscissa_vals"]
-            attrs = (x for x in self._abscissa.support.__attributes__ if x not in exclude)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for attr in attrs:
-                    exec("intervalarray." + attr + " = self._abscissa.support." + attr)
-                try:
-                    intervalarray._data = self._abscissa.support.data[tuple([index]), :]  # use np integer indexing! Cool!
-                except IndexError:
-                    # index is out of bounds, so return an empty IntervalArray
-                    pass
+        logging.disable(logging.CRITICAL)
+        intervalarray = type(self.support)(empty=True)
+        exclude = ["_abscissa_vals"]
+        attrs = (x for x in self._abscissa.support.__attributes__ if x not in exclude)
+
+        for attr in attrs:
+            exec("intervalarray." + attr + " = self._abscissa.support." + attr)
+        try:
+            intervalarray._data = self._abscissa.support.data[tuple([index]), :]  # use np integer indexing! Cool!
+        except IndexError:
+            # index is out of bounds, so return an empty IntervalArray
+            pass
+        logging.disable(0)
 
         self._index += 1
 
         asa = type(self)([],empty=True)
         exclude = ['_interp','_support']
         attrs = (x for x in self.__attributes__ if x not in exclude)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in attrs:
-                exec("asa." + attr + " = self." + attr)
+        logging.disable(logging.CRITICAL)
+        for attr in attrs:
+            exec("asa." + attr + " = self." + attr)
+        logging.disable(0)
         asa._restrict_to_interval_array_fast(intervalarray=intervalarray)
         if(asa.support.isempty):
             logging.warning("Support is empty. Empty RegularlySampledAnalogSignalArray returned")
@@ -1486,18 +1478,6 @@ class RegularlySampledAnalogSignalArray:
         """Return a copy of the current object."""
         out = copy.deepcopy(self)
         out.__renew__()
-        # asa = type(self)([], empty=True)
-        # exclude = ['_interp']
-        # attrs = (x for x in self.__attributes__ if x not in exclude)
-        # with warnings.catch_warnings():
-        #     warnings.simplefilter("ignore")
-        #     for attr in attrs:
-        #         exec("asa." + attr + " = self." + attr)
-        # try:
-        #     exec("asa._interp = self._interp")
-        # except AttributeError:
-        #     pass
-        # asa.__renew__()
         return out
 
     def median(self,*,axis=1):
@@ -1510,7 +1490,7 @@ class RegularlySampledAnalogSignalArray:
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate median")
 
-    def mean(self,*,axis=1):
+    def mean(self, *, axis=1):
         """Returns the mean of each signal in RegularlySampledAnalogSignalArray."""
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
@@ -1520,7 +1500,7 @@ class RegularlySampledAnalogSignalArray:
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate mean")
 
-    def std(self,*,axis=1):
+    def std(self, *, axis=1):
         """Returns the standard deviation of each signal in RegularlySampledAnalogSignalArray."""
         try:
             stds = np.nanstd(self.data,axis=axis).squeeze()
@@ -1633,16 +1613,16 @@ class RegularlySampledAnalogSignalArray:
                 raise TypeError(
                     "start and stop must be scalar floats")
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            interval = self._abscissa.support.intersect(
-                type(self.support)(
-                    [start, stop],
-                    fs=fs))
-            if not interval.isempty:
-                analogsignalarray = self[interval]
-            else:
-                analogsignalarray = type(self)([],empty=True)
+        logging.disable(logging.CRITICAL)
+        interval = self._abscissa.support.intersect(
+            type(self.support)(
+                [start, stop],
+                fs=fs))
+        if not interval.isempty:
+            analogsignalarray = self[interval]
+        else:
+            analogsignalarray = type(self)([],empty=True)
+        logging.disable(0)
         analogsignalarray.__renew__()
         return analogsignalarray
 
@@ -2092,12 +2072,12 @@ class RegularlySampledAnalogSignalArray:
         X = np.sort(self.data.squeeze())
         F = np.array(range(self.n_samples))/float(self.n_samples)
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            cdf = type(self)(abscissa_vals=X,
-                                     data=F,
-                                     support=type(self.support)(self.data.min(), self.data.max())
-                                   ).simplify(n_samples=n_samples)
+        logging.disable(logging.CRITICAL)
+        cdf = type(self)(abscissa_vals=X,
+                                    data=F,
+                                    support=type(self.support)(self.data.min(), self.data.max())
+                                ).simplify(n_samples=n_samples)
+        logging.disable(0)
 
         return cdf
 

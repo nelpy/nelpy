@@ -1,6 +1,5 @@
 __all__ = ['IntervalArray', 'EpochArray', 'SpaceArray']
 
-import warnings
 import logging
 import numpy as np
 import copy
@@ -13,12 +12,6 @@ from .. import utils
 from .. import version
 
 from ..utils_.decorators import keyword_equivalence
-
-# Force warnings.warn() to omit the source code line in the message
-formatwarning_orig = warnings.formatwarning
-warnings.formatwarning = lambda message, category, filename, lineno, \
-    line=None: formatwarning_orig(
-        message, category, filename, lineno, line='')
 
 ########################################################################
 # class IntervalArray
@@ -620,10 +613,10 @@ class IntervalArray:
     def copy(self):
         """(IntervalArray) Returns a copy of the current interval array."""
         newcopy = type(self)(empty=True)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for attr in self.__attributes__:
-                exec("newcopy." + attr + " = self." + attr)
+        logging.disable(logging.CRITICAL)
+        for attr in self.__attributes__:
+            exec("newcopy." + attr + " = self." + attr)
+        logging.disable(0)
         return newcopy
 
     def _drop_empty_intervals(self):

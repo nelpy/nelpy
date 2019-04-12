@@ -15,7 +15,6 @@ __all__ = ['spatial_information',
            '_bst_get_bins']
 
 import numpy as np
-import warnings
 import logging
 from itertools import tee, repeat
 from collections import namedtuple
@@ -503,7 +502,6 @@ def linear_merge(list1, list2):
                 # Grab the next value from list1.
                 value1 = next(list1)
             except StopIteration:
-                print('in here!')
                 # list1 is empty.  Yield the last value we received from list2, then
                 # yield the rest of list2.
                 try:
@@ -1347,9 +1345,7 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
     elif isinstance(data, core.RegularlySampledAnalogSignalArray):
         # Only ASA data of shape (n_signals, n_timepoints) -> 2D currently supported
         assert data.data.ndim == 2
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            cum_lengths = np.insert(np.cumsum(data.lengths), 0, 0)
+        cum_lengths = np.insert(np.cumsum(data.lengths), 0, 0)
 
         newasa = data.copy()
         # for segment in data:
