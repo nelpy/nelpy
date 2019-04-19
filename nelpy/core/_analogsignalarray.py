@@ -25,6 +25,7 @@ from sys import float_info
 from collections import namedtuple
 
 from .. import core
+from .. import filtering
 from .. import auxiliary
 from .. import utils
 from .. import version
@@ -854,12 +855,12 @@ class RegularlySampledAnalogSignalArray:
             The downsampled RegularlySampledAnalogSignalArray
         """
 
-        if fs.out < obj.fs:
+        if not fs_out < self._fs:
             raise ValueError("fs_out must be less than current sampling rate!")
 
         if aafilter:
             fh = fs_out/2.0
-            out = filtering.sosfiltfilt(obj, fl=None, fh=fh, inplace=inplace, **kwargs)
+            out = filtering.sosfiltfilt(self, fl=None, fh=fh, inplace=inplace, **kwargs)
 
         downsampled = out.simplify(ds=1/fs_out)
         out._data = downsampled._data
