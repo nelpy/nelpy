@@ -854,7 +854,7 @@ class RegularlySampledAnalogSignalArray:
             The downsampled RegularlySampledAnalogSignalArray
         """
 
-        if fs<out < obj.fs:
+        if fs.out < obj.fs:
             raise ValueError("fs_out must be less than current sampling rate!")
 
         if aafilter:
