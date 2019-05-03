@@ -1764,7 +1764,7 @@ class RegularlySampledAnalogSignalArray:
         else:
             at = np.linspace(self.support.start, self.support.stop, n_samples)
 
-        at = np.array(at)
+        at = np.atleast_1d(at)
         if at.ndim > 1:
             raise ValueError("Requested points must be one-dimensional!")
         if at.shape[0] == 0:
