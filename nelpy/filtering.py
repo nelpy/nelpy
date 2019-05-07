@@ -189,7 +189,6 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
                               " filtering, and then inserting them back in"))
 
     # Do the actual parallellized filtering
-    t0 = time.time()
     if (sys.platform.startswith('linux') or sys.platform.startswith('darwin')) and parallel:
         pool = Pool(processes=cpu_count())
         if isinstance(timeseries, (np.ndarray, list)):
@@ -224,7 +223,6 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
                                repeat(overlap_len), range(start, stop, buffer_len))
                 for item in iterator:
                     filter_chunk(item)
-    print(time.time() - t0)
 
     if isinstance(timeseries, np.ndarray):
         out[:] = np.reshape(shared_array_out, dims)
