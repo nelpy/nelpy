@@ -33,3 +33,5 @@ sys.modules['nelpy.core._analogsignalarray'].TimestampSlicer = core._analogsigna
 sys.modules['nelpy.core._epocharray'] = core._intervalarray
 sys.modules['nelpy.core._spiketrain'] = core._eventarray
 sys.modules['nelpy.core._spiketrain'].EpochUnitSlicer = core._analogsignalarray.IntervalSignalSlicer
+sys.modules['nelpy.core._eventarray'].ItemGetter_loc = core._eventarray._accessors.ItemGetterLoc
+sys.modules['nelpy.core._eventarray'].ItemGetter_iloc = core._eventarray._accessors.ItemGetterIloc

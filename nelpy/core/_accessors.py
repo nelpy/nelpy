@@ -6,19 +6,19 @@ from .. import core
 __all__ = ['SliceExtractor', 'ItemGetterLoc', 'ItemGetterIloc']
 
 class SliceExtractor(object):
-    
+
     def __init__(self):
         pass
-    
+
     def extract(self, idx):
-    
+
         # By default, keep all slices
         intervalslice = slice(None, None, None)
         seriesslice = slice(None, None, None)
         eventslice = slice(None, None, None)
 
         # The one case this breaks is when the idx is a tuple
-        # and no other slices were requested. Otherwise, 
+        # and no other slices were requested. Otherwise,
         # something like obj[tuple, [7, 8, 9], 4] works
 
         # Handle special case where only one slice is provided
@@ -36,7 +36,7 @@ class SliceExtractor(object):
             eventslice    = idx[2]
         elif len(idx) > 3:
             raise ValueError("Only [interval, series, events]"
-                             " indexing is supported")            
+                             " indexing is supported")
         else:
             raise ValueError("Some other error occurred that we didn't handle."
                              " Please contact a developer")
@@ -67,7 +67,7 @@ class SliceExtractor(object):
                             " is not supported".format(type(testslice)))
 
         if isinstance(testslice, slice):
-            # Case 1: slice(None, val, stride) 
+            # Case 1: slice(None, val, stride)
             # Case 2: slice(val, None, stride)
             # Case 3: slice(val1, val2, stride)
             # Only need to check bounds for case 3 but check stride
