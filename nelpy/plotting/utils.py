@@ -1010,8 +1010,8 @@ def imshow(axes, X, cmap=None, norm=None, aspect=None,
     Unlike matplotlib version, must explicitly specify axes
     """
 
-    if not axes._hold:
-        axes.cla()
+    # if not axes._hold:
+        # axes.cla()
     if norm is not None:
         assert(isinstance(norm, mcolors.Normalize))
     if aspect is None:
