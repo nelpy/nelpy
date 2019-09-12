@@ -1004,13 +1004,14 @@ class ModestImage(AxesImage):
 def imshow(axes, X, cmap=None, norm=None, aspect=None,
            interpolation=None, alpha=None, vmin=None, vmax=None,
            origin=None, extent=None, shape=None, filternorm=1,
-           filterrad=4.0, imlim=None, resample=None, url=None, **kwargs):
+           filterrad=4.0, imlim=None, resample=None, url=None, 
+           clearaxes=True, **kwargs):
     """Similar to matplotlib's imshow command, but produces a ModestImage
 
     Unlike matplotlib version, must explicitly specify axes
     """
 
-    if not axes._hold:
+    if clearaxes:
         axes.cla()
     if norm is not None:
         assert(isinstance(norm, mcolors.Normalize))

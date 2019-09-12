@@ -9,6 +9,7 @@ import sys
 import warnings
 import numpy as np
 import scipy.signal as sig
+import time
 
 from . import core
 from copy import deepcopy
@@ -18,6 +19,7 @@ from multiprocessing.pool import Pool
 
 def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandstop=False,
                 gpass=None, gstop=None, ftype=None, buffer_len=None, overlap_len=None,
+                parallel=True,
                 **kwargs):
     """Zero-phase forward backward filtering using second-order-segments.
 
@@ -42,9 +44,9 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
 
     Parameters
     ----------
-    timeseries : nelpy.core.AnalogSignalArray (preferred), ndarray, or list
+    timeseries : nelpy.RegularlySampledAnalogSignalArray (preferred), ndarray, or list
         Object or data to filter.
-    fs : float, optional only if AnalogSignalArray is passed
+    fs : float, optional only if RegularlySampledAnalogSignalArray is passed
         The sampling frequency (Hz). Obtained from the input timeseries.
     fl : float, optional
         Lower cut-off frequency (in Hz), 0 or None to ignore. Default is None.
@@ -74,7 +76,7 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
 
     Returns
     -------
-    out : nelpy.core.RegularlySampledAnalogSignalArray, ndarray, or list
+    out : nelpy.RegularlySampledAnalogSignalArray, ndarray, or list
         Same output type as input timeseries.
 
     WARNING : The data type of the output object is the same as that of the input.
@@ -161,7 +163,7 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
         else:
             shared_array_out = np.ctypeslib.as_array(shared_array_base).reshape(dims)
             input_asarray = temp_array
-    elif isinstance(timeseries, core.AnalogSignalArray):
+    elif isinstance(timeseries, core.RegularlySampledAnalogSignalArray):
         dims = timeseries._data.shape
         shared_array_base = Array(ctypes.c_double, timeseries._data_rowsig.size, lock=False)
         shared_array_out = np.ctypeslib.as_array(shared_array_base).reshape(dims)
@@ -187,7 +189,7 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
                               " filtering, and then inserting them back in"))
 
     # Do the actual parallellized filtering
-    if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
+    if (sys.platform.startswith('linux') or sys.platform.startswith('darwin')) and parallel:
         pool = Pool(processes=cpu_count())
         if isinstance(timeseries, (np.ndarray, list)):
             # ignore epochs (information not contained in list or array) so filter directly
@@ -195,7 +197,7 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
             pool.map(filter_chunk, zip(repeat(start), repeat(stop), repeat(buffer_len),
                                      repeat(overlap_len), range(start, stop, buffer_len)),
                                     chunksize=1)
-        elif isinstance(timeseries, core.AnalogSignalArray):
+        elif isinstance(timeseries, core.RegularlySampledAnalogSignalArray):
             fei = np.insert(np.cumsum(timeseries.lengths), 0, 0) # filter epoch indices, fei
             for ii in range(len(fei)-1): # filter within epochs
                 start, stop = fei[ii], fei[ii+1]
@@ -213,7 +215,7 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
                            repeat(overlap_len), range(start, stop, buffer_len))
             for item in iterator:
                 filter_chunk(item)
-        elif isinstance(timeseries, core.AnalogSignalArray):
+        elif isinstance(timeseries, core.RegularlySampledAnalogSignalArray):
             fei = np.insert(np.cumsum(timeseries.lengths), 0, 0) # filter epoch indices, fei
             for ii in range(len(fei)-1): # filter within epochs
                 start, stop = fei[ii], fei[ii+1]
@@ -226,7 +228,7 @@ def sosfiltfilt(timeseries, *, fl=None, fh=None, fs=None, inplace=False, bandsto
         out[:] = np.reshape(shared_array_out, dims)
     elif isinstance(timeseries, list):
         out[:] = np.reshape(shared_array_out, dims).tolist()
-    elif isinstance(timeseries, core.AnalogSignalArray):
+    elif isinstance(timeseries, core.RegularlySampledAnalogSignalArray):
         out._data[:] = shared_array_out
 
     return out

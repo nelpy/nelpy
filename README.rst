@@ -106,9 +106,13 @@ Alternatively, you can install the latest version of nelpy by running the follow
 
     $ git clone https://github.com/nelpy/nelpy.git
     $ cd nelpy
-    $ python setup.py [install, develop]
+    $ pip install .
 
-where the ``develop`` argument should be used if you want to modify the code.
+If you would like to modify the code, then replace the last command with
+
+.. code-block:: bash
+
+    $ pip install -e .
 
 A weak prerequisite for installing nelpy is a modified version of `hmmlearn <https://github.com/eackermann/hmmlearn/tree/master/hmmlearn>`_. This requirement is weak, in the sense that installation will complete successfully without it, and most of nelpy can also be used without any problems. However, as soon as any of the hidden Markov model (HMM) functions are used, you will get an error if the correct version of ``hmmlearn`` is not installed. To make things easier, there is a handy 64-bit Windows wheel in the `hmmlearn directory <https://github.com/nelpy/nelpy/blob/master/hmmlearn/>`_ of this repository. Installation on Linux/Unix should be almost trivial.
 

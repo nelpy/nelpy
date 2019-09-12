@@ -97,6 +97,11 @@ class TestRegularlySampledAnalogSignalArray:
         asa.add_signal([3, 4, 5])
         assert np.array(asa.asarray().yvals == np.array([[1, 2, 4], [7, 8, 9], [3, 4, 5]])).all()
 
+    def test_asa_asarray2(self):
+        asa = nel.AnalogSignalArray(np.arange(10), fs=1)
+        assert asa(0.5) == np.array([0.5])
+        assert asa.asarray(at=0.5).yvals == np.array([0.5])
+
     def test_asa_mean1(self):
         asa = nel.AnalogSignalArray([[1, 2, 4, 5], [7, 8, 9, 10]])
         asa.add_signal([3, 4, 5, 6])

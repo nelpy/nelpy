@@ -54,9 +54,9 @@ def get_text(name):
     """returns some text"""
     return "Hello "+name
 
-print get_text.__name__ # get_text
-print get_text.__doc__ # returns some text
-print get_text.__module__ # __main__
+print(get_text.__name__) # get_text
+print(get_text.__doc__) # returns some text
+print(get_text.__module__) # __main__
 
 ########################################################################
 
