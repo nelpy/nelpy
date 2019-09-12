@@ -119,10 +119,10 @@ class BaseEventArray(ABC):
         self._abscissa = abscissa
         self._ordinate = ordinate
 
-        series_label = kwargs.pop('series_label', None)
-        if series_label is None:
-            series_label = 'series'
-        self._series_label = series_label
+        series_labels = kwargs.pop('series_labels', None)
+        if series_labels is None:
+            series_labels = 'series'
+        self._series_labels = series_labels
 
         # if an empty object is requested, return it:
         if empty:
@@ -808,7 +808,7 @@ class EventArray(BaseEventArray):
             labelstr = " from %s" % self.label
         else:
             labelstr = ""
-        numstr = " %s %s" % (self.n_series, self._series_label)
+        numstr = " %s %s" % (self.n_series, self._series_labels)
         logging.disable(0)
         return "<%s%s:%s%s>%s%s" % (self.type_name, address_str, numstr, epstr, fsstr, labelstr)
 
@@ -2025,6 +2025,12 @@ class BinnedEventArray(BaseEventArray):
         binnedeventarray = self._copy_without_data()
 
         binnedeventarray._data = np.array(self.data.sum(axis=0), ndmin=2)
+
+        binnedeventarray._bins = self.bins
+        binnedeventarray._abscissa.support = self.support
+        binnedeventarray._bin_centers = self.bin_centers
+        binnedeventarray._binnedSupport = self.binnedSupport
+
         binnedeventarray._series_ids = [series_id]
         binnedeventarray._series_labels = [series_label]
         binnedeventarray._series_tags = None
