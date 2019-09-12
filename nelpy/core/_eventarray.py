@@ -1059,13 +1059,13 @@ class BinnedEventArray(BaseEventArray):
 
             self._eventarray = None
             self._ds = 1/eventarray.fs
-            self._series_labels = eventarray.labels
+            self._series_labels = eventarray._series_labels
             self._bin_centers = eventarray.abscissa_vals
             tmp = np.insert(np.cumsum(eventarray.lengths),0,0)
             self._binnedSupport = np.array((tmp[:-1], tmp[1:]-1)).T
             self._abscissa.support = eventarray.support
             try:
-                self._series_ids = (np.array(eventarray.labels).astype(int)).tolist()
+                self._series_ids = (np.array(eventarray.series_labels).astype(int)).tolist()
             except (ValueError, TypeError):
                 self._series_ids = (np.arange(eventarray.n_signals) + 1).tolist()
             self._data = eventarray._ydata_rowsig
