@@ -119,10 +119,10 @@ class BaseEventArray(ABC):
         self._abscissa = abscissa
         self._ordinate = ordinate
 
-        series_labels = kwargs.pop('series_labels', None)
-        if series_labels is None:
-            series_labels = 'series'
-        self._series_labels = series_labels
+        series_label = kwargs.pop('series_label', None)
+        if series_label is None:
+            series_label = 'series'
+        self._series_label = series_label
 
         # if an empty object is requested, return it:
         if empty:
@@ -808,7 +808,7 @@ class EventArray(BaseEventArray):
             labelstr = " from %s" % self.label
         else:
             labelstr = ""
-        numstr = " %s %s" % (self.n_series, self._series_labels)
+        numstr = " %s %s" % (self.n_series, self._series_label)
         logging.disable(0)
         return "<%s%s:%s%s>%s%s" % (self.type_name, address_str, numstr, epstr, fsstr, labelstr)
 
@@ -1322,7 +1322,7 @@ class BinnedEventArray(BaseEventArray):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
             return "<empty " + self.type_name + address_str + ">"
-        ustr = " {} {}".format(self.n_series, self._series_labels)
+        ustr = " {} {}".format(self.n_series, self._series_label)
         if self._abscissa.support.n_intervals > 1:
             epstr = " ({} segments) in".format(self._abscissa.support.n_intervals)
         else:
@@ -2150,10 +2150,10 @@ class SpikeTrainArray(EventArray):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
 
-        label = kwargs.pop('label', None)
-        if label is None:
-            label = 'units'
-        kwargs['label'] = label
+        series_label = kwargs.pop('series_label', None)
+        if series_label is None:
+            series_label = 'units'
+        kwargs['series_label'] = series_label
 
         # legacy STA constructor support for backward compatibility
         kwargs = legacySTAkwargs(**kwargs)
