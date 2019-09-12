@@ -1322,7 +1322,7 @@ class BinnedEventArray(BaseEventArray):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
             return "<empty " + self.type_name + address_str + ">"
-        ustr = " {} {}".format(self.n_series, self._series_label)
+        ustr = " {} {}".format(self.n_series, self._series_labels)
         if self._abscissa.support.n_intervals > 1:
             epstr = " ({} segments) in".format(self._abscissa.support.n_intervals)
         else:
