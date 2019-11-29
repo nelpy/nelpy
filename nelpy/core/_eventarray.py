@@ -2016,6 +2016,8 @@ class BinnedEventArray(BaseEventArray):
         binnedeventarray = self._copy_without_data()
 
         binnedeventarray._data = np.array(self.data.sum(axis=0), ndmin=2)
+
+        binnedeventarray._bin_centers = self.bin_centers
         binnedeventarray._series_ids = [series_id]
         binnedeventarray._series_labels = [series_label]
         binnedeventarray._series_tags = None
