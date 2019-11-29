@@ -851,13 +851,12 @@ class PoissonHMM(PHMM):
         self.extern_ of size (n_components, n_extern)
         """
 
-        # occupancy # len n_extern
-
-        ext_map = np.arange(n_extern)
         if n_extern is None:
             n_extern = len(unique(ext))
             for ii, ele in enumerate(unique(ext)):
                 ext_map[ele] = ii
+        else:
+            ext_map = np.arange(n_extern)
 
         # idea: here, ext can be anything, and n_extern should be range
         # we can e.g., define extern correlates {leftrun, rightrun} and

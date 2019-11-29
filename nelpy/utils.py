@@ -306,14 +306,14 @@ def _bst_get_bins(intervalArray, ds, w=1):
     le = le[:, np.newaxis]
     re = np.array(right_edges)
     re = re[:, np.newaxis]
-    binnedSupport = np.hstack((le, re))
-    lengths = np.atleast_1d((binnedSupport[:,1] - binnedSupport[:,0] + 1).squeeze())
+    binned_support = np.hstack((le, re))
+    lengths = np.atleast_1d((binned_support[:,1] - binned_support[:,0] + 1).squeeze())
     support_starts = bins[np.insert(np.cumsum(lengths+1),0,0)[:-1]]
     support_stops = bins[np.insert(np.cumsum(lengths+1)-1,0,0)[1:]]
     supportdata = np.vstack([support_starts, support_stops]).T
     support = type(intervalArray)(supportdata) # set support to TRUE bin support
 
-    return bins, bin_centers, binnedSupport, support
+    return bins, bin_centers, binned_support, support
 
 @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
 def get_mua(st, ds=None, sigma=None, truncate=None, _fast=True):

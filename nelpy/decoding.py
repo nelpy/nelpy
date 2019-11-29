@@ -794,9 +794,9 @@ class BayesianDecoder(object):
 
             m, n = posteriors.shape
 
-            bins, bin_centers, binnedSupport, support = utils._bst_get_bins(X.support, ds=X.ds, w=w)
+            bins, bin_centers, binned_support, support = utils._bst_get_bins(X.support, ds=X.ds, w=w)
             bst = core.BinnedSpikeTrainArray(empty=True)
-            bst._binnedSupport = binnedSupport
+            bst._binned_support = binned_support
             bst._bins = bins
             bst._data = posteriors
             # selfs die support mag dalk verander het, maar dit is altyd KLEINER as die oorspronkilke
