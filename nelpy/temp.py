@@ -14,7 +14,7 @@ def drop_last_bin(bst, inplace=False):
 
     out._support = bst._support.shrink(bst.ds, direction='stop') # shrink support(s) by one bin size, on right
     out._bin_centers = bst._bin_centers[:-1] # remove last bin center NB! this operates on last epoch only!
-    out._binnedSupport[:,1] = bst._binnedSupport[:,1] - 1 # remove last bin from each epoch
+    out._binned_support[:,1] = bst._binned_support[:,1] - 1 # remove last bin from each epoch
     out._bins = bst._bins[:-1]
     out._data = bst._data[:,:-1]
 

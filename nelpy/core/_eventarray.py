@@ -1000,7 +1000,7 @@ class BinnedEventArray(BaseEventArray):
         Event counts in all bins.
     bins : np.ndarray
         The bin edges, in seconds.
-    binnedSupport : np.ndarray, with shape (n_intervals, 2)
+    binned_support : np.ndarray, with shape (n_intervals, 2)
         The binned support of the BinnedEventArray (in
         bin IDs).
     lengths : np.ndarray
@@ -1023,7 +1023,7 @@ class BinnedEventArray(BaseEventArray):
     """
 
     __attributes__ = ["_ds", "_bins", "_data", "_bin_centers",
-                      "_binnedSupport", "_eventarray"]
+                      "_binned_support", "_eventarray"]
     __attributes__.extend(BaseEventArray.__attributes__)
 
     def __init__(self, eventarray=None, *, ds=None, empty=False, **kwargs):
@@ -1059,19 +1059,19 @@ class BinnedEventArray(BaseEventArray):
 
             self._eventarray = None
             self._ds = 1/eventarray.fs
-            self._series_labels = eventarray.labels
+            self._series_labels = eventarray._series_labels
             self._bin_centers = eventarray.abscissa_vals
             tmp = np.insert(np.cumsum(eventarray.lengths),0,0)
-            self._binnedSupport = np.array((tmp[:-1], tmp[1:]-1)).T
+            self._binned_support = np.array((tmp[:-1], tmp[1:]-1)).T
             self._abscissa.support = eventarray.support
             try:
-                self._series_ids = (np.array(eventarray.labels).astype(int)).tolist()
+                self._series_ids = (np.array(eventarray.series_labels).astype(int)).tolist()
             except (ValueError, TypeError):
                 self._series_ids = (np.arange(eventarray.n_signals) + 1).tolist()
             self._data = eventarray._ydata_rowsig
 
             bins = []
-            for starti, stopi in self._binnedSupport:
+            for starti, stopi in self._binned_support:
                 bins_edges_in_interval = (self._bin_centers[starti:stopi+1] - self._ds/2).tolist()
                 bins_edges_in_interval.append(self._bin_centers[stopi] + self._ds/2)
                 bins.extend(bins_edges_in_interval)
@@ -1085,7 +1085,7 @@ class BinnedEventArray(BaseEventArray):
                 self._ds = eventarray.ds
                 self._series_labels = eventarray.unit_labels
                 self._bin_centers = eventarray.bin_centers
-                self._binnedSupport = eventarray.binnedSupport
+                self._binned_support = eventarray.binned_support
                 try:
                     self._abscissa.support = core.EpochArray(eventarray.support.data)
                 except AttributeError:
@@ -1304,7 +1304,7 @@ class BinnedEventArray(BaseEventArray):
         """
         out = copy.copy(self) # shallow copy
         out._bin_centers = None
-        out._binnedSupport = None
+        out._binned_support = None
         out._bins = None
         out._data = np.zeros((self.n_series, 0))
         out._eventarray = out._eventarray._copy_without_data()
@@ -1351,10 +1351,10 @@ class BinnedEventArray(BaseEventArray):
         # TODO: return self.loc[index], and make sure that __getitem__ is updated
         logging.disable(logging.CRITICAL)
         support = self._abscissa.support[index]
-        bsupport = self.binnedSupport[[index],:]
+        bsupport = self.binned_support[[index],:]
 
         binnedeventarray = type(self)(empty=True)
-        exclude = ["_bins", "_data", "_support", "_bin_centers", "_binnedSupport"]
+        exclude = ["_bins", "_data", "_support", "_bin_centers", "_binned_support"]
         attrs = (x for x in self.__attributes__ if x not in exclude)
         for attr in attrs:
             exec("binnedeventarray." + attr + " = self." + attr)
@@ -1365,7 +1365,7 @@ class BinnedEventArray(BaseEventArray):
         binnedeventarray._data = self._data[:,bsupport[0][0]:bsupport[0][1]+1]
         binnedeventarray._abscissa.support = support
         binnedeventarray._bin_centers = self._bin_centers[bsupport[0][0]:bsupport[0][1]+1]
-        binnedeventarray._binnedSupport = bsupport - bsupport[0,0]
+        binnedeventarray._binned_support = bsupport - bsupport[0,0]
         logging.disable(0)
         self._index += 1
         binnedeventarray.__renew__()
@@ -1374,7 +1374,7 @@ class BinnedEventArray(BaseEventArray):
     def empty(self, *, inplace=False):
         """Remove data (but not metadata) from BinnedEventArray.
 
-        Attributes 'data', and 'support' 'binnedSupport' are all emptied.
+        Attributes 'data', and 'support' 'binned_support' are all emptied.
 
         Note: n_series, series_ids, etc. are all preserved.
         """
@@ -1385,7 +1385,7 @@ class BinnedEventArray(BaseEventArray):
         out = self
         out._data = np.zeros((self.n_series, 0))
         out._abscissa.support = type(self._abscissa.support)(empty=True)
-        out._binnedSupport = None
+        out._binned_support = None
         out._bin_centers = None
         out._bins = None
         out._eventarray.empty(inplace=True)
@@ -1490,7 +1490,7 @@ class BinnedEventArray(BaseEventArray):
             self._bins = self._bins[bin_inds]
             self._bin_centers = self._bin_centers[bcenter_inds]
             self._data = np.atleast_2d(self._data[:, bcenter_inds])
-            self._binnedSupport = bsupport
+            self._binned_support = bsupport
 
         self._abscissa.support = type(self._abscissa.support)(support_intervals)
 
@@ -1568,14 +1568,22 @@ class BinnedEventArray(BaseEventArray):
         """(np.array) The binned support of the BinnedEventArray (in
         bin IDs) of shape (n_intervals, 2).
         """
-        return self._binnedSupport
+        logging.warning("binnedSupport is deprecated. Use bined_support instead.")
+        return self._binned_support
+
+    @property
+    def binned_support(self):
+        """(np.array) The binned support of the BinnedEventArray (in
+        bin IDs) of shape (n_intervals, 2).
+        """
+        return self._binned_support
 
     @property
     def lengths(self):
         """Lengths of contiguous segments, in number of bins."""
         if self.isempty:
             return 0
-        return np.atleast_1d((self.binnedSupport[:,1] - self.binnedSupport[:,0] + 1).squeeze())
+        return np.atleast_1d((self.binned_support[:,1] - self.binned_support[:,0] + 1).squeeze())
 
     @property
     def eventarray(self):
@@ -1695,7 +1703,7 @@ class BinnedEventArray(BaseEventArray):
         le = le[:, np.newaxis]
         re = np.array(right_edges)
         re = re[:, np.newaxis]
-        self._binnedSupport = np.hstack((le, re))
+        self._binned_support = np.hstack((le, re))
         support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
         support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
         supportdata = np.vstack([support_starts, support_stops]).T
@@ -1895,13 +1903,13 @@ class BinnedEventArray(BaseEventArray):
             newbst._bins = newbins
             newbst._bin_centers = newcenters
             newbst._ds = bst.ds*w
-            newbst._binnedSupport = np.array((newedges[:-1], newedges[1:]-1)).T
+            newbst._binned_support = np.array((newedges[:-1], newedges[1:]-1)).T
         else:
             logging.warning("No events are long enough to contain any bins of width {}".format(utils.PrettyDuration(ds)))
             newbst._data = None
             newbst._abscissa = abscissa
             newbst._abscissa.support = None
-            newbst._binnedSupport = None
+            newbst._binned_support = None
             newbst._bin_centers = None
             newbst._bins = None
 
@@ -1929,7 +1937,7 @@ class BinnedEventArray(BaseEventArray):
         ds = self.ds
         bin_centers_ = []
         bins_ = []
-        binnedSupport_ = []
+        binned_support_ = []
         support_ = []
         all_abscissa_vals = []
 
@@ -1941,24 +1949,24 @@ class BinnedEventArray(BaseEventArray):
             bin_centers = self.bin_centers[idx_array]
             bins = np.append(bin_centers - ds/2, bin_centers[-1] + ds/2)
 
-            binnedSupport = [n_preceding_bins, n_preceding_bins + len(bins)-2]
+            binned_support = [n_preceding_bins, n_preceding_bins + len(bins)-2]
             n_preceding_bins += len(bins)-1
             support = type(self._abscissa.support)((bins[0], bins[-1]))
 
             bin_centers_.append(bin_centers)
             bins_.append(bins)
-            binnedSupport_.append(binnedSupport)
+            binned_support_.append(binned_support)
             support_.append(support)
 
         bin_centers = np.concatenate(bin_centers_)
         bins = np.concatenate(bins_)
-        binnedSupport = np.array(binnedSupport_)
+        binned_support = np.array(binned_support_)
         support = np.sum(support_)
         all_abscissa_vals = np.concatenate(all_abscissa_vals)
 
         newbst._bin_centers = bin_centers
         newbst._bins = bins
-        newbst._binnedSupport = binnedSupport
+        newbst._binned_support = binned_support
         newbst._abscissa.support = support
         newbst._data = newbst.data[:,all_abscissa_vals]
 
@@ -2017,7 +2025,11 @@ class BinnedEventArray(BaseEventArray):
 
         binnedeventarray._data = np.array(self.data.sum(axis=0), ndmin=2)
 
+        binnedeventarray._bins = self.bins
+        binnedeventarray._abscissa.support = self.support
         binnedeventarray._bin_centers = self.bin_centers
+        binnedeventarray._binned_support = self.binned_support
+
         binnedeventarray._series_ids = [series_id]
         binnedeventarray._series_labels = [series_label]
         binnedeventarray._series_tags = None
@@ -2137,10 +2149,10 @@ class SpikeTrainArray(EventArray):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
 
-        label = kwargs.pop('label', None)
-        if label is None:
-            label = 'units'
-        kwargs['label'] = label
+        series_label = kwargs.pop('series_label', None)
+        if series_label is None:
+            series_label = 'units'
+        kwargs['series_label'] = series_label
 
         # legacy STA constructor support for backward compatibility
         kwargs = legacySTAkwargs(**kwargs)

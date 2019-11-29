@@ -54,7 +54,7 @@ class TestBinnedEventArray:
         assert np.all(bea._bins == copied_bea._bins)
         assert np.all(bea._data == copied_bea._data)
         assert np.all(bea._bin_centers == copied_bea._bin_centers)
-        assert np.all(bea._binnedSupport == copied_bea._binnedSupport)
+        assert np.all(bea._binned_support == copied_bea._binned_support)
         assert bea._eventarray == bea._eventarray
 
 class TestSpikeTrainArray:
@@ -66,11 +66,13 @@ class TestSpikeTrainArray:
         series_labels = ['pyr']
         series_tags   = ['CA1']
         label         = 'hippocampal units'
+        series_label  = 'Neuron$'
         sta = nel.SpikeTrainArray([0, 1.5, 3], fs=fs,
                                   label=label,
                                   series_ids=series_ids,
                                   series_labels=series_labels,
-                                  series_tags=series_tags)
+                                  series_label=series_label,
+                                  series_tags=series_tags,)
 
         # Verify STA's attributes are same as arguments
         # passed to the constructor
@@ -79,6 +81,7 @@ class TestSpikeTrainArray:
         assert sta.series_tags == series_tags
         assert sta.series_labels == series_labels
         assert sta.label == label
+        assert sta._series_label == series_label
 
         # Verify other attributes
         assert sta.n_series == 1
@@ -207,8 +210,8 @@ class TestBinnedSpikeTrainArray:
 
         # binned support is an int array and should be exact. The others
         # are floats so we use np.allclose
-        assert bst_indexed.binnedSupport.dtype.kind in ('i', 'u')
-        assert np.all(bst_indexed.binnedSupport == expected_binned_support)
+        assert bst_indexed.binned_support.dtype.kind in ('i', 'u')
+        assert np.all(bst_indexed.binned_support == expected_binned_support)
         assert np.allclose(bst_indexed.bins, expected_bins)
         assert np.allclose(bst_indexed.bin_centers, expected_bin_centers)
 
@@ -252,7 +255,7 @@ class TestBinnedSpikeTrainArray:
         bst1 = bst.empty(inplace=False)
         bst.empty(inplace=True)
 
-        assert bst.binnedSupport == None
+        assert bst.binned_support == None
         assert bst.bin_centers == None
         assert bst.bins == None
         assert bst.eventarray.isempty
@@ -262,7 +265,7 @@ class TestBinnedSpikeTrainArray:
 
         # Emptying should be consistent whether we do it
         # in place or not
-        assert bst1.binnedSupport == bst.binnedSupport
+        assert bst1.binned_support == bst.binned_support
         assert bst1.bin_centers == bst.bin_centers
         assert bst1.bins == bst.bins
         assert bst1.eventarray.isempty
