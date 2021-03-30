@@ -27,7 +27,7 @@ setup(
     license='MIT License',
     author='Etienne Ackermann',
     install_requires=['numpy>=1.11.0', # 1.11 introduced axis keyword in np.gradient
-                    'scipy>=0.17.0', # 0.17.0 introduced functionality we use for interp1d
+                    'scipy>=0.18.0', # 0.17.0 introduced functionality we use for interp1d, 0.18.0 introduced next_fast_len()
                     'matplotlib>=1.5.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
                     'dill', # so that we can pickle lambda functions
                     #'pykalman', # for smoothing trajectories

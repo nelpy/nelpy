@@ -35,6 +35,11 @@ from . import filtering
 
 from .utils_.decorators import keyword_deprecation
 
+try:
+    from scipy.fft import next_fast_len # scipy 1.*
+except:
+    from scipy.fftpack import next_fast_len # scipy 0.*
+
 # def sub2ind(array_shape, rows, cols):
 #     ind = rows*array_shape[1] + cols
 #     ind[ind < 0] = -1
@@ -1329,7 +1334,7 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
             input_data = data_array
         n_signals, n_samples = input_data.shape
         # Compute number of samples to compute fast FFTs
-        padlen = nextfastpower(n_samples) - n_samples
+        padlen = next_fast_len(n_samples) - n_samples
         # Pad data
         paddeddata = np.hstack( (input_data, np.zeros((n_signals, padlen))) )
         # Use hilbert transform to get an envelope
