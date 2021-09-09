@@ -1364,7 +1364,7 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
             segment_data = data._data[:,cum_lengths[idx]:cum_lengths[idx+1]]
             n_signals, n_samples = segment_data.shape
             # Compute number of samples to compute fast FFTs:
-            padlen = nextfastpower(n_samples) - n_samples
+            padlen = next_fast_len(n_samples) - n_samples
             # Pad data
             paddeddata = np.hstack( (segment_data, np.zeros((n_signals, padlen))) )
             # Use hilbert transform to get an envelope
