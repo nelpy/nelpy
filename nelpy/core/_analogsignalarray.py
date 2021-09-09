@@ -550,7 +550,7 @@ class RegularlySampledAnalogSignalArray:
             out = self
         else:
             out = self.copy()
-        std = out.std()
+        std = np.atleast_1d(out.std())
         std[std==0] = 1
         out._data = (out._data.T / std).T
         return out
@@ -562,7 +562,7 @@ class RegularlySampledAnalogSignalArray:
         else:
             out = self.copy()
         out._data = (out._data.T - out.mean()).T
-        std = out.std()
+        std = np.atleast_1d(out.std())
         std[std==0] = 1
         out._data = (out._data.T / std).T
         return out
