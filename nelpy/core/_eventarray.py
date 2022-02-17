@@ -502,7 +502,7 @@ class EventArray(BaseEventArray):
                     # standardize input so that a list of lists is converted
                     # to an array of arrays:
                     data = np.array(
-                        [np.array(st, ndmin=1, copy=False) for st in data])
+                        [np.array(st, ndmin=1, copy=False) for st in data], dtype=object)
                 else:
                     data = np.array(data, ndmin=2)
             return data
