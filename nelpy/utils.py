@@ -1416,7 +1416,7 @@ def nextfastpower(n):
     # Compute all possible combinations for powers of 3 and 5.
     # (Not too many for reasonable FFT sizes.)
     def power_series (x, base):
-        nmax = ceil (log (x) / log (base))
+        nmax = int(ceil (log (x) / log (base)))
         return np.logspace (0.0, nmax, num=nmax+1, base=base)
     n35 = np.outer (power_series (n, 3.0), power_series (n, 5.0))
     n35 = n35[n35<=n]
