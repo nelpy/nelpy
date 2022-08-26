@@ -116,7 +116,7 @@ def _plot_ratemap(ratemap, ax=None, normalize=False, pad=None, unit_labels=None,
 
     return ax
 
-def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None):
+def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None,alpha=0.3):
     """
     WARNING! This function is not complete, and hence 'private',
     and may be moved somewhere else later on.
@@ -163,7 +163,7 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
         if fill:
             # Get the color from the current curve
             fillcolor = line[0].get_color()
-            ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=0.3, color=fillcolor, zorder=int(10+2*n_units-2*unit-1))
+            ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=alpha, color=fillcolor, zorder=int(10+2*n_units-2*unit-1))
 
     ax.set_xlim(xmin, xmax)
     if pad != 0:
