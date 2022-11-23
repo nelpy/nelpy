@@ -6,7 +6,10 @@ import numpy as np
 # import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from mpl_toolkits.axes_grid.inset_locator import inset_axes
+try:
+    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+except:
+    from mpl_toolkits.axes_grid.inset_locator import inset_axes
 import itertools
 
 from . import palettes
