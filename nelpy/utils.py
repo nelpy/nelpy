@@ -1479,7 +1479,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, m
     else:
         out = obj
 
-    if isinstance(out, core.RegularlySampledAnalogSignalArray):
+    if isinstance(out, core.RegularlySampledAnalogSignalArray) or isinstance(out, core._analogsignalarray.PositionArray):
         if fs is None:
             fs = out.fs
         if fs is None:
@@ -1503,7 +1503,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, m
         # (4) Z = smooth(V)/smooth(W)
         # (5) only keep original support, and original abscissa_vals
 
-        if isinstance(out, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+        if isinstance(out, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray, core._analogsignalarray.PositionArray)):
             support = out._abscissa.support.merge()
             if not support.domain.is_finite:
                 support.domain = (support.start, support.stop) #TODO: #FIXME might come from abscissa definition, and not from support
@@ -1513,7 +1513,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, m
                 missing_vals = frange(interval.start, interval.stop, 1/fs)
                 missing_abscissa_vals.extend(missing_vals)
 
-            if isinstance(out, core.RegularlySampledAnalogSignalArray):
+            if isinstance(out, (core.RegularlySampledAnalogSignalArray,core._analogsignalarray.PositionArray)):
                 n_signals = out.n_signals
                 n_samples = out.n_samples
             elif isinstance(out, core.BinnedEventArray):
