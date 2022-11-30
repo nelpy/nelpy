@@ -1486,7 +1486,10 @@ class RegularlySampledAnalogSignalArray:
         try:
             medians = np.nanmedian(self.data, axis=axis).squeeze()
             if medians.size == 1:
-                return np.asscalar(medians)
+                try:
+                    return np.asscalar(medians)
+                except:
+                    return np.ndarray.item(medians)
             return medians
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate median")
@@ -1496,7 +1499,10 @@ class RegularlySampledAnalogSignalArray:
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
-                return np.asscalar(means)
+                try:
+                    return np.asscalar(means)
+                except:
+                    return np.ndarray.item(means)
             return means
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate mean")
@@ -1506,7 +1512,10 @@ class RegularlySampledAnalogSignalArray:
         try:
             stds = np.nanstd(self.data,axis=axis).squeeze()
             if stds.size == 1:
-                return np.asscalar(stds)
+                try:
+                    return np.asscalar(stds)
+                except:
+                    return np.ndarray.item(stds)
             return stds
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate standard deviation")
@@ -1516,7 +1525,10 @@ class RegularlySampledAnalogSignalArray:
         try:
             maxes = np.amax(self.data,axis=axis).squeeze()
             if maxes.size == 1:
-                return np.asscalar(maxes)
+                try:
+                    return np.asscalar(maxes)
+                except:
+                    return np.ndarray.item(maxes)
             return maxes
         except ValueError:
             raise ValueError("Empty RegularlySampledAnalogSignalArray cannot calculate maximum")
