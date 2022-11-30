@@ -1526,7 +1526,10 @@ class RegularlySampledAnalogSignalArray:
         try:
             mins = np.amin(self.data,axis=axis).squeeze()
             if mins.size == 1:
-                return np.asscalar(mins)
+                try:
+                    return np.asscalar(mins)
+                except:
+                    return np.ndarray.item(mins)
             return mins
         except ValueError:
             raise ValueError("Empty RegularlySampledAnalogSignalArray cannot calculate minimum")
