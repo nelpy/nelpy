@@ -1486,7 +1486,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             medians = np.nanmedian(self.data, axis=axis).squeeze()
             if medians.size == 1:
-                return np.asscalar(medians)
+                return np.ndarray.item(medians)
             return medians
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate median")
@@ -1496,7 +1496,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
-                return np.asscalar(means)
+                return np.ndarray.item(means)
             return means
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate mean")
@@ -1506,7 +1506,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             stds = np.nanstd(self.data,axis=axis).squeeze()
             if stds.size == 1:
-                return np.asscalar(stds)
+                return np.ndarray.item(stds)
             return stds
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate standard deviation")
@@ -1516,7 +1516,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             maxes = np.amax(self.data,axis=axis).squeeze()
             if maxes.size == 1:
-                return np.asscalar(maxes)
+                return np.ndarray.item(maxes)
             return maxes
         except ValueError:
             raise ValueError("Empty RegularlySampledAnalogSignalArray cannot calculate maximum")
@@ -1526,7 +1526,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             mins = np.amin(self.data,axis=axis).squeeze()
             if mins.size == 1:
-                return np.asscalar(mins)
+                return np.ndarray.item(mins)
             return mins
         except ValueError:
             raise ValueError("Empty RegularlySampledAnalogSignalArray cannot calculate minimum")
