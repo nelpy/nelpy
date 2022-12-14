@@ -354,6 +354,50 @@ class TuningCurve2D:
 
         return self
 
+    def max(self,*,axis=None):
+        """Returns the mean of firing rate (in Hz).
+        Parameters
+        ----------
+        axis : int, optional
+            When axis is None, the global mean firing rate is returned.
+            When axis is 0, the mean firing rates across units, as a
+            function of the external correlate (e.g. position) are
+            returned.
+            When axis is 1, the mean firing rate for each unit is
+            returned.
+        Returns
+        -------
+        max :
+        """
+        if (axis is None) | (axis == 0):
+            maxes = np.max(self.ratemap,axis=axis)
+        elif axis == 1:
+            maxes = [self.ratemap[unit_i,:,:].max() for unit_i in range(self.ratemap.shape[0])]
+
+        return maxes
+
+    def min(self,*,axis=None):
+        """Returns the mean of firing rate (in Hz).
+        Parameters
+        ----------
+        axis : int, optional
+            When axis is None, the global mean firing rate is returned.
+            When axis is 0, the mean firing rates across units, as a
+            function of the external correlate (e.g. position) are
+            returned.
+            When axis is 1, the mean firing rate for each unit is
+            returned.
+        Returns
+        -------
+        min :
+        """
+
+        if (axis is None) | (axis == 0):
+            mins = np.min(self.ratemap,axis=axis)
+        elif axis == 1:
+            mins = [self.ratemap[unit_i,:,:].min() for unit_i in range(self.ratemap.shape[0])]
+
+        return mins
 
     def _detach(self):
         """Detach bst and extern from tuning curve."""
