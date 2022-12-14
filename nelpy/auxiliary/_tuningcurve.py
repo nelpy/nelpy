@@ -141,7 +141,9 @@ class TuningCurve2D:
 
         if transform_func is None:
             self.trans_func = self._trans_func
-
+        else:
+            self.trans_func = transform_func
+            
         # compute occupancy
         self._occupancy = self._compute_occupancy()
         # compute ratemap (in Hz)
