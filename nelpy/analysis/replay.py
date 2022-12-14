@@ -18,7 +18,7 @@ import numpy as np
 from scipy.ndimage import convolve
 from scipy import stats
 
-from .. import hmmutils
+# from .. import hmmutils
 from ..core import SpikeTrainArray
 from .. import auxiliary
 from ..decoding import decode1D as decode
