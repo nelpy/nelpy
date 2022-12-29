@@ -1222,7 +1222,7 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
     # apply minThresholdLength criterion:
     if minThresholdLength is not None and len(events) > 0:
         durations = (events[:,1] - events[:,0] + 1) * ds
-        events = events[[durations >= minThresholdLength]]
+        events = events[durations >= minThresholdLength]
 
     if len(events) == 0:
         bounds, maxes, events = [], [], []
@@ -1259,16 +1259,16 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
     if minLength is not None and len(events) > 0:
         durations = (bounds[:,1] - bounds[:,0] + 1) * ds
         # TODO: refactor [durations <= maxLength] but be careful about edge cases
-        bounds = bounds[[durations >= minLength]]
-        maxes = maxes[[durations >= minLength]]
-        events = events[[durations >= minLength]]
+        bounds = bounds[durations >= minLength]
+        maxes = maxes[durations >= minLength]
+        events = events[durations >= minLength]
 
     if maxLength is not None and len(events) > 0:
         durations = (bounds[:,1] - bounds[:,0] + 1) * ds
         # TODO: refactor [durations <= maxLength] but be careful about edge cases
-        bounds = bounds[[durations <= maxLength]]
-        maxes = maxes[[durations <= maxLength]]
-        events = events[[durations <= maxLength]]
+        bounds = bounds[durations <= maxLength]
+        maxes = maxes[durations <= maxLength]
+        events = events[durations <= maxLength]
 
     if len(events) == 0:
         bounds, maxes, events = [], [], []
