@@ -440,7 +440,7 @@ class EventArray(BaseEventArray):
 
         def is_singletons(data):
             """Returns True if data is a list of singletons (more than one)."""
-            data = np.array(data)
+            data = np.array(data, dtype=object)
             try:
                 if data.shape[-1] < 2 and np.max(data.shape) > 1:
                     return True
