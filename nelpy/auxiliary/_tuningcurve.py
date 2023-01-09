@@ -359,11 +359,11 @@ class TuningCurve2D:
         Parameters
         ----------
         axis : int, optional
-            When axis is None, the global mean firing rate is returned.
-            When axis is 0, the mean firing rates across units, as a
+            When axis is None, the global max firing rate is returned.
+            When axis is 0, the max firing rates across units, as a
             function of the external correlate (e.g. position) are
             returned.
-            When axis is 1, the mean firing rate for each unit is
+            When axis is 1, the max firing rate for each unit is
             returned.
         Returns
         -------
@@ -377,15 +377,15 @@ class TuningCurve2D:
         return maxes
 
     def min(self,*,axis=None):
-        """Returns the mean of firing rate (in Hz).
+        """Returns the min of firing rate (in Hz).
         Parameters
         ----------
         axis : int, optional
-            When axis is None, the global mean firing rate is returned.
-            When axis is 0, the mean firing rates across units, as a
+            When axis is None, the global min firing rate is returned.
+            When axis is 0, the min firing rates across units, as a
             function of the external correlate (e.g. position) are
             returned.
-            When axis is 1, the mean firing rate for each unit is
+            When axis is 1, the min firing rate for each unit is
             returned.
         Returns
         -------
