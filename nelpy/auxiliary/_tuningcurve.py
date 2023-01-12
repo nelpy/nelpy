@@ -511,6 +511,29 @@ class TuningCurve2D:
 
         return np.atleast_1d(x), np.atleast_1d(y)
 
+    def __getitem__(self, *idx):
+        """TuningCurve2D index access.
+
+        Accepts integers, slices, and lists"""
+
+        idx = [ii for ii in idx]
+        if len(idx) == 1 and not isinstance(idx[0], int):
+            idx = idx[0]
+        if isinstance(idx, tuple):
+            idx = [ii for ii in idx]
+
+        if self.isempty:
+            return self
+        try:
+            out = copy.copy(self)
+            out._ratemap = self.ratemap[idx,:]
+            out._unit_ids = (np.asanyarray(out._unit_ids)[idx]).tolist()
+            out._unit_labels = (np.asanyarray(out._unit_labels)[idx]).tolist()
+            return out
+        except Exception:
+            raise TypeError(
+                'unsupported subsctipting type {}'.format(type(idx)))
+
     def _compute_occupancy(self):
         """
         """
