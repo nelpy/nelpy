@@ -679,6 +679,24 @@ class TuningCurve2D:
     def __len__(self):
         return self.n_units
 
+    def __iter__(self):
+        """TuningCurve2D iterator initialization"""
+        # initialize the internal index to zero when used as iterator
+        self._index = 0
+        return self
+
+    def __next__(self):
+        """TuningCurve2D iterator advancer."""
+        index = self._index
+        if index > self.n_units - 1:
+            raise StopIteration
+        out = copy.copy(self)
+        out._ratemap = self.ratemap[index,:]
+        out._unit_ids = self.unit_ids[index]
+        out._unit_labels = self.unit_labels[index]
+        self._index += 1
+        return out
+
     @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
     def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
