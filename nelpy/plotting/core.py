@@ -126,7 +126,7 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
     if ax is None:
         ax = plt.gca()
 
-    if isinstance(ratemap, auxiliary.TuningCurve1D):
+    if isinstance(ratemap, auxiliary.TuningCurve1D) | isinstance(ratemap, auxiliary._tuningcurve.TuningCurve1D):
         xmin = ratemap.bins[0]
         xmax = ratemap.bins[-1]
         xvals = ratemap.bin_centers
