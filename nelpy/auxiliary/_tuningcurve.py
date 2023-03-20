@@ -728,7 +728,7 @@ class TuningCurve2D:
             out = self
 
         if self.mask is None:
-            if self.n_units > 1:
+            if (self.n_units > 1) | (self.ratemap.shape[0] > 1):
                 out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
             else:
                 out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
@@ -742,7 +742,7 @@ class TuningCurve2D:
             W=0*masked_ratemap.copy()+1
             W[masked_ratemap!=masked_ratemap]=0
 
-            if self.n_units > 1:
+            if (self.n_units > 1) | (self.ratemap.shape[0] > 1):
                 VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(0, sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
                 WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(0, sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
                 Z=VV/WW
@@ -1135,7 +1135,7 @@ class TuningCurve1D:
         """
         means = np.mean(self.ratemap, axis=axis).squeeze()
         if means.size == 1:
-            return np.asscalar(means)
+            return np.asarray(means).item()
         return means
 
     def max(self,*,axis=None):
@@ -1155,7 +1155,7 @@ class TuningCurve1D:
         """
         maxes = np.max(self.ratemap, axis=axis).squeeze()
         if maxes.size == 1:
-            return np.asscalar(maxes)
+            return np.asarray(maxes).item()
         return maxes
 
     def min(self,*,axis=None):
@@ -1175,7 +1175,7 @@ class TuningCurve1D:
         """
         mins = np.min(self.ratemap, axis=axis).squeeze()
         if mins.size == 1:
-            return np.asscalar(mins)
+            return np.asarray(mins).item()        
         return mins
 
     @property
