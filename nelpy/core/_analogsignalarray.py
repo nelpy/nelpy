@@ -206,10 +206,10 @@ def rsasa_init_wrapper(func):
         #check if single AnalogSignal or multiple AnalogSignals in array
         #and standardize data to 2D
         if not np.any(np.iscomplex(data)):
-            data = np.squeeze(data).astype(float)
+            data = np.squeeze(data)
         try:
             if(data.shape[0] == data.size):
-                data = np.array(data,ndmin=2)
+                data = np.expand_dims(data, axis=0)
         except ValueError:
             raise TypeError("Unsupported data type!")
 
@@ -927,12 +927,19 @@ class RegularlySampledAnalogSignalArray:
         for interval in intervalarray.merge().data:
             a_start = interval[0]
             a_stop = interval[1]
-            frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop))
+            frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop + 1e-10))
             indices.append((frm, to))
         indices = np.array(indices, ndmin=2)
         if np.diff(indices).sum() < len(self._abscissa_vals):
             logging.warning(
                 'ignoring signal outside of support')
+        # check if only one interval and interval is already bounds of data
+        # if so, we don't need to do anything
+        if len(indices) == 1:
+            if indices[0,0] == 0 and indices[0,1] == len(self._abscissa_vals):
+                if update:
+                    self._abscissa.support = intervalarray
+                    return
         try:
             data_list = []
             for start, stop in indices:
