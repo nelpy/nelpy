@@ -200,11 +200,15 @@ class TuningCurve2D:
         Returns
         -------
         si : array of shape (n_units,)
-            spatial information (in bits) per unit
+            spatial information (in bits) per spike
         """
 
-        return utils.spatial_information(ratemap=self.ratemap)
+        return utils.spatial_information(ratemap=self.ratemap,Pi=self.occupancy)
 
+    def information_rate(self):
+        """Compute the information rate..."""
+        return utils.information_rate(ratemap=self.ratemap,Pi=self.occupancy)
+    
     def spatial_sparsity(self):
         """Compute the spatial information and firing sparsity...
 
@@ -1018,14 +1022,11 @@ class TuningCurve1D:
             sparsity (in percent) for each unit
         """
 
-        # Pi = self.occupancy / np.sum(self.occupancy)
-        # R = self.ratemap.mean(axis=1) # mean firing rate
-        # Ri = self.ratemap.T
-        # si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
+        return utils.spatial_information(ratemap=self.ratemap, Pi=self.occupancy)
 
-        # sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
-
-        return utils.spatial_information(ratemap=self.ratemap)
+    def information_rate(self):
+        """Compute the information rate..."""
+        return utils.information_rate(ratemap=self.ratemap,Pi=self.occupancy)
 
     def spatial_sparsity(self):
         """Compute the spatial information and firing sparsity...

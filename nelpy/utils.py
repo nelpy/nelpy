@@ -95,7 +95,7 @@ def frange(start, stop, step):
     num_steps = int(np.floor((stop-start)/step))
     return np.linspace(start, stop, num=num_steps, endpoint=False)
 
-def spatial_information(ratemap):
+def spatial_information(ratemap,Pi=1):
         """Compute the spatial information and firing sparsity...
 
         The specificity index examines the amount of information
@@ -135,33 +135,50 @@ def spatial_information(ratemap):
         Returns
         -------
         si : array of shape (n_units,)
-            spatial information (in bits) per unit
+            spatial information (in bits per spike) 
         """
+        # convert Pi to probability distribution
+        Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
+        Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
 
         ratemap = copy.deepcopy(ratemap)
         # ensure that the ratemap always has nonzero firing rates,
         # otherwise the spatial information might return NaNs:
-        bkg_rate = ratemap[ratemap>0].min()
-        ratemap[ratemap < bkg_rate] = bkg_rate
-
-        number_of_spatial_bins = np.prod(ratemap.shape[1:])
-        weight_per_bin = 1/number_of_spatial_bins
-        Pi = 1
+        ratemap[np.isnan(ratemap) | (ratemap == 0)] = np.finfo(float).eps
 
         if len(ratemap.shape) == 3:
             # we have 2D tuning curve, (n_units, n_x, n_y)
-            R = ratemap.mean(axis=1).mean(axis=1) # mean firing rate
+            R = (ratemap * Pi).sum(axis=1).sum(axis=1)
             Ri = np.transpose(ratemap, (2,1,0))
             si = np.sum(np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1), axis=1)
         elif len(ratemap.shape) == 2:
             # we have 1D tuning curve, (n_units, n_x)
-            R = ratemap.mean(axis=1) # mean firing rate
+            R = (ratemap * Pi).sum(axis=1) # mean firing rate
             Ri = ratemap.T
             si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
         else:
             raise TypeError("rate map shape not supported / understood!")
 
-        return si/number_of_spatial_bins
+        return si
+
+def information_rate(ratemap,Pi=1):
+    """
+    This computes the spatial information rate of cell spikes given variable x in
+    bits/second.
+    """
+    # convert Pi to probability distribution
+    Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
+    Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
+
+    if len(ratemap.shape) == 3:
+        # we have 2D tuning curve, (n_units, n_x, n_y)
+        R = (ratemap * Pi).sum(axis=1).sum(axis=1)
+    elif len(ratemap.shape) == 2:
+        R = (ratemap * Pi).sum(axis=1)
+    else:
+        raise TypeError("rate map shape not supported / understood!")
+    return spatial_information(ratemap,Pi) * R
+
 
 def spatial_sparsity(ratemap):
         """Compute the firing sparsity...
