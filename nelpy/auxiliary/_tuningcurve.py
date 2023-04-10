@@ -252,7 +252,7 @@ class TuningCurve2D:
         sparsity: array of shape (n_units,)
             sparsity (in percent) for each unit
         """
-        return utils.spatial_sparsity(ratemap=self.ratemap)
+        return utils.spatial_sparsity(ratemap=self.ratemap,Pi=self.occupancy)
 
     def _initialize_mask_from_extern(self, extern):
         """Attached a mask from extern.
@@ -979,7 +979,7 @@ class TuningCurve1D:
         return False
 
     def spatial_information(self):
-        """Compute the spatial information and firing sparsity...
+        """Compute the spatial information...
 
         The specificity index examines the amount of information
         (in bits) that a single spike conveys about the animal's
@@ -1029,37 +1029,7 @@ class TuningCurve1D:
         return utils.information_rate(ratemap=self.ratemap,Pi=self.occupancy)
 
     def spatial_sparsity(self):
-        """Compute the spatial information and firing sparsity...
-
-        The specificity index examines the amount of information
-        (in bits) that a single spike conveys about the animal's
-        location (i.e., how well cell firing redicts the animals
-        location).The spatial information content of cell discharge was
-        calculated using the formula:
-            information content = \Sum P_i(R_i/R)log_2(R_i/R)
-        where i is the bin number, P, is the probability for occupancy
-        of bin i, R, is the mean firing rate for bin i, and R is the
-        overall mean firing rate.
-
-        In order to account for the effects of low firing rates (with
-        fewer spikes there is a tendency toward higher information
-        content) or random bursts of firing, the spike firing
-        time-series was randomly offset in time from the rat location
-        time-series, and the information content was calculated. A
-        distribution of the information content based on 100 such random
-        shifts was obtained and was used to compute a standardized score
-        (Zscore) of information content for that cell. While the
-        distribution is not composed of independent samples, it was
-        nominally normally distributed, and a Z value of 2.29 was chosen
-        as a cut-off for significance (the equivalent of a one-tailed
-        t-test with P = 0.01 under a normal distribution).
-
-        Reference(s)
-        ------------
-        Markus, E. J., Barnes, C. A., McNaughton, B. L., Gladden, V. L.,
-            and Skaggs, W. E. (1994). "Spatial information content and
-            reliability of hippocampal CA1 neurons: effects of visual
-            input", Hippocampus, 4(4), 410-421.
+        """Compute the firing sparsity...
 
         Parameters
         ----------
@@ -1071,7 +1041,7 @@ class TuningCurve1D:
         sparsity: array of shape (n_units,)
             sparsity (in percent) for each unit
         """
-        return utils.spatial_sparsity(ratemap=self.ratemap)
+        return utils.spatial_sparsity(ratemap=self.ratemap,Pi=self.occupancy)
 
     def _init_from_ratemap(self, ratemap, occupancy=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None):
         """Initialize a TuningCurve1D object from a ratemap.

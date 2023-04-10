@@ -180,71 +180,63 @@ def information_rate(ratemap,Pi=1):
     return spatial_information(ratemap,Pi) * R
 
 
-def spatial_sparsity(ratemap):
+def spatial_sparsity(ratemap,Pi=1):
         """Compute the firing sparsity...
-
-        The specificity index examines the amount of information
-        (in bits) that a single spike conveys about the animal's
-        location (i.e., how well cell firing predicts the animal's
-        location).The spatial information content of cell discharge was
-        calculated using the formula:
-            information content = \Sum P_i(R_i/R)log_2(R_i/R)
-        where i is the bin number, P_i, is the probability for occupancy
-        of bin i, R_i, is the mean firing rate for bin i, and R is the
-        overall mean firing rate.
-
-        In order to account for the effects of low firing rates (with
-        fewer spikes there is a tendency toward higher information
-        content) or random bursts of firing, the spike firing
-        time-series was randomly offset in time from the rat location
-        time-series, and the information content was calculated. A
-        distribution of the information content based on 100 such random
-        shifts was obtained and was used to compute a standardized score
-        (Zscore) of information content for that cell. While the
-        distribution is not composed of independent samples, it was
-        nominally normally distributed, and a Z value of 2.29 was chosen
-        as a cut-off for significance (the equivalent of a one-tailed
-        t-test with P = 0.01 under a normal distribution).
-
-        Reference(s)
-        ------------
-        Markus, E. J., Barnes, C. A., McNaughton, B. L., Gladden, V. L.,
-            and Skaggs, W. E. (1994). "Spatial information content and
-            reliability of hippocampal CA1 neurons: effects of visual
-            input", Hippocampus, 4(4), 410-421.
+        Compute sparsity of a rate map, The sparsity  measure is an adaptation
+        to space. The adaptation measures the fraction of the environment  in which
+        a cell is  active. A sparsity of, 0.1 means that the place field of the
+        cell occupies 1/10 of the area the subject traverses
 
         Parameters
         ----------
-        occupancy : array of shape (n_bins,)
-            Occupancy of the animal.
-        ratemap : array of shape (n_units, n_bins)
-            Rate map in Hz.
+        rate_map : numpy.ndarray
+            A firing rate map, any number of dimensions.
+
         Returns
         -------
-        si : array of shape (n_units,)
-            spatial information (in bits) per unit
+        out : float
+            sparsity
+
+        References
+        ----------
+        .. [2] Skaggs, W. E., McNaughton, B. L., Wilson, M., & Barnes, C. (1996).
+        Theta phase precession in hippocampal neuronal populations and the
+        compression of temporal sequences. Hippocampus, 6, 149-172.
+
+        Parameters
+        ----------
+
+        ratemap : array of shape (n_units, n_bins)
+            Rate map in Hz.
+        Pi : array of shape (n_bins,)
+            Occupancy of the animal.
+        Returns
+        -------
         sparsity: array of shape (n_units,)
             sparsity (in percent) for each unit
         """
 
-        number_of_spatial_bins = np.prod(ratemap.shape[1:])
-        weight_per_bin = 1/number_of_spatial_bins
-        Pi = 1
+        Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
+        Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
+
+        ratemap = copy.deepcopy(ratemap)
+        # ensure that the ratemap always has nonzero firing rates,
+        # otherwise the spatial information might return NaNs:
+        ratemap[np.isnan(ratemap) | (ratemap == 0)] = np.finfo(float).eps
 
         if len(ratemap.shape) == 3:
             # we have 2D tuning curve, (n_units, n_x, n_y)
-            R = ratemap.mean(axis=1).mean(axis=1) # mean firing rate
-            Ri = ratemap
-            sparsity = np.sum(np.sum((Ri*Pi), axis=1), axis=1)/(R**2)
+            R = (ratemap * Pi).sum(axis=1).sum(axis=1)
+            avg_sqr_rate = np.sum(ratemap**2 * Pi, axis=1).sum(axis=1)
+
         elif len(ratemap.shape) == 2:
-            # we have 1D tuning curve, (n_units, n_x)
-            R = ratemap.mean(axis=1) # mean firing rate
-            Ri = ratemap.T
-            sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
+            R = (ratemap * Pi).sum(axis=1)
+            avg_sqr_rate = np.sum(ratemap**2 * Pi, axis=1)
         else:
             raise TypeError("rate map shape not supported / understood!")
 
-        return sparsity/number_of_spatial_bins
+        return R**2 / avg_sqr_rate
+
 
 def _bst_get_bins_inside_interval(interval, ds, w=1):
     """(np.array) Return bin edges entirely contained inside an interval.
