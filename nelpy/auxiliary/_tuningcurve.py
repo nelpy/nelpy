@@ -208,7 +208,11 @@ class TuningCurve2D:
     def information_rate(self):
         """Compute the information rate..."""
         return utils.information_rate(ratemap=self.ratemap,Pi=self.occupancy)
-    
+
+    def spatial_selectivity(self):
+        """Compute the spatial selectivity..."""
+        return utils.spatial_selectivity(ratemap=self.ratemap,Pi=self.occupancy)
+        
     def spatial_sparsity(self):
         """Compute the spatial information and firing sparsity...
 
@@ -1027,6 +1031,10 @@ class TuningCurve1D:
     def information_rate(self):
         """Compute the information rate..."""
         return utils.information_rate(ratemap=self.ratemap,Pi=self.occupancy)
+
+    def spatial_selectivity(self):
+        """Compute the spatial selectivity..."""
+        return utils.spatial_selectivity(ratemap=self.ratemap,Pi=self.occupancy)
 
     def spatial_sparsity(self):
         """Compute the firing sparsity...

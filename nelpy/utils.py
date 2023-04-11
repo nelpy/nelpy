@@ -132,6 +132,10 @@ def spatial_information(ratemap,Pi=1):
         ----------
         ratemap : array of shape (n_units, n_bins)
             Rate map in Hz.
+
+        Pi : numpy.ndarray
+            A probability distribution over the bins of the rate map. If not
+            provided, it is assumed to be uniform.
         Returns
         -------
         si : array of shape (n_units,)
@@ -165,6 +169,20 @@ def information_rate(ratemap,Pi=1):
     """
     This computes the spatial information rate of cell spikes given variable x in
     bits/second.
+
+    Parameters
+    ----------
+    ratemap : numpy.ndarray
+        A firing rate map, any number of dimensions.
+    Pi : numpy.ndarray
+        A probability distribution over the bins of the rate map. If not
+        provided, it is assumed to be uniform.
+
+    Returns
+    -------
+    ir : numpy.ndarray
+        The information rate of the cell, in bits/second.
+
     """
     # convert Pi to probability distribution
     Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
@@ -179,6 +197,40 @@ def information_rate(ratemap,Pi=1):
         raise TypeError("rate map shape not supported / understood!")
     return spatial_information(ratemap,Pi) * R
 
+def spatial_selectivity(ratemap,Pi=1):
+    '''
+    The selectivity measure max(rate)/mean(rate)  of the cell. The more
+    tightly concentrated the cell's activity, the higher the selectivity.
+    A cell with no spatial tuning at all will have a selectivity of 1.
+
+    Parameters
+    ----------
+    rate_map : numpy.ndarray
+        A firing rate map, any number of dimensions.
+    Pi : numpy.ndarray
+        A probability distribution of the occupancy of each bin in the
+        rate map. If not provided, the occupancy will be assumed to be uniform.
+
+    Returns
+    -------
+    out : float
+        selectivity
+    '''
+    # convert Pi to probability distribution
+    Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
+    Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
+
+    if len(ratemap.shape) == 3:
+        # we have 2D tuning curve, (n_units, n_x, n_y)
+        R = (ratemap * Pi).sum(axis=1).sum(axis=1)
+        max_rate = np.max(ratemap, axis=1).max(axis=1)
+    elif len(ratemap.shape) == 2:
+        R = (ratemap * Pi).sum(axis=1)
+        max_rate = np.max(ratemap, axis=1)
+    else:
+        raise TypeError("rate map shape not supported / understood!")
+    return max_rate / R
+
 
 def spatial_sparsity(ratemap,Pi=1):
         """Compute the firing sparsity...
@@ -191,7 +243,9 @@ def spatial_sparsity(ratemap,Pi=1):
         ----------
         rate_map : numpy.ndarray
             A firing rate map, any number of dimensions.
-
+        Pi : numpy.ndarray
+            A probability distribution over the bins of the rate map. If not
+            provided, it is assumed to be uniform.
         Returns
         -------
         out : float
