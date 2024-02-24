@@ -267,7 +267,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
     # first, we determine the number of bins we will decode. This requires us to scan over the epochs
     n_bins = 0
     cumlengths = np.cumsum(bst.lengths)
-    posterior_lengths = np.zeros(bst.n_epochs, dtype=np.int)
+    posterior_lengths = np.zeros(bst.n_epochs, dtype=int)
     prev_idx = 0
     for ii, to_idx in enumerate(cumlengths):
         datalen = to_idx - prev_idx
