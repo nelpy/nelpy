@@ -205,8 +205,9 @@ def rsasa_init_wrapper(func):
 
         #check if single AnalogSignal or multiple AnalogSignals in array
         #and standardize data to 2D
-        if not np.any(np.iscomplex(data)):
-            data = np.squeeze(data)
+        if not isinstance(data, np.memmap): # memmap is a special case
+            if not np.any(np.iscomplex(data)):
+                data = np.squeeze(data)
         try:
             if(data.shape[0] == data.size):
                 data = np.expand_dims(data, axis=0)
