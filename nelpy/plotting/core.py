@@ -978,7 +978,39 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
 
 def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
                       alpha=0.5, hatch='', label=None, hc=None,**kwargs):
-    """Docstring goes here.
+    """
+    Plot epochs as vertical bars on a plot.
+
+    Parameters
+    ----------
+    epochs : nelpy.EpochArray
+        EpochArray object to plot
+    data : array-like, optional
+        Data to plot on y axis; must be of size (epocharray.n_epochs,).
+    ax : axis object, optional
+        Plot in given axis; if None creates a new figure
+    height : float, optional
+        Height of the bars; default is 1.0
+    fc : matplotlib color, optional
+        Face color; default is '0.5'
+    ec : matplotlib color, optional
+        Edge color; default is '0.5'
+    alpha : float, optional
+        Transparency; default is 0.5
+    hatch : str, optional
+        Hatch pattern; default is ''
+    label : str, optional
+        Label for the plot
+    hc : matplotlib color, optional
+        Hatch color; default is None
+    kwargs :
+        Other keyword arguments are passed to main axvspan() call
+
+    Returns
+    -------
+    ax : matplotlib axis
+        Axis object with plot data.
+        
     """
     if ax is None:
         ax = plt.gca()
