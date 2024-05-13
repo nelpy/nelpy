@@ -1222,7 +1222,8 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
     # apply minThresholdLength criterion:
     if minThresholdLength is not None and len(events) > 0:
         durations = (events[:,1] - events[:,0] + 1) * ds
-        events = events[[durations >= minThresholdLength]]
+        # events = events[[durations >= minThresholdLength]]
+        events = events[durations >= minThresholdLength]
 
     if len(events) == 0:
         bounds, maxes, events = [], [], []
