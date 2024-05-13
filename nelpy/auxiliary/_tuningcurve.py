@@ -1001,7 +1001,7 @@ class TuningCurve1D:
         """
         means = np.mean(self.ratemap, axis=axis).squeeze()
         if means.size == 1:
-            return np.asscalar(means)
+            return means.item()
         return means
 
     def max(self,*,axis=None):
@@ -1021,7 +1021,7 @@ class TuningCurve1D:
         """
         maxes = np.max(self.ratemap, axis=axis).squeeze()
         if maxes.size == 1:
-            return np.asscalar(maxes)
+            return maxes.item()
         return maxes
 
     def min(self,*,axis=None):
@@ -1041,7 +1041,7 @@ class TuningCurve1D:
         """
         mins = np.min(self.ratemap, axis=axis).squeeze()
         if mins.size == 1:
-            return np.asscalar(mins)
+            return mins.item()
         return mins
 
     @property

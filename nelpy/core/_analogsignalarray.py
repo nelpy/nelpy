@@ -172,11 +172,11 @@ def rsasa_init_wrapper(func):
         if len(args) > 2:
             raise TypeError("__init__() takes 1 positional arguments but {} positional arguments (and {} keyword-only arguments) were given".format(len(args)-1, len(kwargs.items())))
 
-        data = kwargs.get('data', [])
-        if data == []:
+        data = kwargs.get('data', None)
+        if data is None:
             data = args[1]
 
-        if data == []:
+        if np.prod(np.array(data).shape) == 0: #data == []:
             logging.warning('No ordinate data! Returning empty RegularlySampledAnalogSignalArray.')
             func(*args, **kwargs)
             return
@@ -1486,7 +1486,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             medians = np.nanmedian(self.data, axis=axis).squeeze()
             if medians.size == 1:
-                return np.asscalar(medians)
+                return medians.item()
             return medians
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate median")
@@ -1496,7 +1496,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
-                return np.asscalar(means)
+                return means.item()
             return means
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate mean")
@@ -1506,7 +1506,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             stds = np.nanstd(self.data,axis=axis).squeeze()
             if stds.size == 1:
-                return np.asscalar(stds)
+                return stds.item()
             return stds
         except IndexError:
             raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate standard deviation")
@@ -1516,7 +1516,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             maxes = np.amax(self.data,axis=axis).squeeze()
             if maxes.size == 1:
-                return np.asscalar(maxes)
+                return maxes.item()
             return maxes
         except ValueError:
             raise ValueError("Empty RegularlySampledAnalogSignalArray cannot calculate maximum")
@@ -1526,7 +1526,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             mins = np.amin(self.data,axis=axis).squeeze()
             if mins.size == 1:
-                return np.asscalar(mins)
+                return mins.item()
             return mins
         except ValueError:
             raise ValueError("Empty RegularlySampledAnalogSignalArray cannot calculate minimum")
