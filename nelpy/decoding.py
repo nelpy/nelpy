@@ -554,10 +554,11 @@ class Cumhist(np.ndarray):
                                  y=self._bincenters,
                                  kind='linear',
                                  fill_value=np.NaN)
-        try:
-            vals = np.asscalar(f(*val))
-        except ValueError:
-            vals = f(*val)
+        vals = f(*val)
+        # try:
+        #     vals = np.asscalar(f(*val))
+        # except ValueError:
+        #     vals = f(*val)
 
         return vals
 
