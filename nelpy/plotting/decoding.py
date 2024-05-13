@@ -6,7 +6,7 @@ import numpy as np
 # import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from mpl_toolkits.axes_grid.inset_locator import inset_axes
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import itertools
 
 from . import palettes
@@ -250,3 +250,4 @@ def plot_cum_error_dist(*, cumhist=None, bincenters=None,
         return ax, inset_ax
 
     return ax
+
