@@ -440,7 +440,7 @@ class EventArray(BaseEventArray):
 
         def is_singletons(data):
             """Returns True if data is a list of singletons (more than one)."""
-            data = np.array(data)
+            data = np.array(data, dtype='object')
             try:
                 if data.shape[-1] < 2 and np.max(data.shape) > 1:
                     return True
@@ -493,8 +493,12 @@ class EventArray(BaseEventArray):
                     m = np.min(data.shape)
                 data = np.reshape(data, (n,m))
             else:
-                data = np.squeeze(data)
-                if data.dtype == np.dtype('O'):
+                if type(data) == np.ndarray:
+                    data = np.squeeze(data)
+                else:
+                    data = np.array(data, dtype='object')
+
+                if data.dtype == np.dtype('object'):
                     jagged = True
                 else:
                     jagged = False
@@ -502,8 +506,8 @@ class EventArray(BaseEventArray):
                     # standardize input so that a list of lists is converted
                     # to an array of arrays:
                     data = np.array(
-                        [np.array(st, ndmin=1, copy=False) for st in data])
-                else:
+                        [np.array(st, ndmin=1, copy=False) for st in data], dtype='object')
+                else: # This is basically the single spike train case
                     data = np.array(data, ndmin=2)
             return data
 
@@ -707,7 +711,7 @@ class EventArray(BaseEventArray):
                 self._data = np.array(self._data[0], ndmin=2)
             self._series_ids = list(np.atleast_1d(np.atleast_1d(self._series_ids)[idx]))
             self._series_labels = list(np.atleast_1d(np.atleast_1d(self._series_labels)[idx]))
-        except AttributeError:
+        except AttributeError: # TODO - Why is this here? It seems to exactly repeat the tried code
             self._data = self._data[idx]
             singleseries = (len(self._data) == 1)
             if singleseries:
@@ -1210,7 +1214,7 @@ class BinnedEventArray(BaseEventArray):
         try:
             medians = np.nanmedian(self.data, axis=axis).squeeze()
             if medians.size == 1:
-                return np.asscalar(medians)
+                return medians.item()
             return medians
         except IndexError:
             raise IndexError("Empty BinnedEventArray; cannot calculate median.")
@@ -1220,7 +1224,7 @@ class BinnedEventArray(BaseEventArray):
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
-                return np.asscalar(means)
+                return means.item()
             return means
         except IndexError:
             raise IndexError("Empty BinnedEventArray; cannot calculate mean.")
@@ -1230,7 +1234,7 @@ class BinnedEventArray(BaseEventArray):
         try:
             stds = np.nanstd(self.data,axis=axis).squeeze()
             if stds.size == 1:
-                return np.asscalar(stds)
+                return stds.item()
             return stds
         except IndexError:
             raise IndexError("Empty BinnedEventArray; cannot calculate standard deviation")
