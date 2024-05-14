@@ -257,7 +257,7 @@ def get_extension_from_filename(name):
     """
     name = name.strip()
     ext = ((name.split('\\')[-1]).split('/')[-1]).split('.')
-    if len(ext) > 1 and ext[-1] is not '':
+    if len(ext) > 1 and ext[-1] != '':
         nameOnly = '.'.join(name.split('.')[:-1])
         ext = ext[-1]
     else:
