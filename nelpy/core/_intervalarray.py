@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import copy
 import numbers
+from numba import jit
 
 from sys import float_info
 
@@ -619,88 +620,119 @@ class IntervalArray:
         """Drops empty intervals. Not in-place, i.e. returns a copy."""
         keep_interval_ids = np.argwhere(self.lengths).squeeze().tolist()
         return self[keep_interval_ids]
+    
 
     def intersect(self, interval, *, boundaries=True):
         """Returns intersection (overlap) between current IntervalArray (self) and
-           other interval array ('interval').
+        other interval array ('interval').
         """
-
-        this = copy.deepcopy(self)
         new_intervals = []
-        for epa in this:
-            cand_ep_idx = np.argwhere((interval.starts < epa.stop) & (interval.stops > epa.start)).squeeze()
-            if np.size(cand_ep_idx) > 0:
-                for epb in interval[cand_ep_idx.tolist()]:
-                    new_interval = self._intersect(epa, epb, boundaries=boundaries)
-                    if not new_interval.isempty:
-                        new_intervals.append([new_interval.start, new_interval.stop])
+
+        # Extract starts and stops and convert to np.array of float64 (for numba)
+        interval_starts_a = np.array(self.starts, dtype=np.float64)
+        interval_stops_a = np.array(self.stops, dtype=np.float64)
+        interval_starts_b = np.array(interval.starts, dtype=np.float64)
+        interval_stops_b = np.array(interval.stops, dtype=np.float64)
+
+        new_starts, new_stops = interval_intersect(
+            interval_starts_a,
+            interval_stops_a,
+            interval_starts_b,
+            interval_stops_b,
+            boundaries,
+        )
+
+        for start, stop in zip(new_starts, new_stops):
+            new_intervals.append([start, stop])
+
+        # convert to np.array of float64
+        new_intervals = np.array(new_intervals, dtype=np.float64)
+
         out = type(self)(new_intervals)
         out._domain = self.domain
         return out
+            
+    # def intersect(self, interval, *, boundaries=True):
+    #     """Returns intersection (overlap) between current IntervalArray (self) and
+    #        other interval array ('interval').
+    #     """
 
-    def _intersect(self, intervala, intervalb, *, boundaries=True, meta=None):
-        """Finds intersection (overlap) between two sets of interval arrays.
+    #     this = copy.deepcopy(self)
+    #     new_intervals = []
+    #     for epa in this:
+    #         cand_ep_idx = np.argwhere((interval.starts < epa.stop) & (interval.stops > epa.start)).squeeze()
+    #         if np.size(cand_ep_idx) > 0:
+    #             for epb in interval[cand_ep_idx.tolist()]:
+    #                 new_interval = self._intersect(epa, epb, boundaries=boundaries)
+    #                 if not new_interval.isempty:
+    #                     new_intervals.append([new_interval.start, new_interval.stop])
+    #     out = type(self)(new_intervals)
+    #     out._domain = self.domain
+    #     return out
 
-        TODO: verify if this requires a merged IntervalArray to work properly?
-        ISSUE_261: not fixed yet
+    # def _intersect(self, intervala, intervalb, *, boundaries=True, meta=None):
+    #     """Finds intersection (overlap) between two sets of interval arrays.
 
-        TODO: domains are not preserved yet! careful consideration is necessary.
+    #     TODO: verify if this requires a merged IntervalArray to work properly?
+    #     ISSUE_261: not fixed yet
 
-        Parameters
-        ----------
-        interval : nelpy.IntervalArray
-        boundaries : bool
-            If True, limits start, stop to interval start and stop.
-        meta : dict, optional
-            New dictionary of meta data for interval ontersection.
+    #     TODO: domains are not preserved yet! careful consideration is necessary.
 
-        Returns
-        -------
-        intersect_intervals : nelpy.IntervalArray
-        """
-        if intervala.isempty or intervalb.isempty:
-            logging.warning('interval intersection is empty')
-            return type(self)(empty=True)
+    #     Parameters
+    #     ----------
+    #     interval : nelpy.IntervalArray
+    #     boundaries : bool
+    #         If True, limits start, stop to interval start and stop.
+    #     meta : dict, optional
+    #         New dictionary of meta data for interval ontersection.
 
-        new_starts = []
-        new_stops = []
-        interval_a = intervala.merge().copy()
-        interval_b = intervalb.merge().copy()
+    #     Returns
+    #     -------
+    #     intersect_intervals : nelpy.IntervalArray
+    #     """
+    #     if intervala.isempty or intervalb.isempty:
+    #         logging.warning('interval intersection is empty')
+    #         return type(self)(empty=True)
 
-        for aa in interval_a.data:
-            for bb in interval_b.data:
-                if (aa[0] <= bb[0] < aa[1]) and (aa[0] < bb[1] <= aa[1]):
-                    new_starts.append(bb[0])
-                    new_stops.append(bb[1])
-                elif (aa[0] < bb[0] < aa[1]) and (aa[0] < bb[1] > aa[1]):
-                    new_starts.append(bb[0])
-                    if boundaries:
-                        new_stops.append(aa[1])
-                    else:
-                        new_stops.append(bb[1])
-                elif (aa[0] > bb[0] < aa[1]) and (aa[0] < bb[1] < aa[1]):
-                    if boundaries:
-                        new_starts.append(aa[0])
-                    else:
-                        new_starts.append(bb[0])
-                    new_stops.append(bb[1])
-                elif (aa[0] >= bb[0] < aa[1]) and (aa[0] < bb[1] >= aa[1]):
-                    if boundaries:
-                        new_starts.append(aa[0])
-                        new_stops.append(aa[1])
-                    else:
-                        new_starts.append(bb[0])
-                        new_stops.append(bb[1])
+    #     new_starts = []
+    #     new_stops = []
+    #     interval_a = intervala.merge().copy()
+    #     interval_b = intervalb.merge().copy()
 
-        if not boundaries:
-            new_starts = np.unique(new_starts)
-            new_stops = np.unique(new_stops)
+    #     for aa in interval_a.data:
+    #         for bb in interval_b.data:
+    #             if (aa[0] <= bb[0] < aa[1]) and (aa[0] < bb[1] <= aa[1]):
+    #                 new_starts.append(bb[0])
+    #                 new_stops.append(bb[1])
+    #             elif (aa[0] < bb[0] < aa[1]) and (aa[0] < bb[1] > aa[1]):
+    #                 new_starts.append(bb[0])
+    #                 if boundaries:
+    #                     new_stops.append(aa[1])
+    #                 else:
+    #                     new_stops.append(bb[1])
+    #             elif (aa[0] > bb[0] < aa[1]) and (aa[0] < bb[1] < aa[1]):
+    #                 if boundaries:
+    #                     new_starts.append(aa[0])
+    #                 else:
+    #                     new_starts.append(bb[0])
+    #                 new_stops.append(bb[1])
+    #             elif (aa[0] >= bb[0] < aa[1]) and (aa[0] < bb[1] >= aa[1]):
+    #                 if boundaries:
+    #                     new_starts.append(aa[0])
+    #                     new_stops.append(aa[1])
+    #                 else:
+    #                     new_starts.append(bb[0])
+    #                     new_stops.append(bb[1])
 
-        interval_a._data = np.hstack(
-            [np.array(new_starts)[..., np.newaxis],
-                np.array(new_stops)[..., np.newaxis]])
+    #     if not boundaries:
+    #         new_starts = np.unique(new_starts)
+    #         new_stops = np.unique(new_stops)
 
-        return interval_a
+    #     interval_a._data = np.hstack(
+    #         [np.array(new_starts)[..., np.newaxis],
+    #             np.array(new_stops)[..., np.newaxis]])
+
+    #     return interval_a
 
     def merge(self, *, gap=0.0, overlap=0.0):
         """Merge intervals that are close or overlapping.
@@ -965,3 +997,26 @@ class SpaceArray(IntervalArray):
 
         self.formatter = formatters.PrettySpace
         self.base_unit = self.formatter.base_unit
+
+@jit(nopython=True)
+def interval_intersect(
+    interval_starts_a,
+    interval_stops_a,
+    interval_starts_b,
+    interval_stops_b,
+    boundaries=True,
+):
+    new_starts = []
+    new_stops = []
+
+    for start_a, stop_a in zip(interval_starts_a, interval_stops_a):
+        for start_b, stop_b in zip(interval_starts_b, interval_stops_b):
+            if start_a < stop_b and start_b < stop_a:
+                new_start = (
+                    max(start_a, start_b) if boundaries else min(start_a, start_b)
+                )
+                new_stop = min(stop_a, stop_b) if boundaries else max(stop_a, stop_b)
+                new_starts.append(new_start)
+                new_stops.append(new_stop)
+
+    return np.array(new_starts), np.array(new_stops)
