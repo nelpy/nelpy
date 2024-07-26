@@ -738,8 +738,10 @@ class TuningCurve2D:
         if self.mask is None:
             if (self.n_units > 1) | (self.ratemap.shape[0] > 1):
                 out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
+            elif self.ratemap.shape[0] == 1:
+                out._ratemap[0,:,:] = scipy.ndimage.filters.gaussian_filter(self.ratemap[0,:,:], sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
             else:
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
+                raise ValueError("ratemap has an unexpected shape")
         else: # we have a mask!
             # smooth, dealing properly with NANs
             # NB! see https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
