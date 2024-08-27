@@ -411,7 +411,7 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
     # first, we determine the number of bins we will decode. This requires us to scan over the epochs
     n_tbins = 0
     cumlengths = np.cumsum(bst.lengths)
-    posterior_lengths = np.zeros(bst.n_epochs, dtype=np.int)
+    posterior_lengths = np.zeros(bst.n_epochs, dtype=int)
     prev_idx = 0
     for ii, to_idx in enumerate(cumlengths):
         datalen = to_idx - prev_idx
