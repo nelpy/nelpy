@@ -1277,7 +1277,7 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
     if SecondaryThreshold is None: # by default, revert back to mean of x
         SecondaryThreshold = np.mean(x) # + 0*np.std(x)
 
-    events, _ = \
+    events, primary_maxes = \
         find_threshold_crossing_events(x=x,
                                        threshold=PrimaryThreshold,
                                        mode=mode)
@@ -2019,7 +2019,7 @@ def collapse_time(obj, gap=0):
             for unit_ in range(obj.n_series):
                 new_time[unit_].extend(st_._data[unit_] - le + duration)
             duration += st_.support.duration
-        new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time])
+        new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time], dtype=object)
         new_obj._data = new_time
         new_obj.support = type(obj._abscissa.support)([0, duration])
         new_obj._series_ids = obj._series_ids
