@@ -461,7 +461,7 @@ class RegularlySampledAnalogSignalArray:
 
         #handle labels
         if labels is not None:
-            labels = np.asarray(labels,dtype=np.str)
+            labels = np.asarray(labels,dtype=str)
             #label size doesn't match
             if labels.shape[0] > data.shape[0]:
                 logging.warning("More labels than data! Labels are truncated to "
