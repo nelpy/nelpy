@@ -631,8 +631,12 @@ class IntervalArray:
         # Extract starts and stops and convert to np.array of float64 (for numba)
         interval_starts_a = np.array(self.starts, dtype=np.float64)
         interval_stops_a = np.array(self.stops, dtype=np.float64)
-        interval_starts_b = np.array(interval.starts, dtype=np.float64)
-        interval_stops_b = np.array(interval.stops, dtype=np.float64)
+        if interval.data.ndim == 1:
+            interval_starts_b = np.array([interval.data[0]], dtype=np.float64)
+            interval_stops_b = np.array([interval.data[1]], dtype=np.float64)
+        else:
+            interval_starts_b = np.array(interval.data[:,0], dtype=np.float64)
+            interval_stops_b = np.array(interval.data[:,1], dtype=np.float64)
 
         new_starts, new_stops = interval_intersect(
             interval_starts_a,
