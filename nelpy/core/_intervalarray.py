@@ -626,6 +626,11 @@ class IntervalArray:
         """Returns intersection (overlap) between current IntervalArray (self) and
         other interval array ('interval').
         """
+
+        if self.isempty or interval.isempty:
+            logging.warning('interval intersection is empty')
+            return type(self)(empty=True)
+
         new_intervals = []
 
         # Extract starts and stops and convert to np.array of float64 (for numba)
