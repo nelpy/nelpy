@@ -173,10 +173,10 @@ def rsasa_init_wrapper(func):
             raise TypeError("__init__() takes 1 positional arguments but {} positional arguments (and {} keyword-only arguments) were given".format(len(args)-1, len(kwargs.items())))
 
         data = kwargs.get('data', [])
-        if data == []:
+        if len(data) == 0:
             data = args[1]
 
-        if data == []:
+        if len(data) == 0:
             logging.warning('No ordinate data! Returning empty RegularlySampledAnalogSignalArray.')
             func(*args, **kwargs)
             return
