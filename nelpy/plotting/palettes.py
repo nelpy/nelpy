@@ -6,6 +6,7 @@ Some of these functions are Copyright (c) 2012-2016, Michael L. Waskom
 import colorsys
 from itertools import cycle
 
+from matplotlib.colors import to_rgb
 import numpy as np
 import matplotlib as mpl
 
@@ -384,6 +385,32 @@ def dark_palette(color, n_colors=6, reverse=False, as_cmap=False, input="rgb"):
     colors = [color, gray] if reverse else [gray, color]
     return blend_palette(colors, n_colors, as_cmap)
 
+
+def set_hls_values(color, h=None, l=None, s=None):  # noqa
+    """Independently manipulate the h, l, or s channels of a color.
+
+    Parameters
+    ----------
+    color : matplotlib color
+        hex, rgb-tuple, or html color name
+    h, l, s : floats between 0 and 1, or None
+        new values for each channel in hls space
+
+    Returns
+    -------
+    new_color : rgb tuple
+        new color code in RGB tuple representation
+
+    """
+    # Get an RGB tuple representation
+    rgb = to_rgb(color)
+    vals = list(colorsys.rgb_to_hls(*rgb))
+    for i, val in enumerate([h, l, s]):
+        if val is not None:
+            vals[i] = val
+
+    rgb = colorsys.hls_to_rgb(*vals)
+    return rgb
 
 def light_palette(color, n_colors=6, reverse=False, as_cmap=False, input="rgb"):
     """Make a sequential palette that blends from light to ``color``.
