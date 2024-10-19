@@ -507,7 +507,8 @@ class EventArray(BaseEventArray):
                     data = np.array(data, ndmin=2)
             return data
 
-        data = standardize_to_2d(abscissa_vals)
+        # standardize input data to 2D array
+        data = standardize_to_2d(np.array(abscissa_vals, dtype=object))
 
         # If user said to assume the absicssa vals are sorted but they actually
         # aren't, then the mistake will get propagated down. The responsibility
@@ -1905,7 +1906,7 @@ class BinnedEventArray(BaseEventArray):
             newbst._ds = bst.ds*w
             newbst._binned_support = np.array((newedges[:-1], newedges[1:]-1)).T
         else:
-            logging.warning("No events are long enough to contain any bins of width {}".format(utils.PrettyDuration(ds)))
+            logging.warning("No events are long enough to contain any bins of width {}".format(utils.PrettyDuration(bst.ds)))
             newbst._data = None
             newbst._abscissa = abscissa
             newbst._abscissa.support = None
