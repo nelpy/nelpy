@@ -853,6 +853,7 @@ class PoissonHMM(PHMM):
 
         if n_extern is None:
             n_extern = len(unique(ext))
+            ext_map = np.arange(n_extern)
             for ii, ele in enumerate(unique(ext)):
                 ext_map[ele] = ii
         else:
