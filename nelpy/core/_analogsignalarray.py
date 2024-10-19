@@ -2128,10 +2128,10 @@ class RegularlySampledAnalogSignalArray:
         if self.isempty:
             return self
 
-            # legacy kwarg support:
-            n_points = original_kwargs.pop("n_points", False)
-            if n_points:
-                n_samples = n_points
+        # legacy kwarg support:
+        n_points = kwargs.pop("n_points", False)
+        if n_points:
+            n_samples = n_points
 
         if ds is not None and n_samples is not None:
             raise ValueError("ds and n_samples cannot be used together")
@@ -2555,7 +2555,7 @@ class PositionArray(AnalogSignalArray):
     @xlim.setter
     def xlim(self, val):
         if self.is_2d:
-            self._xlim = xlim
+            self._xlim = xlim  # noqa: F821
         raise ValueError(
             "PositionArray is not 2 dimensional, so xlim cannot be defined!"
         )
@@ -2571,7 +2571,7 @@ class PositionArray(AnalogSignalArray):
     @ylim.setter
     def ylim(self, val):
         if self.is_2d:
-            self._ylim = ylim
+            self._ylim = ylim  # noqa: F821
         raise ValueError(
             "PositionArray is not 2 dimensional, so ylim cannot be defined!"
         )
