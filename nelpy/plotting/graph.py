@@ -3,83 +3,95 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-def draw_transmat_graph(G, edge_threshold=0, lw=1, ec='0.2', node_size=15):
+
+def draw_transmat_graph(G, edge_threshold=0, lw=1, ec="0.2", node_size=15):
 
     num_states = G.number_of_nodes()
 
-    edgewidth = [ d['weight'] for (u,v,d) in G.edges(data=True)]
+    edgewidth = [d["weight"] for (u, v, d) in G.edges(data=True)]
     edgewidth = np.array(edgewidth)
-    edgewidth[edgewidth<edge_threshold] = 0
+    edgewidth[edgewidth < edge_threshold] = 0
 
     labels = {}
-    labels[0] = '1'
-    labels[1]= '2'
-    labels[2]= '3'
-    labels[num_states-1] = str(num_states)
+    labels[0] = "1"
+    labels[1] = "2"
+    labels[2] = "3"
+    labels[num_states - 1] = str(num_states)
 
-    npos=circular_layout(G, scale=1, direction='CW')
-    lpos=circular_layout(G, scale=1.15, direction='CW')
+    npos = circular_layout(G, scale=1, direction="CW")
+    lpos = circular_layout(G, scale=1.15, direction="CW")
 
-    nx.draw_networkx_edges(G, npos, alpha=0.8, width=edgewidth*lw, edge_color=ec)
+    nx.draw_networkx_edges(G, npos, alpha=0.8, width=edgewidth * lw, edge_color=ec)
 
-    nx.draw_networkx_nodes(G, npos, node_size=node_size, node_color='k',alpha=0.8)
+    nx.draw_networkx_nodes(G, npos, node_size=node_size, node_color="k", alpha=0.8)
     ax = plt.gca()
-    nx.draw_networkx_labels(G, lpos, labels, fontsize=18, ax=ax); # fontsize does not seem to work :/
+    nx.draw_networkx_labels(G, lpos, labels, fontsize=18, ax=ax)
+    # fontsize does not seem to work :/
 
-    ax.set_aspect('equal')
+    ax.set_aspect("equal")
 
     return ax
 
-def draw_transmat_graph_inner(G, edge_threshold=0, lw=1, ec='0.2', node_size=15):
+
+def draw_transmat_graph_inner(G, edge_threshold=0, lw=1, ec="0.2", node_size=15):
 
     num_states = G.number_of_nodes()
 
-    edgewidth = [ d['weight'] for (u,v,d) in G.edges(data=True)]
+    edgewidth = [d["weight"] for (u, v, d) in G.edges(data=True)]
     edgewidth = np.array(edgewidth)
-    edgewidth[edgewidth<edge_threshold] = 0
+    edgewidth[edgewidth < edge_threshold] = 0
 
-    npos=circular_layout(G, scale=1, direction='CW')
+    npos = circular_layout(G, scale=1, direction="CW")
 
-    nx.draw_networkx_edges(G, npos, alpha=1.0, width=edgewidth*lw, edge_color=ec)
+    nx.draw_networkx_edges(G, npos, alpha=1.0, width=edgewidth * lw, edge_color=ec)
 
-    nx.draw_networkx_nodes(G, npos, node_size=node_size, node_color='k',alpha=1.0)
+    nx.draw_networkx_nodes(G, npos, node_size=node_size, node_color="k", alpha=1.0)
     ax = plt.gca()
-    ax.set_aspect('equal')
+    ax.set_aspect("equal")
 
     return ax
 
-def double_circular_layout(Gi, scale=1, center=None, dim=2, direction='CCW'):
-    inner=circular_layout(Gi, center=center, dim=dim, scale=scale, direction=direction)
-    outer=circular_layout(Gi, center=center, dim=dim, scale=scale*1.3, direction=direction)
+
+def double_circular_layout(Gi, scale=1, center=None, dim=2, direction="CCW"):
+    inner = circular_layout(
+        Gi, center=center, dim=dim, scale=scale, direction=direction
+    )
+    outer = circular_layout(
+        Gi, center=center, dim=dim, scale=scale * 1.3, direction=direction
+    )
 
     num_states = Gi.number_of_nodes()
 
     npos = {}
     for k in outer.keys():
-        npos[k+num_states] = outer[k]
+        npos[k + num_states] = outer[k]
 
     npos.update(inner)
 
     return npos
 
-def draw_transmat_graph_outer(Go, Gi, edge_threshold=0, lw=1, ec='0.2', nc='k', node_size=15):
+
+def draw_transmat_graph_outer(
+    Go, Gi, edge_threshold=0, lw=1, ec="0.2", nc="k", node_size=15
+):
 
     num_states = Go.number_of_nodes()
 
-    edgewidth = [ d['weight'] for (u,v,d) in Go.edges(data=True)]
+    edgewidth = [d["weight"] for (u, v, d) in Go.edges(data=True)]
     edgewidth = np.array(edgewidth)
-    edgewidth[edgewidth<edge_threshold] = 0
+    edgewidth[edgewidth < edge_threshold] = 0
 
-    npos=double_circular_layout(Gi, scale=1, direction='CW')
+    npos = double_circular_layout(Gi, scale=1, direction="CW")
 
-    nx.draw_networkx_edges(Go, npos, alpha=1.0, width=edgewidth*lw, edge_color=ec)
+    nx.draw_networkx_edges(Go, npos, alpha=1.0, width=edgewidth * lw, edge_color=ec)
 
-    nx.draw_networkx_nodes(Go, npos, node_size=node_size, node_color=nc,alpha=1.0)
+    nx.draw_networkx_nodes(Go, npos, node_size=node_size, node_color=nc, alpha=1.0)
 
     ax = plt.gca()
-    ax.set_aspect('equal')
+    ax.set_aspect("equal")
 
     return ax
+
 
 def graph_from_transmat(transmat):
     G = nx.Graph()
@@ -89,9 +101,10 @@ def graph_from_transmat(transmat):
 
     for s1 in range(num_states):
         for s2 in range(num_states):
-            G.add_edge(s1, s2, weight=tmat[s1,s2])
+            G.add_edge(s1, s2, weight=tmat[s1, s2])
 
     return G
+
 
 def outer_graph_from_transmat(transmat):
     G = nx.Graph()
@@ -100,12 +113,15 @@ def outer_graph_from_transmat(transmat):
     tmat = (transmat + transmat.T) / 2
 
     for s1 in range(num_states):
-        G.add_edge(s1, s1 + num_states, weight=tmat[s1,s1]) # self transitions
+        G.add_edge(s1, s1 + num_states, weight=tmat[s1, s1])  # self transitions
 
-    for s1 in range(num_states-1):
-        G.add_edge(s1, s1 + num_states + 1, weight=tmat[s1,s1+1]) # forward neighbor transitions
+    for s1 in range(num_states - 1):
+        G.add_edge(
+            s1, s1 + num_states + 1, weight=tmat[s1, s1 + 1]
+        )  # forward neighbor transitions
 
     return G
+
 
 def inner_graph_from_transmat(transmat):
     G = nx.Graph()
@@ -114,14 +130,15 @@ def inner_graph_from_transmat(transmat):
     tmat = (transmat + transmat.T) / 2
 
     # clear super diagonal
-    for ii in range(num_states-1):
-        tmat[ii,ii+1] = 0
+    for ii in range(num_states - 1):
+        tmat[ii, ii + 1] = 0
 
     for s1 in range(num_states):
         for s2 in range(num_states):
-            G.add_edge(s1, s2, weight=tmat[s1,s2])
+            G.add_edge(s1, s2, weight=tmat[s1, s2])
 
     return G
+
 
 def _process_params(G, center, dim):
     # Some boilerplate code.
@@ -141,6 +158,7 @@ def _process_params(G, center, dim):
         raise ValueError(msg)
 
     return G, center
+
 
 def rescale_layout(pos, scale=1):
     """Return scaled position array to (-scale, scale) in all axes.
@@ -179,7 +197,8 @@ def rescale_layout(pos, scale=1):
             pos[:, i] *= scale / lim
     return pos
 
-def circular_layout(G, scale=1, center=None, dim=2, direction='CCW'):
+
+def circular_layout(G, scale=1, center=None, dim=2, direction="CCW"):
     # dim=2 only
     """Position nodes on a circle.
 
@@ -223,7 +242,7 @@ def circular_layout(G, scale=1, center=None, dim=2, direction='CCW'):
         # Discard the extra angle since it matches 0 radians.
         theta = np.linspace(0, 1, len(G) + 1)[:-1] * 2 * np.pi
         theta = theta.astype(np.float32)
-        if direction == 'CCW':
+        if direction == "CCW":
             pos = np.column_stack([np.cos(theta), np.sin(theta)])
         else:
             pos = np.column_stack([np.sin(theta), np.cos(theta)])

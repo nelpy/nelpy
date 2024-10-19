@@ -4,6 +4,7 @@ plotting package.
 
 import matplotlib.artist as artist
 
+
 class RasterLabelData(artist.Artist):
 
     def __init__(self):
@@ -30,7 +31,9 @@ class RasterLabelData(artist.Artist):
     def yrange(self, val):
         self._yrange = val
 
+
 from matplotlib.axes import Axes
+
 
 class NelpyAxes(Axes):
 
@@ -44,4 +47,6 @@ class NelpyAxes(Axes):
         return self._empty
 
     def _as_mpl_axes(self):
-        raise NotImplementedError ('converting back to pure matplotlib.axes.Axes not yet supported!')
+        raise NotImplementedError(
+            "converting back to pure matplotlib.axes.Axes not yet supported!"
+        )

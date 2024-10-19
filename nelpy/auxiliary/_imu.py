@@ -1,16 +1,31 @@
 # IMU (inertial motion unit) sensor data classes and methods
 import copy
 
-from ..core import _analogsignalarray, _epocharray #core._analogsignalarray import AnalogSignalArray
+from ..core import (
+    _analogsignalarray,
+    _epocharray,
+)  # core._analogsignalarray import AnalogSignalArray
 from .. import utils
+
 
 class IMUSensorArray(_analogsignalarray.AnalogSignalArray):
 
-    __attributes__ = [] # IMUSensorArray-specific attributes
+    __attributes__ = []  # IMUSensorArray-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
-    def __init__(self,data=[], *, timestamps=None, fs=None,
-                 step=None, merge_sample_gap=0, support=None,
-                 in_memory=True, labels=None, empty=False):
+
+    def __init__(
+        self,
+        data=[],
+        *,
+        timestamps=None,
+        fs=None,
+        step=None,
+        merge_sample_gap=0,
+        support=None,
+        in_memory=True,
+        labels=None,
+        empty=False
+    ):
 
         # if an empty object is requested, return it:
         if empty:
@@ -24,14 +39,16 @@ class IMUSensorArray(_analogsignalarray.AnalogSignalArray):
             self.__dict__ = copy.deepcopy(data.__dict__)
             self.__renew__()
         else:
-            kwargs = {"data":data,
-                    "timestamps": timestamps,
-                    "fs": fs,
-                    "step": step,
-                    "merge_sample_gap": merge_sample_gap,
-                    "support": support,
-                    "in_memory": in_memory,
-                    "labels": labels}
+            kwargs = {
+                "data": data,
+                "timestamps": timestamps,
+                "fs": fs,
+                "step": step,
+                "merge_sample_gap": merge_sample_gap,
+                "support": support,
+                "in_memory": in_memory,
+                "labels": labels,
+            }
 
             # initialize super:
             super().__init__(**kwargs)
@@ -45,7 +62,7 @@ class IMUSensorArray(_analogsignalarray.AnalogSignalArray):
         else:
             epstr = ""
         try:
-            if(self.n_signals > 0):
+            if self.n_signals > 0:
                 nstr = " %s signals%s" % (self.n_signals, epstr)
         except IndexError:
             nstr = " 1 signal%s" % epstr

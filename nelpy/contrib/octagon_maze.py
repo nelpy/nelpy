@@ -6,29 +6,30 @@ from scipy import interpolate
 from collections import namedtuple
 
 from ..core import _analogsignalarray, _epocharray
-from .. auxiliary import _position
+from ..auxiliary import _position
 from .. import utils
 from ..plotting.core import colorline
 
-#TODO: linsmooth(), wrap(), unwrap(), assign_segments(), lin_to_ideal(), ideal_to_lin(), 2d_to_ideal()
+# TODO: linsmooth(), wrap(), unwrap(), assign_segments(), lin_to_ideal(), ideal_to_lin(), 2d_to_ideal()
+
 
 def idealize(asa, segments, segment_assignments=None):
-    """
-    """
+    """ """
     if not segment_assignments:
         segment_assignments = _get_closest_segments(asa, segments)
     ideal_asa = _project_onto_segments(asa, segments, segment_assignments)
 
     return ideal_asa, segment_assignments
 
+
 def linearize(ideal_asa, segments, segment_assignments):
-    """
-    """
+    """ """
 
     linear_asa = _ideal_to_linear(ideal_asa, segments, segment_assignments)
     linear_asa = RingTrajectory(linear_asa, segments=segments)
 
     return linear_asa
+
 
 def _linear_to_ideal(points, segments):
     """transform points in the linearized space to points in the idealized (segment-bound) space."""
@@ -41,23 +42,29 @@ def _linear_to_ideal(points, segments):
     n_segments = len(segments)
     n_pts = np.size(pts)
 
-    segment_lengths = np.sqrt(np.sum(np.diff(segments, axis=1)**2, axis=2)).squeeze()
+    segment_lengths = np.sqrt(np.sum(np.diff(segments, axis=1) ** 2, axis=2)).squeeze()
     cum_lengths = np.cumsum(segment_lengths)
     # identify appropriate segment
     segment_assignments = np.searchsorted(cum_lengths, pts).squeeze()
     segment_assignments[segment_assignments >= n_segments] = n_segments - 1
 
     # get distance along each segment, for each point:
-    alpha = (cum_lengths[segment_assignments] - pts) / segment_lengths[segment_assignments]
+    alpha = (cum_lengths[segment_assignments] - pts) / segment_lengths[
+        segment_assignments
+    ]
 
     coords = segments[segment_assignments]
-    starts = coords[:,0]
-    stops = coords[:,1]
+    starts = coords[:, 0]
+    stops = coords[:, 1]
 
     # do convex combination on segment
-    new_coords = np.reshape((alpha), (n_pts,1)) * starts + np.reshape((1-alpha), (n_pts,1)) * stops
+    new_coords = (
+        np.reshape((alpha), (n_pts, 1)) * starts
+        + np.reshape((1 - alpha), (n_pts, 1)) * stops
+    )
 
     return new_coords
+
 
 def linear_to_ideal(linear_asa, segments):
     new_coords = _linear_to_ideal(linear_asa, segments)
@@ -67,8 +74,9 @@ def linear_to_ideal(linear_asa, segments):
     out._fs = linear_asa.fs
     out._time = linear_asa.time
     out.__renew__()
-    #TODO: cast out to OctagonalMazeArray or something other than RingTrajectory...
+    # TODO: cast out to OctagonalMazeArray or something other than RingTrajectory...
     return out
+
 
 def _smooth_unwrapped(self, *, fs=None, sigma=None, bw=None, inplace=False):
     """Smooths the regularly sampled AnalogSignalArray with a Gaussian kernel.
@@ -96,10 +104,7 @@ def _smooth_unwrapped(self, *, fs=None, sigma=None, bw=None, inplace=False):
     out : AnalogSignalArray
         An AnalogSignalArray with smoothed data is returned.
     """
-    kwargs = {'inplace' : inplace,
-            'fs' : fs,
-            'sigma' : sigma,
-            'bw' : bw}
+    kwargs = {"inplace": inplace, "fs": fs, "sigma": sigma, "bw": bw}
     out = copy.deepcopy(self)
     out._data = np.atleast_2d(out._unwrap(out.data.squeeze()))
     out = utils.gaussian_filter(out, **kwargs)
@@ -113,7 +118,7 @@ def _smooth_unwrapped(self, *, fs=None, sigma=None, bw=None, inplace=False):
     #         'fs' : fs,
     #         'sigma' : sigma,
     #         'bw' : bw}
-    #data = copy.deepcopy(self.data)
+    # data = copy.deepcopy(self.data)
     # self._data = np.atleast_2d(self._unwrap(self.data.squeeze()))
     # out = utils.gaussian_filter(self, **kwargs)
     # out._data = np.atleast_2d(self._wrap(out.data.squeeze()))
@@ -127,6 +132,7 @@ def _smooth_unwrapped(self, *, fs=None, sigma=None, bw=None, inplace=False):
 
     return out
 
+
 def _ideal_to_linear(points, segments, segment_assignments):
     """transform points in the idealized (segment-based) space to points in the linearized space."""
 
@@ -135,14 +141,17 @@ def _ideal_to_linear(points, segments, segment_assignments):
     else:
         pts = points
 
-    segment_lengths = np.sqrt(np.sum(np.diff(segments, axis=1)**2, axis=2)).squeeze()
+    segment_lengths = np.sqrt(np.sum(np.diff(segments, axis=1) ** 2, axis=2)).squeeze()
     cum_lengths = np.cumsum(segment_lengths)
 
     coords = segments[segment_assignments]
-    starts = coords[:,0]
+    starts = coords[:, 0]
 
     # determine distance from segment start point, and offset by cumulative segment lengths from start
-    linearized = np.sqrt(np.sum((starts - pts)**2, axis=1)) + np.insert(cum_lengths,0,0)[segment_assignments]
+    linearized = (
+        np.sqrt(np.sum((starts - pts) ** 2, axis=1))
+        + np.insert(cum_lengths, 0, 0)[segment_assignments]
+    )
 
     if isinstance(points, _analogsignalarray.AnalogSignalArray):
         out = copy.deepcopy(points)
@@ -173,22 +182,19 @@ def point_to_line_segment_dist(point, line_segment):
     norm_unit_line = unit_line / np.linalg.norm(unit_line)
 
     # compute the perpendicular distance to the theoretical infinite line
-    segment_dist = (
-        np.linalg.norm(np.cross(line_segment[1] - line_segment[0], line_segment[0] - point)) /
-        np.linalg.norm(unit_line)
-    )
+    segment_dist = np.linalg.norm(
+        np.cross(line_segment[1] - line_segment[0], line_segment[0] - point)
+    ) / np.linalg.norm(unit_line)
 
-    diff = (
-        (norm_unit_line[0] * (point[0] - line_segment[0][0])) +
-        (norm_unit_line[1] * (point[1] - line_segment[0][1]))
+    diff = (norm_unit_line[0] * (point[0] - line_segment[0][0])) + (
+        norm_unit_line[1] * (point[1] - line_segment[0][1])
     )
 
     x_seg = (norm_unit_line[0] * diff) + line_segment[0][0]
     y_seg = (norm_unit_line[1] * diff) + line_segment[0][1]
 
     endpoint_dist = min(
-        np.linalg.norm(line_segment[0] - point),
-        np.linalg.norm(line_segment[1] - point)
+        np.linalg.norm(line_segment[0] - point), np.linalg.norm(line_segment[1] - point)
     )
 
     # decide if the intersection point falls on the line segment
@@ -203,6 +209,7 @@ def point_to_line_segment_dist(point, line_segment):
     else:
         # if not, then return the minimum distance to the segment endpoints
         return endpoint_dist
+
 
 def _get_closest_segments(pts, segments):
     """for each point in the trajectory, determine the segment assignment (with smoothing and warning on ties)"""
@@ -220,8 +227,12 @@ def _get_closest_segments(pts, segments):
         for pp, point in enumerate(pts):
             dist_to_segments[pp, ss] = point_to_line_segment_dist(point, segment)
 
-    segment_assignments = np.argmin(dist_to_segments, axis=1, )
+    segment_assignments = np.argmin(
+        dist_to_segments,
+        axis=1,
+    )
     return segment_assignments
+
 
 def _project_onto_segments(points, segments, segment_assignments):
     """for each point, project onto assigned segment (this is idealized position, not linearized yet!)
@@ -250,39 +261,41 @@ def _project_onto_segments(points, segments, segment_assignments):
     n_pts = len(pts)
     n_segments = len(segments)
 
-    idealized = np.zeros((n_pts,2))
+    idealized = np.zeros((n_pts, 2))
 
     for ss, segment in enumerate(segments):
-        subset = np.argwhere(segment_assignments==ss).squeeze()
-        pts_for_segment = pts[subset,:]
+        subset = np.argwhere(segment_assignments == ss).squeeze()
+        pts_for_segment = pts[subset, :]
 
-        x3, y3 = pts_for_segment[:,0], pts_for_segment[:,1]
+        x3, y3 = pts_for_segment[:, 0], pts_for_segment[:, 1]
 
         segment = segments[ss]
 
-        dx = segment[1,0] - segment[0,0]
-        dy = segment[1,1] - segment[0,1]
-        d2 = dx*dx + dy*dy
+        dx = segment[1, 0] - segment[0, 0]
+        dy = segment[1, 1] - segment[0, 1]
+        d2 = dx * dx + dy * dy
 
-        nx = ((x3-segment[0,0])*dx + (y3-segment[0,1])*dy) / d2
+        nx = ((x3 - segment[0, 0]) * dx + (y3 - segment[0, 1]) * dy) / d2
 
         # restrict to line segment:
-        nx[nx>1] = 1
-        nx[nx<0] = 0
+        nx[nx > 1] = 1
+        nx[nx < 0] = 0
 
-        x = dx*nx + segment[0,0]
-        y = dy*nx + segment[0,1]
+        x = dx * nx + segment[0, 0]
+        y = dy * nx + segment[0, 1]
 
-        idealized[subset,0] = x
-        idealized[subset,1] = y
+        idealized[subset, 0] = x
+        idealized[subset, 1] = y
 
     if isinstance(points, _analogsignalarray.AnalogSignalArray):
         from copy import deepcopy
+
         out = deepcopy(points)
         out._data = idealized.T
         idealized = out
 
     return idealized
+
 
 def get_midpoint_radius(pos):
     """Return the midpoint and radius of the hex maze as a tuple (x,y), radius.
@@ -306,10 +319,11 @@ def get_midpoint_radius(pos):
     # apply smoothing to tame some outliers:
     local_pos = local_pos.smooth(sigma=0.02)
 
-    midpoint = local_pos.min() + (local_pos.max() - local_pos.min())/2
-    radius = ((local_pos.max() - local_pos.min())/2).mean()
+    midpoint = local_pos.min() + (local_pos.max() - local_pos.min()) / 2
+    radius = ((local_pos.max() - local_pos.min()) / 2).mean()
 
     return midpoint, radius
+
 
 def excise_disk(pos, midpoint, radius, radius_pct=None):
     """Excise all points within a disk from pos.
@@ -330,20 +344,34 @@ def excise_disk(pos, midpoint, radius, radius_pct=None):
     if radius_pct is None:
         radius_pct = 0.65
 
-    dist_to_midpoint = np.sqrt(((pos.data.T - midpoint)**2).sum(axis=1))
-    indisk_idx = np.argwhere(dist_to_midpoint > radius_pct*radius).squeeze()
+    dist_to_midpoint = np.sqrt(((pos.data.T - midpoint) ** 2).sum(axis=1))
+    indisk_idx = np.argwhere(dist_to_midpoint > radius_pct * radius).squeeze()
 
-    local_pos = _position.PositionArray(pos.data[:,indisk_idx], timestamps=pos.time[indisk_idx])
+    local_pos = _position.PositionArray(
+        pos.data[:, indisk_idx], timestamps=pos.time[indisk_idx]
+    )
 
     return local_pos
 
+
 class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
-    
-    __attributes__ = ['_vertices'] # PositionArray-specific attributes
+
+    __attributes__ = ["_vertices"]  # PositionArray-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
-    def __init__(self,data=[], *, timestamps=None, fs=None,
-                 step=None, merge_sample_gap=0, support=None,
-                 in_memory=True, labels=None, empty=False):
+
+    def __init__(
+        self,
+        data=[],
+        *,
+        timestamps=None,
+        fs=None,
+        step=None,
+        merge_sample_gap=0,
+        support=None,
+        in_memory=True,
+        labels=None,
+        empty=False
+    ):
 
         # if an empty object is requested, return it:
         if empty:
@@ -358,20 +386,22 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
             self.__dict__ = copy.deepcopy(data.__dict__)
             self.__renew__()
         else:
-            kwargs = {"data":data,
-                    "timestamps": timestamps,
-                    "fs": fs,
-                    "step": step,
-                    "merge_sample_gap": merge_sample_gap,
-                    "support": support,
-                    "in_memory": in_memory,
-                    "labels": labels}
+            kwargs = {
+                "data": data,
+                "timestamps": timestamps,
+                "fs": fs,
+                "step": step,
+                "merge_sample_gap": merge_sample_gap,
+                "support": support,
+                "in_memory": in_memory,
+                "labels": labels,
+            }
 
             # initialize super:
             super().__init__(**kwargs)
 
         # if self._vertices does not exist, then create it:
-        if not '_vertices' in self.__dict__:
+        if not "_vertices" in self.__dict__:
             self._vertices = None
             self._segments = None
             self._segment_lengths = None
@@ -409,20 +439,22 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
     @property
     def x(self):
         """return x-values, as numpy array."""
-        return self.data[0,:]
+        return self.data[0, :]
 
     @property
     def y(self):
         """return y-values, as numpy array."""
         if self.is_2d:
-            return self.data[1,:]
-        raise ValueError("OctagonalMazeTrajectory is not 2 dimensional, so y-values are undefined!")
+            return self.data[1, :]
+        raise ValueError(
+            "OctagonalMazeTrajectory is not 2 dimensional, so y-values are undefined!"
+        )
 
     @property
     def path_length(self):
         """Return the path length along the trajectory."""
         raise NotImplementedError
-        lengths = np.sqrt(np.sum(np.diff(self._data_colsig, axis=0)**2, axis=1))
+        lengths = np.sqrt(np.sum(np.diff(self._data_colsig, axis=0) ** 2, axis=1))
         total_length = np.sum(lengths)
         return total_length
 
@@ -500,9 +532,9 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
 
         lin = copy.deepcopy(arr)
         for ii in range(1, len(lin)):
-            if lin[ii] - lin[ii-1] >= self.track_length/2:
+            if lin[ii] - lin[ii - 1] >= self.track_length / 2:
                 lin[ii:] = lin[ii:] - self.track_length
-            elif lin[ii] - lin[ii-1] < - self.track_length/2:
+            elif lin[ii] - lin[ii - 1] < -self.track_length / 2:
                 lin[ii:] = lin[ii:] + self.track_length
 
         return lin
@@ -541,7 +573,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         g = [v7, v8]
         h = [v8, v1]
 
-        segments = np.array([a,b,c,d,e,f,g,h])
+        segments = np.array([a, b, c, d, e, f, g, h])
 
         self._segments = segments
 
@@ -556,7 +588,9 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
             self._segment_lengths = None
             self._segment_assignments = None
 
-        self._segment_lengths = np.sqrt(np.sum(np.diff(self._segments, axis=1)**2, axis=2)).squeeze()
+        self._segment_lengths = np.sqrt(
+            np.sum(np.diff(self._segments, axis=1) ** 2, axis=2)
+        ).squeeze()
 
     @property
     def track_length(self):
@@ -587,27 +621,34 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         """
         import matplotlib.pyplot as plt
         import matplotlib as mpl
+
         # todo: plot using colorline and show start, stop, and colorbar
         fig, ax = plt.subplots()
 
         if show_points:
             x, y = self.data
-            plt.plot(x, y, '.', color='0.3', markersize=1)
+            plt.plot(x, y, ".", color="0.3", markersize=1)
         else:
             xmin, ymin = self.min()
             xmax, ymax = self.max()
-            ax.set_xlim(xmin,xmax)
-            ax.set_ylim(ymin,ymax)
+            ax.set_xlim(xmin, xmax)
+            ax.set_ylim(ymin, ymax)
 
         x, y = self.vertices.T
-        colorline(np.insert(x,self.n_vertices,x[0]),np.insert(y, self.n_vertices, y[0]), cmap=plt.cm.Spectral_r, lw=5, cm_range=(0,1))
-        ax.set_aspect('equal')
+        colorline(
+            np.insert(x, self.n_vertices, x[0]),
+            np.insert(y, self.n_vertices, y[0]),
+            cmap=plt.cm.Spectral_r,
+            lw=5,
+            cm_range=(0, 1),
+        )
+        ax.set_aspect("equal")
 
         cax = fig.add_axes([0.27, 0.95, 0.5, 0.05])
-        cb1 = mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.Spectral_r,
-                                ticks=[0,1],
-                                orientation='horizontal')
-        cax.set_xticklabels(['start','stop'])
+        cb1 = mpl.colorbar.ColorbarBase(
+            cax, cmap=plt.cm.Spectral_r, ticks=[0, 1], orientation="horizontal"
+        )
+        cax.set_xticklabels(["start", "stop"])
 
     def point_to_line_segment_dist(self, point, line_segment):
         """Calculate the distance between a point and a line segment.
@@ -630,14 +671,12 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         norm_unit_line = unit_line / np.linalg.norm(unit_line)
 
         # compute the perpendicular distance to the theoretical infinite line
-        segment_dist = (
-            np.linalg.norm(np.cross(line_segment[1] - line_segment[0], line_segment[0] - point)) /
-            np.linalg.norm(unit_line)
-        )
+        segment_dist = np.linalg.norm(
+            np.cross(line_segment[1] - line_segment[0], line_segment[0] - point)
+        ) / np.linalg.norm(unit_line)
 
-        diff = (
-            (norm_unit_line[0] * (point[0] - line_segment[0][0])) +
-            (norm_unit_line[1] * (point[1] - line_segment[0][1]))
+        diff = (norm_unit_line[0] * (point[0] - line_segment[0][0])) + (
+            norm_unit_line[1] * (point[1] - line_segment[0][1])
         )
 
         x_seg = (norm_unit_line[0] * diff) + line_segment[0][0]
@@ -645,7 +684,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
 
         endpoint_dist = min(
             np.linalg.norm(line_segment[0] - point),
-            np.linalg.norm(line_segment[1] - point)
+            np.linalg.norm(line_segment[1] - point),
         )
 
         # decide if the intersection point falls on the line segment
@@ -675,9 +714,14 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
 
         for ss, segment in enumerate(segments):
             for pp, point in enumerate(pts):
-                dist_to_segments[pp, ss] = self.point_to_line_segment_dist(point, segment)
+                dist_to_segments[pp, ss] = self.point_to_line_segment_dist(
+                    point, segment
+                )
 
-        segment_assignments = np.argmin(dist_to_segments, axis=1, )
+        segment_assignments = np.argmin(
+            dist_to_segments,
+            axis=1,
+        )
         return segment_assignments
 
     def _project_onto_segments(self, points, segments, segment_assignments):
@@ -707,34 +751,35 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         n_pts = len(pts)
         n_segments = len(segments)
 
-        idealized = np.zeros((n_pts,2))
+        idealized = np.zeros((n_pts, 2))
 
         for ss, segment in enumerate(segments):
-            subset = np.argwhere(segment_assignments==ss).squeeze()
-            pts_for_segment = pts[subset,:]
+            subset = np.argwhere(segment_assignments == ss).squeeze()
+            pts_for_segment = pts[subset, :]
 
-            x3, y3 = pts_for_segment[:,0], pts_for_segment[:,1]
+            x3, y3 = pts_for_segment[:, 0], pts_for_segment[:, 1]
 
             segment = segments[ss]
 
-            dx = segment[1,0] - segment[0,0]
-            dy = segment[1,1] - segment[0,1]
-            d2 = dx*dx + dy*dy
+            dx = segment[1, 0] - segment[0, 0]
+            dy = segment[1, 1] - segment[0, 1]
+            d2 = dx * dx + dy * dy
 
-            nx = ((x3-segment[0,0])*dx + (y3-segment[0,1])*dy) / d2
+            nx = ((x3 - segment[0, 0]) * dx + (y3 - segment[0, 1]) * dy) / d2
 
             # restrict to line segment:
-            nx[nx>1] = 1
-            nx[nx<0] = 0
+            nx[nx > 1] = 1
+            nx[nx < 0] = 0
 
-            x = dx*nx + segment[0,0]
-            y = dy*nx + segment[0,1]
+            x = dx * nx + segment[0, 0]
+            y = dy * nx + segment[0, 1]
 
-            idealized[subset,0] = x
-            idealized[subset,1] = y
+            idealized[subset, 0] = x
+            idealized[subset, 1] = y
 
         if isinstance(points, _analogsignalarray.AnalogSignalArray):
             from copy import deepcopy
+
             out = deepcopy(points)
             out._data = idealized.T
             idealized = out
@@ -752,21 +797,28 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         n_segments = len(segments)
         n_pts = np.size(pts)
 
-        segment_lengths = np.sqrt(np.sum(np.diff(segments, axis=1)**2, axis=2)).squeeze()
+        segment_lengths = np.sqrt(
+            np.sum(np.diff(segments, axis=1) ** 2, axis=2)
+        ).squeeze()
         cum_lengths = np.cumsum(segment_lengths)
         # identify appropriate segment
         segment_assignments = np.searchsorted(cum_lengths, pts).squeeze()
         segment_assignments[segment_assignments >= n_segments] = n_segments - 1
 
         # get distance along each segment, for each point:
-        alpha = (cum_lengths[segment_assignments] - pts) / segment_lengths[segment_assignments]
+        alpha = (cum_lengths[segment_assignments] - pts) / segment_lengths[
+            segment_assignments
+        ]
 
         coords = segments[segment_assignments]
-        starts = coords[:,0]
-        stops = coords[:,1]
+        starts = coords[:, 0]
+        stops = coords[:, 1]
 
         # do convex combination on segment
-        new_coords = np.reshape((alpha), (n_pts,1)) * starts + np.reshape((1-alpha), (n_pts,1)) * stops
+        new_coords = (
+            np.reshape((alpha), (n_pts, 1)) * starts
+            + np.reshape((1 - alpha), (n_pts, 1)) * stops
+        )
 
         return new_coords
 
@@ -793,14 +845,19 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         if segment_assignments is None:
             segment_assignments = self.get_closest_segments(pts, segments)
 
-        segment_lengths = np.sqrt(np.sum(np.diff(segments, axis=1)**2, axis=2)).squeeze()
+        segment_lengths = np.sqrt(
+            np.sum(np.diff(segments, axis=1) ** 2, axis=2)
+        ).squeeze()
         cum_lengths = np.cumsum(segment_lengths)
 
         coords = segments[segment_assignments]
-        starts = coords[:,0]
+        starts = coords[:, 0]
 
         # determine distance from segment start point, and offset by cumulative segment lengths from start
-        linearized = np.sqrt(np.sum((starts - pts)**2, axis=1)) + np.insert(cum_lengths,0,0)[segment_assignments]
+        linearized = (
+            np.sqrt(np.sum((starts - pts) ** 2, axis=1))
+            + np.insert(cum_lengths, 0, 0)[segment_assignments]
+        )
 
         if isinstance(points, _analogsignalarray.AnalogSignalArray):
             out = copy.deepcopy(points)
@@ -812,14 +869,18 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
     @property
     def idealized(self):
         if self._idealized is None:
-            idealized = self._project_onto_segments(self, self.segments, self.segment_assignments)
+            idealized = self._project_onto_segments(
+                self, self.segments, self.segment_assignments
+            )
             self._idealized = idealized
         return self._idealized
 
     @property
     def linearized(self):
         if self._linearized is None:
-            linearized = self._ideal_to_linear(self.idealized, self.segments, self.segment_assignments)
+            linearized = self._ideal_to_linear(
+                self.idealized, self.segments, self.segment_assignments
+            )
             linearized.smooth = linearized._smooth_unwrapped
             self._linearized = linearized
 
@@ -851,10 +912,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         out : AnalogSignalArray
             An AnalogSignalArray with smoothed data is returned.
         """
-        kwargs = {'inplace' : inplace,
-                'fs' : fs,
-                'sigma' : sigma,
-                'bw' : bw}
+        kwargs = {"inplace": inplace, "fs": fs, "sigma": sigma, "bw": bw}
         out = copy.deepcopy(self)
         out._data = np.atleast_2d(out._unwrap(out.data.squeeze()))
         out = utils.gaussian_filter(out, **kwargs)
@@ -868,7 +926,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         #         'fs' : fs,
         #         'sigma' : sigma,
         #         'bw' : bw}
-        #data = copy.deepcopy(self.data)
+        # data = copy.deepcopy(self.data)
         # self._data = np.atleast_2d(self._unwrap(self.data.squeeze()))
         # out = utils.gaussian_filter(self, **kwargs)
         # out._data = np.atleast_2d(self._wrap(out.data.squeeze()))
@@ -885,11 +943,23 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
 
 class RingTrajectory(_analogsignalarray.AnalogSignalArray):
 
-    __attributes__ = [] # RingTrajectory-specific attributes
+    __attributes__ = []  # RingTrajectory-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
-    def __init__(self,data=[], *, segments, timestamps=None, fs=None,
-                 step=None, merge_sample_gap=0, support=None,
-                 in_memory=True, labels=None, empty=False):
+
+    def __init__(
+        self,
+        data=[],
+        *,
+        segments,
+        timestamps=None,
+        fs=None,
+        step=None,
+        merge_sample_gap=0,
+        support=None,
+        in_memory=True,
+        labels=None,
+        empty=False
+    ):
 
         # if an empty object is requested, return it:
         if empty:
@@ -904,19 +974,23 @@ class RingTrajectory(_analogsignalarray.AnalogSignalArray):
             self.__dict__ = copy.deepcopy(data.__dict__)
             self.__renew__()
         else:
-            kwargs = {"data":data,
-                    "timestamps": timestamps,
-                    "fs": fs,
-                    "step": step,
-                    "merge_sample_gap": merge_sample_gap,
-                    "support": support,
-                    "in_memory": in_memory,
-                    "labels": labels}
+            kwargs = {
+                "data": data,
+                "timestamps": timestamps,
+                "fs": fs,
+                "step": step,
+                "merge_sample_gap": merge_sample_gap,
+                "support": support,
+                "in_memory": in_memory,
+                "labels": labels,
+            }
 
             # initialize super:
             super().__init__(**kwargs)
 
-        self._segment_lengths = np.sqrt(np.sum(np.diff(segments, axis=1)**2, axis=2)).squeeze()
+        self._segment_lengths = np.sqrt(
+            np.sum(np.diff(segments, axis=1) ** 2, axis=2)
+        ).squeeze()
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
@@ -932,9 +1006,9 @@ class RingTrajectory(_analogsignalarray.AnalogSignalArray):
     def _unwrap(self, arr):
         lin = copy.deepcopy(arr)
         for ii in range(1, len(lin)):
-            if lin[ii] - lin[ii-1] >= self.track_length/2:
+            if lin[ii] - lin[ii - 1] >= self.track_length / 2:
                 lin[ii:] = lin[ii:] - self.track_length
-            elif lin[ii] - lin[ii-1] < - self.track_length/2:
+            elif lin[ii] - lin[ii - 1] < -self.track_length / 2:
                 lin[ii:] = lin[ii:] + self.track_length
 
         return lin

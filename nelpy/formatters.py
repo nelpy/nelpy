@@ -5,75 +5,81 @@ import numpy as np
 from collections import namedtuple
 from math import floor
 
-__all__ = ['BaseFormatter',
-           'ArbitraryFormatter',
-           'PrettyBytes',
-           'PrettyInt',
-           'PrettyDuration',
-           'PrettySpace'
-           ]
+__all__ = [
+    "BaseFormatter",
+    "ArbitraryFormatter",
+    "PrettyBytes",
+    "PrettyInt",
+    "PrettyDuration",
+    "PrettySpace",
+]
 
-class BaseFormatter():
+
+class BaseFormatter:
     """Base formatter."""
 
-    base_unit = 'base units'
+    base_unit = "base units"
 
     def __init__(self, val):
         self.val = val
         self.base_unit = type(self).base_unit
         raise NotImplementedError
 
+
 class ArbitraryFormatter(float):
     """Formatter for arbitrary units."""
 
-    base_unit = 'a.u.'
+    base_unit = "a.u."
 
     def __init__(self, val):
         self.val = val
         self.base_unit = type(self).base_unit
 
     def __str__(self):
-        return '{:g}'.format(self.val)
+        return "{:g}".format(self.val)
 
     def __repr__(self):
-        return '{:g}'.format(self.val)
+        return "{:g}".format(self.val)
+
 
 class PrettyBytes(int):
     """Prints number of bytes in a more readable format"""
 
-    base_unit = 'bytes'
-
-    def __init__(self, val):
-        self.val = val
-        self.base_unit =type(self).base_unit
-
-    def __str__(self):
-        if self.val < 1024:
-            return '{} bytes'.format(self.val)
-        elif self.val < 1024**2:
-            return '{:.3f} kilobytes'.format(self.val/1024)
-        elif self.val < 1024**3:
-            return '{:.3f} megabytes'.format(self.val/1024**2)
-        elif self.val < 1024**4:
-            return '{:.3f} gigabytes'.format(self.val/1024**3)
-
-    def __repr__(self):
-        return self.__str__()
-
-class PrettyInt(int):
-    """Prints integers in a more readable format"""
-
-    base_unit = 'int'
+    base_unit = "bytes"
 
     def __init__(self, val):
         self.val = val
         self.base_unit = type(self).base_unit
 
     def __str__(self):
-        return '{:,}'.format(self.val)
+        if self.val < 1024:
+            return "{} bytes".format(self.val)
+        elif self.val < 1024**2:
+            return "{:.3f} kilobytes".format(self.val / 1024)
+        elif self.val < 1024**3:
+            return "{:.3f} megabytes".format(self.val / 1024**2)
+        elif self.val < 1024**4:
+            return "{:.3f} gigabytes".format(self.val / 1024**3)
 
     def __repr__(self):
-        return '{:,}'.format(self.val)
+        return self.__str__()
+
+
+class PrettyInt(int):
+    """Prints integers in a more readable format"""
+
+    base_unit = "int"
+
+    def __init__(self, val):
+        self.val = val
+        self.base_unit = type(self).base_unit
+
+    def __str__(self):
+        return "{:,}".format(self.val)
+
+    def __repr__(self):
+        return "{:,}".format(self.val)
+
 
 class PrettyDuration(float):
     """Time duration with pretty print.
@@ -81,7 +87,7 @@ class PrettyDuration(float):
     Behaves like a float, and can always be cast to a float.
     """
 
-    base_unit = 's'
+    base_unit = "s"
 
     def __init__(self, seconds):
         self.duration = seconds
@@ -99,12 +105,13 @@ class PrettyDuration(float):
         pos = seconds >= 0
         if not pos:
             seconds = -seconds
-        ms = seconds % 1; ms = round(ms*10000)/10
+        ms = seconds % 1
+        ms = round(ms * 10000) / 10
         seconds = floor(seconds)
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
         d, h = divmod(h, 24)
-        Time = namedtuple('Time', 'pos dd hh mm ss ms')
+        Time = namedtuple("Time", "pos dd hh mm ss ms")
         time = Time(pos=pos, dd=d, hh=h, mm=m, ss=s, ms=ms)
         return time
 
@@ -112,13 +119,13 @@ class PrettyDuration(float):
     def time_string(seconds):
         """returns a formatted time string."""
         if np.isinf(seconds):
-            return 'inf'
+            return "inf"
         pos, dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
         if s > 0:
             if mm == 0:
                 # in this case, represent milliseconds in terms of
                 # seconds (i.e. a decimal)
-                sstr = str(s/1000).lstrip('0')
+                sstr = str(s / 1000).lstrip("0")
                 if s >= 999.5:
                     ss += 1
                     s = 0
@@ -128,7 +135,7 @@ class PrettyDuration(float):
                         mm += 1
                         ss = 0
                     if mm == 60:
-                        hh +=1
+                        hh += 1
                         mm = 0
                     if hh == 24:
                         dd += 1
@@ -145,7 +152,7 @@ class PrettyDuration(float):
                         mm += 1
                         ss = 0
                     if mm == 60:
-                        hh +=1
+                        hh += 1
                         mm = 0
                     if hh == 24:
                         dd += 1
@@ -165,7 +172,7 @@ class PrettyDuration(float):
         elif ss > 0:
             timestr = daystr + "{:01d}{} seconds".format(ss, sstr)
         else:
-            timestr = daystr +"{} milliseconds".format(s)
+            timestr = daystr + "{} milliseconds".format(s)
         if not pos:
             timestr = "-" + timestr
         return timestr
@@ -205,7 +212,7 @@ class PrettySpace(float):
     Behaves like a float, and can always be cast to a float.
     """
 
-    base_unit = 'cm'
+    base_unit = "cm"
 
     def __init__(self, centimeters):
         self.value = centimeters
@@ -226,12 +233,12 @@ class PrettySpace(float):
         pos = centimeters >= 0
         if not pos:
             centimeters = -centimeters
-        um = round(10000*((centimeters*1000)%1))/10
-        mm = floor(centimeters%1*1000)
+        um = round(10000 * ((centimeters * 1000) % 1)) / 10
+        mm = floor(centimeters % 1 * 1000)
         cm = floor(centimeters)
         m, cm = divmod(cm, 100)
         km, m = divmod(m, 1000)
-        Space = namedtuple('Space', 'pos km m cm mm um')
+        Space = namedtuple("Space", "pos km m cm mm um")
         space = Space(pos=pos, km=km, m=m, cm=cm, mm=mm, um=um)
         return space
 
@@ -244,12 +251,12 @@ class PrettySpace(float):
         pos = centimeters >= 0
         if not pos:
             centimeters = -centimeters
-        um = round(10000*((centimeters*1000)%1))/10
-        mm = floor(centimeters%1*1000)
+        um = round(10000 * ((centimeters * 1000) % 1)) / 10
+        mm = floor(centimeters % 1 * 1000)
         cm = floor(centimeters)
         m, cm = divmod(cm, 100)
         km, m = divmod(m, 1000)
-        Space = namedtuple('Space', 'pos km m cm mm um')
+        Space = namedtuple("Space", "pos km m cm mm um")
         space = Space(pos=pos, km=km, m=m, cm=cm, mm=mm, um=um)
         return space
 
@@ -258,21 +265,21 @@ class PrettySpace(float):
         """returns a formatted space string."""
         sstr = str(centimeters)
         if np.isinf(centimeters):
-            return 'inf'
-#         pos, km, m, cm, mm, um = PrettySpace.decompose(centimeters)
+            return "inf"
+        #         pos, km, m, cm, mm, um = PrettySpace.decompose(centimeters)
         pos = centimeters >= 0
         if not pos:
             centimeters = -centimeters
         if centimeters > 100000:
-            sstr = "{:g} km".format(centimeters/100000)
+            sstr = "{:g} km".format(centimeters / 100000)
         elif centimeters > 100:
-            sstr = "{:g} m".format(centimeters/100)
+            sstr = "{:g} m".format(centimeters / 100)
         elif centimeters > 1:
             sstr = "{:g} cm".format(centimeters)
         elif centimeters < 0.001:
-            sstr = "{:g} um".format(centimeters*1000000)
+            sstr = "{:g} um".format(centimeters * 1000000)
         else:
-            sstr = "{:g} mm".format(centimeters*1000)
+            sstr = "{:g} mm".format(centimeters * 1000)
         if not pos:
             sstr = "-" + sstr
         return sstr

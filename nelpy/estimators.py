@@ -44,9 +44,11 @@ BayesianDecoder(BaseEstimator):
 
 """
 
+
 class KeywordError(Exception):
     def __init__(self, message):
         self.message = message
+
 
 class UnitSlicer(object):
     def __init__(self, obj):
@@ -59,7 +61,7 @@ class UnitSlicer(object):
         if isinstance(*args, int):
             unitslice = args[0]
         else:
-            slices = np.s_[args];
+            slices = np.s_[args]
             slices = slices[0]
             unitslice = slices
 
@@ -74,7 +76,9 @@ class UnitSlicer(object):
                 else:
                     istart = list(self.obj.unit_ids).index(start)
             except ValueError:
-                raise KeyError('unit_id {} could not be found in RateMap!'.format(start))
+                raise KeyError(
+                    "unit_id {} could not be found in RateMap!".format(start)
+                )
 
             try:
                 if stop is None:
@@ -82,12 +86,12 @@ class UnitSlicer(object):
                 else:
                     istop = list(self.obj.unit_ids).index(stop) + 1
             except ValueError:
-                raise KeyError('unit_id {} could not be found in RateMap!'.format(stop))
+                raise KeyError("unit_id {} could not be found in RateMap!".format(stop))
             if istep is None:
                 istep = 1
             if istep < 0:
-                istop -=1
-                istart -=1
+                istop -= 1
+                istart -= 1
                 istart, istop = istop, istart
             unit_idx_list = list(range(istart, istop, istep))
         else:
@@ -97,11 +101,14 @@ class UnitSlicer(object):
                 try:
                     uidx = list(self.obj.unit_ids).index(unit)
                 except ValueError:
-                    raise KeyError("unit_id {} could not be found in RateMap!".format(unit))
+                    raise KeyError(
+                        "unit_id {} could not be found in RateMap!".format(unit)
+                    )
                 else:
                     unit_idx_list.append(uidx)
 
         return unit_idx_list
+
 
 class ItemGetter_loc(object):
     """.loc is primarily label based (that is, unit_id based)
@@ -117,6 +124,7 @@ class ItemGetter_loc(object):
             usual python slices, both the start and the stop are
             included!)
     """
+
     def __init__(self, obj):
         self.obj = obj
 
@@ -125,6 +133,7 @@ class ItemGetter_loc(object):
         unit_idx_list = self.obj._slicer[idx]
 
         return self.obj[unit_idx_list]
+
 
 class ItemGetter_iloc(object):
     """.iloc is primarily integer position based (from 0 to length-1
@@ -139,6 +148,7 @@ class ItemGetter_iloc(object):
         - A list or array of integers [4, 3, 0]
         - A slice object with ints 1:7
     """
+
     def __init__(self, obj):
         self.obj = obj
 
@@ -149,6 +159,7 @@ class ItemGetter_iloc(object):
             unit_idx_list = [idx]
 
         return self.obj[unit_idx_list]
+
 
 class RateMap(BaseEstimator):
     """
@@ -170,7 +181,7 @@ class RateMap(BaseEstimator):
         applied. Default is 'continuous'.
     """
 
-    def __init__(self, connectivity='continuous'):
+    def __init__(self, connectivity="continuous"):
         self.connectivity = connectivity
 
         self._slicer = UnitSlicer(self)
@@ -181,9 +192,11 @@ class RateMap(BaseEstimator):
         r = super().__repr__()
         if self._is_fitted():
             if self.is_1d:
-                r += ' with shape (n_units={}, n_bins_x={})'.format(*self.shape)
+                r += " with shape (n_units={}, n_bins_x={})".format(*self.shape)
             else:
-                r += ' with shape (n_units={}, n_bins_x={}, n_bins_y={})'.format(*self.shape)
+                r += " with shape (n_units={}, n_bins_x={}, n_bins_y={})".format(
+                    *self.shape
+                )
         return r
 
     def fit(self, X, y, dt=1, unit_ids=None):
@@ -208,42 +221,58 @@ class RateMap(BaseEstimator):
         n_units, n_bins_x, n_bins_y = self._check_X_y(X, y)
         if n_bins_y > 0:
             # self.ratemap_ = np.zeros((n_units, n_bins_x, n_bins_y)) #FIXME
-            self.ratemap_ = y/dt
-            bin_centers_x = np.squeeze(X[:,0])
-            bin_centers_y = np.squeeze(X[:,1])
+            self.ratemap_ = y / dt
+            bin_centers_x = np.squeeze(X[:, 0])
+            bin_centers_y = np.squeeze(X[:, 1])
             bin_dx = np.median(np.diff(bin_centers_x))
             bin_dy = np.median(np.diff(bin_centers_y))
-            bins_x = np.insert(bin_centers_x[:-1] + np.diff(bin_centers_x)/2, 0, bin_centers_x[0] - bin_dx/2)
+            bins_x = np.insert(
+                bin_centers_x[:-1] + np.diff(bin_centers_x) / 2,
+                0,
+                bin_centers_x[0] - bin_dx / 2,
+            )
             bins_x = np.append(bins_x, bins_x[-1] + bin_dx)
-            bins_y = np.insert(bin_centers_y[:-1] + np.diff(bin_centers_y)/2, 0, bin_centers_y[0] - bin_dy/2)
+            bins_y = np.insert(
+                bin_centers_y[:-1] + np.diff(bin_centers_y) / 2,
+                0,
+                bin_centers_y[0] - bin_dy / 2,
+            )
             bins_y = np.append(bins_y, bins_y[-1] + bin_dy)
             self._bins_x = bins_x
             self._bins_y = bins_y
             self._bin_centers_x = bin_centers_x
-            self._bin_centers_y = X[:,1]
+            self._bin_centers_y = X[:, 1]
         else:
             # self.ratemap_ = np.zeros((n_units, n_bins_x)) #FIXME
-            self.ratemap_ = y/dt
+            self.ratemap_ = y / dt
             bin_centers_x = np.squeeze(X)
             bin_dx = np.median(np.diff(bin_centers_x))
-            bins_x = np.insert(bin_centers_x[:-1] + np.diff(bin_centers_x)/2, 0, bin_centers_x[0] - bin_dx/2)
+            bins_x = np.insert(
+                bin_centers_x[:-1] + np.diff(bin_centers_x) / 2,
+                0,
+                bin_centers_x[0] - bin_dx / 2,
+            )
             bins_x = np.append(bins_x, bins_x[-1] + bin_dx)
             self._bins_x = bins_x
             self._bin_centers_x = bin_centers_x
 
         if unit_ids is not None:
             if len(unit_ids) != n_units:
-                raise ValueError("'unit_ids' must have same number of elements as 'n_units'. {} != {}".format(len(unit_ids), n_units))
+                raise ValueError(
+                    "'unit_ids' must have same number of elements as 'n_units'. {} != {}".format(
+                        len(unit_ids), n_units
+                    )
+                )
             self._unit_ids = unit_ids
         else:
             self._unit_ids = np.arange(n_units)
 
     def predict(self, X):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         raise NotImplementedError
 
     def synthesize(self, X):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         raise NotImplementedError
 
     def __len__(self):
@@ -288,8 +317,7 @@ class RateMap(BaseEstimator):
             out.iloc = ItemGetter_iloc(out)
             return out
         except Exception:
-            raise TypeError(
-                'unsupported subsctipting type {}'.format(type(idx)))
+            raise TypeError("unsupported subsctipting type {}".format(type(idx)))
 
     def get_peak_firing_order_ids(self):
         """Get the unit_ids in order of peak firing location for 1D RateMaps.
@@ -300,9 +328,11 @@ class RateMap(BaseEstimator):
             The permutaiton of unit_ids such that after reordering, the peak
             firing locations are ordered along the RateMap.
         """
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if self.is_2d:
-            raise NotImplementedError("get_peak_firing_order_ids() only implemented for 1D RateMaps.")
+            raise NotImplementedError(
+                "get_peak_firing_order_ids() only implemented for 1D RateMaps."
+            )
         peakorder = np.argmax(self.ratemap_, axis=1).argsort()
         return np.array(self.unit_ids)[peakorder]
 
@@ -322,13 +352,16 @@ class RateMap(BaseEstimator):
         -------
         out : reordered RateMap
         """
+
         def swap_units(arr, frm, to):
             """swap 'units' of a 3D np.array"""
-            arr[(frm, to),:] = arr[(to, frm),:]
+            arr[(frm, to), :] = arr[(to, frm), :]
 
         self._validate_unit_ids(unit_ids)
         if len(unit_ids) != len(self._unit_ids):
-            raise ValueError('unit_ids must be a permutation of self.unit_ids, not a subset thereof.')
+            raise ValueError(
+                "unit_ids must be a permutation of self.unit_ids, not a subset thereof."
+            )
 
         if inplace:
             out = self
@@ -342,7 +375,10 @@ class RateMap(BaseEstimator):
             frm = oldorder.index(ni)
             to = oi
             swap_units(out.ratemap_, frm, to)
-            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
+            out._unit_ids[frm], out._unit_ids[to] = (
+                out._unit_ids[to],
+                out._unit_ids[frm],
+            )
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
         return out
 
@@ -385,12 +421,16 @@ class RateMap(BaseEstimator):
             # could fit on 100 units, and then predict on only 10 of
             # them, if we wanted.
             if unit_id not in self.unit_ids:
-                raise ValueError('unit_id {} was not present during fit(); aborting...'.format(unit_id))
+                raise ValueError(
+                    "unit_id {} was not present during fit(); aborting...".format(
+                        unit_id
+                    )
+                )
 
     def _is_fitted(self):
         try:
-            check_is_fitted(self, 'ratemap_')
-        except Exception: # should really be except NotFitterError
+            check_is_fitted(self, "ratemap_")
+        except Exception:  # should really be except NotFitterError
             return False
         return True
 
@@ -405,10 +445,12 @@ class RateMap(BaseEstimator):
     @staticmethod
     def _validate_connectivity(connectivity):
         connectivity = str(connectivity).strip().lower()
-        options = ['continuous', 'discrete', 'circular']
+        options = ["continuous", "discrete", "circular"]
         if connectivity in options:
             return connectivity
-        raise NotImplementedError("connectivity '{}' is not supported yet!".format(str(connectivity)))
+        raise NotImplementedError(
+            "connectivity '{}' is not supported yet!".format(str(connectivity))
+        )
 
     @staticmethod
     def _units_from_X(X):
@@ -430,63 +472,63 @@ class RateMap(BaseEstimator):
         if self.is_1d:
             return self
         out = copy.copy(self)
-        out.ratemap_ = np.transpose(out.ratemap_, axes=(0,2,1))
+        out.ratemap_ = np.transpose(out.ratemap_, axes=(0, 2, 1))
         return out
 
     @property
     def shape(self):
         """
-            RateMap.shape = (n_units, n_features_x, n_features_y)
-                OR
-            RateMap.shape = (n_units, n_features)
+        RateMap.shape = (n_units, n_features_x, n_features_y)
+            OR
+        RateMap.shape = (n_units, n_features)
         """
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         return self.ratemap_.shape
 
     @property
     def is_1d(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if len(self.ratemap_.shape) == 2:
             return True
         return False
 
     @property
     def is_2d(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if len(self.ratemap_.shape) == 3:
             return True
         return False
 
     @property
     def n_units(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         return self.ratemap_.shape[0]
 
     @property
     def unit_ids(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         return self._unit_ids
 
     @property
     def n_bins(self):
         """(int) Number of external correlates (bins)."""
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if self.is_2d:
-            return self.n_bins_x*self.n_bins_y
+            return self.n_bins_x * self.n_bins_y
         return self.n_bins_x
 
     @property
     def n_bins_x(self):
         """(int) Number of external correlates (bins)."""
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         return self.ratemap_.shape[1]
 
     @property
     def n_bins_y(self):
         """(int) Number of external correlates (bins)."""
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if self.is_1d:
-            raise ValueError('RateMap is 1D; no y bins are defined.')
+            raise ValueError("RateMap is 1D; no y bins are defined.")
         return self.ratemap_.shape[2]
 
     def max(self, axis=None, out=None):
@@ -496,7 +538,7 @@ class RateMap(BaseEstimator):
         maximum firing rate across units:
             RateMap.max(axis=0)
         """
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if axis == None:
             if self.is_2d:
                 return self.ratemap_.max(axis=1, out=out).max(axis=1, out=out)
@@ -505,7 +547,7 @@ class RateMap(BaseEstimator):
         return self.ratemap_.max(axis=axis, out=out)
 
     def min(self, axis=None, out=None):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if axis == None:
             if self.is_2d:
                 return self.ratemap_.min(axis=1, out=out).min(axis=1, out=out)
@@ -514,10 +556,8 @@ class RateMap(BaseEstimator):
         return self.ratemap_.min(axis=axis, out=out)
 
     def mean(self, axis=None, dtype=None, out=None, keepdims=False):
-        check_is_fitted(self, 'ratemap_')
-        kwargs = {'dtype':dtype,
-                  'out':out,
-                  'keepdims':keepdims}
+        check_is_fitted(self, "ratemap_")
+        kwargs = {"dtype": dtype, "out": out, "keepdims": keepdims}
         if axis == None:
             if self.is_2d:
                 return self.ratemap_.mean(axis=1, **kwargs).mean(axis=1, **kwargs)
@@ -540,7 +580,7 @@ class RateMap(BaseEstimator):
         if self.is_2d:
             return self._bins_y
         else:
-            raise ValueError('only valid for 2D RateMap() objects.')
+            raise ValueError("only valid for 2D RateMap() objects.")
 
     @property
     def bin_centers(self):
@@ -557,7 +597,7 @@ class RateMap(BaseEstimator):
         if self.is_2d:
             return self._bin_centers_y
         else:
-            raise ValueError('only valid for 2D RateMap() objects.')
+            raise ValueError("only valid for 2D RateMap() objects.")
 
     @property
     def mask(self):
@@ -565,18 +605,18 @@ class RateMap(BaseEstimator):
 
     @mask.setter
     def mask(self, val):
-        #TODO: mask validation
+        # TODO: mask validation
         raise NotImplementedError
         self._mask = val
 
     def plot(self, **kwargs):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if self.is_2d:
             raise NotImplementedError("plot() not yet implemented for 2D RateMaps.")
-        pad = kwargs.pop('pad', None)
+        pad = kwargs.pop("pad", None)
         _plot_ratemap(self, pad=pad, **kwargs)
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
     def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
 
@@ -593,11 +633,11 @@ class RateMap(BaseEstimator):
         """
 
         if sigma is None:
-            sigma = 0.1 # in units of extern
+            sigma = 0.1  # in units of extern
         if truncate is None:
             truncate = 4
         if mode is None:
-            mode = 'reflect'
+            mode = "reflect"
         if cval is None:
             cval = 0.0
 
@@ -661,7 +701,9 @@ class BayesianDecoderTemp(BaseEstimator):
         if rate_estimator is None:
             rate_estimator = FiringRateEstimator()
         elif not isinstance(rate_estimator, FiringRateEstimator):
-            raise TypeError("'rate_estimator' must be a nelpy FiringRateEstimator() type!")
+            raise TypeError(
+                "'rate_estimator' must be a nelpy FiringRateEstimator() type!"
+            )
         return rate_estimator
 
     @staticmethod
@@ -677,11 +719,13 @@ class BayesianDecoderTemp(BaseEstimator):
         if w is None:
             w = DataWindow(sum=True, bin_width=1)
         elif not isinstance(w, DataWindow):
-            raise TypeError('w must be a nelpy DataWindow() type!')
+            raise TypeError("w must be a nelpy DataWindow() type!")
         else:
             w = copy.copy(w)
         if w._sum is False:
-            logging.warning('BayesianDecoder requires DataWindow (w) to have sum=True; changing to True')
+            logging.warning(
+                "BayesianDecoder requires DataWindow (w) to have sum=True; changing to True"
+            )
             w._sum = True
         if w.bin_width is None:
             w.bin_width = 1
@@ -691,29 +735,43 @@ class BayesianDecoderTemp(BaseEstimator):
 
         if isinstance(X, core.BinnedEventArray):
             if dt is not None:
-                logging.warning("A {} was passed in, so 'dt' will be ignored...".format(X.type_name))
+                logging.warning(
+                    "A {} was passed in, so 'dt' will be ignored...".format(X.type_name)
+                )
             dt = X.ds
             if self._w.bin_width != dt:
-                raise ValueError('BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}'.format(self.w.bin_width, dt))
+                raise ValueError(
+                    "BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}".format(
+                        self.w.bin_width, dt
+                    )
+                )
             X, T = self.w.transform(X, lengths=lengths, sum=True)
         else:
             if dt is not None:
                 if self._w.bin_width != dt:
-                    raise ValueError('BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}'.format(self.w.bin_width, dt))
+                    raise ValueError(
+                        "BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}".format(
+                            self.w.bin_width, dt
+                        )
+                    )
             else:
                 dt = self._w.bin_width
 
         return X, dt
 
-    def _check_X_y(self, X, y, *, method='score', lengths=None):
+    def _check_X_y(self, X, y, *, method="score", lengths=None):
 
         if isinstance(X, core.BinnedEventArray):
-            if method == 'fit':
+            if method == "fit":
                 self._w.bin_width = X.ds
-                logging.info('Updating DataWindow.bin_width from training data.')
+                logging.info("Updating DataWindow.bin_width from training data.")
             else:
                 if self._w.bin_width != X.ds:
-                    raise ValueError('BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}'.format(self.w.bin_width, X.ds))
+                    raise ValueError(
+                        "BayesianDecoder was fit with a bin_width of {}, but is being used to predict data with a bin_width of {}".format(
+                            self.w.bin_width, X.ds
+                        )
+                    )
 
             X, T = self.w.transform(X, lengths=lengths, sum=True)
 
@@ -721,7 +779,9 @@ class BayesianDecoderTemp(BaseEstimator):
                 y = y(T).T
 
         if isinstance(y, core.RegularlySampledAnalogSignalArray):
-            raise TypeError('y can only be a RegularlySampledAnalogSignalArray if X is a BinnedEventArray.')
+            raise TypeError(
+                "y can only be a RegularlySampledAnalogSignalArray if X is a BinnedEventArray."
+            )
 
         assert len(X) == len(y), "X and y must have the same number of samples!"
 
@@ -740,16 +800,19 @@ class BayesianDecoderTemp(BaseEstimator):
         """
         unit_ids = self._check_unit_ids(unit_ids=unit_ids)
         if len(unit_ids) != len(self.unit_ids):
-            raise ValueError("To re-order (permute) units, 'unit_ids' must have the same length as self._unit_ids.")
+            raise ValueError(
+                "To re-order (permute) units, 'unit_ids' must have the same length as self._unit_ids."
+            )
         self._ratemap.reorder_units_by_ids(unit_ids, inplace=inplace)
 
-    def _check_unit_ids(self,*, X=None, unit_ids=None, fit=False):
+    def _check_unit_ids(self, *, X=None, unit_ids=None, fit=False):
         """Check that unit_ids are valid (if provided), and return unit_ids.
 
         if calling from fit(), pass in fit=True, which will skip checks against
         self.ratemap, which doesn't exist before fitting...
 
         """
+
         def a_contains_b(a, b):
             """Returns True iff 'b' is a subset of 'a'."""
             for bb in b:
@@ -763,45 +826,63 @@ class BayesianDecoderTemp(BaseEstimator):
                 # unit_ids were passed in, even though it's also contained in X.unit_ids
                 # 1. check that unit_ids are contained in the data:
                 if not a_contains_b(X.series_ids, unit_ids):
-                    raise ValueError('Some unit_ids were not contained in X!')
+                    raise ValueError("Some unit_ids were not contained in X!")
                 # 2. check that unit_ids are contained in self (decoder ratemap)
                 if not fit:
                     if not a_contains_b(self.unit_ids, unit_ids):
-                        raise ValueError('Some unit_ids were not contained in ratemap!')
+                        raise ValueError("Some unit_ids were not contained in ratemap!")
             else:
                 # infer unit_ids from X
                 unit_ids = X.series_ids
                 # check that unit_ids are contained in self (decoder ratemap)
                 if not fit:
                     if not a_contains_b(self.unit_ids, unit_ids):
-                        raise ValueError('Some unit_ids from X were not contained in ratemap!')
-        else: # a non-nelpy X was passed, possibly X=None
+                        raise ValueError(
+                            "Some unit_ids from X were not contained in ratemap!"
+                        )
+        else:  # a non-nelpy X was passed, possibly X=None
             if unit_ids is not None:
                 # 1. check that unit_ids are contained in self (decoder ratemap)
                 if not fit:
                     if not a_contains_b(self.unit_ids, unit_ids):
-                        raise ValueError('Some unit_ids were not contained in ratemap!')
-            else: # no unit_ids were passed, only a non-nelpy X
+                        raise ValueError("Some unit_ids were not contained in ratemap!")
+            else:  # no unit_ids were passed, only a non-nelpy X
                 if X is not None:
                     n_samples, n_units = X.shape
                     if not fit:
                         if n_units > self.n_units:
-                            raise ValueError("X contains more units than decoder! {} > {}".format(n_units, self.n_units))
+                            raise ValueError(
+                                "X contains more units than decoder! {} > {}".format(
+                                    n_units, self.n_units
+                                )
+                            )
                         unit_ids = self.unit_ids[:n_units]
                     else:
                         unit_ids = np.arange(n_units)
                 else:
-                    raise NotImplementedError ("unexpected branch reached...")
+                    raise NotImplementedError("unexpected branch reached...")
         return unit_ids
 
     def _get_transformed_ratemap(self, unit_ids):
-            # first, trim ratemap to subset of units
+        # first, trim ratemap to subset of units
         ratemap = self.ratemap.loc[unit_ids]
         # then, permute the ratemap
-        ratemap = ratemap.reorder_units_by_ids(unit_ids) # maybe unneccessary, since .loc already permutes
+        ratemap = ratemap.reorder_units_by_ids(
+            unit_ids
+        )  # maybe unneccessary, since .loc already permutes
         return ratemap
 
-    def fit(self, X, y, *, lengths=None, dt=None, unit_ids=None, n_bins=None, sample_weight=None):
+    def fit(
+        self,
+        X,
+        y,
+        *,
+        lengths=None,
+        dt=None,
+        unit_ids=None,
+        n_bins=None,
+        sample_weight=None
+    ):
         """Fit Gaussian Naive Bayes according to X, y
 
         Parameters
@@ -836,46 +917,44 @@ class BayesianDecoderTemp(BaseEstimator):
 
         """
 
-        #TODO dt should probably come from datawindow specification, but may be overridden here!
+        # TODO dt should probably come from datawindow specification, but may be overridden here!
 
         unit_ids = self._check_unit_ids(X=X, unit_ids=unit_ids, fit=True)
 
         # estimate the firing rate(s):
-        self.rate_estimator.fit(X=X,
-                                y=y,
-                                dt=dt,
-                                n_bins=n_bins)
+        self.rate_estimator.fit(X=X, y=y, dt=dt, n_bins=n_bins)
 
         # store the estimated firing rates as a rate map:
-        bin_centers = self.rate_estimator.tc_.bin_centers #temp code FIXME
-        bins = self.rate_estimator.tc_.bins #temp code FIXME
-        rates = self.rate_estimator.tc_.ratemap #temp code FIXME
+        bin_centers = self.rate_estimator.tc_.bin_centers  # temp code FIXME
+        bins = self.rate_estimator.tc_.bins  # temp code FIXME
+        rates = self.rate_estimator.tc_.ratemap  # temp code FIXME
         # unit_ids = np.array(self.rate_estimator.tc_.unit_ids) #temp code FIXME
-        self.ratemap.fit(X=bin_centers,
-                         y=rates,
-                         unit_ids=unit_ids) #temp code FIXME
+        self.ratemap.fit(X=bin_centers, y=rates, unit_ids=unit_ids)  # temp code FIXME
 
-        X, y = self._check_X_y(X, y, method='fit', lengths=lengths) # can I remove this? no; it sets the bin width... but maybe we should refactor...
+        X, y = self._check_X_y(
+            X, y, method="fit", lengths=lengths
+        )  # can I remove this? no; it sets the bin width... but maybe we should refactor...
         self.ratemap_ = self.ratemap.ratemap_
 
-    def predict(self, X, *, output=None, mode='mean', lengths=None, unit_ids=None, dt=None):
+    def predict(
+        self, X, *, output=None, mode="mean", lengths=None, unit_ids=None, dt=None
+    ):
         # if output is 'asa', then return an ASA
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         unit_ids = self._check_unit_ids(X=X, unit_ids=unit_ids)
         ratemap = self._get_transformed_ratemap(unit_ids)
         X, dt = self._check_X_dt(X=X, lengths=lengths, dt=dt)
 
-        posterior, mean_pth = decode_bayesian_memoryless_nd(X=X,
-                                ratemap=ratemap.ratemap_,
-                                dt=dt,
-                                bin_centers=ratemap.bin_centers)
+        posterior, mean_pth = decode_bayesian_memoryless_nd(
+            X=X, ratemap=ratemap.ratemap_, dt=dt, bin_centers=ratemap.bin_centers
+        )
 
         if output is not None:
             raise NotImplementedError("output mode not implemented yet")
         return posterior, mean_pth
 
     def predict_proba(self, X, *, lengths=None, unit_ids=None, dt=None):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         raise NotImplementedError
         ratemap = self._get_transformed_ratemap(unit_ids)
         return self._predict_proba_from_ratemap(X, ratemap)
@@ -885,7 +964,7 @@ class BayesianDecoderTemp(BaseEstimator):
         # check that unit_ids are valid
         # THEN, transform X, y into standardized form (including trimming and permutation) and continue with scoring
 
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         unit_ids = self._check_unit_ids(X=X, unit_ids=unit_ids)
         ratemap = self._get_transformed_ratemap(unit_ids)
         # X = self._permute_unit_order(X)
@@ -897,17 +976,17 @@ class BayesianDecoderTemp(BaseEstimator):
 
     def score_samples(self, X, y, *, lengths=None, unit_ids=None, dt=None):
         # X = self._permute_unit_order(X)
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         raise NotImplementedError
 
     @property
     def unit_ids(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         return self.ratemap.unit_ids
 
     @property
     def n_units(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         return len(self.unit_ids)
 
 
@@ -947,10 +1026,12 @@ class FiringRateEstimator(BaseEstimator):
 
     """
 
-    def __init__(self, mode='hist'):
+    def __init__(self, mode="hist"):
 
-        if mode not in ['hist']:
-            raise NotImplementedError("mode '{}' not supported / implemented yet!".format(mode))
+        if mode not in ["hist"]:
+            raise NotImplementedError(
+                "mode '{}' not supported / implemented yet!".format(mode)
+            )
 
         self._mode = mode
 
@@ -958,14 +1039,20 @@ class FiringRateEstimator(BaseEstimator):
         if isinstance(X, core.BinnedEventArray):
             T = X.bin_centers
             if lengths is not None:
-                logging.warning("'lengths' was passed in, but will be" \
-                                " overwritten by 'X's 'lengths' attribute")
+                logging.warning(
+                    "'lengths' was passed in, but will be"
+                    " overwritten by 'X's 'lengths' attribute"
+                )
             if timestamps is not None:
-                logging.warning("'timestamps' was passed in, but will be" \
-                                " overwritten by 'X's 'bin_centers' attribute")
+                logging.warning(
+                    "'timestamps' was passed in, but will be"
+                    " overwritten by 'X's 'bin_centers' attribute"
+                )
             if dt is not None:
-                logging.warning("'dt' was passed in, but will be overwritten" \
-                                " by 'X's 'ds' attribute")
+                logging.warning(
+                    "'dt' was passed in, but will be overwritten"
+                    " by 'X's 'ds' attribute"
+                )
             if isinstance(y, core.RegularlySampledAnalogSignalArray):
                 y = y(T).T
 
@@ -974,29 +1061,48 @@ class FiringRateEstimator(BaseEstimator):
             X = X.data.T
         elif isinstance(X, np.ndarray):
             if dt is None:
-                raise ValueError("'dt' is a required argument when 'X' is passed in as a numpy array!")
+                raise ValueError(
+                    "'dt' is a required argument when 'X' is passed in as a numpy array!"
+                )
             if isinstance(y, core.RegularlySampledAnalogSignalArray):
                 if timestamps is not None:
                     y = y(timestamps).T
                 else:
-                    raise ValueError("'timestamps' required when passing in 'X' as a numpy array and 'y' as a nelpy RegularlySampledAnalogSignalArray!")
+                    raise ValueError(
+                        "'timestamps' required when passing in 'X' as a numpy array and 'y' as a nelpy RegularlySampledAnalogSignalArray!"
+                    )
         else:
-            raise TypeError("'X' should be either a nelpy BinnedEventArray, or a numpy array!")
+            raise TypeError(
+                "'X' should be either a nelpy BinnedEventArray, or a numpy array!"
+            )
 
         n_samples, n_units = X.shape
         _, n_dims = y.shape
-        print('{}-dimensional y passed in'.format(n_dims))
+        print("{}-dimensional y passed in".format(n_dims))
 
-        assert n_samples == len(y), "'X' and 'y' must have the same number" \
-                    " of samples! len(X)=={} but len(y)=={}".format(n_samples,
-                                                                    len(y))
+        assert n_samples == len(y), (
+            "'X' and 'y' must have the same number"
+            " of samples! len(X)=={} but len(y)=={}".format(n_samples, len(y))
+        )
         if n_bins is not None:
             n_bins = np.atleast_1d(n_bins)
-            assert len(n_bins) == n_dims, "'n_bins' must have one entry for each dimension in 'y'!"
+            assert (
+                len(n_bins) == n_dims
+            ), "'n_bins' must have one entry for each dimension in 'y'!"
 
         return X, y, dt, n_bins
 
-    def fit(self, X, y, lengths=None, dt=None, timestamps=None, unit_ids=None, n_bins=None, sample_weight=None):
+    def fit(
+        self,
+        X,
+        y,
+        lengths=None,
+        dt=None,
+        timestamps=None,
+        unit_ids=None,
+        n_bins=None,
+        sample_weight=None,
+    ):
         """Fit Gaussian Naive Bayes according to X, y
         Parameters
         ----------
@@ -1013,12 +1119,9 @@ class FiringRateEstimator(BaseEstimator):
         -------
         self : object
         """
-        X, y, dt, n_bins = self._check_X_y_dt(X=X,
-                                              y=y,
-                                              lengths=lengths,
-                                              dt=dt,
-                                              timestamps=timestamps,
-                                              n_bins=n_bins)
+        X, y, dt, n_bins = self._check_X_y_dt(
+            X=X, y=y, lengths=lengths, dt=dt, timestamps=timestamps, n_bins=n_bins
+        )
 
         # 1. estimate mask
         # 2. estimate occupancy
@@ -1080,6 +1183,7 @@ class FiringRateEstimator(BaseEstimator):
 
 #     return posterior, mode_pth, mean_pth
 
+
 def decode_bayesian_memoryless_nd(X, *, ratemap, bin_centers, dt=1):
     """Memoryless Bayesian decoding (supports multidimensional decoding).
 
@@ -1114,11 +1218,12 @@ def decode_bayesian_memoryless_nd(X, *, ratemap, bin_centers, dt=1):
     expected_pth : numpy array of shape (n_samples, n_dims)
         Expected (posterior-averaged) decoded trajectory.
     """
+
     def tile_obs(obs, *n_bins):
         n_units = len(obs)
         out = np.zeros((n_units, *n_bins))
         for unit in range(n_units):
-            out[unit,:] = obs[unit]
+            out[unit, :] = obs[unit]
         return out
 
     n_samples, n_features = X.shape
@@ -1126,10 +1231,12 @@ def decode_bayesian_memoryless_nd(X, *, ratemap, bin_centers, dt=1):
     n_bins = np.atleast_1d(ratemap.shape[1:])
     n_dims = len(n_bins)
 
-    assert n_features == n_units, "X has {} units, whereas ratemap has {}".format(n_features, n_units)
+    assert n_features == n_units, "X has {} units, whereas ratemap has {}".format(
+        n_features, n_units
+    )
 
     lfx = np.log(ratemap)
-    eterm = -ratemap.sum(axis=0)*dt
+    eterm = -ratemap.sum(axis=0) * dt
 
     posterior = np.empty((n_samples, *n_bins))
     posterior[:] = np.nan
@@ -1141,13 +1248,18 @@ def decode_bayesian_memoryless_nd(X, *, ratemap, bin_centers, dt=1):
             posterior[tt] = (tile_obs(obs, *n_bins) * lfx).sum(axis=0) + eterm
 
     # normalize posterior:
-    posterior = np.exp(posterior - logsumexp(posterior, axis=tuple(np.arange(1, n_dims+1)), keepdims=True))
+    posterior = np.exp(
+        posterior
+        - logsumexp(posterior, axis=tuple(np.arange(1, n_dims + 1)), keepdims=True)
+    )
 
     if n_dims > 1:
         expected = []
-        for dd in range(1, n_dims+1):
-            axes = tuple(set(np.arange(1, n_dims+1)) - set([dd]))
-            expected.append((bin_centers[dd-1] * posterior.sum(axis=axes)).sum(axis=1))
+        for dd in range(1, n_dims + 1):
+            axes = tuple(set(np.arange(1, n_dims + 1)) - set([dd]))
+            expected.append(
+                (bin_centers[dd - 1] * posterior.sum(axis=axes)).sum(axis=1)
+            )
         expected_pth = np.vstack(expected).T
     else:
         expected_pth = (bin_centers * posterior).sum(axis=1)
@@ -1175,7 +1287,7 @@ class NDRateMap(BaseEstimator):
         applied. Default is 'continuous'.
     """
 
-    def __init__(self, connectivity='continuous'):
+    def __init__(self, connectivity="continuous"):
         self.connectivity = connectivity
 
         self._slicer = UnitSlicer(self)
@@ -1185,10 +1297,10 @@ class NDRateMap(BaseEstimator):
     def __repr__(self):
         r = super().__repr__()
         if self._is_fitted():
-            dimstr = ''
+            dimstr = ""
             for dd in range(self.n_dims):
-                dimstr += ", n_bins_d{}={}".format(dd+1, self.shape[dd+1])
-            r += ' with shape (n_units={}{})'.format(self.n_units, dimstr)
+                dimstr += ", n_bins_d{}={}".format(dd + 1, self.shape[dd + 1])
+            r += " with shape (n_units={}{})".format(self.n_units, dimstr)
         return r
 
     def fit(self, X, y, dt=1, unit_ids=None):
@@ -1213,37 +1325,47 @@ class NDRateMap(BaseEstimator):
         """
         n_units, n_bins, n_dims = self._check_X_y(X, y)
 
-        self.ratemap_ = y/dt
+        self.ratemap_ = y / dt
         self._bin_centers = X
-        self._bins = np.array(n_dims*[None])
+        self._bins = np.array(n_dims * [None])
 
         if n_dims > 1:
             for dd in range(n_dims):
                 bin_centers = np.squeeze(X[dd])
                 dx = np.median(np.diff(bin_centers))
-                bins = np.insert(bin_centers[-1] + np.diff(bin_centers)/2, 0, bin_centers[0] - dx/2)
+                bins = np.insert(
+                    bin_centers[-1] + np.diff(bin_centers) / 2,
+                    0,
+                    bin_centers[0] - dx / 2,
+                )
                 bins = np.append(bins, bins[-1] + dx)
                 self._bins[dd] = bins
         else:
             bin_centers = np.squeeze(X)
             dx = np.median(np.diff(bin_centers))
-            bins = np.insert(bin_centers[-1] + np.diff(bin_centers)/2, 0, bin_centers[0] - dx/2)
+            bins = np.insert(
+                bin_centers[-1] + np.diff(bin_centers) / 2, 0, bin_centers[0] - dx / 2
+            )
             bins = np.append(bins, bins[-1] + dx)
             self._bins = bins
 
         if unit_ids is not None:
             if len(unit_ids) != n_units:
-                raise ValueError("'unit_ids' must have same number of elements as 'n_units'. {} != {}".format(len(unit_ids), n_units))
+                raise ValueError(
+                    "'unit_ids' must have same number of elements as 'n_units'. {} != {}".format(
+                        len(unit_ids), n_units
+                    )
+                )
             self._unit_ids = unit_ids
         else:
             self._unit_ids = np.arange(n_units)
 
     def predict(self, X):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         raise NotImplementedError
 
     def synthesize(self, X):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         raise NotImplementedError
 
     def __len__(self):
@@ -1288,8 +1410,7 @@ class NDRateMap(BaseEstimator):
             out.iloc = ItemGetter_iloc(out)
             return out
         except Exception:
-            raise TypeError(
-                'unsupported subsctipting type {}'.format(type(idx)))
+            raise TypeError("unsupported subsctipting type {}".format(type(idx)))
 
     def get_peak_firing_order_ids(self):
         """Get the unit_ids in order of peak firing location for 1D RateMaps.
@@ -1300,9 +1421,11 @@ class NDRateMap(BaseEstimator):
             The permutaiton of unit_ids such that after reordering, the peak
             firing locations are ordered along the RateMap.
         """
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if self.is_2d:
-            raise NotImplementedError("get_peak_firing_order_ids() only implemented for 1D RateMaps.")
+            raise NotImplementedError(
+                "get_peak_firing_order_ids() only implemented for 1D RateMaps."
+            )
         peakorder = np.argmax(self.ratemap_, axis=1).argsort()
         return np.array(self.unit_ids)[peakorder]
 
@@ -1322,13 +1445,16 @@ class NDRateMap(BaseEstimator):
         -------
         out : reordered RateMap
         """
+
         def swap_units(arr, frm, to):
             """swap 'units' of a 3D np.array"""
-            arr[(frm, to),:] = arr[(to, frm),:]
+            arr[(frm, to), :] = arr[(to, frm), :]
 
         self._validate_unit_ids(unit_ids)
         if len(unit_ids) != len(self._unit_ids):
-            raise ValueError('unit_ids must be a permutation of self.unit_ids, not a subset thereof.')
+            raise ValueError(
+                "unit_ids must be a permutation of self.unit_ids, not a subset thereof."
+            )
 
         if inplace:
             out = self
@@ -1342,7 +1468,10 @@ class NDRateMap(BaseEstimator):
             frm = oldorder.index(ni)
             to = oi
             swap_units(out.ratemap_, frm, to)
-            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
+            out._unit_ids[frm], out._unit_ids[to] = (
+                out._unit_ids[to],
+                out._unit_ids[frm],
+            )
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
         return out
 
@@ -1376,12 +1505,16 @@ class NDRateMap(BaseEstimator):
             # could fit on 100 units, and then predict on only 10 of
             # them, if we wanted.
             if unit_id not in self.unit_ids:
-                raise ValueError('unit_id {} was not present during fit(); aborting...'.format(unit_id))
+                raise ValueError(
+                    "unit_id {} was not present during fit(); aborting...".format(
+                        unit_id
+                    )
+                )
 
     def _is_fitted(self):
         try:
-            check_is_fitted(self, 'ratemap_')
-        except Exception: # should really be except NotFitterError
+            check_is_fitted(self, "ratemap_")
+        except Exception:  # should really be except NotFitterError
             return False
         return True
 
@@ -1396,55 +1529,57 @@ class NDRateMap(BaseEstimator):
     @staticmethod
     def _validate_connectivity(connectivity):
         connectivity = str(connectivity).strip().lower()
-        options = ['continuous', 'discrete', 'circular']
+        options = ["continuous", "discrete", "circular"]
         if connectivity in options:
             return connectivity
-        raise NotImplementedError("connectivity '{}' is not supported yet!".format(str(connectivity)))
+        raise NotImplementedError(
+            "connectivity '{}' is not supported yet!".format(str(connectivity))
+        )
 
     @property
     def shape(self):
         """
-            RateMap.shape = (n_units, n_features_x, n_features_y)
-                OR
-            RateMap.shape = (n_units, n_features)
+        RateMap.shape = (n_units, n_features_x, n_features_y)
+            OR
+        RateMap.shape = (n_units, n_features)
         """
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         return self.ratemap_.shape
 
     @property
     def n_dims(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         n_dims = len(self.shape) - 1
         return n_dims
 
     @property
     def is_1d(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if len(self.ratemap_.shape) == 2:
             return True
         return False
 
     @property
     def is_2d(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if len(self.ratemap_.shape) == 3:
             return True
         return False
 
     @property
     def n_units(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         return self.ratemap_.shape[0]
 
     @property
     def unit_ids(self):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         return self._unit_ids
 
     @property
     def n_bins(self):
         """(int) Number of external correlates (bins) along each dimension."""
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if self.n_dims > 1:
             n_bins = tuple([len(x) for x in self.bin_centers])
         else:
@@ -1459,7 +1594,7 @@ class NDRateMap(BaseEstimator):
             RateMap.max(axis=0)
         """
         raise NotImplementedError("the code was still for the 1D and 2D only version")
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if axis == None:
             if self.is_2d:
                 return self.ratemap_.max(axis=1, out=out).max(axis=1, out=out)
@@ -1469,7 +1604,7 @@ class NDRateMap(BaseEstimator):
 
     def min(self, axis=None, out=None):
         raise NotImplementedError("the code was still for the 1D and 2D only version")
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if axis == None:
             if self.is_2d:
                 return self.ratemap_.min(axis=1, out=out).min(axis=1, out=out)
@@ -1479,10 +1614,8 @@ class NDRateMap(BaseEstimator):
 
     def mean(self, axis=None, dtype=None, out=None, keepdims=False):
         raise NotImplementedError("the code was still for the 1D and 2D only version")
-        check_is_fitted(self, 'ratemap_')
-        kwargs = {'dtype':dtype,
-                  'out':out,
-                  'keepdims':keepdims}
+        check_is_fitted(self, "ratemap_")
+        kwargs = {"dtype": dtype, "out": out, "keepdims": keepdims}
         if axis == None:
             if self.is_2d:
                 return self.ratemap_.mean(axis=1, **kwargs).mean(axis=1, **kwargs)
@@ -1504,18 +1637,18 @@ class NDRateMap(BaseEstimator):
 
     @mask.setter
     def mask(self, val):
-        #TODO: mask validation
+        # TODO: mask validation
         raise NotImplementedError
         self._mask = val
 
     def plot(self, **kwargs):
-        check_is_fitted(self, 'ratemap_')
+        check_is_fitted(self, "ratemap_")
         if self.is_2d:
             raise NotImplementedError("plot() not yet implemented for 2D RateMaps.")
-        pad = kwargs.pop('pad', None)
+        pad = kwargs.pop("pad", None)
         _plot_ratemap(self, pad=pad, **kwargs)
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
     def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
 
@@ -1532,11 +1665,11 @@ class NDRateMap(BaseEstimator):
         """
 
         if sigma is None:
-            sigma = 0.1 # in units of extern
+            sigma = 0.1  # in units of extern
         if truncate is None:
             truncate = 4
         if mode is None:
-            mode = 'reflect'
+            mode = "reflect"
         if cval is None:
             cval = 0.0
 

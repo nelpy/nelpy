@@ -18,4 +18,4 @@ from . import scoring
 from . import plotting
 from . import utils
 
-from . version import __version__
+from .version import __version__

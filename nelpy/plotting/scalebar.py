@@ -3,11 +3,30 @@
 import matplotlib as mpl
 
 from matplotlib.offsetbox import AnchoredOffsetbox
+
+
 class AnchoredScaleBar(AnchoredOffsetbox):
-    def __init__(self, transform, *, sizex=0, sizey=0, labelx=None,
-                 labely=None, loc=4, pad=0.5, borderpad=0.1, sep=2,
-                 prop=None, ec='k', fc='k', fontsize=None, lw=1.5,
-                 capstyle='projecting', xfirst=True, **kwargs):
+    def __init__(
+        self,
+        transform,
+        *,
+        sizex=0,
+        sizey=0,
+        labelx=None,
+        labely=None,
+        loc=4,
+        pad=0.5,
+        borderpad=0.1,
+        sep=2,
+        prop=None,
+        ec="k",
+        fc="k",
+        fontsize=None,
+        lw=1.5,
+        capstyle="projecting",
+        xfirst=True,
+        **kwargs
+    ):
         """
         Draw a horizontal and/or vertical  bar with the size in data
         coordinate of the give axes. A label will be drawn underneath
@@ -43,7 +62,7 @@ class AnchoredScaleBar(AnchoredOffsetbox):
         import matplotlib.patches as mpatches
 
         if fontsize is None:
-            fontsize = mpl.rcParams['font.size']
+            fontsize = mpl.rcParams["font.size"]
 
         bars = AuxTransformBox(transform)
 
@@ -51,17 +70,16 @@ class AnchoredScaleBar(AnchoredOffsetbox):
             # hacky fix for possible misalignment errors that may occur
             #  on small figures
             if ec is None:
-                lw=0
+                lw = 0
             endpt = (sizex, 0)
             art = mpatches.FancyArrowPatch(
                 (0, 0),
                 endpt,
                 color=ec,
                 linewidth=lw,
-                capstyle =capstyle,
-                arrowstyle = mpatches.ArrowStyle.BarAB(
-                    widthA=0,
-                    widthB=lw*2))
+                capstyle=capstyle,
+                arrowstyle=mpatches.ArrowStyle.BarAB(widthA=0, widthB=lw * 2),
+            )
             barsx = bars
             barsx.add_artist(art)
             endpt = (0, sizey)
@@ -71,9 +89,8 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                 color=ec,
                 linewidth=lw,
                 capstyle=capstyle,
-                arrowstyle = mpatches.ArrowStyle.BarAB(
-                    widthA=0,
-                    widthB=lw*2))
+                arrowstyle=mpatches.ArrowStyle.BarAB(widthA=0, widthB=lw * 2),
+            )
             barsy = bars
             barsy.add_artist(art)
         else:
@@ -84,9 +101,8 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                     endpt,
                     color=ec,
                     linewidth=lw,
-                    arrowstyle = mpatches.ArrowStyle.BarAB(
-                        widthA=lw*2,
-                        widthB=lw*2))
+                    arrowstyle=mpatches.ArrowStyle.BarAB(widthA=lw * 2, widthB=lw * 2),
+                )
                 bars.add_artist(art)
 
             if sizey:
@@ -96,9 +112,8 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                     endpt,
                     color=ec,
                     linewidth=lw,
-                    arrowstyle = mpatches.ArrowStyle.BarAB(
-                        widthA=lw*2,
-                        widthB=lw*2))
+                    arrowstyle=mpatches.ArrowStyle.BarAB(widthA=lw * 2, widthB=lw * 2),
+                )
                 bars.add_artist(art)
 
         if xfirst:
@@ -109,31 +124,34 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                         TextArea(
                             labelx,
                             minimumdescent=False,
-                            textprops=dict(color=fc, size=fontsize))],
+                            textprops=dict(color=fc, size=fontsize),
+                        ),
+                    ],
                     align="center",
                     pad=pad,
-                    sep=sep)
+                    sep=sep,
+                )
             if sizey and labely:
                 bars = HPacker(
                     children=[
-                        TextArea(
-                            labely,
-                            textprops=dict(color=fc, size=fontsize)),
-                        bars],
+                        TextArea(labely, textprops=dict(color=fc, size=fontsize)),
+                        bars,
+                    ],
                     align="center",
                     pad=pad,
-                    sep=sep)
+                    sep=sep,
+                )
         else:
             if sizey and labely:
                 bars = HPacker(
                     children=[
-                        TextArea(
-                            labely,
-                            textprops=dict(color=fc, size=fontsize)),
-                        bars],
+                        TextArea(labely, textprops=dict(color=fc, size=fontsize)),
+                        bars,
+                    ],
                     align="center",
                     pad=pad,
-                    sep=sep)
+                    sep=sep,
+                )
             if sizex and labelx:
                 bars = VPacker(
                     children=[
@@ -141,10 +159,13 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                         TextArea(
                             labelx,
                             minimumdescent=False,
-                            textprops=dict(color=fc, size=fontsize))],
+                            textprops=dict(color=fc, size=fontsize),
+                        ),
+                    ],
                     align="center",
                     pad=pad,
-                    sep=sep)
+                    sep=sep,
+                )
 
         AnchoredOffsetbox.__init__(
             self,
@@ -154,20 +175,31 @@ class AnchoredScaleBar(AnchoredOffsetbox):
             child=bars,
             prop=prop,
             frameon=False,
-            **kwargs)
+            **kwargs
+        )
 
-def add_simple_scalebar(text, ax=None, xy=None, length=None, orientation='v', rotation_text=None, xytext=None, **kwargs):
+
+def add_simple_scalebar(
+    text,
+    ax=None,
+    xy=None,
+    length=None,
+    orientation="v",
+    rotation_text=None,
+    xytext=None,
+    **kwargs
+):
     if rotation_text is None:
         rotation_text = 0
-    if rotation_text == 'vert' or rotation_text == 'v':
+    if rotation_text == "vert" or rotation_text == "v":
         rotation_text = 90
-    if rotation_text == 'horz' or rotation_text == 'h':
+    if rotation_text == "horz" or rotation_text == "h":
         rotation_text = 0
     if orientation is None:
         orientation = 0
-    if orientation == 'vert' or orientation == 'v':
+    if orientation == "vert" or orientation == "v":
         orientation = 90
-    if orientation == 'horz' or orientation == 'h':
+    if orientation == "horz" or orientation == "h":
         orientation = 0
 
     if length is None:
@@ -176,24 +208,37 @@ def add_simple_scalebar(text, ax=None, xy=None, length=None, orientation='v', ro
     if ax is None:
         ax = plt.gca()
 
-#     if va is None:
-#         if rotation_text == 90:
-#             va = 'bottom'
-#         else:
-#             va = 'baseline'
+    #     if va is None:
+    #         if rotation_text == 90:
+    #             va = 'bottom'
+    #         else:
+    #             va = 'baseline'
 
     if orientation == 0:
-        ax.hlines(xy[1], xy[0], xy[0] + length, lw=2, zorder=1000 )
+        ax.hlines(xy[1], xy[0], xy[0] + length, lw=2, zorder=1000)
     else:
-        ax.vlines(xy[0], xy[1], xy[1] + length, lw=2, zorder=1000 )
-        xytext = (xy[0] + 3, xy[1] + length/2)
-        ax.annotate(text, xy=xytext, rotation=rotation_text, va='center', zorder=1000, **kwargs)
+        ax.vlines(xy[0], xy[1], xy[1] + length, lw=2, zorder=1000)
+        xytext = (xy[0] + 3, xy[1] + length / 2)
+        ax.annotate(
+            text, xy=xytext, rotation=rotation_text, va="center", zorder=1000, **kwargs
+        )
 
 
-def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None,
-                 sizey=None, labelx=None, labely=None, hidex=True,
-                 hidey=True, ec='k', **kwargs):
-    """ Add scalebars to axes
+def add_scalebar(
+    ax,
+    *,
+    matchx=False,
+    matchy=False,
+    sizex=None,
+    sizey=None,
+    labelx=None,
+    labely=None,
+    hidex=True,
+    hidey=True,
+    ec="k",
+    **kwargs
+):
+    """Add scalebars to axes
     TODO: improve documentation and standardize docstring.
     Adds a set of scale bars to *ax*, matching the size to the ticks of
     the plot and optionally hiding the x and y axes
@@ -248,34 +293,34 @@ def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None,
     if not sizex and not sizey:
         raise ValueError("sizex and sizey cannot both be zero")
 
-    kwargs['sizex'] = sizex
-    kwargs['sizey'] = sizey
+    kwargs["sizex"] = sizex
+    kwargs["sizey"] = sizey
 
     if sizex:
-        sbtype = 'horizontal'
+        sbtype = "horizontal"
         if labelx is None:
             labelx = str(sizex)
     if sizey:
-        sbtype = 'vertical'
+        sbtype = "vertical"
         if labely is None:
             labely = str(sizey)
     if sizex and sizey:
-        sbtype = 'both'
+        sbtype = "both"
 
-    kwargs['labelx'] = labelx
-    kwargs['labely'] = labely
-    kwargs['ec'] = ec
+    kwargs["labelx"] = labelx
+    kwargs["labely"] = labely
+    kwargs["ec"] = ec
 
-    if sbtype == 'both':
+    if sbtype == "both":
         # draw horizontal component:
-        kwargs['labely'] = ' '  # necessary to correct center alignment
-        kwargs['ec'] = None  # necessary to correct possible artifact
+        kwargs["labely"] = " "  # necessary to correct center alignment
+        kwargs["ec"] = None  # necessary to correct possible artifact
         sbx = AnchoredScaleBar(ax.transData, xfirst=True, **kwargs)
 
         # draw vertical component:
-        kwargs['ec'] = ec
-        kwargs['labelx'] = ' '
-        kwargs['labely'] = labely
+        kwargs["ec"] = ec
+        kwargs["labelx"] = " "
+        kwargs["labely"] = labely
         sby = AnchoredScaleBar(ax.transData, xfirst=False, **kwargs)
         ax.add_artist(sbx)
         ax.add_artist(sby)
@@ -283,7 +328,9 @@ def add_scalebar(ax, *, matchx=False, matchy=False, sizex=None,
         sb = AnchoredScaleBar(ax.transData, **kwargs)
         ax.add_artist(sb)
 
-    if hidex: ax.xaxis.set_visible(False)
-    if hidey: ax.yaxis.set_visible(False)
+    if hidex:
+        ax.xaxis.set_visible(False)
+    if hidey:
+        ax.yaxis.set_visible(False)
 
     return ax

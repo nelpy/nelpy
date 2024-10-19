@@ -1,17 +1,19 @@
 """Results container object to easily group, store, and load results."""
 
-__all__ = ['ResultsContainer', 'load_pkl', 'save_pkl']
+__all__ = ["ResultsContainer", "load_pkl", "save_pkl"]
 
 import gzip
 import os
 import dill as pickle
+
 # import inspect
+
 
 class ResultsContainer(object):
     """Extremely simple namespace for passing around and pickling data."""
 
     def __init__(self, *args, description=None, **kwargs):
-        kwargs['description'] = description
+        kwargs["description"] = description
 
         if len(args) > 0:
             raise NotImplementedError("only keyword arguments accepted!")
@@ -91,7 +93,7 @@ class ResultsContainer(object):
     @property
     def keys(self):
         """(list) Key names in ResultsContainer."""
-        keys = [key for key in self.__dict__ if key not in ['description', '_index']]
+        keys = [key for key in self.__dict__ if key not in ["description", "_index"]]
         keys.sort()
         return keys
 
@@ -110,7 +112,9 @@ class ResultsContainer(object):
                 try:
                     pickle.dump(self, fid)
                 except OverflowError:
-                    print('writing to disk using protocol=4, which supports file sizes > 4 GiB, and ignoring zip=True (zip is not supported for large files yet)')
+                    print(
+                        "writing to disk using protocol=4, which supports file sizes > 4 GiB, and ignoring zip=True (zip is not supported for large files yet)"
+                    )
                     save_large_file_without_zip = True
 
             if save_large_file_without_zip:
@@ -121,8 +125,11 @@ class ResultsContainer(object):
                 try:
                     pickle.dump(self, fid)
                 except OverflowError:
-                    print('writing to disk using protocol=4, which supports file sizes > 4 GiB')
+                    print(
+                        "writing to disk using protocol=4, which supports file sizes > 4 GiB"
+                    )
                     pickle.dump(self, fid, protocol=4)
+
 
 def load_pkl(fname, zip=True):
     """Read pickled data from disk, possible decompressing."""
@@ -140,10 +147,11 @@ def load_pkl(fname, zip=True):
             res = pickle.load(fid)
     return res
 
+
 def save_pkl(fname, res, zip=True, overwrite=False):
     """Write pickled data to disk, possible compressing."""
     if os.path.isfile(fname):
-            # file exists
+        # file exists
         if overwrite:
             pass
         else:
@@ -155,7 +163,9 @@ def save_pkl(fname, res, zip=True, overwrite=False):
             try:
                 pickle.dump(res, fid)
             except OverflowError:
-                print('writing to disk using protocol=4, which supports file sizes > 4 GiB, and ignoring zip=True (zip is not supported for large files yet)')
+                print(
+                    "writing to disk using protocol=4, which supports file sizes > 4 GiB, and ignoring zip=True (zip is not supported for large files yet)"
+                )
                 save_large_file_without_zip = True
 
         if save_large_file_without_zip:
@@ -166,6 +176,7 @@ def save_pkl(fname, res, zip=True, overwrite=False):
             try:
                 pickle.dump(res, fid)
             except OverflowError:
-                print('writing to disk using protocol=4, which supports file sizes > 4 GiB')
+                print(
+                    "writing to disk using protocol=4, which supports file sizes > 4 GiB"
+                )
                 pickle.dump(res, fid, protocol=4)
-

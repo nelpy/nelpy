@@ -9,10 +9,22 @@ from ..core import SpikeTrainArray
 from ..hmmutils import PoissonHMM
 from .ergodic import steady_state
 
-class HMMSurrogate():
 
-    def __init__(self, *, kind, st, num_states=None, ds=None, test_size=None,
-                 random_state=None, verbose=False, description='', PBE_idx=None):
+class HMMSurrogate:
+
+    def __init__(
+        self,
+        *,
+        kind,
+        st,
+        num_states=None,
+        ds=None,
+        test_size=None,
+        random_state=None,
+        verbose=False,
+        description="",
+        PBE_idx=None
+    ):
         """
 
         WARNING!!! All the shuffle methods currently operate directly on PBEs_train,
@@ -36,17 +48,17 @@ class HMMSurrogate():
             (PBE_trainidx, PBE_testidx)
         """
 
-        if kind == 'actual':
+        if kind == "actual":
             self.shuffle = self._do_nothing
-        elif kind == 'incoherent':
+        elif kind == "incoherent":
             self.shuffle = self._within_event_incoherent_shuffle
-        elif kind == 'coherent':
+        elif kind == "coherent":
             self.shuffle = self._within_event_coherent_shuffle
-        elif kind == 'poisson':
+        elif kind == "poisson":
             self.shuffle = self._within_event_homogeneous_poisson
-        elif kind == 'unit_id':
+        elif kind == "unit_id":
             self.shuffle = self._within_event_unit_id_shuffle
-        elif kind == 'spike_id':
+        elif kind == "spike_id":
             self.shuffle = self._spike_id_shuffle
         else:
             raise ValueError("unknown data surrogate kind!")
@@ -54,7 +66,7 @@ class HMMSurrogate():
         if num_states is None:
             num_states = 50
         if ds is None:
-            ds = 0.02 # 20 ms bin size
+            ds = 0.02  # 20 ms bin size
         if test_size is None:
             test_size = 0.2
         if random_state is not None:
@@ -71,7 +83,11 @@ class HMMSurrogate():
         self.description = description
 
         self._preprocess(PBE_idx=PBE_idx)
-        self.hmm = PoissonHMM(n_components=self._num_states, random_state=self._random_state, verbose=self._verbose)
+        self.hmm = PoissonHMM(
+            n_components=self._num_states,
+            random_state=self._random_state,
+            verbose=self._verbose,
+        )
 
         self.results = defaultdict(list)
 
@@ -86,49 +102,49 @@ class HMMSurrogate():
     def clear_results(self):
         self.results = defaultdict(list)
 
-    def score_gini(self, kind='tmat_departure'):
+    def score_gini(self, kind="tmat_departure"):
         """Calculate and record the gini coefficients."""
         # kinds = ['tmat_arrival', 'tmat_departure', 'tmat', 'lambda', 'lambda_across_states', 'lambda_across_units']
 
         gini_distr = []
 
         # transmat departure sparsity
-        if kind=='tmat_departure':
+        if kind == "tmat_departure":
             for row in self.hmm.transmat_:
                 gini_distr.append(self._gini(row))
-            self.results['gini_tmat_departure'].append(gini_distr)
+            self.results["gini_tmat_departure"].append(gini_distr)
 
         # transmat arrival sparsity
-        if kind=='tmat_arrival':
+        if kind == "tmat_arrival":
             for row in self.hmm.transmat_.T:
                 gini_distr.append(self._gini(row))
-            self.results['gini_tmat_arrival'].append(gini_distr)
+            self.results["gini_tmat_arrival"].append(gini_distr)
 
         # transmat sparsity
-        if kind=='tmat':
+        if kind == "tmat":
             gini_distr = self._gini(self.hmm.transmat_)
-            self.results['gini_tmat'].append(gini_distr)
+            self.results["gini_tmat"].append(gini_distr)
 
         # lambda sparsity
-        if kind=='lambda':
+        if kind == "lambda":
             gini_distr = self._gini(self.hmm.means_)
-            self.results['gini_lambda'].append(gini_distr)
+            self.results["gini_lambda"].append(gini_distr)
 
         # lambda_across_states sparsity
-        if kind=='lambda_across_states':
+        if kind == "lambda_across_states":
             for row in self.hmm.means_.T:
                 gini_distr.append(self._gini(row))
-            self.results['gini_lambda_across_states'].append(gini_distr)
+            self.results["gini_lambda_across_states"].append(gini_distr)
 
         # lambda_across_units sparsity
-        if kind=='lambda_across_units':
+        if kind == "lambda_across_units":
             for row in self.hmm.means_:
                 gini_distr.append(self._gini(row))
-            self.results['gini_lambda_across_units'].append(gini_distr)
+            self.results["gini_lambda_across_units"].append(gini_distr)
 
     def score_bottleneck_ratio(self, n_samples=50000):
         def Qij(i, j, P, pi):
-            return pi[i] * P[i,j]
+            return pi[i] * P[i, j]
 
         def QAB(A, B, P, pi):
             sumQ = 0
@@ -157,10 +173,10 @@ class HMMSurrogate():
 
         min_Phi = 1
         for nn in range(n_samples):
-            n_samp_in_subset = np.random.randint(1, num_states-1)
+            n_samp_in_subset = np.random.randint(1, num_states - 1)
             S = set(np.random.choice(num_states, n_samp_in_subset, replace=False))
             while Pi(S, pi_) > 0.5:
-                n_samp_in_subset -=1
+                n_samp_in_subset -= 1
                 if n_samp_in_subset < 1:
                     n_samp_in_subset = 1
                 S = set(np.random.choice(num_states, n_samp_in_subset, replace=False))
@@ -170,7 +186,7 @@ class HMMSurrogate():
                 if self._verbose:
                     print("{}: {} (|S| = {})".format(nn, min_Phi, len(S)))
 
-        self.results['bottleneck'].append(min_Phi)
+        self.results["bottleneck"].append(min_Phi)
 
     def score_mixing_time(self, eps=0.25):
         raise NotImplementedError
@@ -184,16 +200,26 @@ class HMMSurrogate():
         self.PBEs = self._st.bin(ds=self._ds)
 
         if self.PBEs.n_epochs == 1:
-            raise ValueError("spike train is continuous, and does not have more than one event!")
+            raise ValueError(
+                "spike train is continuous, and does not have more than one event!"
+            )
 
         if PBE_idx is not None:
-            self._trainidx, self._testidx = PBE_idx # tuple unpacking
+            self._trainidx, self._testidx = PBE_idx  # tuple unpacking
         else:
             # split into train and test data
             if self._random_state is not None:
-                self._trainidx, self._testidx = train_test_split(np.arange(self.PBEs.n_epochs), test_size=self._test_size, random_state=self._random_state)
+                self._trainidx, self._testidx = train_test_split(
+                    np.arange(self.PBEs.n_epochs),
+                    test_size=self._test_size,
+                    random_state=self._random_state,
+                )
             else:
-                self._trainidx, self._testidx = train_test_split(np.arange(self.PBEs.n_epochs), test_size=self._test_size, random_state=1)
+                self._trainidx, self._testidx = train_test_split(
+                    np.arange(self.PBEs.n_epochs),
+                    test_size=self._test_size,
+                    random_state=1,
+                )
 
         self._trainidx.sort()
         self._testidx.sort()
@@ -209,7 +235,7 @@ class HMMSurrogate():
 
     def _preprocess(self, PBE_idx=None):
         self._preprocess_PBEs(PBE_idx=PBE_idx)
-        if self.label == 'spike_id':
+        if self.label == "spike_id":
             self._preprocess_STs()
 
     def fit(self):
@@ -219,7 +245,7 @@ class HMMSurrogate():
         self.hmm.fit(self.PBEs_train)
 
         # re-order states of hmm
-        transmat_order = self.hmm.get_state_order('transmat')
+        transmat_order = self.hmm.get_state_order("transmat")
         self.hmm.reorder_states(transmat_order)
 
     def score_loglikelihood(self):
@@ -227,11 +253,15 @@ class HMMSurrogate():
 
         # train_LL = np.array(self.hmm.score(self.PBEs_train)).sum() # one scalar for each sequence in training set
         # test_LL = np.array(self.hmm.score(self.PBEs_test)).sum() # one scalar for each sequence in training set
-        train_LL = self.hmm.score(self.PBEs_train) # one scalar for each sequence in training set
-        test_LL = self.hmm.score(self.PBEs_test) # one scalar for each sequence in training set
+        train_LL = self.hmm.score(
+            self.PBEs_train
+        )  # one scalar for each sequence in training set
+        test_LL = self.hmm.score(
+            self.PBEs_test
+        )  # one scalar for each sequence in training set
 
-        self.results['loglikelihood_train'].extend(train_LL)
-        self.results['loglikelihood_test'].extend(test_LL)
+        self.results["loglikelihood_train"].extend(train_LL)
+        self.results["loglikelihood_test"].extend(test_LL)
 
     def _gini(self, array):
         """Calculate the Gini coefficient of a numpy array."""
@@ -250,79 +280,78 @@ class HMMSurrogate():
         # Values must be sorted:
         array = np.sort(array)
         # Index per array element:
-        index = np.arange(1,array.shape[0]+1)
+        index = np.arange(1, array.shape[0] + 1)
         # Number of array elements:
         n = array.shape[0]
         # Gini coefficient:
-        return ((np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array)))
+        return (np.sum((2 * index - n - 1) * array)) / (n * np.sum(array))
 
-    def _do_nothing(self, kind='train'):
+    def _do_nothing(self, kind="train"):
         """Do nothing to the data."""
         pass
 
-
-    def _within_event_coherent_shuffle(self, kind='train'):
+    def _within_event_coherent_shuffle(self, kind="train"):
         """Time swap on BinnedSpikeTrainArray, swapping only within each epoch."""
-        if kind == 'train':
+        if kind == "train":
             bst = self.PBEs_train
-        elif kind == 'test':
+        elif kind == "test":
             bst = self.PBEs_test
         else:
             raise ValueError("kind '{}' not understood!".format(kind))
 
-        out = copy.deepcopy(bst) # should this be deep?
+        out = copy.deepcopy(bst)  # should this be deep?
         shuffled = np.arange(bst.n_bins)
-        edges = np.insert(np.cumsum(bst.lengths),0,0)
+        edges = np.insert(np.cumsum(bst.lengths), 0, 0)
         for ii in range(bst.n_epochs):
-            segment = shuffled[edges[ii]:edges[ii+1]]
-            shuffled[edges[ii]:edges[ii+1]] = np.random.permutation(segment)
+            segment = shuffled[edges[ii] : edges[ii + 1]]
+            shuffled[edges[ii] : edges[ii + 1]] = np.random.permutation(segment)
 
-        out._data = out._data[:,shuffled]
+        out._data = out._data[:, shuffled]
 
-        if kind == 'train':
+        if kind == "train":
             self.PBEs_train = out
         else:
             self.PBEs_test = out
 
-    def _within_event_incoherent_shuffle(self, kind='train'):
+    def _within_event_incoherent_shuffle(self, kind="train"):
         """Time cycle on BinnedSpikeTrainArray, cycling only within each epoch.
         We cycle each unit independently, within each epoch.
         """
-        if kind == 'train':
+        if kind == "train":
             bst = self.PBEs_train
-        elif kind == 'test':
+        elif kind == "test":
             bst = self.PBEs_test
         else:
             raise ValueError("kind '{}' not understood!".format(kind))
 
-        out = copy.deepcopy(bst) # should this be deep?
+        out = copy.deepcopy(bst)  # should this be deep?
         data = out._data
-        edges = np.insert(np.cumsum(bst.lengths),0,0)
+        edges = np.insert(np.cumsum(bst.lengths), 0, 0)
 
         for uu in range(bst.n_units):
             for ii in range(bst.n_epochs):
-                segment = np.squeeze(data[uu, edges[ii]:edges[ii+1]])
+                segment = np.squeeze(data[uu, edges[ii] : edges[ii + 1]])
                 segment = np.roll(segment, np.random.randint(len(segment)))
-                data[uu, edges[ii]:edges[ii+1]] = segment
+                data[uu, edges[ii] : edges[ii + 1]] = segment
 
-        if kind == 'train':
+        if kind == "train":
             self.PBEs_train = out
         else:
             self.PBEs_test = out
 
-    def _within_event_homogeneous_poisson(self, kind='train'):
+    def _within_event_homogeneous_poisson(self, kind="train"):
         """Estimate mean firing rates across all events, and then generate
         homogeneous Poisson spikes within each event. That is, ISIs do not
         span multiple events, but are started fresh within each event."""
 
-        if kind == 'train':
+        if kind == "train":
             bst = self.PBEs_train
-        elif kind == 'test':
+        elif kind == "test":
             bst = self.PBEs_test
         else:
             raise ValueError("kind '{}' not understood!".format(kind))
 
-        firing_rates = bst.n_spikes / bst.support.duration # firing rate in Hz
+        firing_rates = bst.n_spikes / bst.support.duration  # firing rate in Hz
 
         spikes = []
 
@@ -336,15 +365,17 @@ class HMMSurrogate():
 
             spikes.append(unit_spikes)
 
-        support = bst.support.expand(bst.ds/2, direction='stop')
-        poisson_st = SpikeTrainArray(timestamps=spikes, support=support, unit_ids=bst.unit_ids)
+        support = bst.support.expand(bst.ds / 2, direction="stop")
+        poisson_st = SpikeTrainArray(
+            timestamps=spikes, support=support, unit_ids=bst.unit_ids
+        )
 
-        if kind == 'train':
+        if kind == "train":
             self.PBEs_train = poisson_st.bin(ds=bst.ds)
         else:
             self.PBEs_test = poisson_st.bin(ds=bst.ds)
 
-    def _spike_id_shuffle(self, proportional=False, kind='train'):
+    def _spike_id_shuffle(self, proportional=False, kind="train"):
         """Shuffle the cell/unit identity of each spike, independently.
 
         If 'proportional' is True, then sample spike IDs in proportion to
@@ -353,16 +384,20 @@ class HMMSurrogate():
         """
 
         all_spiketimes = self._st_flat
-        spike_ids = np.zeros(len(all_spiketimes)) # WARNING! if we don't have the same unit_ids, it could cause problems later on...
+        spike_ids = np.zeros(
+            len(all_spiketimes)
+        )  # WARNING! if we don't have the same unit_ids, it could cause problems later on...
 
         if proportional:
             n_spikes = self._st.n_spikes
         else:
-            n_spikes = np.ones(self._st.n_units)* np.floor(self._st.n_spikes.sum() / self._st.n_units)
+            n_spikes = np.ones(self._st.n_units) * np.floor(
+                self._st.n_spikes.sum() / self._st.n_units
+            )
 
         pointer = 0
         for uu, n_spikes in enumerate(n_spikes):
-            spike_ids[pointer:pointer+int(n_spikes)] = uu
+            spike_ids[pointer : pointer + int(n_spikes)] = uu
             pointer += int(n_spikes)
 
         # permute spike IDs
@@ -371,38 +406,40 @@ class HMMSurrogate():
         # now re-assign all spike times according to sampling above
         spikes = []
         for unit in range(self._st.n_units):
-            spikes.append(all_spiketimes[spike_ids==unit])
+            spikes.append(all_spiketimes[spike_ids == unit])
 
         shuffled_st = SpikeTrainArray(timestamps=spikes, support=self._st.support)
 
-        if kind == 'train':
+        if kind == "train":
             self.PBEs_train = shuffled_st.bin(ds=self._ds)[self._trainidx]
-        elif kind == 'test':
+        elif kind == "test":
             self.PBEs_test = shuffled_st.bin(ds=self._ds)[self._testidx]
         else:
             raise ValueError("kind '{}' not understood!".format(kind))
 
-    def _within_event_unit_id_shuffle(self, kind='train'):
+    def _within_event_unit_id_shuffle(self, kind="train"):
         """Unit ID shuffle on BinnedSpikeTrainArray, shuffling independently within each epoch."""
 
-        if kind == 'train':
+        if kind == "train":
             bst = self.PBEs_train
-        elif kind == 'test':
+        elif kind == "test":
             bst = self.PBEs_test
         else:
             raise ValueError("kind '{}' not understood!".format(kind))
 
-        out = copy.deepcopy(bst) # should this be deep?
+        out = copy.deepcopy(bst)  # should this be deep?
         data = out._data
-        edges = np.insert(np.cumsum(bst.lengths),0,0)
+        edges = np.insert(np.cumsum(bst.lengths), 0, 0)
 
         unit_list = np.arange(bst.n_units)
 
         for ii in range(bst.n_epochs):
-            segment = data[:, edges[ii]:edges[ii+1]]
-            out._data[:, edges[ii]:edges[ii+1]] = segment[np.random.permutation(unit_list)]
+            segment = data[:, edges[ii] : edges[ii + 1]]
+            out._data[:, edges[ii] : edges[ii + 1]] = segment[
+                np.random.permutation(unit_list)
+            ]
 
-        if kind == 'train':
+        if kind == "train":
             self.PBEs_train = out
         else:
             self.PBEs_test = out

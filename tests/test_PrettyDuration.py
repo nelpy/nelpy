@@ -1,26 +1,27 @@
 from nelpy.utils import PrettyDuration
 
+
 class TestPrettyDuration:
 
     def test_1(self):
         t = PrettyDuration(180)
-        assert str(t) == '3:00 minutes'
+        assert str(t) == "3:00 minutes"
 
     def test_2(self):
         t = PrettyDuration(179.999999)
-        assert str(t) == '3:00 minutes'
+        assert str(t) == "3:00 minutes"
 
     def test_3(self):
         t = PrettyDuration(5.99999)
-        assert str(t) == '6 seconds'
+        assert str(t) == "6 seconds"
 
     def test_4(self):
         """make sure that PrettyTimePrint prints correctly"""
-        assert str(PrettyDuration(62.3)) == '1:02:300 minutes'
+        assert str(PrettyDuration(62.3)) == "1:02:300 minutes"
 
     def test_5(self):
         """make sure that PrettyTimePrint prints correctly"""
-        assert str(PrettyDuration(62.03)) == '1:02:030 minutes'
+        assert str(PrettyDuration(62.03)) == "1:02:030 minutes"
 
     def test_6(self):
         """make sure that PrettyTimePrint prints correctly"""
@@ -55,7 +56,7 @@ class TestPrettyDuration:
         assert str(PrettyDuration(0.340)) == "340.0 milliseconds"
 
     def test_15(self):
-        assert str(PrettyDuration(.340)) == "340.0 milliseconds"
+        assert str(PrettyDuration(0.340)) == "340.0 milliseconds"
 
     def test_16(self):
         assert str(PrettyDuration(0.027)) == "27.0 milliseconds"

@@ -1,7 +1,4 @@
-__all__ = ['EventArray',
-           'BinnedEventArray',
-           'SpikeTrainArray',
-           'BinnedSpikeTrainArray']
+__all__ = ["EventArray", "BinnedEventArray", "SpikeTrainArray", "BinnedSpikeTrainArray"]
 
 """ idea is to have abscissa and ordinate, and to use aliasing to have n_series,
     _series_subset, series_ids, (or trial_ids), and so on.
@@ -35,6 +32,7 @@ from .. import version
 
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 from . import _accessors
+
 
 ########################################################################
 # class BaseEventArray
@@ -107,21 +105,32 @@ class BaseEventArray(ABC):
 
     __attributes__ = ["_fs", "_series_ids", "_series_labels", "_series_tags", "_label"]
 
-    def __init__(self, *, fs=None, series_ids=None, series_labels=None,
-                 series_tags=None, label=None, empty=False, abscissa=None, ordinate=None, **kwargs):
+    def __init__(
+        self,
+        *,
+        fs=None,
+        series_ids=None,
+        series_labels=None,
+        series_tags=None,
+        label=None,
+        empty=False,
+        abscissa=None,
+        ordinate=None,
+        **kwargs
+    ):
 
         self.__version__ = version.__version__
         self.type_name = self.__class__.__name__
         if abscissa is None:
-            abscissa = core.Abscissa() #TODO: integrate into constructor?
+            abscissa = core.Abscissa()  # TODO: integrate into constructor?
         if ordinate is None:
-            ordinate = core.Ordinate() #TODO: integrate into constructor?
+            ordinate = core.Ordinate()  # TODO: integrate into constructor?
         self._abscissa = abscissa
         self._ordinate = ordinate
 
-        series_label = kwargs.pop('series_label', None)
+        series_label = kwargs.pop("series_label", None)
         if series_label is None:
-            series_label = 'series'
+            series_label = "series"
         self._series_label = series_label
 
         # if an empty object is requested, return it:
@@ -145,7 +154,7 @@ class BaseEventArray(ABC):
 
         # inherit series IDs if available, otherwise initialize to default
         if series_ids is None:
-            series_ids = list(range(1,self.n_series + 1))
+            series_ids = list(range(1, self.n_series + 1))
 
         series_ids = np.array(series_ids, ndmin=1)  # standardize series_ids
 
@@ -173,7 +182,7 @@ class BaseEventArray(ABC):
         return "<BaseEventArray" + address_str + ">"
 
     @abstractmethod
-    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    @keyword_equivalence(this_or_that={"n_intervals": "n_epochs"})
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
@@ -276,7 +285,9 @@ class BaseEventArray(ABC):
             self._abscissa.support = type(self._abscissa.support)([val[0], val[1]])
             self._abscissa.domain = prev_domain
         else:
-            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+            raise TypeError(
+                "support must be of type {}".format(str(type(self._abscissa.support)))
+            )
         # restrict data to new support
         self._restrict_to_interval(self._abscissa.support)
 
@@ -294,7 +305,9 @@ class BaseEventArray(ABC):
         elif isinstance(val, (tuple, list)):
             self._abscissa.domain = type(self._abscissa.support)([val[0], val[1]])
         else:
-            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+            raise TypeError(
+                "support must be of type {}".format(str(type(self._abscissa.support)))
+            )
         # restrict data to new support
         self._restrict_to_interval(self._abscissa.support)
 
@@ -341,7 +354,7 @@ class BaseEventArray(ABC):
         series_list : array-like
             Array or list of series_ids.
         """
-        return self.loc[:,series_list]
+        return self.loc[:, series_list]
 
     def __setattr__(self, name, value):
         # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
@@ -353,8 +366,9 @@ class BaseEventArray(ABC):
         if name == "aliases":
             raise AttributeError  # http://nedbatchelder.com/blog/201010/surprising_getattr_recursion.html
         name = self.__aliases__.get(name, name)
-        #return getattr(self, name) #Causes infinite recursion on non-existent attribute
+        # return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
+
 
 ########################################################################
 # class EventArray
@@ -418,9 +432,21 @@ class EventArray(BaseEventArray):
 
     __attributes__ = ["_data"]
     __attributes__.extend(BaseEventArray.__attributes__)
-    def __init__(self, abscissa_vals=None, *, fs=None, support=None,
-                 series_ids=None, series_labels=None, series_tags=None,
-                 label=None, empty=False, assume_sorted=None, **kwargs):
+
+    def __init__(
+        self,
+        abscissa_vals=None,
+        *,
+        fs=None,
+        support=None,
+        series_ids=None,
+        series_labels=None,
+        series_tags=None,
+        label=None,
+        empty=False,
+        assume_sorted=None,
+        **kwargs
+    ):
 
         if assume_sorted is None:
             assume_sorted = False
@@ -436,7 +462,9 @@ class EventArray(BaseEventArray):
         # set default sampling rate
         if fs is None:
             fs = 30000
-            logging.warning("No sampling rate was specified! Assuming default of {} Hz.".format(fs))
+            logging.warning(
+                "No sampling rate was specified! Assuming default of {} Hz.".format(fs)
+            )
 
         def is_singletons(data):
             """Returns True if data is a list of singletons (more than one)."""
@@ -467,7 +495,7 @@ class EventArray(BaseEventArray):
                     logging.info("event datas input has too many layers!")
                     try:
                         if max(np.array(data).shape[:-1]) > 1:
-            #                 singletons = True
+                            #                 singletons = True
                             return False
                     except ValueError:
                         return False
@@ -491,18 +519,17 @@ class EventArray(BaseEventArray):
                     m = 1
                 else:
                     m = np.min(data.shape)
-                data = np.reshape(data, (n,m))
+                data = np.reshape(data, (n, m))
             else:
                 data = np.squeeze(data)
-                if data.dtype == np.dtype('O'):
+                if data.dtype == np.dtype("O"):
                     jagged = True
                 else:
                     jagged = False
                 if jagged:  # jagged array
                     # standardize input so that a list of lists is converted
                     # to an array of arrays:
-                    data = np.array(
-                        [np.asarray(st) for st in data], dtype=object)
+                    data = np.array([np.asarray(st) for st in data], dtype=object)
                 else:
                     data = np.array(data, ndmin=2)
             return data
@@ -544,13 +571,19 @@ class EventArray(BaseEventArray):
 
         # determine eventarray support:
         if support is None:
-            first_spk = np.nanmin(np.array([series[0] for series in data if len(series) !=0]))
+            first_spk = np.nanmin(
+                np.array([series[0] for series in data if len(series) != 0])
+            )
             # BUG: if eventseries is empty np.array([]) then series[-1]
             # raises an error in the following:
             # FIX: list[-1] raises an IndexError for an empty list,
             # whereas list[-1:] returns an empty list.
-            last_spk = np.nanmax(np.array([series[-1:] for series in data if len(series) !=0]))
-            self.support = type(self._abscissa.support)(np.array([first_spk, last_spk + 1/fs]))
+            last_spk = np.nanmax(
+                np.array([series[-1:] for series in data if len(series) != 0])
+            )
+            self.support = type(self._abscissa.support)(
+                np.array([first_spk, last_spk + 1 / fs])
+            )
             # in the above, there's no reason to restrict to support
         else:
             # restrict events to only those within the eventseries
@@ -560,7 +593,7 @@ class EventArray(BaseEventArray):
         # TODO: if sorted, we may as well use the fast restrict here as well?
         self._restrict_to_interval(self._abscissa.support, data=data)
 
-    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    @keyword_equivalence(this_or_that={"n_intervals": "n_epochs"})
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
@@ -595,9 +628,11 @@ class EventArray(BaseEventArray):
         """Return a copy of self, without event datas.
         Note: the support is left unchanged.
         """
-        out = copy.copy(self) # shallow copy
-        out._data = np.array(self.n_series*[None])
-        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out = copy.copy(self)  # shallow copy
+        out._data = np.array(self.n_series * [None])
+        out = copy.deepcopy(
+            out
+        )  # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
         return out
 
@@ -683,7 +718,7 @@ class EventArray(BaseEventArray):
         flattened._series_tags = None
 
         alldatas = self.data[0]
-        for series in range(1,self.n_series):
+        for series in range(1, self.n_series):
             alldatas = utils.linear_merge(alldatas, self.data[series])
 
         flattened._data = np.array(list(alldatas), ndmin=2)
@@ -703,21 +738,28 @@ class EventArray(BaseEventArray):
         # TODO: Update tags
         try:
             self._data = self._data[idx]
-            singleseries = (len(self._data) == 1)
+            singleseries = len(self._data) == 1
             if singleseries:
                 self._data = np.array(self._data[0], ndmin=2)
             self._series_ids = list(np.atleast_1d(np.atleast_1d(self._series_ids)[idx]))
-            self._series_labels = list(np.atleast_1d(np.atleast_1d(self._series_labels)[idx]))
+            self._series_labels = list(
+                np.atleast_1d(np.atleast_1d(self._series_labels)[idx])
+            )
         except AttributeError:
             self._data = self._data[idx]
-            singleseries = (len(self._data) == 1)
+            singleseries = len(self._data) == 1
             if singleseries:
                 self._data = np.array(self._data[0], ndmin=2)
             self._series_ids = list(np.atleast_1d(np.atleast_1d(self._series_ids)[idx]))
-            self._series_labels = list(np.atleast_1d(np.atleast_1d(self._series_labels)[idx]))
+            self._series_labels = list(
+                np.atleast_1d(np.atleast_1d(self._series_labels)[idx])
+            )
         except IndexError:
-            raise IndexError("One of more indices were out of bounds for n_series with size {}"
-                             .format(self.n_series))
+            raise IndexError(
+                "One of more indices were out of bounds for n_series with size {}".format(
+                    self.n_series
+                )
+            )
         except Exception:
             raise TypeError("Unsupported indexing type {}".format(type(idx)))
 
@@ -747,7 +789,11 @@ class EventArray(BaseEventArray):
             data = self._data
 
         if isinstance(intervalslice, slice):
-            if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+            if (
+                intervalslice.start == None
+                and intervalslice.stop == None
+                and intervalslice.step == None
+            ):
                 # no restriction on interval
                 return self
 
@@ -768,7 +814,7 @@ class EventArray(BaseEventArray):
                 indices = np.array(indices, ndmin=2)
                 if np.diff(indices).sum() < len(evt_data):
                     issue_warning = True
-                singleseries = (len(self._data) == 1)
+                singleseries = len(self._data) == 1
                 if singleseries:
                     data_list = []
                     for start, stop in indices:
@@ -786,8 +832,7 @@ class EventArray(BaseEventArray):
                     data = utils.ragged_array(data_)
             self._data = data
             if issue_warning:
-                logging.warning(
-                        'ignoring events outside of eventarray support')
+                logging.warning("ignoring events outside of eventarray support")
 
         self._abscissa.support = newintervals
         return self
@@ -811,7 +856,14 @@ class EventArray(BaseEventArray):
             labelstr = ""
         numstr = " %s %s" % (self.n_series, self._series_label)
         logging.disable(0)
-        return "<%s%s:%s%s>%s%s" % (self.type_name, address_str, numstr, epstr, fsstr, labelstr)
+        return "<%s%s:%s%s>%s%s" % (
+            self.type_name,
+            address_str,
+            numstr,
+            epstr,
+            fsstr,
+            labelstr,
+        )
 
     def bin(self, *, ds=None):
         """Return a binned eventarray."""
@@ -834,9 +886,7 @@ class EventArray(BaseEventArray):
         """(bool) Sorted EventArray."""
         if self.isempty:
             return True
-        return np.array(
-            [utils.is_sorted(eventarray) for eventarray in self.data]
-            ).all()
+        return np.array([utils.is_sorted(eventarray) for eventarray in self.data]).all()
 
     def _reorder_series_by_idx(self, neworder, inplace=False):
         """Reorder series according to a specified order.
@@ -858,8 +908,14 @@ class EventArray(BaseEventArray):
             frm = oldorder.index(ni)
             to = oi
             utils.swap_rows(out._data, frm, to)
-            out._series_ids[frm], out._series_ids[to] = out._series_ids[to], out._series_ids[frm]
-            out._series_labels[frm], out._series_labels[to] = out._series_labels[to], out._series_labels[frm]
+            out._series_ids[frm], out._series_ids[to] = (
+                out._series_ids[to],
+                out._series_ids[frm],
+            )
+            out._series_labels[frm], out._series_labels[to] = (
+                out._series_labels[to],
+                out._series_labels[frm],
+            )
             # TODO: re-build series tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -876,7 +932,9 @@ class EventArray(BaseEventArray):
         ------
         out : reordered EventArray
         """
-        raise DeprecationWarning("reorder_series has been deprecated. Use reorder_series_by_id(x/s) instead!")
+        raise DeprecationWarning(
+            "reorder_series has been deprecated. Use reorder_series_by_id(x/s) instead!"
+        )
 
     def reorder_series_by_ids(self, neworder, *, inplace=False):
         """Reorder series according to a specified order.
@@ -900,8 +958,14 @@ class EventArray(BaseEventArray):
             frm = oldorder.index(ni)
             to = oi
             utils.swap_rows(out._data, frm, to)
-            out._series_ids[frm], out._series_ids[to] = out._series_ids[to], out._series_ids[frm]
-            out._series_labels[frm], out._series_labels[to] = out._series_labels[to], out._series_labels[frm]
+            out._series_ids[frm], out._series_ids[to] = (
+                out._series_ids[to],
+                out._series_ids[frm],
+            )
+            out._series_labels[frm], out._series_labels[to] = (
+                out._series_labels[to],
+                out._series_labels[frm],
+            )
             # TODO: re-build series tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -917,8 +981,12 @@ class EventArray(BaseEventArray):
         firing_order : list of series_ids
         """
 
-        first_events = [(ii, series[0]) for (ii, series) in enumerate(self.data) if len(series) !=0]
-        first_events_series_ids = np.array(self.series_ids)[[fs[0] for fs in first_events]]
+        first_events = [
+            (ii, series[0]) for (ii, series) in enumerate(self.data) if len(series) != 0
+        ]
+        first_events_series_ids = np.array(self.series_ids)[
+            [fs[0] for fs in first_events]
+        ]
         first_events_datas = np.array([fs[1] for fs in first_events])
         sortorder = np.argsort(first_events_datas)
         first_events_series_ids = first_events_series_ids[sortorder]
@@ -958,10 +1026,11 @@ class EventArray(BaseEventArray):
             out._abscissa.support = type(self._abscissa.support)(empty=True)
             return out
         out = self
-        out._data = np.array(self.n_series*[None])
+        out._data = np.array(self.n_series * [None])
         out._abscissa.support = type(self._abscissa.support)(empty=True)
         out.__renew__()
         return out
+
 
 ########################################################################
 # class BinnedEventArray
@@ -1023,8 +1092,14 @@ class BinnedEventArray(BaseEventArray):
         The support of the BinnedEventArray.
     """
 
-    __attributes__ = ["_ds", "_bins", "_data", "_bin_centers",
-                      "_binned_support", "_eventarray"]
+    __attributes__ = [
+        "_ds",
+        "_bins",
+        "_data",
+        "_bin_centers",
+        "_binned_support",
+        "_eventarray",
+    ]
     __attributes__.extend(BaseEventArray.__attributes__)
 
     def __init__(self, eventarray=None, *, ds=None, empty=False, **kwargs):
@@ -1048,38 +1123,47 @@ class BinnedEventArray(BaseEventArray):
                 self._abscissa.support = type(eventarray._abscissa.support)(empty=True)
                 self._event_centers = None
                 return
-            eventarray = eventarray.copy() # Note: this is a deep copy
-            n_empty_epochs = np.sum(eventarray.support.lengths==0)
+            eventarray = eventarray.copy()  # Note: this is a deep copy
+            n_empty_epochs = np.sum(eventarray.support.lengths == 0)
             if n_empty_epochs > 0:
-                logging.warning("Detected {} empty epochs. Removing these in the cast object"
-                              .format(n_empty_epochs))
+                logging.warning(
+                    "Detected {} empty epochs. Removing these in the cast object".format(
+                        n_empty_epochs
+                    )
+                )
                 eventarray.support = eventarray.support._drop_empty_intervals()
             if not eventarray.support.ismerged:
-                logging.warning("Detected overlapping epochs. Merging these in the cast object")
+                logging.warning(
+                    "Detected overlapping epochs. Merging these in the cast object"
+                )
                 eventarray.support = eventarray.support.merge()
 
             self._eventarray = None
-            self._ds = 1/eventarray.fs
+            self._ds = 1 / eventarray.fs
             self._series_labels = eventarray._series_labels
             self._bin_centers = eventarray.abscissa_vals
-            tmp = np.insert(np.cumsum(eventarray.lengths),0,0)
-            self._binned_support = np.array((tmp[:-1], tmp[1:]-1)).T
+            tmp = np.insert(np.cumsum(eventarray.lengths), 0, 0)
+            self._binned_support = np.array((tmp[:-1], tmp[1:] - 1)).T
             self._abscissa.support = eventarray.support
             try:
-                self._series_ids = (np.array(eventarray.series_labels).astype(int)).tolist()
+                self._series_ids = (
+                    np.array(eventarray.series_labels).astype(int)
+                ).tolist()
             except (ValueError, TypeError):
                 self._series_ids = (np.arange(eventarray.n_signals) + 1).tolist()
             self._data = eventarray._ydata_rowsig
 
             bins = []
             for starti, stopi in self._binned_support:
-                bins_edges_in_interval = (self._bin_centers[starti:stopi+1] - self._ds/2).tolist()
-                bins_edges_in_interval.append(self._bin_centers[stopi] + self._ds/2)
+                bins_edges_in_interval = (
+                    self._bin_centers[starti : stopi + 1] - self._ds / 2
+                ).tolist()
+                bins_edges_in_interval.append(self._bin_centers[stopi] + self._ds / 2)
                 bins.extend(bins_edges_in_interval)
             self._bins = np.array(bins)
             return
 
-        if type(eventarray).__name__ == 'BinnedSpikeTrainArray':
+        if type(eventarray).__name__ == "BinnedSpikeTrainArray":
             # old-style nelpy BinnedSpikeTrainArray object?
             try:
                 self._eventarray = eventarray._spiketrainarray
@@ -1098,40 +1182,38 @@ class BinnedEventArray(BaseEventArray):
                 pass
 
         if not isinstance(eventarray, EventArray):
-            raise TypeError('eventarray must be a nelpy.EventArray object.')
+            raise TypeError("eventarray must be a nelpy.EventArray object.")
 
         self._ds = None
         self._bin_centers = np.array([])
         self._event_centers = None
 
         logging.disable(logging.CRITICAL)
-        kwargs = {'fs': eventarray.fs,
-                    'series_ids': eventarray.series_ids,
-                    'series_labels': eventarray.series_labels,
-                    'series_tags': eventarray.series_tags,
-                    'label': eventarray.label}
+        kwargs = {
+            "fs": eventarray.fs,
+            "series_ids": eventarray.series_ids,
+            "series_labels": eventarray.series_labels,
+            "series_tags": eventarray.series_tags,
+            "label": eventarray.label,
+        }
         logging.disable(0)
 
         # initialize super so that self.fs is set:
-        self._data = np.zeros((eventarray.n_series,0))
-            # the above is necessary so that super() can determine
-            # self.n_series when initializing. self.data will
-            # be updated later in __init__ to reflect subsequent changes
+        self._data = np.zeros((eventarray.n_series, 0))
+        # the above is necessary so that super() can determine
+        # self.n_series when initializing. self.data will
+        # be updated later in __init__ to reflect subsequent changes
         super().__init__(**kwargs)
 
         if ds is None:
-            logging.warning('no bin size was given, assuming 62.5 ms')
+            logging.warning("no bin size was given, assuming 62.5 ms")
             ds = 0.0625
 
-        self._eventarray = eventarray # TODO: remove this if we don't need it, or decide that it's too wasteful
+        self._eventarray = eventarray  # TODO: remove this if we don't need it, or decide that it's too wasteful
         self._abscissa = copy.deepcopy(eventarray._abscissa)
         self.ds = ds
 
-        self._bin_events(
-            eventarray=eventarray,
-            intervalArray=eventarray.support,
-            ds=ds
-            )
+        self._bin_events(eventarray=eventarray, intervalArray=eventarray.support, ds=ds)
 
     def __mul__(self, other):
         """Overloaded * operator"""
@@ -1145,7 +1227,11 @@ class BinnedEventArray(BaseEventArray):
             neweva._data = (self.data.T * other).T
             return neweva
         else:
-            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for *: '{}' and '{}'".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
     def __rmul__(self, other):
         """Overloaded * operator"""
@@ -1162,7 +1248,11 @@ class BinnedEventArray(BaseEventArray):
             neweva._data = (self.data.T - other).T
             return neweva
         else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for -: '{}' and '{}'".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
     def __add__(self, other):
         """Overloaded + operator"""
@@ -1177,7 +1267,7 @@ class BinnedEventArray(BaseEventArray):
             return neweva
         elif isinstance(other, type(self)):
 
-            #TODO: additional checks need to be done, e.g., same series ids...
+            # TODO: additional checks need to be done, e.g., same series ids...
             assert self.n_series == other.n_series
             support = self._abscissa.support + other.support
 
@@ -1190,7 +1280,11 @@ class BinnedEventArray(BaseEventArray):
                 fs = None
             return type(self)(newdata, support=support, fs=fs)
         else:
-            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for +: '{}' and '{}'".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
     def __truediv__(self, other):
         """Overloaded / operator"""
@@ -1204,9 +1298,13 @@ class BinnedEventArray(BaseEventArray):
             neweva._data = (self.data.T / other).T
             return neweva
         else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for /: '{}' and '{}'".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
-    def median(self,*,axis=1):
+    def median(self, *, axis=1):
         """Returns the median of each series in BinnedEventArray."""
         try:
             medians = np.nanmedian(self.data, axis=axis).squeeze()
@@ -1216,7 +1314,7 @@ class BinnedEventArray(BaseEventArray):
         except IndexError:
             raise IndexError("Empty BinnedEventArray; cannot calculate median.")
 
-    def mean(self,*,axis=1):
+    def mean(self, *, axis=1):
         """Returns the mean of each series in BinnedEventArray."""
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
@@ -1226,15 +1324,17 @@ class BinnedEventArray(BaseEventArray):
         except IndexError:
             raise IndexError("Empty BinnedEventArray; cannot calculate mean.")
 
-    def std(self,*,axis=1):
+    def std(self, *, axis=1):
         """Returns the standard deviation of each series in BinnedEventArray."""
         try:
-            stds = np.nanstd(self.data,axis=axis).squeeze()
+            stds = np.nanstd(self.data, axis=axis).squeeze()
             if stds.size == 1:
                 return np.asscalar(stds)
             return stds
         except IndexError:
-            raise IndexError("Empty BinnedEventArray; cannot calculate standard deviation")
+            raise IndexError(
+                "Empty BinnedEventArray; cannot calculate standard deviation"
+            )
 
     def center(self, inplace=False):
         """Center data (zero mean)."""
@@ -1252,7 +1352,7 @@ class BinnedEventArray(BaseEventArray):
         else:
             out = self.copy()
         std = out.std()
-        std[std==0] = 1
+        std[std == 0] = 1
         out._data = (out._data.T / std).T
         return out
 
@@ -1264,12 +1364,12 @@ class BinnedEventArray(BaseEventArray):
             out = self.copy()
         out._data = (out._data.T - out.mean()).T
         std = out.std()
-        std[std==0] = 1
+        std[std == 0] = 1
         out._data = (out._data.T / std).T
 
         return out
 
-    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    @keyword_equivalence(this_or_that={"n_intervals": "n_epochs"})
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
@@ -1292,7 +1392,11 @@ class BinnedEventArray(BaseEventArray):
             BaseEventArray that has been partitioned.
         """
 
-        partitioned = type(self)(core.RegularlySampledAnalogSignalArray(self).partition(ds=ds, n_intervals=n_intervals))
+        partitioned = type(self)(
+            core.RegularlySampledAnalogSignalArray(self).partition(
+                ds=ds, n_intervals=n_intervals
+            )
+        )
         # partitioned.loc = ItemGetter_loc(partitioned)
         # partitioned.iloc = ItemGetter_iloc(partitioned)
         return partitioned
@@ -1303,13 +1407,15 @@ class BinnedEventArray(BaseEventArray):
         """Returns a copy of the BinnedEventArray, without data.
         Note: the support is left unchanged, but the binned_support is removed.
         """
-        out = copy.copy(self) # shallow copy
+        out = copy.copy(self)  # shallow copy
         out._bin_centers = None
         out._binned_support = None
         out._bins = None
         out._data = np.zeros((self.n_series, 0))
         out._eventarray = out._eventarray._copy_without_data()
-        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out = copy.deepcopy(
+            out
+        )  # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
         return out
 
@@ -1329,12 +1435,25 @@ class BinnedEventArray(BaseEventArray):
         else:
             epstr = " in"
         if self.n_bins == 1:
-            bstr = " {} bin of width {}".format(self.n_bins, utils.PrettyDuration(self.ds))
+            bstr = " {} bin of width {}".format(
+                self.n_bins, utils.PrettyDuration(self.ds)
+            )
             dstr = ""
         else:
-            bstr = " {} bins of width {}".format(self.n_bins, utils.PrettyDuration(self.ds))
-            dstr = " for a total of {}".format(utils.PrettyDuration(self.n_bins*self.ds))
-        return "<%s%s:%s%s%s>%s" % (self.type_name, address_str, ustr, epstr, bstr, dstr)
+            bstr = " {} bins of width {}".format(
+                self.n_bins, utils.PrettyDuration(self.ds)
+            )
+            dstr = " for a total of {}".format(
+                utils.PrettyDuration(self.n_bins * self.ds)
+            )
+        return "<%s%s:%s%s%s>%s" % (
+            self.type_name,
+            address_str,
+            ustr,
+            epstr,
+            bstr,
+            dstr,
+        )
 
     def __iter__(self):
         """BinnedEventArray iterator initialization."""
@@ -1352,21 +1471,23 @@ class BinnedEventArray(BaseEventArray):
         # TODO: return self.loc[index], and make sure that __getitem__ is updated
         logging.disable(logging.CRITICAL)
         support = self._abscissa.support[index]
-        bsupport = self.binned_support[[index],:]
+        bsupport = self.binned_support[[index], :]
 
         binnedeventarray = type(self)(empty=True)
         exclude = ["_bins", "_data", "_support", "_bin_centers", "_binned_support"]
         attrs = (x for x in self.__attributes__ if x not in exclude)
         for attr in attrs:
             exec("binnedeventarray." + attr + " = self." + attr)
-        binindices = np.insert(0, 1, np.cumsum(self.lengths + 1)) # indices of bins
+        binindices = np.insert(0, 1, np.cumsum(self.lengths + 1))  # indices of bins
         binstart = binindices[index]
-        binstop = binindices[index+1]
+        binstop = binindices[index + 1]
         binnedeventarray._bins = self._bins[binstart:binstop]
-        binnedeventarray._data = self._data[:,bsupport[0][0]:bsupport[0][1]+1]
+        binnedeventarray._data = self._data[:, bsupport[0][0] : bsupport[0][1] + 1]
         binnedeventarray._abscissa.support = support
-        binnedeventarray._bin_centers = self._bin_centers[bsupport[0][0]:bsupport[0][1]+1]
-        binnedeventarray._binned_support = bsupport - bsupport[0,0]
+        binnedeventarray._bin_centers = self._bin_centers[
+            bsupport[0][0] : bsupport[0][1] + 1
+        ]
+        binnedeventarray._binned_support = bsupport - bsupport[0, 0]
         logging.disable(0)
         self._index += 1
         binnedeventarray.__renew__()
@@ -1418,16 +1539,23 @@ class BinnedEventArray(BaseEventArray):
         # Warning: This function can mutate data
 
         if isinstance(idx, core.IntervalArray):
-            raise IndexError("Slicing is [intervals, signal]; perhaps you have the order reversed?")
+            raise IndexError(
+                "Slicing is [intervals, signal]; perhaps you have the order reversed?"
+            )
 
         # TODO: update tags
         try:
-            self._data = np.atleast_2d(self.data[idx,:])
+            self._data = np.atleast_2d(self.data[idx, :])
             self._series_ids = list(np.atleast_1d(np.atleast_1d(self._series_ids)[idx]))
-            self._series_labels = list(np.atleast_1d(np.atleast_1d(self._series_labels)[idx]))
+            self._series_labels = list(
+                np.atleast_1d(np.atleast_1d(self._series_labels)[idx])
+            )
         except IndexError:
-            raise IndexError("One of more indices were out of bounds for n_series with size {}"
-                             .format(self.n_series))
+            raise IndexError(
+                "One of more indices were out of bounds for n_series with size {}".format(
+                    self.n_series
+                )
+            )
         except Exception:
             raise TypeError("Unsupported indexing type {}".format(type(idx)))
 
@@ -1437,9 +1565,11 @@ class BinnedEventArray(BaseEventArray):
         # _restrict
 
         if isinstance(intervalslice, slice):
-            if (intervalslice.start == None and
-                intervalslice.stop  == None and
-                intervalslice.step  == None):
+            if (
+                intervalslice.start == None
+                and intervalslice.stop == None
+                and intervalslice.step == None
+            ):
                 # no restriction on interval
                 return self
 
@@ -1451,8 +1581,7 @@ class BinnedEventArray(BaseEventArray):
         bcenter_inds = []
         bin_inds = []
         start = 0
-        bsupport = np.zeros((newintervals.n_intervals, 2),
-                            dtype=int)
+        bsupport = np.zeros((newintervals.n_intervals, 2), dtype=int)
         support_intervals = np.zeros((newintervals.n_intervals, 2))
 
         if not self.isempty:
@@ -1469,8 +1598,9 @@ class BinnedEventArray(BaseEventArray):
                     to -= 1
                 support_intervals[ii] = [self._bins[frm], self._bins[to]]
 
-                lind, rind = np.searchsorted(self._bin_centers,
-                                            (self._bins[frm], self._bins[to]))
+                lind, rind = np.searchsorted(
+                    self._bin_centers, (self._bins[frm], self._bins[to])
+                )
                 # We don't have to worry about an if-else block here unlike
                 # for the bin_inds because the bin_centers can NEVER equal
                 # the bins. Therefore we know every interval looks like
@@ -1485,7 +1615,7 @@ class BinnedEventArray(BaseEventArray):
                 # bin edges.
                 bcenter_inds.extend(np.arange(lind, rind, step=1))
 
-                bsupport[ii] = [start, start+(to-frm-1)]
+                bsupport[ii] = [start, start + (to - frm - 1)]
                 start += to - frm
 
             self._bins = self._bins[bin_inds]
@@ -1550,7 +1680,7 @@ class BinnedEventArray(BaseEventArray):
         if self._event_centers is None:
             midpoints = np.zeros(len(self.lengths))
             for idx, l in enumerate(self.lengths):
-                midpoints[idx] = np.sum(self.lengths[:idx]) + l/2
+                midpoints[idx] = np.sum(self.lengths[:idx]) + l / 2
             self._event_centers = midpoints
         return self._event_centers
 
@@ -1584,7 +1714,9 @@ class BinnedEventArray(BaseEventArray):
         """Lengths of contiguous segments, in number of bins."""
         if self.isempty:
             return 0
-        return np.atleast_1d((self.binned_support[:,1] - self.binned_support[:,0] + 1).squeeze())
+        return np.atleast_1d(
+            (self.binned_support[:, 1] - self.binned_support[:, 0] + 1).squeeze()
+        )
 
     @property
     def eventarray(self):
@@ -1655,14 +1787,13 @@ class BinnedEventArray(BaseEventArray):
         """
 
         if interval.length < ds:
-            logging.warning(
-                "interval duration is less than bin size: ignoring...")
+            logging.warning("interval duration is less than bin size: ignoring...")
             return None, None
 
-        n = int(np.floor(interval.length / ds)) # number of bins
+        n = int(np.floor(interval.length / ds))  # number of bins
 
         # linspace is better than arange for non-integral steps
-        bins = np.linspace(interval.start, interval.start + n*ds, n+1)
+        bins = np.linspace(interval.start, interval.start + n * ds, n + 1)
         centers = bins[:-1] + (ds / 2)
         return bins, centers
 
@@ -1688,8 +1819,8 @@ class BinnedEventArray(BaseEventArray):
                         eventarraydatas,
                         bins=bins,
                         density=False,
-                        range=(interval.start,interval.stop)
-                        ) # TODO: is it faster to limit range, or to cut out events?
+                        range=(interval.start, interval.stop),
+                    )  # TODO: is it faster to limit range, or to cut out events?
                     s[uu].extend(event_counts.tolist())
                 left_edges.append(counter)
                 counter += len(centers) - 1
@@ -1705,13 +1836,17 @@ class BinnedEventArray(BaseEventArray):
         re = np.array(right_edges)
         re = re[:, np.newaxis]
         self._binned_support = np.hstack((le, re))
-        support_starts = self.bins[np.insert(np.cumsum(self.lengths+1),0,0)[:-1]]
-        support_stops = self.bins[np.insert(np.cumsum(self.lengths+1)-1,0,0)[1:]]
+        support_starts = self.bins[np.insert(np.cumsum(self.lengths + 1), 0, 0)[:-1]]
+        support_stops = self.bins[np.insert(np.cumsum(self.lengths + 1) - 1, 0, 0)[1:]]
         supportdata = np.vstack([support_starts, support_stops]).T
-        self._abscissa.support = type(self._abscissa.support)(supportdata) # set support to TRUE bin support
+        self._abscissa.support = type(self._abscissa.support)(
+            supportdata
+        )  # set support to TRUE bin support
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-    def smooth(self, *, sigma=None, inplace=False,  truncate=None, within_intervals=False):
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+    def smooth(
+        self, *, sigma=None, inplace=False, truncate=None, within_intervals=False
+    ):
         """Smooth BinnedEventArray by convolving with a Gaussian kernel.
 
         Smoothing is applied in data, and the same smoothing is applied
@@ -1738,11 +1873,18 @@ class BinnedEventArray(BaseEventArray):
         if truncate is None:
             truncate = 4
         if sigma is None:
-            sigma = 0.01 # 10 ms default
+            sigma = 0.01  # 10 ms default
 
         fs = 1 / self.ds
 
-        return utils.gaussian_filter(self, fs=fs, sigma=sigma, truncate=truncate, inplace=inplace, within_intervals=within_intervals)
+        return utils.gaussian_filter(
+            self,
+            fs=fs,
+            sigma=sigma,
+            truncate=truncate,
+            inplace=inplace,
+            within_intervals=within_intervals,
+        )
 
     @staticmethod
     def _smooth_array(arr, w=None):
@@ -1762,17 +1904,17 @@ class BinnedEventArray(BaseEventArray):
         if w is None:
             w = 10
 
-        if w==1: # perform no smoothing
+        if w == 1:  # perform no smoothing
             return arr
 
         w = np.min((w, arr.shape[1]))
 
-        smoothed = arr.astype(float) # copy array and cast to float
-        window = np.ones((w,))/w
+        smoothed = arr.astype(float)  # copy array and cast to float
+        window = np.ones((w,)) / w
 
         # smooth per row
         for rowi, row in enumerate(smoothed):
-            smoothed[rowi,:] = np.convolve(row, window, mode='same')
+            smoothed[rowi, :] = np.convolve(row, window, mode="same")
 
         if arr.shape[1] != smoothed.shape[1]:
             raise TypeError("Incompatible shape returned!")
@@ -1801,9 +1943,11 @@ class BinnedEventArray(BaseEventArray):
             binned array, relative to the original array.
         """
         cs = np.cumsum(arr, axis=1)
-        binidx = np.arange(start=w, stop=cs.shape[1]+1, step=w) - 1
+        binidx = np.arange(start=w, stop=cs.shape[1] + 1, step=w) - 1
 
-        rebinned = np.hstack((np.array(cs[:,w-1], ndmin=2).T, cs[:,binidx[1:]] - cs[:,binidx[:-1]]))
+        rebinned = np.hstack(
+            (np.array(cs[:, w - 1], ndmin=2).T, cs[:, binidx[1:]] - cs[:, binidx[:-1]])
+        )
         # bins = bins[np.insert(binidx+1, 0, 0)]
         return rebinned, binidx
 
@@ -1863,20 +2007,20 @@ class BinnedEventArray(BaseEventArray):
 
         edges = np.insert(np.cumsum(bst.lengths), 0, 0)
         newlengths = [0]
-        binedges = np.insert(np.cumsum(bst.lengths+1), 0, 0)
+        binedges = np.insert(np.cumsum(bst.lengths + 1), 0, 0)
         n_events = bst.support.n_intervals
         new_centers = []
 
         newdata = None
 
         for ii in range(n_events):
-            data = bst.data[:,edges[ii]:edges[ii+1]]
-            bins = bst.bins[binedges[ii]:binedges[ii+1]]
+            data = bst.data[:, edges[ii] : edges[ii + 1]]
+            bins = bst.bins[binedges[ii] : binedges[ii + 1]]
 
             datalen = data.shape[1]
             if w <= datalen:
                 rebinned, binidx = bst._rebin_array(data, w=w)
-                bins = bins[np.insert(binidx+1, 0, 0)]
+                bins = bins[np.insert(binidx + 1, 0, 0)]
 
                 newlengths.append(rebinned.shape[1])
 
@@ -1903,10 +2047,14 @@ class BinnedEventArray(BaseEventArray):
             newbst._abscissa.support = type(bst.support)(newsupport)
             newbst._bins = newbins
             newbst._bin_centers = newcenters
-            newbst._ds = bst.ds*w
-            newbst._binned_support = np.array((newedges[:-1], newedges[1:]-1)).T
+            newbst._ds = bst.ds * w
+            newbst._binned_support = np.array((newedges[:-1], newedges[1:] - 1)).T
         else:
-            logging.warning("No events are long enough to contain any bins of width {}".format(utils.PrettyDuration(bst.ds)))
+            logging.warning(
+                "No events are long enough to contain any bins of width {}".format(
+                    utils.PrettyDuration(bst.ds)
+                )
+            )
             newbst._data = None
             newbst._abscissa = abscissa
             newbst._abscissa.support = None
@@ -1945,13 +2093,13 @@ class BinnedEventArray(BaseEventArray):
         n_preceding_bins = 0
 
         for frm, to in idx:
-            idx_array = np.arange(frm, to+1).astype(int)
+            idx_array = np.arange(frm, to + 1).astype(int)
             all_abscissa_vals.append(idx_array)
             bin_centers = self.bin_centers[idx_array]
-            bins = np.append(bin_centers - ds/2, bin_centers[-1] + ds/2)
+            bins = np.append(bin_centers - ds / 2, bin_centers[-1] + ds / 2)
 
-            binned_support = [n_preceding_bins, n_preceding_bins + len(bins)-2]
-            n_preceding_bins += len(bins)-1
+            binned_support = [n_preceding_bins, n_preceding_bins + len(bins) - 2]
+            n_preceding_bins += len(bins) - 1
             support = type(self._abscissa.support)((bins[0], bins[-1]))
 
             bin_centers_.append(bin_centers)
@@ -1969,7 +2117,7 @@ class BinnedEventArray(BaseEventArray):
         newbst._bins = bins
         newbst._binned_support = binned_support
         newbst._abscissa.support = support
-        newbst._data = newbst.data[:,all_abscissa_vals]
+        newbst._data = newbst.data[:, all_abscissa_vals]
 
         newbst.__renew__()
 
@@ -2054,9 +2202,12 @@ class BinnedEventArray(BaseEventArray):
             self._abscissa.support = type(self._abscissa.support)([val[0], val[1]])
             self._abscissa.domain = prev_domain
         else:
-            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+            raise TypeError(
+                "support must be of type {}".format(str(type(self._abscissa.support)))
+            )
         # restrict data to new support
         self._restrict_to_interval(self._abscissa.support)
+
 
 def legacySTAkwargs(**kwargs):
     """Provide support for legacy SpikeTrainArray
@@ -2085,35 +2236,36 @@ def legacySTAkwargs(**kwargs):
                 num_non_null_args += 1
                 out = arg
         if num_non_null_args > 1:
-            raise ValueError ('multiple conflicting arguments received')
+            raise ValueError("multiple conflicting arguments received")
         return out
 
     # legacy STA constructor support for backward compatibility
-    abscissa_vals = kwargs.pop('abscissa_vals', None)
-    timestamps = kwargs.pop('timestamps', None)
-    time = kwargs.pop('time', None)
+    abscissa_vals = kwargs.pop("abscissa_vals", None)
+    timestamps = kwargs.pop("timestamps", None)
+    time = kwargs.pop("time", None)
     # only one of the above, otherwise raise exception
     abscissa_vals = only_one_of(abscissa_vals, timestamps, time)
     if abscissa_vals is not None:
-        kwargs['abscissa_vals'] = abscissa_vals
+        kwargs["abscissa_vals"] = abscissa_vals
 
     # Other legacy attributes
-    series_ids = kwargs.pop('series_ids', None)
-    unit_ids = kwargs.pop('unit_ids', None)
+    series_ids = kwargs.pop("series_ids", None)
+    unit_ids = kwargs.pop("unit_ids", None)
     series_ids = only_one_of(series_ids, unit_ids)
-    kwargs['series_ids'] = series_ids
+    kwargs["series_ids"] = series_ids
 
-    series_labels = kwargs.pop('series_labels', None)
-    unit_labels = kwargs.pop('unit_labels', None)
+    series_labels = kwargs.pop("series_labels", None)
+    unit_labels = kwargs.pop("unit_labels", None)
     series_labels = only_one_of(series_labels, unit_labels)
-    kwargs['series_labels'] = series_labels
+    kwargs["series_labels"] = series_labels
 
-    series_tags = kwargs.pop('series_tags', None)
-    unit_tags = kwargs.pop('unit_tags', None)
+    series_tags = kwargs.pop("series_tags", None)
+    unit_tags = kwargs.pop("unit_tags", None)
     series_tags = only_one_of(series_tags, unit_tags)
-    kwargs['series_tags'] = series_tags
+    kwargs["series_tags"] = series_tags
 
     return kwargs
+
 
 ########################################################################
 # class SpikeTrainArray
@@ -2126,47 +2278,47 @@ class SpikeTrainArray(EventArray):
 
     # specify class-specific aliases:
     __aliases__ = {
-        'time': 'data',
-        '_time': '_data',
-        'n_epochs': 'n_intervals',
-        'n_units' : 'n_series',
-        '_unit_subset' : '_series_subset', # requires kw change
-        'get_event_firing_order' : 'get_spike_firing_order',
-        'reorder_units_by_ids' : 'reorder_series_by_ids',
-        'reorder_units' : 'reorder_series',
-        '_reorder_units_by_idx' : '_reorder_series_by_idx',
-        'n_spikes' : 'n_events',
-        'unit_ids' : 'series_ids',
-        'unit_labels': 'series_labels',
-        'unit_tags': 'series_tags',
-        '_unit_ids' : '_series_ids',
-        '_unit_labels': '_series_labels',
-        '_unit_tags': '_series_tags',
-        'first_spike': 'first_event',
-        'last_spike': 'last_event',
-        }
+        "time": "data",
+        "_time": "_data",
+        "n_epochs": "n_intervals",
+        "n_units": "n_series",
+        "_unit_subset": "_series_subset",  # requires kw change
+        "get_event_firing_order": "get_spike_firing_order",
+        "reorder_units_by_ids": "reorder_series_by_ids",
+        "reorder_units": "reorder_series",
+        "_reorder_units_by_idx": "_reorder_series_by_idx",
+        "n_spikes": "n_events",
+        "unit_ids": "series_ids",
+        "unit_labels": "series_labels",
+        "unit_tags": "series_tags",
+        "_unit_ids": "_series_ids",
+        "_unit_labels": "_series_labels",
+        "_unit_tags": "_series_tags",
+        "first_spike": "first_event",
+        "last_spike": "last_event",
+    }
 
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
 
-        series_label = kwargs.pop('series_label', None)
+        series_label = kwargs.pop("series_label", None)
         if series_label is None:
-            series_label = 'units'
-        kwargs['series_label'] = series_label
+            series_label = "units"
+        kwargs["series_label"] = series_label
 
         # legacy STA constructor support for backward compatibility
         kwargs = legacySTAkwargs(**kwargs)
 
-        support = kwargs.get('support', None)
+        support = kwargs.get("support", None)
         if support is not None:
-            abscissa = kwargs.get('abscissa', core.TemporalAbscissa(support=support))
+            abscissa = kwargs.get("abscissa", core.TemporalAbscissa(support=support))
         else:
-            abscissa = kwargs.get('abscissa', core.TemporalAbscissa())
-        ordinate = kwargs.get('ordinate', core.AnalogSignalArrayOrdinate())
+            abscissa = kwargs.get("abscissa", core.TemporalAbscissa())
+        ordinate = kwargs.get("ordinate", core.AnalogSignalArrayOrdinate())
 
-        kwargs['abscissa'] = abscissa
-        kwargs['ordinate'] = ordinate
+        kwargs["abscissa"] = abscissa
+        kwargs["ordinate"] = ordinate
 
         super().__init__(*args, **kwargs)
 
@@ -2179,7 +2331,8 @@ class SpikeTrainArray(EventArray):
 
     def bin(self, *, ds=None):
         """Return a BinnedSpikeTrainArray."""
-        return BinnedSpikeTrainArray(self, ds=ds) # TODO #FIXME
+        return BinnedSpikeTrainArray(self, ds=ds)  # TODO #FIXME
+
 
 ########################################################################
 # class BinnedSpikeTrainArray
@@ -2192,37 +2345,37 @@ class BinnedSpikeTrainArray(BinnedEventArray):
 
     # specify class-specific aliases:
     __aliases__ = {
-        'time': 'data',
-        '_time': '_data',
-        'n_epochs': 'n_intervals',
-        'n_units' : 'n_series',
-        '_unit_subset' : '_series_subset', # requires kw change
+        "time": "data",
+        "_time": "_data",
+        "n_epochs": "n_intervals",
+        "n_units": "n_series",
+        "_unit_subset": "_series_subset",  # requires kw change
         # 'get_event_firing_order' : 'get_spike_firing_order'
-        'reorder_units_by_ids' : 'reorder_series_by_ids',
-        'reorder_units' : 'reorder_series',
-        '_reorder_units_by_idx' : '_reorder_series_by_idx',
-        'n_spikes' : 'n_events',
-        'unit_ids' : 'series_ids',
-        'unit_labels': 'series_labels',
-        'unit_tags': 'series_tags',
-        '_unit_ids' : '_series_ids',
-        '_unit_labels': '_series_labels',
-        '_unit_tags': '_series_tags'
-        }
+        "reorder_units_by_ids": "reorder_series_by_ids",
+        "reorder_units": "reorder_series",
+        "_reorder_units_by_idx": "_reorder_series_by_idx",
+        "n_spikes": "n_events",
+        "unit_ids": "series_ids",
+        "unit_labels": "series_labels",
+        "unit_tags": "series_tags",
+        "_unit_ids": "_series_ids",
+        "_unit_labels": "_series_labels",
+        "_unit_tags": "_series_tags",
+    }
 
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
 
-        support = kwargs.get('support', None)
+        support = kwargs.get("support", None)
         if support is not None:
-            abscissa = kwargs.get('abscissa', core.TemporalAbscissa(support=support))
+            abscissa = kwargs.get("abscissa", core.TemporalAbscissa(support=support))
         else:
-            abscissa = kwargs.get('abscissa', core.TemporalAbscissa())
-        ordinate = kwargs.get('ordinate', core.AnalogSignalArrayOrdinate())
+            abscissa = kwargs.get("abscissa", core.TemporalAbscissa())
+        ordinate = kwargs.get("ordinate", core.AnalogSignalArrayOrdinate())
 
-        kwargs['abscissa'] = abscissa
-        kwargs['ordinate'] = ordinate
+        kwargs["abscissa"] = abscissa
+        kwargs["ordinate"] = ordinate
 
         super().__init__(*args, **kwargs)
 

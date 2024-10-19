@@ -5,9 +5,12 @@
 
 import numpy as np
 
-__all__ = ['gini',      # Gini coefficient of inequality
-          ]
-def gini(arr, mode='all'):
+__all__ = [
+    "gini",  # Gini coefficient of inequality
+]
+
+
+def gini(arr, mode="all"):
     """Calculate the Gini coefficient(s) of a matrix or vector.
 
     Parameters
@@ -38,30 +41,31 @@ def gini(arr, mode='all'):
 
     """
     if mode is None:
-        mode = 'row-wise'
+        mode = "row-wise"
 
-    if mode not in ['row-wise', 'col-wise', 'all']:
+    if mode not in ["row-wise", "col-wise", "all"]:
         raise ValueError("mode '{}' not supported!".format(mode))
 
     gini_coeffs = None
 
-    if mode=='all':
+    if mode == "all":
         arr = np.atleast_1d(arr).astype(float)
         gini_coeffs = _gini(arr)
 
-    elif mode=='row-wise':
+    elif mode == "row-wise":
         arr = np.atleast_2d(arr).astype(float)
         gini_coeffs = []
         for row in arr:
             gini_coeffs.append(_gini(row))
 
-    elif mode=='col-wise':
+    elif mode == "col-wise":
         arr = np.atleast_2d(arr).astype(float)
         gini_coeffs = []
         for row in arr.T:
             gini_coeffs.append(_gini(row))
 
     return gini_coeffs
+
 
 def _gini(arr):
     """Calculate the Gini coefficient of inequality of a numpy array.
@@ -137,8 +141,8 @@ def _gini(arr):
     # Values must be sorted:
     arr = np.sort(arr)
     # Index per array element:
-    index = np.arange(1, arr.shape[0]+1)
+    index = np.arange(1, arr.shape[0] + 1)
     # Number of array elements:
     n = arr.shape[0]
     # Gini coefficient:
-    return ((np.sum((2 * index - n  - 1) * arr)) / (n * np.sum(arr)))
+    return (np.sum((2 * index - n - 1) * arr)) / (n * np.sum(arr))
