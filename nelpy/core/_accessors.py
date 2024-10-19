@@ -22,7 +22,7 @@ class SliceExtractor(object):
         # something like obj[tuple, [7, 8, 9], 4] works
 
         # Handle special case where only one slice is provided
-        if isinstance(idx, (core.IntervalArray, int, list, slice, np.ndarray)):
+        if isinstance(idx, (core.EpochArray, core.IntervalArray, int, list, slice, np.ndarray)):
             intervalslice = idx
         elif not isinstance(idx, tuple):
             raise TypeError("A slice of type {} is not supported".format(idx))
