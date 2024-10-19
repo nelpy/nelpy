@@ -6,15 +6,13 @@ __all__ = ["sosfiltfilt"]
 
 import ctypes
 import sys
-import warnings
 import numpy as np
 import scipy.signal as sig
-import time
 
 from . import core
 from copy import deepcopy
 from itertools import repeat
-from multiprocessing import Process, Array, cpu_count
+from multiprocessing import Array, cpu_count
 from multiprocessing.pool import Pool
 
 

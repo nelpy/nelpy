@@ -271,9 +271,9 @@ class TestBinnedSpikeTrainArray:
         bst1 = bst.empty(inplace=False)
         bst.empty(inplace=True)
 
-        assert bst.binned_support == None
-        assert bst.bin_centers == None
-        assert bst.bins == None
+        assert bst.binned_support is None
+        assert bst.bin_centers is None
+        assert bst.bins is None
         assert bst.eventarray.isempty
         assert bst.n_series == n_series
         assert bst._desc == desc

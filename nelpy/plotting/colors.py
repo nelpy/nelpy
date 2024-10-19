@@ -14,7 +14,6 @@ __all__ = [
 ]
 
 import colorsys
-import numpy as np
 
 from .miscplot import palplot as _palplot
 

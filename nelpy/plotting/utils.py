@@ -21,22 +21,19 @@ included in all copies or substantial portions of the Software.
 # TODO: see https://gist.github.com/arnaldorusso/6611ff6c05e1efc2fb72
 # TODO: see https://github.com/nengo/nengo/blob/master/nengo/utils/matplotlib.py
 
-import numpy as np
-import matplotlib as mpl
-from matplotlib import cm
-from matplotlib import colors as mplcolors
-from matplotlib import cbook
-import matplotlib.gridspec as gridspec
-from matplotlib.image import AxesImage
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import matplotlib.pyplot as plt
 import colorsys
 import os
-import sys
-import inspect
-from . import palettes
-
 from distutils.version import LooseVersion
+
+import matplotlib as mpl
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import cbook, rcParams, colors as mcolors
+from matplotlib import colors as mplcolors
+from matplotlib.image import AxesImage
+from matplotlib.ticker import ScalarFormatter
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 mpl_ge_150 = LooseVersion(mpl.__version__) >= "1.5.0"
 
@@ -280,7 +277,7 @@ def get_extension_from_filename(name):
     """
     name = name.strip()
     ext = ((name.split("\\")[-1]).split("/")[-1]).split(".")
-    if len(ext) > 1 and ext[-1] is not "":
+    if len(ext) > 1 and ext[-1] != "":
         nameOnly = ".".join(name.split(".")[:-1])
         ext = ext[-1]
     else:
@@ -381,7 +378,6 @@ def savefig(name, fig=None, formats=None, dpi=None, verbose=True, overwrite=Fals
                     print("{} saved successfully...".format(extension))
 
 
-from matplotlib.ticker import ScalarFormatter
 
 
 class FixedOrderFormatter(ScalarFormatter):
@@ -920,13 +916,13 @@ def desaturate(color, prop):
     rgb = mplcolors.colorConverter.to_rgb(color)
 
     # Convert to hls
-    h, l, s = colorsys.rgb_to_hls(*rgb)
+    h, lightness, s = colorsys.rgb_to_hls(*rgb)
 
     # Desaturate the saturation channel
     s *= prop
 
     # Convert back to rgb
-    new_color = colorsys.hls_to_rgb(h, l, s)
+    new_color = colorsys.hls_to_rgb(h, lightness, s)
 
     return new_color
 

@@ -5,7 +5,6 @@ This object is very much a work-in-progress!!!"""
 
 __all__ = ["Session"]
 
-import copy
 import warnings
 
 # Force warnings.warn() to omit the source code line in the message

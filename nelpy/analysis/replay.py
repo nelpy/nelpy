@@ -346,10 +346,6 @@ def score_Davidson_final_bst_fast(
         coords = coords[(ri < NP) & (ri >= 0) & (~nanbins)]
         scores_within_track = np.take(precond_posterior, coords)
 
-        nanscore = 0
-        if n_nanbins > 0:
-            nanscore = n_nanbins * np.median(scores_within_track)
-
         score_within_track = np.sum(scores_within_track)
         score_outside_track = np.sum(scores_outside_track)
 

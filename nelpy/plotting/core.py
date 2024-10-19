@@ -1,11 +1,9 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 from matplotlib.collections import LineCollection
 import warnings
-import itertools
 
 from scipy import signal
 

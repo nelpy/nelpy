@@ -1,9 +1,8 @@
 import copy
-import numpy as np
-
 from collections import defaultdict
-from sklearn.model_selection import train_test_split
 
+import numpy as np
+from sklearn.model_selection import train_test_split
 
 from ..core import SpikeTrainArray
 from ..hmmutils import PoissonHMM

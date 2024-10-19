@@ -16,11 +16,9 @@ __all__ = ["load_hc11_data"]
 import logging
 import os.path
 import glob
-import copy
 import pandas as pd
 import numpy as np
 import re
-import glob
 import natsort as ns
 
 import xmltodict

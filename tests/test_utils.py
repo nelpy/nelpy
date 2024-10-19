@@ -1,4 +1,4 @@
-from nelpy.utils import *
+from nelpy.utils import linear_merge
 
 
 class TestUtils:

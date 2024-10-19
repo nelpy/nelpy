@@ -3,6 +3,7 @@ plotting package.
 """
 
 import matplotlib.artist as artist
+from matplotlib.axes import Axes
 
 
 class RasterLabelData(artist.Artist):
@@ -30,9 +31,6 @@ class RasterLabelData(artist.Artist):
     @yrange.setter
     def yrange(self, val):
         self._yrange = val
-
-
-from matplotlib.axes import Axes
 
 
 class NelpyAxes(Axes):

@@ -56,7 +56,6 @@ st2 = exp_data['session2']['spikes']
 __all__ = ['load_hc3_data']
 
 import os.path
-import copy
 import pandas as pd
 import numpy as np
 import re

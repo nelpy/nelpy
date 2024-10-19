@@ -1,17 +1,15 @@
 import numpy as np
 import logging
 import copy
-import numbers
 
 from scipy.special import logsumexp
 
 from sklearn.base import BaseEstimator
-from sklearn.utils.validation import check_is_fitted, NotFittedError
+from sklearn.utils.validation import check_is_fitted
 
 from .preprocessing import DataWindow
 from . import core
 from .plotting import _plot_ratemap
-from .auxiliary import TuningCurve1D, TuningCurve2D
 
 from .utils_.decorators import keyword_deprecation
 

@@ -2,6 +2,7 @@
 
 import matplotlib as mpl
 
+from matplotlib import pyplot as plt
 from matplotlib.offsetbox import AnchoredOffsetbox
 
 
@@ -56,9 +57,8 @@ class AnchoredScaleBar(AnchoredOffsetbox):
 
         adapted from https://gist.github.com/dmeliza/3251476
         """
-        from matplotlib.patches import Rectangle
         from matplotlib.offsetbox import AuxTransformBox, VPacker
-        from matplotlib.offsetbox import HPacker, TextArea, DrawingArea
+        from matplotlib.offsetbox import HPacker, TextArea
         import matplotlib.patches as mpatches
 
         if fontsize is None:
@@ -277,8 +277,8 @@ def add_scalebar(
     # xinverted = ax.xaxis_inverted()
 
     def f(axis):
-        l = axis.get_majorticklocs()
-        return len(l) > 1 and (l[1] - l[0])
+        tick_locations = axis.get_majorticklocs()
+        return len(tick_locations) > 1 and (tick_locations[1] - tick_locations[0])
 
     if matchx and sizex:
         raise ValueError("matchx and sizex cannot both be specified")

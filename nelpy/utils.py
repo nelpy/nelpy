@@ -1,44 +1,39 @@
 """This module contains helper functions and utilities for nelpy."""
 
-__all__ = ['spatial_information',
-           'frange',
-           'swap_cols',
-           'swap_rows',
-           'pairwise',
-           'is_sorted',
-           'linear_merge',
-           'PrettyDuration',
-           'ddt_asa',
-           'get_contiguous_segments',
-           'get_events_boundaries',
-           'get_threshold_crossing_epochs',
-           '_bst_get_bins']
+__all__ = [
+    "spatial_information",
+    "frange",
+    "swap_cols",
+    "swap_rows",
+    "pairwise",
+    "is_sorted",
+    "linear_merge",
+    "PrettyDuration",
+    "ddt_asa",
+    "get_contiguous_segments",
+    "get_events_boundaries",
+    "get_threshold_crossing_epochs",
+    "_bst_get_bins",
+]
 
 import numpy as np
 import logging
-from itertools import tee, repeat
+from itertools import tee
 from collections import namedtuple
 from math import floor
 from scipy.signal import hilbert
-import scipy.ndimage.filters #import gaussian_filter1d, gaussian_filter
+import scipy.ndimage.filters  # import gaussian_filter1d, gaussian_filter
 from numpy import log, ceil
 import copy
-import sys
-import ctypes
-from multiprocessing import Array, cpu_count
-from multiprocessing.pool import Pool
-import pdb
 
-from . import core # so that core.RegularlySampledAnalogSignalArray is exposed
-from . import auxiliary # so that auxiliary.TuningCurve1D is epxosed
-from . import filtering
+from . import core  # so that core.RegularlySampledAnalogSignalArray is exposed
 
 from .utils_.decorators import keyword_deprecation
 
 try:
-    from scipy.fft import next_fast_len # scipy 1.*
-except:
-    from scipy.fftpack import next_fast_len # scipy 0.*
+    from scipy.fft import next_fast_len  # scipy 1.*
+except ImportError:
+    from scipy.fftpack import next_fast_len  # scipy 0.*
 
 # def sub2ind(array_shape, rows, cols):
 #     ind = rows*array_shape[1] + cols
@@ -54,16 +49,18 @@ except:
 #     cols = ind % array_shape[1]
 #     return (rows, cols)
 
+
 def ragged_array(arr):
     """Takes a list of arrays, and returns a ragged array.
 
     See https://github.com/numpy/numpy/issues/12468
     """
     n_elem = len(arr)
-    out = np.array(n_elem*[None])
+    out = np.array(n_elem * [None])
     for ii in range(out.shape[0]):
         out[ii] = arr[ii]
     return out
+
 
 def asa_indices_within_epochs(asa, intervalarray):
     """Return indices of ASA within epochs.
@@ -85,6 +82,7 @@ def asa_indices_within_epochs(asa, intervalarray):
 
     return indices
 
+
 def frange(start, stop, step):
     """arange with floating point step"""
     # TODO: this function is not very general; we can extend it to work
@@ -92,80 +90,82 @@ def frange(start, stop, step):
     # there are also many edge cases where this is weird.
     # see https://stackoverflow.com/questions/7267226/range-for-floats
     # for better alternatives.
-    num_steps = int(np.floor((stop-start)/step))
+    num_steps = int(np.floor((stop - start) / step))
     return np.linspace(start, stop, num=num_steps, endpoint=False)
 
-def spatial_information(ratemap,Pi=1):
-        """Compute the spatial information and firing sparsity...
 
-        The specificity index examines the amount of information
-        (in bits) that a single spike conveys about the animal's
-        location (i.e., how well cell firing predicts the animal's
-        location).The spatial information content of cell discharge was
-        calculated using the formula:
-            information content = \Sum P_i(R_i/R)log_2(R_i/R)
-        where i is the bin number, P_i, is the probability for occupancy
-        of bin i, R_i, is the mean firing rate for bin i, and R is the
-        overall mean firing rate.
+def spatial_information(ratemap, Pi=1):
+    """Compute the spatial information and firing sparsity...
 
-        In order to account for the effects of low firing rates (with
-        fewer spikes there is a tendency toward higher information
-        content) or random bursts of firing, the spike firing
-        time-series was randomly offset in time from the rat location
-        time-series, and the information content was calculated. A
-        distribution of the information content based on 100 such random
-        shifts was obtained and was used to compute a standardized score
-        (Zscore) of information content for that cell. While the
-        distribution is not composed of independent samples, it was
-        nominally normally distributed, and a Z value of 2.29 was chosen
-        as a cut-off for significance (the equivalent of a one-tailed
-        t-test with P = 0.01 under a normal distribution).
+    The specificity index examines the amount of information
+    (in bits) that a single spike conveys about the animal's
+    location (i.e., how well cell firing predicts the animal's
+    location).The spatial information content of cell discharge was
+    calculated using the formula:
+        information content = \Sum P_i(R_i/R)log_2(R_i/R)
+    where i is the bin number, P_i, is the probability for occupancy
+    of bin i, R_i, is the mean firing rate for bin i, and R is the
+    overall mean firing rate.
 
-        Reference(s)
-        ------------
-        Markus, E. J., Barnes, C. A., McNaughton, B. L., Gladden, V. L.,
-            and Skaggs, W. E. (1994). "Spatial information content and
-            reliability of hippocampal CA1 neurons: effects of visual
-            input", Hippocampus, 4(4), 410-421.
+    In order to account for the effects of low firing rates (with
+    fewer spikes there is a tendency toward higher information
+    content) or random bursts of firing, the spike firing
+    time-series was randomly offset in time from the rat location
+    time-series, and the information content was calculated. A
+    distribution of the information content based on 100 such random
+    shifts was obtained and was used to compute a standardized score
+    (Zscore) of information content for that cell. While the
+    distribution is not composed of independent samples, it was
+    nominally normally distributed, and a Z value of 2.29 was chosen
+    as a cut-off for significance (the equivalent of a one-tailed
+    t-test with P = 0.01 under a normal distribution).
 
-        Parameters
-        ----------
-        ratemap : array of shape (n_units, n_bins)
-            Rate map in Hz.
+    Reference(s)
+    ------------
+    Markus, E. J., Barnes, C. A., McNaughton, B. L., Gladden, V. L.,
+        and Skaggs, W. E. (1994). "Spatial information content and
+        reliability of hippocampal CA1 neurons: effects of visual
+        input", Hippocampus, 4(4), 410-421.
 
-        Pi : numpy.ndarray
-            A probability distribution over the bins of the rate map. If not
-            provided, it is assumed to be uniform.
-        Returns
-        -------
-        si : array of shape (n_units,)
-            spatial information (in bits per spike) 
-        """
-        # convert Pi to probability distribution
-        Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
-        Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
+    Parameters
+    ----------
+    ratemap : array of shape (n_units, n_bins)
+        Rate map in Hz.
 
-        ratemap = copy.deepcopy(ratemap)
-        # ensure that the ratemap always has nonzero firing rates,
-        # otherwise the spatial information might return NaNs:
-        ratemap[np.isnan(ratemap) | (ratemap == 0)] = np.finfo(float).eps
+    Pi : numpy.ndarray
+        A probability distribution over the bins of the rate map. If not
+        provided, it is assumed to be uniform.
+    Returns
+    -------
+    si : array of shape (n_units,)
+        spatial information (in bits per spike)
+    """
+    # convert Pi to probability distribution
+    Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
+    Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
 
-        if len(ratemap.shape) == 3:
-            # we have 2D tuning curve, (n_units, n_x, n_y)
-            R = (ratemap * Pi).sum(axis=1).sum(axis=1)
-            Ri = np.transpose(ratemap, (2,1,0))
-            si = np.sum(np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1), axis=1)
-        elif len(ratemap.shape) == 2:
-            # we have 1D tuning curve, (n_units, n_x)
-            R = (ratemap * Pi).sum(axis=1) # mean firing rate
-            Ri = ratemap.T
-            si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
-        else:
-            raise TypeError("rate map shape not supported / understood!")
+    ratemap = copy.deepcopy(ratemap)
+    # ensure that the ratemap always has nonzero firing rates,
+    # otherwise the spatial information might return NaNs:
+    ratemap[np.isnan(ratemap) | (ratemap == 0)] = np.finfo(float).eps
 
-        return si
+    if len(ratemap.shape) == 3:
+        # we have 2D tuning curve, (n_units, n_x, n_y)
+        R = (ratemap * Pi).sum(axis=1).sum(axis=1)
+        Ri = np.transpose(ratemap, (2, 1, 0))
+        si = np.sum(np.sum((Pi * ((Ri / R) * np.log2(Ri / R)).T), axis=1), axis=1)
+    elif len(ratemap.shape) == 2:
+        # we have 1D tuning curve, (n_units, n_x)
+        R = (ratemap * Pi).sum(axis=1)  # mean firing rate
+        Ri = ratemap.T
+        si = np.sum((Pi * ((Ri / R) * np.log2(Ri / R)).T), axis=1)
+    else:
+        raise TypeError("rate map shape not supported / understood!")
 
-def information_rate(ratemap,Pi=1):
+    return si
+
+
+def information_rate(ratemap, Pi=1):
     """
     This computes the spatial information rate of cell spikes given variable x in
     bits/second.
@@ -195,10 +195,11 @@ def information_rate(ratemap,Pi=1):
         R = (ratemap * Pi).sum(axis=1)
     else:
         raise TypeError("rate map shape not supported / understood!")
-    return spatial_information(ratemap,Pi) * R
+    return spatial_information(ratemap, Pi) * R
 
-def spatial_selectivity(ratemap,Pi=1):
-    '''
+
+def spatial_selectivity(ratemap, Pi=1):
+    """
     The selectivity measure max(rate)/mean(rate)  of the cell. The more
     tightly concentrated the cell's activity, the higher the selectivity.
     A cell with no spatial tuning at all will have a selectivity of 1.
@@ -215,7 +216,7 @@ def spatial_selectivity(ratemap,Pi=1):
     -------
     out : float
         selectivity
-    '''
+    """
     # convert Pi to probability distribution
     Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
     Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
@@ -232,64 +233,64 @@ def spatial_selectivity(ratemap,Pi=1):
     return max_rate / R
 
 
-def spatial_sparsity(ratemap,Pi=1):
-        """Compute the firing sparsity...
-        Compute sparsity of a rate map, The sparsity  measure is an adaptation
-        to space. The adaptation measures the fraction of the environment  in which
-        a cell is  active. A sparsity of, 0.1 means that the place field of the
-        cell occupies 1/10 of the area the subject traverses
+def spatial_sparsity(ratemap, Pi=1):
+    """Compute the firing sparsity...
+    Compute sparsity of a rate map, The sparsity  measure is an adaptation
+    to space. The adaptation measures the fraction of the environment  in which
+    a cell is  active. A sparsity of, 0.1 means that the place field of the
+    cell occupies 1/10 of the area the subject traverses
 
-        Parameters
-        ----------
-        rate_map : numpy.ndarray
-            A firing rate map, any number of dimensions.
-        Pi : numpy.ndarray
-            A probability distribution over the bins of the rate map. If not
-            provided, it is assumed to be uniform.
-        Returns
-        -------
-        out : float
-            sparsity
+    Parameters
+    ----------
+    rate_map : numpy.ndarray
+        A firing rate map, any number of dimensions.
+    Pi : numpy.ndarray
+        A probability distribution over the bins of the rate map. If not
+        provided, it is assumed to be uniform.
+    Returns
+    -------
+    out : float
+        sparsity
 
-        References
-        ----------
-        .. [2] Skaggs, W. E., McNaughton, B. L., Wilson, M., & Barnes, C. (1996).
-        Theta phase precession in hippocampal neuronal populations and the
-        compression of temporal sequences. Hippocampus, 6, 149-172.
+    References
+    ----------
+    .. [2] Skaggs, W. E., McNaughton, B. L., Wilson, M., & Barnes, C. (1996).
+    Theta phase precession in hippocampal neuronal populations and the
+    compression of temporal sequences. Hippocampus, 6, 149-172.
 
-        Parameters
-        ----------
+    Parameters
+    ----------
 
-        ratemap : array of shape (n_units, n_bins)
-            Rate map in Hz.
-        Pi : array of shape (n_bins,)
-            Occupancy of the animal.
-        Returns
-        -------
-        sparsity: array of shape (n_units,)
-            sparsity (in percent) for each unit
-        """
+    ratemap : array of shape (n_units, n_bins)
+        Rate map in Hz.
+    Pi : array of shape (n_bins,)
+        Occupancy of the animal.
+    Returns
+    -------
+    sparsity: array of shape (n_units,)
+        sparsity (in percent) for each unit
+    """
 
-        Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
-        Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
+    Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
+    Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
 
-        ratemap = copy.deepcopy(ratemap)
-        # ensure that the ratemap always has nonzero firing rates,
-        # otherwise the spatial information might return NaNs:
-        ratemap[np.isnan(ratemap) | (ratemap == 0)] = np.finfo(float).eps
+    ratemap = copy.deepcopy(ratemap)
+    # ensure that the ratemap always has nonzero firing rates,
+    # otherwise the spatial information might return NaNs:
+    ratemap[np.isnan(ratemap) | (ratemap == 0)] = np.finfo(float).eps
 
-        if len(ratemap.shape) == 3:
-            # we have 2D tuning curve, (n_units, n_x, n_y)
-            R = (ratemap * Pi).sum(axis=1).sum(axis=1)
-            avg_sqr_rate = np.sum(ratemap**2 * Pi, axis=1).sum(axis=1)
+    if len(ratemap.shape) == 3:
+        # we have 2D tuning curve, (n_units, n_x, n_y)
+        R = (ratemap * Pi).sum(axis=1).sum(axis=1)
+        avg_sqr_rate = np.sum(ratemap**2 * Pi, axis=1).sum(axis=1)
 
-        elif len(ratemap.shape) == 2:
-            R = (ratemap * Pi).sum(axis=1)
-            avg_sqr_rate = np.sum(ratemap**2 * Pi, axis=1)
-        else:
-            raise TypeError("rate map shape not supported / understood!")
+    elif len(ratemap.shape) == 2:
+        R = (ratemap * Pi).sum(axis=1)
+        avg_sqr_rate = np.sum(ratemap**2 * Pi, axis=1)
+    else:
+        raise TypeError("rate map shape not supported / understood!")
 
-        return R**2 / avg_sqr_rate
+    return R**2 / avg_sqr_rate
 
 
 def _bst_get_bins_inside_interval(interval, ds, w=1):
@@ -333,19 +334,20 @@ def _bst_get_bins_inside_interval(interval, ds, w=1):
     if interval.length < ds:
         return None, None
 
-    n_bins = int(np.floor(interval.length / ds)) # number of bins
+    n_bins = int(np.floor(interval.length / ds))  # number of bins
 
     # linspace is better than arange for non-integral steps
-    bins = np.linspace(interval.start, interval.start + n_bins*ds, n_bins+1)
+    bins = np.linspace(interval.start, interval.start + n_bins * ds, n_bins + 1)
 
     if w > 1:
         wn_bins = np.max((1, n_bins - w + 1))
-        wn_bins = bins[:wn_bins+1] + w/2*ds - ds/2
+        wn_bins = bins[: wn_bins + 1] + w / 2 * ds - ds / 2
         bins = wn_bins
 
     centers = bins[:-1] + (ds / 2)
 
     return bins, centers
+
 
 def _bst_get_bins(intervalArray, ds, w=1):
     """
@@ -375,15 +377,16 @@ def _bst_get_bins(intervalArray, ds, w=1):
     re = np.array(right_edges)
     re = re[:, np.newaxis]
     binned_support = np.hstack((le, re))
-    lengths = np.atleast_1d((binned_support[:,1] - binned_support[:,0] + 1).squeeze())
-    support_starts = bins[np.insert(np.cumsum(lengths+1),0,0)[:-1]]
-    support_stops = bins[np.insert(np.cumsum(lengths+1)-1,0,0)[1:]]
+    lengths = np.atleast_1d((binned_support[:, 1] - binned_support[:, 0] + 1).squeeze())
+    support_starts = bins[np.insert(np.cumsum(lengths + 1), 0, 0)[:-1]]
+    support_stops = bins[np.insert(np.cumsum(lengths + 1) - 1, 0, 0)[1:]]
     supportdata = np.vstack([support_starts, support_stops]).T
-    support = type(intervalArray)(supportdata) # set support to TRUE bin support
+    support = type(intervalArray)(supportdata)  # set support to TRUE bin support
 
     return bins, bin_centers, binned_support, support
 
-@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+
+@keyword_deprecation(replace_x_with_y={"bw": "truncate"})
 def get_mua(st, ds=None, sigma=None, truncate=None, _fast=True):
     """Compute the multiunit activity (MUA) from a spike train.
 
@@ -409,9 +412,9 @@ def get_mua(st, ds=None, sigma=None, truncate=None, _fast=True):
     """
 
     if ds is None:
-        ds = 0.001 # 1 ms bin size
+        ds = 0.001  # 1 ms bin size
     if sigma is None:
-        sigma = 0.01 # 10 ms standard deviation
+        sigma = 0.01  # 10 ms standard deviation
     if truncate is None:
         truncate = 6
 
@@ -422,7 +425,7 @@ def get_mua(st, ds=None, sigma=None, truncate=None, _fast=True):
         mua_binned = st.flatten()
         ds = mua_binned.ds
     else:
-        raise TypeError('st has to be one of (SpikeTrainArray, BinnedSpikeTrainArray)')
+        raise TypeError("st has to be one of (SpikeTrainArray, BinnedSpikeTrainArray)")
 
     # make sure data type is float, so that smoothing works, and convert to rate
     mua_binned._data = mua_binned._data.astype(float) / ds
@@ -435,14 +438,17 @@ def get_mua(st, ds=None, sigma=None, truncate=None, _fast=True):
         mua._abscissa_vals = mua_binned.bin_centers
         mua._abscissa.support = mua_binned.support
     else:
-        mua = core.AnalogSignalArray(mua_binned.data, timestamps=mua_binned.bin_centers, fs=1/ds)
+        mua = core.AnalogSignalArray(
+            mua_binned.data, timestamps=mua_binned.bin_centers, fs=1 / ds
+        )
 
-    mua._fs = 1/ds
+    mua._fs = 1 / ds
 
     if (sigma != 0) and (truncate > 0):
         mua = gaussian_filter(mua, sigma=sigma, truncate=truncate)
 
     return mua
+
 
 def is_odd(n):
     """Returns True if n is odd, and False if n is even.
@@ -450,19 +456,22 @@ def is_odd(n):
     """
     return bool(n & 1)
 
+
 def swap_cols(arr, frm, to):
     """swap columns of a 2D np.array"""
     if arr.ndim > 1:
-        arr[:,[frm, to]] = arr[:,[to, frm]]
+        arr[:, [frm, to]] = arr[:, [to, frm]]
     else:
         arr[frm], arr[to] = arr[to], arr[frm]
+
 
 def swap_rows(arr, frm, to):
     """swap rows of a 2D np.array"""
     if arr.ndim > 1:
-        arr[[frm, to],:] = arr[[to, frm],:]
+        arr[[frm, to], :] = arr[[to, frm], :]
     else:
         arr[frm], arr[to] = arr[to], arr[frm]
+
 
 def pairwise(iterable):
     """returns a zip of all neighboring pairs.
@@ -478,13 +487,16 @@ def pairwise(iterable):
     next(b, None)
     return zip(a, b)
 
+
 def argsort(seq):
     # http://stackoverflow.com/questions/3071415/efficient-method-to-calculate-the-rank-vector-of-a-list-in-python
     return sorted(range(len(seq)), key=seq.__getitem__)
 
+
 def is_sorted_general(iterable, key=lambda a, b: a <= b):
     """Check to see if iterable is monotonic increasing (sorted)."""
     return all(key(a, b) for a, b in pairwise(iterable))
+
 
 def is_sorted(x, chunk_size=None):
     """Returns True if iterable is monotonic increasing (sorted).
@@ -501,7 +513,7 @@ def is_sorted(x, chunk_size=None):
 
     x = np.atleast_1d(np.array(x).squeeze())
     if x.ndim > 1:
-            raise ValueError("Input x must be 1-dimensional")
+        raise ValueError("Input x must be 1-dimensional")
 
     if chunk_size is None:
         chunk_size = 500000
@@ -512,6 +524,7 @@ def is_sorted(x, chunk_size=None):
         if not np.all(chunk[:-1] <= chunk[1:]):
             return False
     return True
+
 
 def linear_merge(list1, list2):
     """Merge two SORTED lists in linear time.
@@ -606,7 +619,16 @@ def linear_merge(list1, list2):
                     except StopIteration:
                         return
 
-def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshold=None, minThresholdLength=None, SecondaryThreshold=None):
+
+def get_mua_events(
+    mua,
+    fs=None,
+    minLength=None,
+    maxLength=None,
+    PrimaryThreshold=None,
+    minThresholdLength=None,
+    SecondaryThreshold=None,
+):
     """Determine MUA/PBEs from multiunit activity.
 
     MUA : multiunit activity
@@ -644,25 +666,25 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
         raise ValueError("fs must either be specified, or must be contained in mua!")
 
     if PrimaryThreshold is None:
-        PrimaryThreshold =  mua.mean() + 3*mua.std()
+        PrimaryThreshold = mua.mean() + 3 * mua.std()
     if SecondaryThreshold is None:
         SecondaryThreshold = mua.mean()
     if minLength is None:
-        minLength = 0.050 # 50 ms minimum event duration
+        minLength = 0.050  # 50 ms minimum event duration
     if maxLength is None:
-        maxLength = 0.750 # 750 ms maximum event duration
+        maxLength = 0.750  # 750 ms maximum event duration
     if minThresholdLength is None:
         minThresholdLength = 0.0
 
     # determine MUA event bounds:
     mua_bounds_idx, maxes, _ = get_events_boundaries(
-        x = mua.data,
-        PrimaryThreshold = PrimaryThreshold,
-        SecondaryThreshold = SecondaryThreshold,
-        minThresholdLength = minThresholdLength,
-        minLength = minLength,
-        maxLength = maxLength,
-        ds = 1/fs
+        x=mua.data,
+        PrimaryThreshold=PrimaryThreshold,
+        SecondaryThreshold=SecondaryThreshold,
+        minThresholdLength=minThresholdLength,
+        minLength=minLength,
+        maxLength=maxLength,
+        ds=1 / fs,
     )
 
     if len(mua_bounds_idx) == 0:
@@ -674,11 +696,22 @@ def get_mua_events(mua, fs=None, minLength=None, maxLength=None, PrimaryThreshol
 
     return mua_epochs
 
-@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-def get_PBEs(data, fs=None, ds=None, sigma=None, truncate=None, unsorted_id=0,
-             min_active=None, minLength=None, maxLength=None,
-             PrimaryThreshold=None, minThresholdLength=None,
-             SecondaryThreshold=None):
+
+@keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+def get_PBEs(
+    data,
+    fs=None,
+    ds=None,
+    sigma=None,
+    truncate=None,
+    unsorted_id=0,
+    min_active=None,
+    minLength=None,
+    maxLength=None,
+    PrimaryThreshold=None,
+    minThresholdLength=None,
+    SecondaryThreshold=None,
+):
     """Determine PBEs from multiunit activity or spike trains.
 
     Definitions
@@ -759,18 +792,24 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, truncate=None, unsorted_id=0,
     """
 
     if sigma is None:
-        sigma = 0.01 # 10 ms standard deviation
+        sigma = 0.01  # 10 ms standard deviation
     if truncate is None:
         truncate = 6
 
     if isinstance(data, core.AnalogSignalArray):
         # if we have only mua, then we cannot set (ds, unsorted_id, min_active)
         if ds is not None:
-            raise ValueError('if data is an AnalogSignalArray then ds cannot be specified!')
+            raise ValueError(
+                "if data is an AnalogSignalArray then ds cannot be specified!"
+            )
         if unsorted_id:
-            raise ValueError('if data is an AnalogSignalArray then unsorted_id cannot be specified!')
+            raise ValueError(
+                "if data is an AnalogSignalArray then unsorted_id cannot be specified!"
+            )
         if min_active is not None:
-            raise ValueError('if data is an AnalogSignalArray then min_active cannot be specified!')
+            raise ValueError(
+                "if data is an AnalogSignalArray then min_active cannot be specified!"
+            )
         mua = data
         mua._data = mua._data.astype(float)
         if (sigma != 0) and (truncate > 0):
@@ -779,33 +818,37 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, truncate=None, unsorted_id=0,
     elif isinstance(data, (core.EventArray, core.BinnedEventArray)):
         # set default parameter values:
         if ds is None:
-            ds = 0.001 # default 1 ms
+            ds = 0.001  # default 1 ms
         if min_active is None:
             min_active = 5
         mua = get_mua(data, ds=ds, sigma=sigma, truncate=truncate, _fast=True)
     else:
-        raise TypeError('data has to be one of (AnalogSignalArray, SpikeTrainArray, BinnedSpikeTrainArray)')
+        raise TypeError(
+            "data has to be one of (AnalogSignalArray, SpikeTrainArray, BinnedSpikeTrainArray)"
+        )
 
     # set default parameter values:
     if fs is None:
         fs = mua.fs
     if minLength is None:
-        minLength =  0.050 # 50 ms minimum event duration
+        minLength = 0.050  # 50 ms minimum event duration
     if maxLength is None:
-        maxLength = 0.750 # 750 ms maximum event duration
+        maxLength = 0.750  # 750 ms maximum event duration
     if minThresholdLength is None:
         minThresholdLength = 0.0
     # if PrimaryThreshold is None:
     #         PrimaryThreshold =
     # if SecondaryThreshold is None:
     #     SecondaryThreshold =
-    PBE_epochs = get_mua_events(mua=mua,
-                                fs=fs,
-                                minLength=minLength,
-                                maxLength=maxLength,
-                                PrimaryThreshold=PrimaryThreshold,
-                                minThresholdLength=minThresholdLength,
-                                SecondaryThreshold=SecondaryThreshold)
+    PBE_epochs = get_mua_events(
+        mua=mua,
+        fs=fs,
+        minLength=minLength,
+        maxLength=maxLength,
+        PrimaryThreshold=PrimaryThreshold,
+        minThresholdLength=minThresholdLength,
+        SecondaryThreshold=SecondaryThreshold,
+    )
 
     # now require min_active number of sorted cells
     if isinstance(data, (core.EventArray, core.BinnedEventArray)):
@@ -818,7 +861,7 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, truncate=None, unsorted_id=0,
                 except ValueError:
                     pass
                 # data_ = data._unit_subset(unit_ids)
-                data_ = data.loc[:,unit_ids]
+                data_ = data.loc[:, unit_ids]
             else:
                 data_ = data
             # determine number of active units per epoch:
@@ -828,9 +871,19 @@ def get_PBEs(data, fs=None, ds=None, sigma=None, truncate=None, unsorted_id=0,
             PBE_epochs = PBE_epochs[active_epochs_idx]
     return PBE_epochs
 
-def get_contiguous_segments(data, *, step=None, assume_sorted=None,
-                            in_core=True, index=False, inclusive=False,
-                            fs=None, sort=None, in_memory=None):
+
+def get_contiguous_segments(
+    data,
+    *,
+    step=None,
+    assume_sorted=None,
+    in_core=True,
+    index=False,
+    inclusive=False,
+    fs=None,
+    sort=None,
+    in_memory=None
+):
     """Compute contiguous segments (seperated by step) in a list.
 
     Note! This function requires that a sorted list is passed.
@@ -901,7 +954,7 @@ def get_contiguous_segments(data, *, step=None, assume_sorted=None,
         assume_sorted = sort
         logging.warning("'sort' has been deprecated; use 'assume_sorted' instead")
     if fs:
-        step = 1/fs
+        step = 1 / fs
         logging.warning("'fs' has been deprecated; use 'step' instead")
 
     if inclusive:
@@ -921,11 +974,13 @@ def get_contiguous_segments(data, *, step=None, assume_sorted=None,
         # that t1 = t and t2 = t + 2/fs, i.e. a difference of 2 steps.
 
         if np.any(np.diff(data) < step):
-            logging.warning("some steps in the data are smaller than the requested step size.")
+            logging.warning(
+                "some steps in the data are smaller than the requested step size."
+            )
 
-        breaks = np.argwhere(np.diff(data)>=2*step)
-        starts = np.insert(breaks+1, 0, 0)
-        stops = np.append(breaks, len(data)-1)
+        breaks = np.argwhere(np.diff(data) >= 2 * step)
+        starts = np.insert(breaks + 1, 0, 0)
+        stops = np.append(breaks, len(data) - 1)
         bdries = np.vstack((data[starts], data[stops] + step)).T
         if index:
             if inclusive:
@@ -940,7 +995,9 @@ def get_contiguous_segments(data, *, step=None, assume_sorted=None,
         if not assume_sorted:
             if not is_sorted(data):
                 # data = np.sort(data)  # algorithm assumes sorted list
-                raise NotImplementedError("out-of-core sorting has not been implemented yet...")
+                raise NotImplementedError(
+                    "out-of-core sorting has not been implemented yet..."
+                )
 
         if step is None:
             step = 1
@@ -965,7 +1022,7 @@ def get_contiguous_segments(data, *, step=None, assume_sorted=None,
                 start = counter
                 stop = start
                 for _ in gen:
-                    stop +=1
+                    stop += 1
                 if inclusive:
                     bdries.append([start, stop])
                 else:
@@ -973,6 +1030,7 @@ def get_contiguous_segments(data, *, step=None, assume_sorted=None,
                 counter = stop + 1
 
     return np.asarray(bdries)
+
 
 def get_direction(asa, *, sigma=None):
     """Return epochs during which an animal was running left to right, or right
@@ -994,24 +1052,28 @@ def get_direction(asa, *, sigma=None):
     if sigma is None:
         sigma = 0
     if not isinstance(asa, core.AnalogSignalArray):
-        raise TypeError('AnalogSignalArray expected!')
+        raise TypeError("AnalogSignalArray expected!")
     assert asa.n_signals == 1, "1D AnalogSignalArray expected!"
 
-    direction = dxdt_AnalogSignalArray(asa.smooth(sigma=sigma),
-                                       rectify=False).data
-    direction[direction>=0] = 1
-    direction[direction<0] = -1
+    direction = dxdt_AnalogSignalArray(asa.smooth(sigma=sigma), rectify=False).data
+    direction[direction >= 0] = 1
+    direction[direction < 0] = -1
     direction = direction.squeeze()
 
-    l2r = get_contiguous_segments(np.argwhere(direction>0).squeeze(), step=1)
-    l2r[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
+    l2r = get_contiguous_segments(np.argwhere(direction > 0).squeeze(), step=1)
+    l2r[
+        :, 1
+    ] -= 1  # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
     l2r = core.EpochArray(asa.abscissa_vals[l2r])
 
-    r2l = get_contiguous_segments(np.argwhere(direction<0).squeeze(), step=1)
-    r2l[:,1] -= 1 # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
+    r2l = get_contiguous_segments(np.argwhere(direction < 0).squeeze(), step=1)
+    r2l[
+        :, 1
+    ] -= 1  # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
     r2l = core.EpochArray(asa.abscissa_vals[r2l])
 
     return l2r, r2l
+
 
 class PrettyBytes(int):
     """Prints number of bytes in a more readable format"""
@@ -1021,16 +1083,17 @@ class PrettyBytes(int):
 
     def __str__(self):
         if self.val < 1024:
-            return '{} bytes'.format(self.val)
+            return "{} bytes".format(self.val)
         elif self.val < 1024**2:
-            return '{:.3f} kilobytes'.format(self.val/1024)
+            return "{:.3f} kilobytes".format(self.val / 1024)
         elif self.val < 1024**3:
-            return '{:.3f} megabytes'.format(self.val/1024**2)
+            return "{:.3f} megabytes".format(self.val / 1024**2)
         elif self.val < 1024**4:
-            return '{:.3f} gigabytes'.format(self.val/1024**3)
+            return "{:.3f} gigabytes".format(self.val / 1024**3)
 
     def __repr__(self):
         return self.__str__()
+
 
 class PrettyInt(int):
     """Prints integers in a more readable format"""
@@ -1039,10 +1102,11 @@ class PrettyInt(int):
         self.val = val
 
     def __str__(self):
-        return '{:,}'.format(self.val)
+        return "{:,}".format(self.val)
 
     def __repr__(self):
-        return '{:,}'.format(self.val)
+        return "{:,}".format(self.val)
+
 
 class PrettyDuration(float):
     """Time duration with pretty print.
@@ -1065,12 +1129,13 @@ class PrettyDuration(float):
         pos = seconds >= 0
         if not pos:
             seconds = -seconds
-        ms = seconds % 1; ms = round(ms*10000)/10
+        ms = seconds % 1
+        ms = round(ms * 10000) / 10
         seconds = floor(seconds)
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
         d, h = divmod(h, 24)
-        Time = namedtuple('Time', 'pos dd hh mm ss ms')
+        Time = namedtuple("Time", "pos dd hh mm ss ms")
         time = Time(pos=pos, dd=d, hh=h, mm=m, ss=s, ms=ms)
         return time
 
@@ -1078,13 +1143,13 @@ class PrettyDuration(float):
     def time_string(seconds):
         """returns a formatted time string."""
         if np.isinf(seconds):
-            return 'inf'
+            return "inf"
         pos, dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
         if s > 0:
             if mm == 0:
                 # in this case, represent milliseconds in terms of
                 # seconds (i.e. a decimal)
-                sstr = str(s/1000).lstrip('0')
+                sstr = str(s / 1000).lstrip("0")
                 if s >= 999.5:
                     ss += 1
                     s = 0
@@ -1094,7 +1159,7 @@ class PrettyDuration(float):
                         mm += 1
                         ss = 0
                     if mm == 60:
-                        hh +=1
+                        hh += 1
                         mm = 0
                     if hh == 24:
                         dd += 1
@@ -1111,7 +1176,7 @@ class PrettyDuration(float):
                         mm += 1
                         ss = 0
                     if mm == 60:
-                        hh +=1
+                        hh += 1
                         mm = 0
                     if hh == 24:
                         dd += 1
@@ -1131,7 +1196,7 @@ class PrettyDuration(float):
         elif ss > 0:
             timestr = daystr + "{:01d}{} seconds".format(ss, sstr)
         else:
-            timestr = daystr +"{} milliseconds".format(s)
+            timestr = daystr + "{} milliseconds".format(s)
         if not pos:
             timestr = "-" + timestr
         return timestr
@@ -1166,18 +1231,22 @@ class PrettyDuration(float):
 
 
 def shrinkMatColsTo(mat, numCols):
-    """ Docstring goes here
+    """Docstring goes here
     Shrinks a NxM1 matrix down to an NxM2 matrix, where M2 <= M1"""
     import scipy.ndimage
+
     numCells = mat.shape[0]
     numColsMat = mat.shape[1]
     a = np.zeros((numCells, numCols))
     for row in np.arange(numCells):
-        niurou = scipy.ndimage.interpolation.zoom(input=mat[row,:], zoom=(numCols/numColsMat), order = 1)
-        a[row,:] = niurou
+        niurou = scipy.ndimage.interpolation.zoom(
+            input=mat[row, :], zoom=(numCols / numColsMat), order=1
+        )
+        a[row, :] = niurou
     return a
 
-def find_threshold_crossing_events(x, threshold, *, mode='above'):
+
+def find_threshold_crossing_events(x, threshold, *, mode="above"):
     """Find threshold crossing events. INCLUSIVE
 
     Parameters
@@ -1199,31 +1268,42 @@ def find_threshold_crossing_events(x, threshold, *, mode='above'):
     from itertools import groupby
     from operator import itemgetter
 
-    if mode == 'below':
+    if mode == "below":
         cross_threshold = np.where(x <= threshold, 1, 0)
-    elif mode == 'above':
+    elif mode == "above":
         cross_threshold = np.where(x >= threshold, 1, 0)
     else:
         raise NotImplementedError(
-            "mode {} not understood for find_threshold_crossing_events".format(str(mode)))
+            "mode {} not understood for find_threshold_crossing_events".format(
+                str(mode)
+            )
+        )
     eventlist = []
     eventmax = []
-    for k,v in groupby(enumerate(cross_threshold),key=itemgetter(1)):
+    for k, v in groupby(enumerate(cross_threshold), key=itemgetter(1)):
         if k:
             v = list(v)
-            eventlist.append([v[0][0],v[-1][0]])
-            try :
-                eventmax.append(x[v[0][0]:(v[-1][0]+1)].max())
-            except :
-                print(v, x[v[0][0]:v[-1][0]])
+            eventlist.append([v[0][0], v[-1][0]])
+            try:
+                eventmax.append(x[v[0][0] : (v[-1][0] + 1)].max())
+            except Exception:
+                print(v, x[v[0][0] : v[-1][0]])
     eventmax = np.asarray(eventmax)
     eventlist = np.asarray(eventlist)
     return eventlist, eventmax
 
-def get_events_boundaries(x, *, PrimaryThreshold=None,
-                          SecondaryThreshold=None,
-                          minThresholdLength=None, minLength=None,
-                          maxLength=None, ds=None, mode='above'):
+
+def get_events_boundaries(
+    x,
+    *,
+    PrimaryThreshold=None,
+    SecondaryThreshold=None,
+    minThresholdLength=None,
+    minLength=None,
+    maxLength=None,
+    ds=None,
+    mode="above"
+):
     """get event boundaries such that event.max >= PrimaryThreshold
     and the event extent is defined by SecondaryThreshold.
 
@@ -1271,20 +1351,19 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
     if x.ndim > 1:
         raise TypeError("multidimensional arrays not supported!")
 
-    if PrimaryThreshold is None: # by default, threshold is 3 SDs above mean of x
-        PrimaryThreshold = np.mean(x) + 3*np.std(x)
+    if PrimaryThreshold is None:  # by default, threshold is 3 SDs above mean of x
+        PrimaryThreshold = np.mean(x) + 3 * np.std(x)
 
-    if SecondaryThreshold is None: # by default, revert back to mean of x
-        SecondaryThreshold = np.mean(x) # + 0*np.std(x)
+    if SecondaryThreshold is None:  # by default, revert back to mean of x
+        SecondaryThreshold = np.mean(x)  # + 0*np.std(x)
 
-    events, primary_maxes = \
-        find_threshold_crossing_events(x=x,
-                                       threshold=PrimaryThreshold,
-                                       mode=mode)
+    events, primary_maxes = find_threshold_crossing_events(
+        x=x, threshold=PrimaryThreshold, mode=mode
+    )
 
     # apply minThresholdLength criterion:
     if minThresholdLength is not None and len(events) > 0:
-        durations = (events[:,1] - events[:,0] + 1) * ds
+        durations = (events[:, 1] - events[:, 0] + 1) * ds
         events = events[durations >= minThresholdLength]
 
     if len(events) == 0:
@@ -1293,41 +1372,45 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
         return bounds, maxes, events
 
     # Find periods where value is > SecondaryThreshold; note that the previous periods should be within these!
-    if mode == 'above':
-        assert SecondaryThreshold <= PrimaryThreshold, \
-            "Secondary Threshold by definition should include more data than Primary Threshold"
-    elif mode == 'below':
-        assert SecondaryThreshold >= PrimaryThreshold, \
-            "Secondary Threshold by definition should include more data than Primary Threshold"
+    if mode == "above":
+        assert (
+            SecondaryThreshold <= PrimaryThreshold
+        ), "Secondary Threshold by definition should include more data than Primary Threshold"
+    elif mode == "below":
+        assert (
+            SecondaryThreshold >= PrimaryThreshold
+        ), "Secondary Threshold by definition should include more data than Primary Threshold"
     else:
         raise NotImplementedError(
-            "mode {} not understood for find_threshold_crossing_events".format(str(mode)))
+            "mode {} not understood for find_threshold_crossing_events".format(
+                str(mode)
+            )
+        )
 
-    bounds, broader_maxes = \
-        find_threshold_crossing_events(x=x,
-                                       threshold=SecondaryThreshold,
-                                       mode=mode)
+    bounds, broader_maxes = find_threshold_crossing_events(
+        x=x, threshold=SecondaryThreshold, mode=mode
+    )
 
     # Find corresponding big windows for potential events
     #  Specifically, look for closest left edge that is just smaller
-    outer_boundary_indices = np.searchsorted(bounds[:,0], events[:,0], side='right')
+    outer_boundary_indices = np.searchsorted(bounds[:, 0], events[:, 0], side="right")
     #  searchsorted finds the index after, so subtract one to get index before
     outer_boundary_indices = outer_boundary_indices - 1
 
     # Find extended boundaries for events by pairing to larger windows
     #   (Note that there may be repeats if the larger window contains multiple > 3SD sections)
-    bounds = bounds[outer_boundary_indices,:]
+    bounds = bounds[outer_boundary_indices, :]
     maxes = broader_maxes[outer_boundary_indices]
 
     if minLength is not None and len(events) > 0:
-        durations = (bounds[:,1] - bounds[:,0] + 1) * ds
+        durations = (bounds[:, 1] - bounds[:, 0] + 1) * ds
         # TODO: refactor [durations <= maxLength] but be careful about edge cases
         bounds = bounds[durations >= minLength]
         maxes = maxes[durations >= minLength]
         events = events[durations >= minLength]
 
     if maxLength is not None and len(events) > 0:
-        durations = (bounds[:,1] - bounds[:,0] + 1) * ds
+        durations = (bounds[:, 1] - bounds[:, 0] + 1) * ds
         # TODO: refactor [durations <= maxLength] but be careful about edge cases
         bounds = bounds[durations <= maxLength]
         maxes = maxes[durations <= maxLength]
@@ -1339,16 +1422,20 @@ def get_events_boundaries(x, *, PrimaryThreshold=None,
         return bounds, maxes, events
 
     # Now, since all that we care about are the larger windows, so we should get rid of repeats
-    _, unique_idx = np.unique(bounds[:,0], return_index=True)
-    bounds = bounds[unique_idx,:] # SecondaryThreshold to SecondaryThreshold
-    maxes = maxes[unique_idx]     # maximum value during event
-    events = events[unique_idx,:] # PrimaryThreshold to PrimaryThreshold
+    _, unique_idx = np.unique(bounds[:, 0], return_index=True)
+    bounds = bounds[unique_idx, :]  # SecondaryThreshold to SecondaryThreshold
+    maxes = maxes[unique_idx]  # maximum value during event
+    events = events[unique_idx, :]  # PrimaryThreshold to PrimaryThreshold
 
     return bounds, maxes, events
 
+
 def signal_envelope1D(data, *, sigma=None, fs=None):
-    logging.warnings("'signal_envelope1D' is deprecated; use 'signal_envelope_1d' instead!")
+    logging.warnings(
+        "'signal_envelope1D' is deprecated; use 'signal_envelope_1d' instead!"
+    )
     return signal_envelope_1d(data, sigma=sigma, fs=fs)
+
 
 def signal_envelope_1d(data, *, sigma=None, fs=None):
     """Finds the signal envelope by taking the absolute value
@@ -1380,7 +1467,7 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
     """
 
     if sigma is None:
-        sigma = 0.004   # 4 ms standard deviation
+        sigma = 0.004  # 4 ms standard deviation
     if fs is None:
         if isinstance(data, (np.ndarray, list)):
             raise ValueError("sampling frequency must be specified!")
@@ -1399,7 +1486,7 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
         # Compute number of samples to compute fast FFTs
         padlen = next_fast_len(n_samples) - n_samples
         # Pad data
-        paddeddata = np.hstack( (input_data, np.zeros((n_signals, padlen))) )
+        paddeddata = np.hstack((input_data, np.zeros((n_signals, padlen))))
         # Use hilbert transform to get an envelope
         envelope = np.absolute(hilbert(paddeddata, axis=-1))
         # free up memory
@@ -1408,9 +1495,10 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
         envelope = envelope[..., :n_samples]
         if sigma:
             # Smooth envelope with a gaussian (sigma = 4 ms default)
-            EnvelopeSmoothingSD = sigma*fs
-            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD,
-                                                                        mode='constant', axis=-1)
+            EnvelopeSmoothingSD = sigma * fs
+            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(
+                envelope, EnvelopeSmoothingSD, mode="constant", axis=-1
+            )
             envelope = smoothed_envelope
         if isinstance(data, list):
             envelope = envelope.tolist()
@@ -1424,12 +1512,12 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
         # for segment in data:
         for idx in range(data.n_epochs):
             # print('hilberting epoch {}/{}'.format(idx+1, data.n_epochs))
-            segment_data = data._data[:,cum_lengths[idx]:cum_lengths[idx+1]]
+            segment_data = data._data[:, cum_lengths[idx] : cum_lengths[idx + 1]]
             n_signals, n_samples = segment_data.shape
             # Compute number of samples to compute fast FFTs:
             padlen = next_fast_len(n_samples) - n_samples
             # Pad data
-            paddeddata = np.hstack( (segment_data, np.zeros((n_signals, padlen))) )
+            paddeddata = np.hstack((segment_data, np.zeros((n_signals, padlen))))
             # Use hilbert transform to get an envelope
             envelope = np.absolute(hilbert(paddeddata, axis=-1))
             # free up memory
@@ -1438,12 +1526,16 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
             envelope = envelope[..., :n_samples]
             if sigma:
                 # Smooth envelope with a gaussian (sigma = 4 ms default)
-                EnvelopeSmoothingSD = sigma*fs
-                smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(envelope, EnvelopeSmoothingSD,
-                                                                            mode='constant', axis=-1)
+                EnvelopeSmoothingSD = sigma * fs
+                smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(
+                    envelope, EnvelopeSmoothingSD, mode="constant", axis=-1
+                )
                 envelope = smoothed_envelope
-            newasa._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.atleast_2d(envelope)
+            newasa._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = np.atleast_2d(
+                envelope
+            )
         return newasa
+
 
 def nextpower(n, base=2.0):
     """Return the next integral power of two greater than the given number.
@@ -1455,11 +1547,12 @@ def nextpower(n, base=2.0):
 
     From https://gist.github.com/bhawkins/4479607 (Brian Hawkins)
     """
-    x = base**ceil (log (n) / log (base))
-    if type(n) == np.ndarray:
-        return np.asarray (x, dtype=int)
+    x = base ** ceil(log(n) / log(base))
+    if isinstance(n, np.ndarray):
+        return np.asarray(x, dtype=int)
     else:
-        return int (x)
+        return int(x)
+
 
 def nextfastpower(n):
     """Return the next integral power of small factors greater than the given
@@ -1474,21 +1567,34 @@ def nextfastpower(n):
     See also http://scipy.github.io/devdocs/generated/scipy.fftpack.next_fast_len.html
     """
     if n < 7:
-        return max (n, 1)
+        return max(n, 1)
+
     # x, y, and z are all bounded from above by the formula of nextpower.
     # Compute all possible combinations for powers of 3 and 5.
     # (Not too many for reasonable FFT sizes.)
-    def power_series (x, base):
-        nmax = int(ceil (log (x) / log (base)))
-        return np.logspace (0.0, nmax, num=nmax+1, base=base)
-    n35 = np.outer (power_series (n, 3.0), power_series (n, 5.0))
-    n35 = n35[n35<=n]
-    # Lump the powers of 3 and 5 together and solve for the powers of 2.
-    n2 = nextpower (n / n35)
-    return int (min (n2 * n35))
+    def power_series(x, base):
+        nmax = int(ceil(log(x) / log(base)))
+        return np.logspace(0.0, nmax, num=nmax + 1, base=base)
 
-@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, mode=None, cval=None, within_intervals=False):
+    n35 = np.outer(power_series(n, 3.0), power_series(n, 5.0))
+    n35 = n35[n35 <= n]
+    # Lump the powers of 3 and 5 together and solve for the powers of 2.
+    n2 = nextpower(n / n35)
+    return int(min(n2 * n35))
+
+
+@keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+def gaussian_filter(
+    obj,
+    *,
+    fs=None,
+    sigma=None,
+    truncate=None,
+    inplace=False,
+    mode=None,
+    cval=None,
+    within_intervals=False
+):
     """Smooths with a Gaussian kernel.
 
     Smoothing is applied along the abscissa, and the same smoothing is applied to each
@@ -1533,7 +1639,7 @@ def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, m
     if truncate is None:
         truncate = 4
     if mode is None:
-        mode = 'reflect'
+        mode = "reflect"
     if cval is None:
         cval = 0.0
 
@@ -1542,19 +1648,31 @@ def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, m
     else:
         out = obj
 
-    if isinstance(out, core.RegularlySampledAnalogSignalArray) or isinstance(out, core._analogsignalarray.PositionArray):
+    if isinstance(out, core.RegularlySampledAnalogSignalArray) or isinstance(
+        out, core._analogsignalarray.PositionArray
+    ):
         if fs is None:
             fs = out.fs
         if fs is None:
-            raise ValueError("fs must either be specified, or must be contained in the {}!".format(out.type_name))
+            raise ValueError(
+                "fs must either be specified, or must be contained in the {}!".format(
+                    out.type_name
+                )
+            )
     elif isinstance(out, core.BinnedEventArray):
         bst = out
         if fs is None:
-            fs = 1/bst.ds
+            fs = 1 / bst.ds
         if fs is None:
-            raise ValueError("fs must either be specified, or must be contained in the {}!".format(out.type_name))
+            raise ValueError(
+                "fs must either be specified, or must be contained in the {}!".format(
+                    out.type_name
+                )
+            )
     else:
-        raise NotImplementedError("gaussian_filter for {} is not yet supported!".format(str(type(out))))
+        raise NotImplementedError(
+            "gaussian_filter for {} is not yet supported!".format(str(type(out)))
+        )
 
     sigma = sigma * fs
 
@@ -1566,17 +1684,33 @@ def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, m
         # (4) Z = smooth(V)/smooth(W)
         # (5) only keep original support, and original abscissa_vals
 
-        if isinstance(out, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray, core._analogsignalarray.PositionArray)):
+        if isinstance(
+            out,
+            (
+                core.RegularlySampledAnalogSignalArray,
+                core.BinnedEventArray,
+                core._analogsignalarray.PositionArray,
+            ),
+        ):
             support = out._abscissa.support.merge()
             if not support.domain.is_finite:
-                support.domain = (support.start, support.stop) #TODO: #FIXME might come from abscissa definition, and not from support
+                support.domain = (
+                    support.start,
+                    support.stop,
+                )  # TODO: #FIXME might come from abscissa definition, and not from support
 
             missing_abscissa_vals = []
-            for interval in (~support):
-                missing_vals = frange(interval.start, interval.stop, 1/fs)
+            for interval in ~support:
+                missing_vals = frange(interval.start, interval.stop, 1 / fs)
                 missing_abscissa_vals.extend(missing_vals)
 
-            if isinstance(out, (core.RegularlySampledAnalogSignalArray,core._analogsignalarray.PositionArray)):
+            if isinstance(
+                out,
+                (
+                    core.RegularlySampledAnalogSignalArray,
+                    core._analogsignalarray.PositionArray,
+                ),
+            ):
                 n_signals = out.n_signals
                 n_samples = out.n_samples
             elif isinstance(out, core.BinnedEventArray):
@@ -1585,38 +1719,63 @@ def gaussian_filter(obj, *, fs=None, sigma=None, truncate=None, inplace=False, m
 
             V = np.zeros((n_signals, n_samples + len(missing_abscissa_vals)))
             W = np.ones(V.shape)
-            all_abscissa_vals = np.sort(np.append(out._abscissa_vals, missing_abscissa_vals))
+            all_abscissa_vals = np.sort(
+                np.append(out._abscissa_vals, missing_abscissa_vals)
+            )
             data_idx = np.searchsorted(all_abscissa_vals, out._abscissa_vals)
             missing_idx = np.searchsorted(all_abscissa_vals, missing_abscissa_vals)
             V[:, data_idx] = out.data
             W[:, missing_idx] = 0
 
-            VV = scipy.ndimage.filters.gaussian_filter(V, sigma=(0,sigma), truncate=truncate, mode=mode, cval=cval)
-            WW = scipy.ndimage.filters.gaussian_filter(W, sigma=(0,sigma), truncate=truncate, mode=mode, cval=cval)
+            VV = scipy.ndimage.filters.gaussian_filter(
+                V, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
+            )
+            WW = scipy.ndimage.filters.gaussian_filter(
+                W, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
+            )
 
-            Z = VV[:,data_idx]/WW[:,data_idx]
+            Z = VV[:, data_idx] / WW[:, data_idx]
 
             out._data = Z
         else:
-            raise NotImplementedError("gaussian_filter across intervals for {} is not yet supported!".format(str(type(out))))
-    else: # within intervals:
+            raise NotImplementedError(
+                "gaussian_filter across intervals for {} is not yet supported!".format(
+                    str(type(out))
+                )
+            )
+    else:  # within intervals:
         cum_lengths = np.insert(np.cumsum(out.lengths), 0, 0)
         out._data = out._data.astype(float)
 
         if isinstance(out, core.RegularlySampledAnalogSignalArray):
             # now smooth each interval separately
             for idx in range(out.n_intervals):
-                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=truncate)
+                out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = (
+                    scipy.ndimage.filters.gaussian_filter(
+                        out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]],
+                        sigma=(0, sigma),
+                        truncate=truncate,
+                    )
+                )
         elif isinstance(out, core.BinnedSpikeTrainArray):
             # now smooth each interval separately
             for idx in range(out.n_epochs):
-                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = scipy.ndimage.filters.gaussian_filter(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], sigma=(0,sigma), truncate=truncate)
+                out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = (
+                    scipy.ndimage.filters.gaussian_filter(
+                        out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]],
+                        sigma=(0, sigma),
+                        truncate=truncate,
+                    )
+                )
                 # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
 
     return out
 
-@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=None, norm=False):
+
+@keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+def ddt_asa(
+    asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=None, norm=False
+):
     """Numerical differentiation of a regularly sampled AnalogSignalArray.
 
     Optionally also smooths result with a Gaussian kernel.
@@ -1655,12 +1814,15 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=No
     Central differences are used here.
     """
 
-    if not (isinstance(asa, core.RegularlySampledAnalogSignalArray) or isinstance(asa, core._analogsignalarray.PositionArray)):
+    if not (
+        isinstance(asa, core.RegularlySampledAnalogSignalArray)
+        or isinstance(asa, core._analogsignalarray.PositionArray)
+    ):
         raise TypeError("Input object must be a RegularlySampledAnalogSignalArray!")
     if fs is None:
         fs = asa.fs
     if sigma is None:
-        sigma = 0.05 # 50 ms default
+        sigma = 0.05  # 50 ms default
 
     out = asa.copy()
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
@@ -1673,17 +1835,21 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=No
     for idx in range(asa.n_epochs):
         # if 1D:
         if asa.n_signals == 1:
-            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+            if (cum_lengths[idx + 1] - cum_lengths[idx]) < 2:
                 # only single sample
-                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = 0
             else:
-                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+                out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = np.gradient(
+                    asa._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]], axis=1
+                )
         else:
-            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+            if (cum_lengths[idx + 1] - cum_lengths[idx]) < 2:
                 # only single sample
-                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = 0
             else:
-                out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+                out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = np.gradient(
+                    asa._data[:, cum_lengths[idx] : cum_lengths[idx + 1]], axis=1
+                )
 
     out._data = out._data * fs
 
@@ -1698,8 +1864,11 @@ def ddt_asa(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=No
 
     return out
 
-@keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=None):
+
+@keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+def dxdt_AnalogSignalArray(
+    asa, *, fs=None, smooth=False, rectify=True, sigma=None, truncate=None
+):
     """Numerical differentiation of a regularly sampled AnalogSignalArray.
 
     Optionally also smooths result with a Gaussian kernel.
@@ -1731,14 +1900,16 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
         An AnalogSignalArray with derivative data (in units per second) is returned.
     """
 
-    raise DeprecationWarning('use ddt_asa instead!')
+    raise DeprecationWarning("use ddt_asa instead!")
 
     if fs is None:
         fs = asa.fs
     if fs is None:
-        raise ValueError("fs must either be specified, or must be contained in the AnalogSignalArray!")
+        raise ValueError(
+            "fs must either be specified, or must be contained in the AnalogSignalArray!"
+        )
     if sigma is None:
-        sigma = 0.05 # 50 ms default
+        sigma = 0.05  # 50 ms default
 
     out = copy.deepcopy(asa)
     cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
@@ -1747,23 +1918,33 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
     out._data = out.data.astype(float)
 
     if asa.n_signals == 2:
-        out._data = out._data[[0],:]
+        out._data = out._data[[0], :]
 
     # now obtain the derivative for each epoch separately
     for idx in range(asa.n_epochs):
         # if 1D:
         if asa.n_signals == 1:
-            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+            if (cum_lengths[idx + 1] - cum_lengths[idx]) < 2:
                 # only single sample
-                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = 0
             else:
-                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+                out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = np.gradient(
+                    asa._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]], axis=1
+                )
         elif asa.n_signals == 2:
-            if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+            if (cum_lengths[idx + 1] - cum_lengths[idx]) < 2:
                 # only single sample
-                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = 0
             else:
-                out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.linalg.norm(np.gradient(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1), axis=0)
+                out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = (
+                    np.linalg.norm(
+                        np.gradient(
+                            asa._data[:, cum_lengths[idx] : cum_lengths[idx + 1]],
+                            axis=1,
+                        ),
+                        axis=0,
+                    )
+                )
         else:
             raise TypeError("more than 2D not currently supported!")
 
@@ -1777,7 +1958,8 @@ def dxdt_AnalogSignalArray(asa, *, fs=None, smooth=False, rectify=True, sigma=No
 
     return out
 
-def get_threshold_crossing_epochs(asa, t1=None, t2=None, mode='above'):
+
+def get_threshold_crossing_epochs(asa, t1=None, t2=None, mode="above"):
     """Return epochs where a signal crosses a compound threshold specified by t1
     and t2.
 
@@ -1808,28 +1990,26 @@ def get_threshold_crossing_epochs(asa, t1=None, t2=None, mode='above'):
         raise TypeError("multidimensional AnalogSignalArrays not supported!")
     x = asa.data.squeeze()
 
-    if t1 is None: # by default, threshold is 3 SDs above mean of x
-        t1 = np.mean(x) + 3*np.std(x)
+    if t1 is None:  # by default, threshold is 3 SDs above mean of x
+        t1 = np.mean(x) + 3 * np.std(x)
 
-    if t2 is None: # by default, revert back to mean of x
+    if t2 is None:  # by default, revert back to mean of x
         t2 = np.mean(x)
 
     # compute periods where signal exceeds compound threshold
     epoch_bounds, _, _ = get_events_boundaries(
-        x=x,
-        PrimaryThreshold=t1,
-        SecondaryThreshold=t2,
-        mode=mode
+        x=x, PrimaryThreshold=t1, SecondaryThreshold=t2, mode=mode
     )
     # convert bounds to time in seconds
     epoch_bounds = asa.time[epoch_bounds]
     if len(epoch_bounds) == 0:
         return type(asa._abscissa.support)(empty=True)
     # add 1/fs to stops for open interval
-    epoch_bounds[:,1] += 1/asa.fs
+    epoch_bounds[:, 1] += 1 / asa.fs
     # create EpochArray with threshould exceeding bounds
     epochs = type(asa._abscissa.support)(epoch_bounds)
     return epochs
+
 
 def get_run_epochs(speed, v1=10, v2=8):
     """Return epochs where animal is running at least as fast as
@@ -1851,9 +2031,10 @@ def get_run_epochs(speed, v1=10, v2=8):
         EpochArray with all the epochs where speed satisfied the criteria.
     """
 
-    run_epochs = get_threshold_crossing_epochs(asa=speed, t1=v1, t2=v2, mode='above')
+    run_epochs = get_threshold_crossing_epochs(asa=speed, t1=v1, t2=v2, mode="above")
 
     return run_epochs
+
 
 def get_inactive_epochs(speed, v1=5, v2=7):
     """Return epochs where animal is running no faster than specified by
@@ -1873,8 +2054,11 @@ def get_inactive_epochs(speed, v1=5, v2=7):
     inactive_epochs : EpochArray
         EpochArray with all the epochs where speed satisfied the criteria.
     """
-    inactive_epochs = get_threshold_crossing_epochs(asa=speed, t1=v1, t2=v2, mode='below')
+    inactive_epochs = get_threshold_crossing_epochs(
+        asa=speed, t1=v1, t2=v2, mode="below"
+    )
     return inactive_epochs
+
 
 def spiketrain_union(st1, st2):
     """Join two spiketrains together.
@@ -1894,9 +2078,11 @@ def spiketrain_union(st1, st2):
 
     return core.SpikeTrainArray(newdata, support=support, fs=fs)
 
+
 ########################################################################
 # uncurated below this line!
 ########################################################################
+
 
 def find_nearest_idx(array, val):
     """Finds nearest index in array to value.
@@ -1921,7 +2107,7 @@ def find_nearest_idx(array, val):
         return closest_idx
 
     """
-    return (np.abs(array-val)).argmin()
+    return (np.abs(array - val)).argmin()
 
 
 def find_nearest_indices(array, vals):
@@ -1944,6 +2130,7 @@ def find_nearest_indices(array, vals):
 
     """
     return np.array([find_nearest_idx(array, val) for val in vals], dtype=int)
+
 
 def get_sort_idx(tuning_curves):
     """Finds indices to sort neurons by max firing in tuning curve.
@@ -1971,6 +2158,7 @@ def get_sort_idx(tuning_curves):
 
     return sorted_idx
 
+
 def collapse_time(obj, gap=0):
     """Collapse all epochs in a SpikeTrainArray and collapse them into a single, contiguous SpikeTrainArray"""
 
@@ -1988,21 +2176,30 @@ def collapse_time(obj, gap=0):
         new_obj._data = obj._data
 
         durations = obj.support.durations
-        starts = np.insert(np.cumsum(durations + gap),0,0)[:-1]
+        starts = np.insert(np.cumsum(durations + gap), 0, 0)[:-1]
         stops = starts + durations
         newsupport = type(obj._abscissa.support)(np.vstack((starts, stops)).T)
         new_obj._support = newsupport
 
-        new_time = obj.time.astype(float) # fast copy
-        time_idx = np.insert(np.cumsum(obj.lengths),0,0)
+        new_time = obj.time.astype(float)  # fast copy
+        time_idx = np.insert(np.cumsum(obj.lengths), 0, 0)
 
         new_offset = 0
         for epidx in range(obj.n_epochs):
             if epidx > 0:
-                new_time[time_idx[epidx]:time_idx[epidx+1]] = new_time[time_idx[epidx]:time_idx[epidx+1]] - obj.time[time_idx[epidx]] + new_offset + gap
+                new_time[time_idx[epidx] : time_idx[epidx + 1]] = (
+                    new_time[time_idx[epidx] : time_idx[epidx + 1]]
+                    - obj.time[time_idx[epidx]]
+                    + new_offset
+                    + gap
+                )
                 new_offset += durations[epidx] + gap
             else:
-                new_time[time_idx[epidx]:time_idx[epidx+1]] = new_time[time_idx[epidx]:time_idx[epidx+1]] - obj.time[time_idx[epidx]] + new_offset
+                new_time[time_idx[epidx] : time_idx[epidx + 1]] = (
+                    new_time[time_idx[epidx] : time_idx[epidx + 1]]
+                    - obj.time[time_idx[epidx]]
+                    + new_offset
+                )
                 new_offset += durations[epidx]
         new_obj._time = new_time
 
@@ -2019,18 +2216,23 @@ def collapse_time(obj, gap=0):
             for unit_ in range(obj.n_series):
                 new_time[unit_].extend(st_._data[unit_] - le + duration)
             duration += st_.support.duration
-        new_time = np.asanyarray([np.asanyarray(unittime) for unittime in new_time], dtype=object)
+        new_time = np.asanyarray(
+            [np.asanyarray(unittime) for unittime in new_time], dtype=object
+        )
         new_obj._data = new_time
         new_obj.support = type(obj._abscissa.support)([0, duration])
         new_obj._series_ids = obj._series_ids
         new_obj._series_labels = obj._series_labels
         new_obj._series_tags = obj._series_tags
     elif isinstance(obj, core.BinnedEventArray):
-        raise NotImplementedError("BinnedEventArrays are not yet supported, but bst.data is essentially already collapsed!")
+        raise NotImplementedError(
+            "BinnedEventArrays are not yet supported, but bst.data is essentially already collapsed!"
+        )
     else:
         raise TypeError("unsupported type for collapse_time")
 
     return new_obj
+
 
 def cartesian(xcenters, ycenters):
     """Finds every combination of elements in two arrays.
@@ -2046,4 +2248,6 @@ def cartesian(xcenters, ycenters):
         With shape(n_sample, 2).
 
     """
-    return np.transpose([np.tile(xcenters, len(ycenters)), np.repeat(ycenters, len(xcenters))])
+    return np.transpose(
+        [np.tile(xcenters, len(ycenters)), np.repeat(ycenters, len(xcenters))]
+    )

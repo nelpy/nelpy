@@ -105,12 +105,12 @@ def fmpt(P):
     for i in range(k):
         A[:, i] = ss
     A = A.transpose()
-    I = np.identity(k)
-    Z = la.inv(I - P + A)
+    identity_matrix = np.identity(k)
+    Z = la.inv(identity_matrix - P + A)
     E = np.ones_like(Z)
     D = np.diag(1.0 / np.diag(A))
     Zdg = np.diag(np.diag(Z))
-    M = (I - Z + E * Zdg) * D
+    M = (identity_matrix - Z + E * Zdg) * D
     return M
 
 
@@ -148,15 +148,15 @@ def var_fmpt(P):
     """
     A = P**1000
     n, k = A.shape
-    I = np.identity(k)
-    Z = la.inv(I - P + A)
+    identity_matrix = np.identity(k)
+    Z = la.inv(identity_matrix - P + A)
     E = np.ones_like(Z)
     D = np.diag(1.0 / np.diag(A))
     Zdg = np.diag(np.diag(Z))
-    M = (I - Z + E * Zdg) * D
+    M = (identity_matrix - Z + E * Zdg) * D
     ZM = Z * M
     ZMdg = np.diag(np.diag(ZM))
-    W = M * (2 * Zdg * D - I) + 2 * (ZM - E * ZMdg)
+    W = M * (2 * Zdg * D - identity_matrix) + 2 * (ZM - E * ZMdg)
     return W - np.multiply(M, M)
 
 

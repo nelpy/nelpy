@@ -10,6 +10,7 @@ from matplotlib.colors import to_rgb
 import numpy as np
 import matplotlib as mpl
 
+
 from . import utils  # import get_color_cycle, desaturate
 from . import colors
 
@@ -298,8 +299,12 @@ def _color_to_rgb(color, input):
     if input == "hls":
         color = colorsys.hls_to_rgb(*color)
     elif input == "husl":
+        # lazy import husl here to avoid a hard dependency
+        import seaborn.external.husl as husl
         color = husl.husl_to_rgb(*color)
     elif input == "xkcd":
+        # lazy import xkcd_rgb here to avoid a hard dependency
+        import seaborn.colors.xkcd_rgb as xkcd_rgb
         color = xkcd_rgb[color]
     return color
 
@@ -521,7 +526,7 @@ def _flat_palette(color, n_colors=6, reverse=False, as_cmap=False, input="rgb"):
 
 
 def diverging_palette(
-    h_neg, h_pos, s=75, l=50, sep=10, n=6, center="light", as_cmap=False
+    h_neg, h_pos, s=75, lightness=50, sep=10, n=6, center="light", as_cmap=False
 ):
     """Make a diverging palette between two HUSL colors.
 
@@ -534,7 +539,7 @@ def diverging_palette(
         Anchor hues for negative and positive extents of the map.
     s : float in [0, 100], optional
         Anchor saturation for both extents of the map.
-    l : float in [0, 100], optional
+    lightness : float in [0, 100], optional
         Anchor lightness for both extents of the map.
     n : int, optional
         Number of colors in the palette (if not returning a cmap)
@@ -594,8 +599,8 @@ def diverging_palette(
 
     """
     palfunc = dark_palette if center == "dark" else light_palette
-    neg = palfunc((h_neg, s, l), 128 - (sep / 2), reverse=True, input="husl")
-    pos = palfunc((h_pos, s, l), 128 - (sep / 2), input="husl")
+    neg = palfunc((h_neg, s, lightness), 128 - (sep / 2), reverse=True, input="husl")
+    pos = palfunc((h_pos, s, lightness), 128 - (sep / 2), input="husl")
     midpoint = dict(light=[(0.95, 0.95, 0.95, 1.0)], dark=[(0.133, 0.133, 0.133, 1.0)])[
         center
     ]

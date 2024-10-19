@@ -9,7 +9,6 @@ from copy import (
 from functools import wraps
 
 from sklearn.base import BaseEstimator
-from sklearn.utils.validation import check_is_fitted
 from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
 
 from .utils import PrettyDuration
@@ -274,7 +273,7 @@ class DataWindow(BaseEstimator):
 
         bins_before = self.bins_before
         bins_after = self.bins_after
-        bins_current = self.bins_current
+        # bins_current = self.bins_current
         stride = self.bins_stride
 
         X, T, lengths = self._tidy(X=X, T=T, lengths=lengths)
@@ -743,7 +742,7 @@ class StreamingDataWindow:
         return self
 
     def __next__(self):
-        index = self._index
+        # index = self._index
         # if index > self.n_intervals - 1:
         #     raise StopIteration
 

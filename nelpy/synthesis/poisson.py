@@ -36,7 +36,7 @@ def generate_spikes_from_traj(
 
     # extract running trajectories from real data:
     run_ends = np.where(np.diff(binned_runidx) - 1)[0] + 1
-    seq_lengths = np.diff(np.hstack((0, run_ends, binned_runidx.size)))
+    # seq_lengths = np.diff(np.hstack((0, run_ends, binned_runidx.size)))
     runbdries = np.hstack((0, run_ends))
 
     # each spike train corresponding to a trajectory is generated between [0,tend)
@@ -57,7 +57,7 @@ def generate_spikes_from_traj(
     for ii in np.arange(len(runbdries) - 1):
         for nn in np.arange(numCells):
             traj_start_bin = binned_runidx[runbdries[ii]]
-            traj_end_bin = binned_runidx[runbdries[ii + 1] - 1]  # inclusive
+            # traj_end_bin = binned_runidx[runbdries[ii + 1] - 1]  # inclusive
             # print("Trajectory {0} length is {1} bins, or {2:2.2f} seconds.".format(ii,traj_end_bin-traj_start_bin + 1, (traj_end_bin-traj_start_bin + 1)/pos_fs))
             t_offset = traj_start_bin / pos_fs  # in seconds
             posvect = truepos[runbdries[ii] : runbdries[ii + 1]]
@@ -67,13 +67,19 @@ def generate_spikes_from_traj(
                 0, TrajDuration, len(posvect)
             )  # WARNING! This does not work when traj_len == 1, but this should never happen anyway
 
-            posFun = lambda t: np.interp(t, tvect, posvect)
+            def posFun(t):
+                return np.interp(t, tvect, posvect)
+
             if const_firing_rate:
-                PlaceFieldRate = (
-                    lambda x: 0 * x + 10
-                )  # np.interp(x,pfbincenters,pfs[nn,:])
+
+                def PlaceFieldRate(x):
+                    return 0 * x + 10  # np.interp(x,pfbincenters,pfs[nn,:])
+
             else:
-                PlaceFieldRate = lambda x: np.interp(x, pfbincenters, pfs[nn, :])
+
+                def PlaceFieldRate(x):
+                    return np.interp(x, pfbincenters, pfs[nn, :])
+
             maxrate = pfs[nn, :].max() + 25
 
             SpikeRasters[ii][nn] = np.round(

@@ -10,4 +10,3 @@ and inspired by the neuralensemble.org NEO project
 
 from .core import *
 
-from .version import __version__

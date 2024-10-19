@@ -1,5 +1,4 @@
 # See https://github.com/NeuralEnsemble/elephant/blob/master/elephant/statistics.py
-import numpy as np
 import nelpy as nel
 
 def drop_last_bin(bst, inplace=False):
@@ -68,14 +67,14 @@ def detect_ripples(eeg):
     ripple_epochs = nel.EpochArray(timebounds)
 
     # Adjust ripple centers to align to a peak
-    ripple_centers = np.floor((ripple_epochs.centers - eeg.time[0]) * eeg.fs).astype(
-        int
-    )
-    ch = 7  # this was on some of Sibo's data, for CA1
-    adjusted_centers = [
-        (p - 10) + np.argmax(eeg.data[ch, p - 10 : p + 10])
-        for p in ripple_centers[1:-1].tolist()
-    ]
+    # ripple_centers = np.floor((ripple_epochs.centers - eeg.time[0]) * eeg.fs).astype(
+    #     int
+    # )
+    # ch = 7  # this was on some of Sibo's data, for CA1
+    # adjusted_centers = [
+    #     (p - 10) + np.argmax(eeg.data[ch, p - 10 : p + 10])
+    #     for p in ripple_centers[1:-1].tolist()
+    # ]
 
     return ripple_epochs
 
