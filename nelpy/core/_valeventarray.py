@@ -7,7 +7,6 @@
 #            'SpikeTrainArray',
 #            'BinnedSpikeTrainArray']
 
-__all__ = ["ValueEventArray", "MarkedSpikeTrainArray", "StatefulValueEventArray"]
 
 # __all__ = ['BaseValueEventArray(ABC)',
 #            'ValueEventArray(BaseValueEventArray)',
@@ -63,18 +62,16 @@ BaseValueEventArray (ABC)
 
 """
 
-import logging
-import numpy as np
 import copy
-import numbers
-
+import logging
 from abc import ABC, abstractmethod
 
-from .. import core
-from .. import utils
-from .. import version
+import numpy as np
 
+from .. import core, utils, version
 from ..utils_.decorators import keyword_equivalence
+
+__all__ = ["ValueEventArray", "MarkedSpikeTrainArray", "StatefulValueEventArray"]
 
 
 class IntervalSeriesSlicer(object):
@@ -194,9 +191,9 @@ class ItemGetter_loc(object):
         # TODO: update tags
         if isinstance(intervalslice, slice):
             if (
-                intervalslice.start == None
-                and intervalslice.stop == None
-                and intervalslice.step == None
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
             ):
                 out.loc = ItemGetter_loc(out)
                 out.iloc = ItemGetter_iloc(out)
@@ -241,9 +238,9 @@ class ItemGetter_iloc(object):
         # TODO: update tags
         if isinstance(intervalslice, slice):
             if (
-                intervalslice.start == None
-                and intervalslice.stop == None
-                and intervalslice.step == None
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
             ):
                 out.loc = ItemGetter_loc(out)
                 out.iloc = ItemGetter_iloc(out)
@@ -358,7 +355,7 @@ class BaseValueEventArray(ABC):
         try:
             return np.sum([len(st) for st in self.data]) == 0
         except TypeError:
-            return True  # this happens when self.data == None
+            return True  # this happens when self.data is None
 
     @property
     def n_series(self):
@@ -496,7 +493,7 @@ class BaseValueEventArray(ABC):
         try:
             if val <= 0:
                 raise ValueError("sampling rate must be positive")
-        except:
+        except TypeError:
             raise TypeError("sampling rate must be a scalar")
         self._fs = val
 
