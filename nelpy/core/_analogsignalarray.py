@@ -14,24 +14,18 @@ __all__ = [
     "MinimalExampleArray",
 ]
 
-import logging
-import numpy as np
 import copy
+import logging
 import numbers
-
-from sys import float_info
+from collections import namedtuple
 from functools import wraps
+from sys import float_info
+
+import numpy as np
 from scipy import interpolate
 from scipy.stats import zscore
-from sys import float_info
-from collections import namedtuple
 
-from .. import core
-from .. import filtering
-from .. import auxiliary
-from .. import utils
-from .. import version
-
+from .. import core, filtering, utils, version
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 
 
@@ -2340,6 +2334,7 @@ class RegularlySampledAnalogSignalArray:
         """custom_func docstring goes here."""
 
         import matplotlib.pyplot as plt
+
         from ..plotting import utils as plotutils
 
         if ax is None:
