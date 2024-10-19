@@ -11,19 +11,16 @@ __all__ = ['linregress_ting',
            'score_hmm_logprob_cumulative',
            'pooled_time_swap_bst']
 
-import warnings
 import copy
+
 import numpy as np
-
-from scipy.ndimage import convolve
 from scipy import stats
+from scipy.ndimage import convolve
 
-# from .. import hmmutils
 from ..core import SpikeTrainArray
-from .. import auxiliary
 from ..decoding import decode1D as decode
-from ..decoding import k_fold_cross_validation
-from ..decoding import get_mode_pth_from_array, get_mean_pth_from_array
+from ..decoding import get_mode_pth_from_array, k_fold_cross_validation
+
 
 def get_line_of_best_Davidson_score(bst, tuningcurve, w=3, n_samples=50000):
     tc = tuningcurve
@@ -122,6 +119,10 @@ def get_line_of_best_Davidson_score(bst, tuningcurve, w=3, n_samples=50000):
 
 def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle='row-wise', verbose=False):
     """score all sequences in the entire bst using the transition matrix shuffle and cross-validation"""
+
+    # lazy import hmmutils
+    from .. import hmmutils
+
     if k_folds is None:
         k_folds = 5
 
@@ -195,6 +196,10 @@ def score_hmm_events(bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle=
 
 def score_hmm_events_no_xval(bst, training=None, validation=None, num_states=30, n_shuffles=5000, shuffle='row-wise', verbose=False):
     """same as score_hmm_events, but train on training set, and only score validation set..."""
+
+    # lazy import hmmutils
+    from .. import hmmutils
+
     if shuffle == 'row-wise':
         rowwise = True
     elif shuffle == 'col-wise':

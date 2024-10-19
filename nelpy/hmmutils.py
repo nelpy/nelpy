@@ -8,7 +8,7 @@ with hmmlearn.
 # * decode (with orderings)
 
 # see https://github.com/ckemere/hmmlearn
-# from hmmlearn.hmm import PoissonHMM as PHMM
+from hmmlearn.hmm import PoissonHMM as PHMM
 from warnings import warn
 import numpy as np
 from pandas import unique
