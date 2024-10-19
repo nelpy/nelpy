@@ -111,23 +111,24 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         # speed should be smoothed as well.
 
         raise NotImplementedError
-
-        cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
+    
+        out = self.copy()
+        cum_lengths = np.insert(np.cumsum(self.lengths), 0, 0)
 
         # ensure that datatype is float
         out._data = out.data.astype(float)
 
         # now obtain the derivative for each epoch separately
-        for idx in range(asa.n_epochs):
+        for idx in range(self.n_epochs):
             # if 1D:
-            if asa.n_signals == 1:
+            if self.n_signals == 1:
                 if (cum_lengths[idx + 1] - cum_lengths[idx]) < 2:
                     # only single sample
                     out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = 0
                 else:
                     out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = (
                         np.gradient(
-                            asa._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]],
+                            self._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]],
                             axis=1,
                         )
                     )
@@ -137,7 +138,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
                     out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = 0
                 else:
                     out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = np.gradient(
-                        asa._data[:, cum_lengths[idx] : cum_lengths[idx + 1]], axis=1
+                        self._data[:, cum_lengths[idx] : cum_lengths[idx + 1]], axis=1
                     )
 
     def direction(self):
