@@ -963,7 +963,7 @@ class RegularlySampledAnalogSignalArray:
             )
         else:
             self._data = np.vstack([self.data, np.array(signal, ndmin=2)])
-        if label == None:
+        if label is None:
             logging.warning("None label appended")
         self._labels = np.append(self._labels, label)
         return self
@@ -1586,9 +1586,9 @@ class RegularlySampledAnalogSignalArray:
 
         if isinstance(intervalslice, slice):
             if (
-                intervalslice.start == None
-                and intervalslice.stop == None
-                and intervalslice.step == None
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
             ):
                 asa.__renew__()
                 return asa
@@ -1645,7 +1645,7 @@ class RegularlySampledAnalogSignalArray:
             if medians.size == 1:
                 try:
                     return np.asscalar(medians)
-                except:
+                except ValueError:
                     return np.ndarray.item(medians)
             return medians
         except IndexError:
@@ -1660,7 +1660,7 @@ class RegularlySampledAnalogSignalArray:
             if means.size == 1:
                 try:
                     return np.asscalar(means)
-                except:
+                except ValueError:
                     return np.ndarray.item(means)
             return means
         except IndexError:
@@ -1675,7 +1675,7 @@ class RegularlySampledAnalogSignalArray:
             if stds.size == 1:
                 try:
                     return np.asscalar(stds)
-                except:
+                except ValueError:
                     return np.ndarray.item(stds)
             return stds
         except IndexError:
@@ -1690,7 +1690,7 @@ class RegularlySampledAnalogSignalArray:
             if maxes.size == 1:
                 try:
                     return np.asscalar(maxes)
-                except:
+                except ValueError:
                     return np.ndarray.item(maxes)
             return maxes
         except ValueError:
@@ -1705,7 +1705,7 @@ class RegularlySampledAnalogSignalArray:
             if mins.size == 1:
                 try:
                     return np.asscalar(mins)
-                except:
+                except ValueError:
                     return np.ndarray.item(mins)
             return mins
         except ValueError:
