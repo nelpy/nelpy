@@ -1,4 +1,3 @@
-__all__ = ["EventArray", "BinnedEventArray", "SpikeTrainArray", "BinnedSpikeTrainArray"]
 
 """ idea is to have abscissa and ordinate, and to use aliasing to have n_series,
     _series_subset, series_ids, (or trial_ids), and so on.
@@ -19,19 +18,18 @@ __all__ = ["EventArray", "BinnedEventArray", "SpikeTrainArray", "BinnedSpikeTrai
     PSTH
 """
 
-import numpy as np
 import copy
-import numbers
 import logging
-
+import numbers
 from abc import ABC, abstractmethod
 
-from .. import core
-from .. import utils
-from .. import version
+import numpy as np
 
+from .. import core, utils, version
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 from . import _accessors
+
+__all__ = ["EventArray", "BinnedEventArray", "SpikeTrainArray", "BinnedSpikeTrainArray"]
 
 
 ########################################################################
@@ -324,7 +322,7 @@ class BaseEventArray(ABC):
         try:
             if val <= 0:
                 raise ValueError("sampling rate must be positive")
-        except:
+        except TypeError:
             raise TypeError("sampling rate must be a scalar")
         self._fs = val
 
@@ -670,7 +668,7 @@ class EventArray(BaseEventArray):
         try:
             return np.sum([len(st) for st in self.data]) == 0
         except TypeError:
-            return True  # this happens when self.data == None
+            return True  # this happens when self.data is None
 
     @property
     def n_series(self):
@@ -790,9 +788,9 @@ class EventArray(BaseEventArray):
 
         if isinstance(intervalslice, slice):
             if (
-                intervalslice.start == None
-                and intervalslice.stop == None
-                and intervalslice.step == None
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
             ):
                 # no restriction on interval
                 return self
@@ -1566,9 +1564,9 @@ class BinnedEventArray(BaseEventArray):
 
         if isinstance(intervalslice, slice):
             if (
-                intervalslice.start == None
-                and intervalslice.stop == None
-                and intervalslice.step == None
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
             ):
                 # no restriction on interval
                 return self
@@ -1631,7 +1629,7 @@ class BinnedEventArray(BaseEventArray):
         try:
             return len(self.bin_centers) == 0
         except TypeError:
-            return True  # this happens when self.bin_centers == None
+            return True  # this happens when self.bin_centers is None
 
     @property
     def n_series(self):
@@ -1679,8 +1677,8 @@ class BinnedEventArray(BaseEventArray):
         """
         if self._event_centers is None:
             midpoints = np.zeros(len(self.lengths))
-            for idx, l in enumerate(self.lengths):
-                midpoints[idx] = np.sum(self.lengths[:idx]) + l / 2
+            for idx, length in enumerate(self.lengths):
+                midpoints[idx] = np.sum(self.lengths[:idx]) + length / 2
             self._event_centers = midpoints
         return self._event_centers
 
@@ -1745,7 +1743,7 @@ class BinnedEventArray(BaseEventArray):
             try:
                 if val <= 0:
                     pass
-            except:
+            except ValueError:
                 raise TypeError("bin width must be a scalar")
             if val <= 0:
                 raise ValueError("bin width must be positive")
@@ -2009,8 +2007,6 @@ class BinnedEventArray(BaseEventArray):
         newlengths = [0]
         binedges = np.insert(np.cumsum(bst.lengths + 1), 0, 0)
         n_events = bst.support.n_intervals
-        new_centers = []
-
         newdata = None
 
         for ii in range(n_events):
