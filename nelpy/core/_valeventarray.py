@@ -1068,7 +1068,7 @@ class ValueEventArray(BaseValueEventArray):
         method in [sum, mean, median, min, max]
         """
         raise NotImplementedError
-        return BinnedValueEventArray(self, ds=ds, method=method)
+        return BinnedValueEventArray(self, ds=ds, method=method)  # noqa: F821
 
     @property
     def n_events(self):
@@ -1240,7 +1240,7 @@ class MarkedSpikeTrainArray(ValueEventArray):
     def bin(self, *, ds=None):
         """Return a BinnedSpikeTrainArray."""
         raise NotImplementedError
-        return BinnedMarkedSpikeTrainArray(self, ds=ds)
+        return BinnedMarkedSpikeTrainArray(self, ds=ds)  # noqa: F821
 
 
 # ----------------------------------------------------------------------#
@@ -1859,7 +1859,7 @@ class StatefulValueEventArray(BaseValueEventArray):
     def bin(self, *, ds=None):
         """Return a BinnedValueEventArray."""
         raise NotImplementedError
-        return BinnedValueEventArray(self, ds=ds)
+        return BinnedValueEventArray(self, ds=ds)  # noqa: F821
 
     def __call__(self, *args):
         """StatefulValueEventArray callable method; by default returns state values"""
