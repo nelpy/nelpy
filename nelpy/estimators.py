@@ -537,7 +537,7 @@ class RateMap(BaseEstimator):
             RateMap.max(axis=0)
         """
         check_is_fitted(self, "ratemap_")
-        if axis == None:
+        if axis is None:
             if self.is_2d:
                 return self.ratemap_.max(axis=1, out=out).max(axis=1, out=out)
             else:
@@ -546,7 +546,7 @@ class RateMap(BaseEstimator):
 
     def min(self, axis=None, out=None):
         check_is_fitted(self, "ratemap_")
-        if axis == None:
+        if axis is None:
             if self.is_2d:
                 return self.ratemap_.min(axis=1, out=out).min(axis=1, out=out)
             else:
@@ -556,7 +556,7 @@ class RateMap(BaseEstimator):
     def mean(self, axis=None, dtype=None, out=None, keepdims=False):
         check_is_fitted(self, "ratemap_")
         kwargs = {"dtype": dtype, "out": out, "keepdims": keepdims}
-        if axis == None:
+        if axis is None:
             if self.is_2d:
                 return self.ratemap_.mean(axis=1, **kwargs).mean(axis=1, **kwargs)
             else:
@@ -924,7 +924,7 @@ class BayesianDecoderTemp(BaseEstimator):
 
         # store the estimated firing rates as a rate map:
         bin_centers = self.rate_estimator.tc_.bin_centers  # temp code FIXME
-        bins = self.rate_estimator.tc_.bins  # temp code FIXME
+        # bins = self.rate_estimator.tc_.bins  # temp code FIXME
         rates = self.rate_estimator.tc_.ratemap  # temp code FIXME
         # unit_ids = np.array(self.rate_estimator.tc_.unit_ids) #temp code FIXME
         self.ratemap.fit(X=bin_centers, y=rates, unit_ids=unit_ids)  # temp code FIXME
@@ -1593,7 +1593,7 @@ class NDRateMap(BaseEstimator):
         """
         raise NotImplementedError("the code was still for the 1D and 2D only version")
         check_is_fitted(self, "ratemap_")
-        if axis == None:
+        if axis is None:
             if self.is_2d:
                 return self.ratemap_.max(axis=1, out=out).max(axis=1, out=out)
             else:
@@ -1603,7 +1603,7 @@ class NDRateMap(BaseEstimator):
     def min(self, axis=None, out=None):
         raise NotImplementedError("the code was still for the 1D and 2D only version")
         check_is_fitted(self, "ratemap_")
-        if axis == None:
+        if axis is None:
             if self.is_2d:
                 return self.ratemap_.min(axis=1, out=out).min(axis=1, out=out)
             else:
@@ -1614,7 +1614,7 @@ class NDRateMap(BaseEstimator):
         raise NotImplementedError("the code was still for the 1D and 2D only version")
         check_is_fitted(self, "ratemap_")
         kwargs = {"dtype": dtype, "out": out, "keepdims": keepdims}
-        if axis == None:
+        if axis is None:
             if self.is_2d:
                 return self.ratemap_.mean(axis=1, **kwargs).mean(axis=1, **kwargs)
             else:

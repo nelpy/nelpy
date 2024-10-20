@@ -80,7 +80,7 @@ def _plot_ratemap(ratemap, ax=None, normalize=False, pad=None, unit_labels=None,
         ratemap = (ratemap.T / peak_firing_rates).T
 
     # determine max firing rate
-    max_firing_rate = ratemap.max()
+    # max_firing_rate = ratemap.max()
     xvals = np.arange(n_ext)
 
     for unit, curve in enumerate(ratemap):
@@ -144,7 +144,7 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
         ratemap = (ratemap.T / peak_firing_rates).T
 
     # determine max firing rate
-    max_firing_rate = ratemap.max()
+    # max_firing_rate = ratemap.max()
 
     if xvals is None:
         xvals = np.arange(n_ext)
@@ -497,7 +497,7 @@ def plot(obj, *args, **kwargs):
                     xmax = cxmax
                 if cymax > ymax:
                     ymax = cymax
-            except:
+            except Exception:
                 pass
         ax.set_xlim(xmin, xmax)
 
@@ -791,7 +791,7 @@ def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None, *
     ax_.set_xlim(ax.get_xlim())
 
 def rastercountplot(spiketrain, nbins=50, **kwargs):
-    fig = plt.figure(figsize=(14, 6))
+    plt.figure(figsize=(14, 6))
     gs = gridspec.GridSpec(2, 1, hspace=0.01, height_ratios=[0.2,0.8])
     ax1 = plt.subplot(gs[0])
     ax2 = plt.subplot(gs[1])

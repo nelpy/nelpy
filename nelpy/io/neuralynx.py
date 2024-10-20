@@ -45,7 +45,7 @@ def load_nvt(filename):
     with open(filename, "rb") as f:
 
         # Neuralynx files have a 16kbyte header
-        header = f.read(2**14).strip(b"\x00")
+        # header = f.read(2**14).strip(b"\x00")
 
         # The format for .nvt files according the the neuralynx docs is
         # uint16 - beginning of the record

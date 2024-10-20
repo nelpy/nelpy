@@ -7,8 +7,9 @@ import functools
 import numpy as np
 import matplotlib as mpl
 
-from . import palettes, _orig_rc_params
+from . import palettes
 
+_orig_rc_params = mpl.rcParams.copy()
 mpl_ge_150 = LooseVersion(mpl.__version__) >= "1.5.0"
 
 __all__ = [

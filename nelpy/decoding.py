@@ -11,14 +11,13 @@ __all__ = [
 ]
 
 import copy
-import numpy as np
 import numbers
 
+import numpy as np
+from scipy import interpolate
 from scipy.special import logsumexp
 
-from . import auxiliary
-from . import core
-from . import utils
+from . import auxiliary, core, utils
 
 
 class ItemGetter_loc(object):
@@ -107,9 +106,9 @@ class ItemGetter_loc(object):
         # TODO: update tags
         if isinstance(intervalslice, slice):
             if (
-                intervalslice.start == None
-                and intervalslice.stop == None
-                and intervalslice.step == None
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
             ):
                 out.loc = ItemGetter_loc(out)
                 out.iloc = ItemGetter_iloc(out)
@@ -154,9 +153,9 @@ class ItemGetter_iloc(object):
         # TODO: update tags
         if isinstance(intervalslice, slice):
             if (
-                intervalslice.start == None
-                and intervalslice.stop == None
-                and intervalslice.step == None
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
             ):
                 out.loc = ItemGetter_loc(out)
                 out.iloc = ItemGetter_iloc(out)
@@ -184,7 +183,7 @@ def get_mode_pth_from_array(posterior, tuningcurve=None):
             raise TypeError("tuningcurve type not yet supported!")
 
     _, bins = np.histogram([], bins=n_xbins, range=(xmin, xmax))
-    xbins = (bins + xmax / n_xbins)[:-1]
+    # xbins = (bins + xmax / n_xbins)[:-1]
 
     mode_pth = np.argmax(posterior, axis=0) * xmax / n_xbins
     mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
@@ -277,14 +276,14 @@ def decode1D(
     if isinstance(ratemap, auxiliary.TuningCurve1D) | isinstance(
         ratemap, auxiliary._tuningcurve.TuningCurve1D
     ):
-        xmin = ratemap.bins[0]
+        # xmin = ratemap.bins[0]
         xmax = ratemap.bins[-1]
         bin_centers = ratemap.bin_centers
         # re-order units if necessary
         ratemap = ratemap.reorder_units_by_ids(bst.unit_ids)
         ratemap = ratemap.ratemap
     else:
-        xmin = 0
+        # xmin = 0
         xmax = n_xbins
         bin_centers = np.arange(n_xbins)
 
@@ -608,9 +607,6 @@ def k_fold_cross_validation(X, k=None, randomize=False):
             yield training, validation
         except StopIteration:
             return
-
-
-from scipy import interpolate
 
 
 class Cumhist(np.ndarray):

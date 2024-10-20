@@ -102,7 +102,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         """Return the path length along the trajectory."""
         # raise NotImplementedError
         lengths = np.sqrt(np.sum(np.diff(self._data_colsig, axis=0) ** 2, axis=1))
-        total_length = np.sum(lengths)
+        return np.sum(lengths)
 
     def get_speed(self, sigma_pos=None, simga_spd=None):
         """Return the speed, as an AnalogSignalArray."""
@@ -110,7 +110,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         # compute the speed on the smoothed position. Optionally, then, the
         # speed should be smoothed as well.
 
-        raise NotImplementedError
+        # raise NotImplementedError
     
         out = self.copy()
         cum_lengths = np.insert(np.cumsum(self.lengths), 0, 0)
@@ -140,7 +140,8 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
                     out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = np.gradient(
                         self._data[:, cum_lengths[idx] : cum_lengths[idx + 1]], axis=1
                     )
-
+        return out
+    
     def direction(self):
         """Return the instantaneous direction estimate as an AnalogSignalArray."""
         # If 1D, then left/right or up/down or fwd/reverse or whatever might

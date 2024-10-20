@@ -14,6 +14,7 @@
 
 # import colormaps as cmaps
 # plt.imshow(my_image, cmap=cmaps.viridis)
+from matplotlib.colors import ListedColormap
 
 __all__ = ["magma", "inferno", "plasma", "viridis", "parula"]
 
@@ -1120,7 +1121,6 @@ _parula_data = [
     [0.9763, 0.9831, 0.0538],
 ]
 
-from matplotlib.colors import ListedColormap
 
 cmaps = {}
 for name, data in (

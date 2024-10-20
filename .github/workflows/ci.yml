@@ -41,6 +41,14 @@ jobs:
           pip install .
           pip install pytest 
 
+      - name: Install ruff for linting
+        run: |
+          pip install ruff
+
+      - name: Run ruff linter
+        run: |
+          ruff check .
+          
       - name: Run tests
         run: |
           pytest

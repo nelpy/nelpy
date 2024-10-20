@@ -11,11 +11,12 @@ datatype = ['spikes', 'lfp', 'pos', 'waveforms', 'metadata']
 
 """
 
-__all__ = ["load_hc11_data"]
+# __all__ = ["load_hc11_data"]
 
 import logging
 import os.path
 import glob
+import sys
 import pandas as pd
 import numpy as np
 import re
@@ -26,8 +27,14 @@ import xmltodict
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 
-from ..core import *
-
+from ..core._intervalarray import EpochArray
+from ..core._analogsignalarray import (
+    AnalogSignalArray,
+    PositionArray,
+)
+from ..core._eventarray import (
+    SpikeTrainArray,
+)
 
 class DataLoader(ABC):
 
@@ -145,7 +152,7 @@ class DataLoaderHC11(DataLoader):
                 pass
         if num == 0:
             logging.warning(
-                'Did not find any .clu files for session "{}"'.format(session)
+                'Did not find any .clu files for session "{}"'.format(self.basedir)
             )
 
         return num
@@ -294,7 +301,7 @@ class DataLoaderHC11(DataLoader):
         for session, sdir in zip(sessions, dirs):
             fs = self.data[session]["params"]["fs_wideband"]
             fs = 20000
-            num_probes = self.data[session]["params"]["n_probes"]
+            # num_probes = self.data[session]["params"]["n_probes"]
             snippet_len = self.data[session]["params"]["snippet_len"]
             snippet_peak_idx = self.data[session]["params"]["snippet_peak_idx"]
             n_channels = int(self.data[session]["params"]["n_channels"])
@@ -419,6 +426,21 @@ class DataLoaderHC11(DataLoader):
         if datatype == "events":
             self._load_events()
 
+def get_num_electrodes(sessiondir, verbose=False):
+    numelec = 0
+    files = [f for f in os.listdir(sessiondir) if (os.path.isfile(os.path.join(sessiondir, f)))]
+    for ff in files:
+        try:
+            found = re.search('\.clu\.[0-9]+$', ff).group(0)
+            if verbose:
+                print(found)
+            numelec+=1
+        except ValueError:
+            found=''
+    if numelec > 0:
+        return numelec
+    else:
+        raise ValueError('number of electrodes (shanks) could not be established...')
 
 # datatype = ['spikes', 'eeg', 'pos', '?']
 def load_hc3_data(

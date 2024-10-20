@@ -208,7 +208,7 @@ def sosfiltfilt(
             shared_array_out[:, buff_st_idx:buff_nd_idx] = this_y_chk[
                 :, rel_st_idx:rel_nd_idx
             ]
-        except:
+        except ValueError:
             raise ValueError(
                 (
                     "Some epochs were too short to filter. Try dropping those first,"

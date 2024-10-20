@@ -17,6 +17,9 @@ from . import neuralynx
 from . import neo
 from . import miniscopy
 from . import brian
+
 # from . import jagular
 
-__version__ = '0.0.3'
+__all__ = ["hc3", "hc18", "hc11", "matlab", "neuralynx", "neo", "miniscopy", "brian"]
+
+__version__ = "0.0.3"

@@ -1,7 +1,7 @@
 """Class definitions and utility functions specifically related to
 experimental design and organization.
 """
-
+import pandas as pd
 
 class Trial:
     pass
@@ -69,10 +69,10 @@ def combine_rats(data, rats, n_sessions, only_sound=False):
                             "%s %d" % (trial.cue, trial.trial_type)
                         )
                         together["measure"].append(measure)
-                        together["value"].append(f_analyze(trial, measure))
+                        # together["value"].append(f_analyze(trial, measure))
 
     df = pd.DataFrame(data=together)
 
-    fix_missing_trials(df)
+    # fix_missing_trials(df)
 
     return df

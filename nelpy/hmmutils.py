@@ -209,7 +209,7 @@ class PoissonHMM(PHMM):
     def __repr__(self):
         try:
             rep = super().__repr__()
-        except:
+        except Exception:
             warn(
                 "couldn't access super().__repr__;"
                 " upgrade dependencies to resolve this issue."
