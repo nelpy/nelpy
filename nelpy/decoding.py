@@ -1,21 +1,24 @@
 """Bayesian encoding and decoding"""
 
-__all__ = ['decode1D',
-           'decode2D',
-           'k_fold_cross_validation',
-           'cumulative_dist_decoding_error_using_xval',
-           'cumulative_dist_decoding_error',
-           'get_mode_pth_from_array',
-           'get_mean_pth_from_array']
+__all__ = [
+    "decode1D",
+    "decode2D",
+    "k_fold_cross_validation",
+    "cumulative_dist_decoding_error_using_xval",
+    "cumulative_dist_decoding_error",
+    "get_mode_pth_from_array",
+    "get_mean_pth_from_array",
+]
 
-import numpy as np
+import copy
 import numbers
 
+import numpy as np
+from scipy import interpolate
 from scipy.special import logsumexp
 
-from . import auxiliary
-from . import core
-from . import utils
+from . import auxiliary, core, utils
+
 
 class ItemGetter_loc(object):
     """.loc is primarily label based (that is, series_id based)
@@ -29,6 +32,7 @@ class ItemGetter_loc(object):
             usual python slices, both the start and the stop are
             included!)
     """
+
     def __init__(self, obj):
         self.obj = obj
 
@@ -47,19 +51,23 @@ class ItemGetter_loc(object):
                 else:
                     istart = self.obj._series_ids.index(start)
             except ValueError:
-                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(start))
+                raise KeyError(
+                    "series_id {} could not be found in BaseEventArray!".format(start)
+                )
             try:
                 if stop is None:
                     istop = self.obj.n_series
                 else:
                     istop = self.obj._series_ids.index(stop) + 1
             except ValueError:
-                raise KeyError('series_id {} could not be found in BaseEventArray!'.format(stop))
+                raise KeyError(
+                    "series_id {} could not be found in BaseEventArray!".format(stop)
+                )
             if istep is None:
                 istep = 1
             if istep < 0:
-                istop -=1
-                istart -=1
+                istop -= 1
+                istart -= 1
                 istart, istop = istop, istart
             series_idx_list = list(range(istart, istop, istep))
         else:
@@ -69,7 +77,11 @@ class ItemGetter_loc(object):
                 try:
                     uidx = self.obj.series_ids.index(series)
                 except ValueError:
-                    raise KeyError("series_id {} could not be found in BaseEventArray!".format(series))
+                    raise KeyError(
+                        "series_id {} could not be found in BaseEventArray!".format(
+                            series
+                        )
+                    )
                 else:
                     series_idx_list.append(uidx)
 
@@ -78,18 +90,26 @@ class ItemGetter_loc(object):
         out = copy.copy(self.obj)
         try:
             out._data = out._data[series_idx_list]
-            singleseries = len(out._data)==1
+            singleseries = len(out._data) == 1
         except AttributeError:
             out._data = out._data[series_idx_list]
-            singleseries = len(out._data)==1
+            singleseries = len(out._data) == 1
 
         if singleseries:
             out._data = np.array(out._data[0], ndmin=2)
-        out._series_ids = list(np.atleast_1d(np.atleast_1d(out._series_ids)[series_idx_list]))
-        out._series_labels = list(np.atleast_1d(np.atleast_1d(out._series_labels)[series_idx_list]))
+        out._series_ids = list(
+            np.atleast_1d(np.atleast_1d(out._series_ids)[series_idx_list])
+        )
+        out._series_labels = list(
+            np.atleast_1d(np.atleast_1d(out._series_labels)[series_idx_list])
+        )
         # TODO: update tags
         if isinstance(intervalslice, slice):
-            if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+            if (
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
+            ):
                 out.loc = ItemGetter_loc(out)
                 out.iloc = ItemGetter_iloc(out)
                 return out
@@ -97,6 +117,7 @@ class ItemGetter_loc(object):
         out.loc = ItemGetter_loc(out)
         out.iloc = ItemGetter_iloc(out)
         return out
+
 
 class ItemGetter_iloc(object):
     """.iloc is primarily integer position based (from 0 to length-1
@@ -109,6 +130,7 @@ class ItemGetter_iloc(object):
         - A list or array of integers [4, 3, 0]
         - A slice object with ints 1:7
     """
+
     def __init__(self, obj):
         self.obj = obj
 
@@ -119,14 +141,22 @@ class ItemGetter_iloc(object):
         if isinstance(seriesslice, int):
             seriesslice = [seriesslice]
         out._data = out._data[seriesslice]
-        singleseries = len(out._data)==1
+        singleseries = len(out._data) == 1
         if singleseries:
             out._data = np.array(out._data[0], ndmin=2)
-        out._series_ids = list(np.atleast_1d(np.atleast_1d(out._series_ids)[seriesslice]))
-        out._series_labels = list(np.atleast_1d(np.atleast_1d(out._series_labels)[seriesslice]))
+        out._series_ids = list(
+            np.atleast_1d(np.atleast_1d(out._series_ids)[seriesslice])
+        )
+        out._series_labels = list(
+            np.atleast_1d(np.atleast_1d(out._series_labels)[seriesslice])
+        )
         # TODO: update tags
         if isinstance(intervalslice, slice):
-            if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+            if (
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
+            ):
                 out.loc = ItemGetter_loc(out)
                 out.iloc = ItemGetter_iloc(out)
                 return out
@@ -134,6 +164,7 @@ class ItemGetter_iloc(object):
         out.loc = ItemGetter_loc(out)
         out.iloc = ItemGetter_iloc(out)
         return out
+
 
 def get_mode_pth_from_array(posterior, tuningcurve=None):
     """If tuningcurve is provided, then we map it back to the external coordinates / units.
@@ -151,13 +182,14 @@ def get_mode_pth_from_array(posterior, tuningcurve=None):
         else:
             raise TypeError("tuningcurve type not yet supported!")
 
-    _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
-    xbins = (bins + xmax/n_xbins)[:-1]
+    _, bins = np.histogram([], bins=n_xbins, range=(xmin, xmax))
+    # xbins = (bins + xmax / n_xbins)[:-1]
 
-    mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
+    mode_pth = np.argmax(posterior, axis=0) * xmax / n_xbins
     mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
 
     return mode_pth
+
 
 def get_mean_pth_from_array(posterior, tuningcurve=None):
     """If tuningcurve is provided, then we map it back to the external coordinates / units.
@@ -175,14 +207,17 @@ def get_mean_pth_from_array(posterior, tuningcurve=None):
         else:
             raise TypeError("tuningcurve type not yet supported!")
 
-    _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
-    xbins = (bins + xmax/n_xbins)[:-1]
+    _, bins = np.histogram([], bins=n_xbins, range=(xmin, xmax))
+    xbins = (bins + xmax / n_xbins)[:-1]
 
     mean_pth = (xbins * posterior.T).sum(axis=1)
 
     return mean_pth
 
-def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_bins=True):
+
+def decode1D(
+    bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_bins=True
+):
     """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
 
     TODO: complete docstring
@@ -229,7 +264,7 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
     """
 
     if w is None:
-        w=1
+        w = 1
     assert float(w).is_integer(), "w must be a positive integer!"
     assert w > 0, "w must be a positive integer!"
 
@@ -238,15 +273,17 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
 
     # if we pass a TuningCurve1D object, extract the ratemap and re-order
     # units if necessary
-    if isinstance(ratemap, auxiliary.TuningCurve1D):
-        xmin = ratemap.bins[0]
+    if isinstance(ratemap, auxiliary.TuningCurve1D) | isinstance(
+        ratemap, auxiliary._tuningcurve.TuningCurve1D
+    ):
+        # xmin = ratemap.bins[0]
         xmax = ratemap.bins[-1]
         bin_centers = ratemap.bin_centers
         # re-order units if necessary
         ratemap = ratemap.reorder_units_by_ids(bst.unit_ids)
         ratemap = ratemap.ratemap
     else:
-        xmin = 0
+        # xmin = 0
         xmax = n_xbins
         bin_centers = np.arange(n_xbins)
 
@@ -256,56 +293,64 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
         nospk_prior = np.full(n_xbins, 1.0)
 
     assert nospk_prior.shape[0] == n_xbins, "prior must have length {}".format(n_xbins)
-    assert nospk_prior.size == n_xbins, "prior must be a 1D array with length {}".format(n_xbins)
+    assert (
+        nospk_prior.size == n_xbins
+    ), "prior must be a 1D array with length {}".format(n_xbins)
 
     lfx = np.log(ratemap)
 
-    eterm = -ratemap.sum(axis=0)*bst.ds*w
+    eterm = -ratemap.sum(axis=0) * bst.ds * w
 
     # if we decode using multiple bins at a time (w>1) then we have to decode each epoch separately:
 
     # first, we determine the number of bins we will decode. This requires us to scan over the epochs
     n_bins = 0
     cumlengths = np.cumsum(bst.lengths)
-    posterior_lengths = np.zeros(bst.n_epochs, dtype=np.int)
+    posterior_lengths = np.zeros(bst.n_epochs, dtype=int)
     prev_idx = 0
     for ii, to_idx in enumerate(cumlengths):
         datalen = to_idx - prev_idx
         prev_idx = to_idx
-        posterior_lengths[ii] = np.max((1,datalen - w + 1))
+        posterior_lengths[ii] = np.max((1, datalen - w + 1))
 
     n_bins = posterior_lengths.sum()
     posterior = np.zeros((n_xbins, n_bins))
 
     # next, we decode each epoch separately, one bin at a time
-    cum_posterior_lengths = np.insert(np.cumsum(posterior_lengths),0,0)
+    cum_posterior_lengths = np.insert(np.cumsum(posterior_lengths), 0, 0)
     prev_idx = 0
     for ii, to_idx in enumerate(cumlengths):
-        data = bst.data[:,prev_idx:to_idx]
+        data = bst.data[:, prev_idx:to_idx]
         prev_idx = to_idx
-        datacum = np.cumsum(data, axis=1) # ii'th data segment, with column of zeros prepended
-        datacum = np.hstack((np.zeros((n_units,1)), datacum))
-        re = w # right edge ptr
+        datacum = np.cumsum(
+            data, axis=1
+        )  # ii'th data segment, with column of zeros prepended
+        datacum = np.hstack((np.zeros((n_units, 1)), datacum))
+        re = w  # right edge ptr
         # TODO: check if datalen < w and act appropriately
-        if posterior_lengths[ii] > 1: # more than one full window fits into data length
+        if posterior_lengths[ii] > 1:  # more than one full window fits into data length
             for tt in range(posterior_lengths[ii]):
-                obs = datacum[:, re] - datacum[:, re-w] # spikes in window of size w
-                re+=1
+                obs = datacum[:, re] - datacum[:, re - w]  # spikes in window of size w
+                re += 1
                 post_idx = cum_posterior_lengths[ii] + tt
                 if obs.sum() == 0 and _skip_empty_bins:
                     # no spikes to decode in window!
-                    posterior[:,post_idx] = nospk_prior
+                    posterior[:, post_idx] = nospk_prior
                 else:
-                    posterior[:,post_idx] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
-        else: # only one window can fit in, and perhaps only partially. We just take all the data we can get,
-              # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
+                    posterior[:, post_idx] = (
+                        np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx
+                    ).sum(axis=0) + eterm
+        else:  # only one window can fit in, and perhaps only partially. We just take all the data we can get,
+            # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
             post_idx = cum_posterior_lengths[ii]
-            obs = datacum[:, -1] # spikes in window of size at most w
+            obs = datacum[:, -1]  # spikes in window of size at most w
             if obs.sum() == 0 and _skip_empty_bins:
                 # no spikes to decode in window!
-                posterior[:,post_idx] = nospk_prior
+                posterior[:, post_idx] = nospk_prior
             else:
-                posterior[:,post_idx] = (np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx).sum(axis=0) + eterm
+                posterior[:, post_idx] = (
+                    np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx
+                ).sum(axis=0) + eterm
 
     # normalize posterior:
     posterior = np.exp(posterior - logsumexp(posterior, axis=0))
@@ -314,12 +359,23 @@ def decode1D(bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_
     # _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
     # xbins = (bins + xmax/n_xbins)[:-1]
 
-    mode_pth = np.argmax(posterior, axis=0)*xmax/n_xbins
+    mode_pth = np.argmax(posterior, axis=0) * xmax / n_xbins
     mode_pth = np.where(np.isnan(posterior.sum(axis=0)), np.nan, mode_pth)
     mean_pth = (bin_centers * posterior.T).sum(axis=1)
     return posterior, cum_posterior_lengths, mode_pth, mean_pth
 
-def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=None, _skip_empty_bins=True):
+
+def decode2D(
+    bst,
+    ratemap,
+    xmin=0,
+    xmax=100,
+    ymin=0,
+    ymax=100,
+    w=1,
+    nospk_prior=None,
+    _skip_empty_bins=True,
+):
     """Decodes binned spike trains using a ratemap with shape (n_units, ext_nx, ext_ny)
 
     TODO: complete docstring
@@ -369,11 +425,11 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
         n_units = len(obs)
         out = np.zeros((n_units, nx, ny))
         for unit in range(n_units):
-            out[unit,:,:] = obs[unit]
+            out[unit, :, :] = obs[unit]
         return out
 
     if w is None:
-        w=1
+        w = 1
     assert float(w).is_integer(), "w must be a positive integer!"
     assert w > 0, "w must be a positive integer!"
 
@@ -400,23 +456,26 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
     elif isinstance(nospk_prior, numbers.Number):
         nospk_prior = np.full((n_xbins, n_ybins), 1.0)
 
-    assert nospk_prior.shape == (n_xbins, n_ybins), "prior must have shape ({}, {})".format(n_xbins, n_ybins)
+    assert nospk_prior.shape == (
+        n_xbins,
+        n_ybins,
+    ), "prior must have shape ({}, {})".format(n_xbins, n_ybins)
 
     lfx = np.log(ratemap)
 
-    eterm = -ratemap.sum(axis=0)*bst.ds*w
+    eterm = -ratemap.sum(axis=0) * bst.ds * w
 
     # if we decode using multiple bins at a time (w>1) then we have to decode each epoch separately:
 
     # first, we determine the number of bins we will decode. This requires us to scan over the epochs
     n_tbins = 0
     cumlengths = np.cumsum(bst.lengths)
-    posterior_lengths = np.zeros(bst.n_epochs, dtype=np.int)
+    posterior_lengths = np.zeros(bst.n_epochs, dtype=int)
     prev_idx = 0
     for ii, to_idx in enumerate(cumlengths):
         datalen = to_idx - prev_idx
         prev_idx = to_idx
-        posterior_lengths[ii] = np.max((1,datalen - w + 1))
+        posterior_lengths[ii] = np.max((1, datalen - w + 1))
 
     n_tbins = posterior_lengths.sum()
 
@@ -424,42 +483,48 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
     posterior = np.zeros((n_xbins, n_ybins, n_tbins))
 
     # next, we decode each epoch separately, one bin at a time
-    cum_posterior_lengths = np.insert(np.cumsum(posterior_lengths),0,0)
+    cum_posterior_lengths = np.insert(np.cumsum(posterior_lengths), 0, 0)
     prev_idx = 0
     for ii, to_idx in enumerate(cumlengths):
-        data = bst.data[:,prev_idx:to_idx]
+        data = bst.data[:, prev_idx:to_idx]
         prev_idx = to_idx
-        datacum = np.cumsum(data, axis=1) # ii'th data segment, with column of zeros prepended
-        datacum = np.hstack((np.zeros((n_units,1)), datacum))
-        re = w # right edge ptr
+        datacum = np.cumsum(
+            data, axis=1
+        )  # ii'th data segment, with column of zeros prepended
+        datacum = np.hstack((np.zeros((n_units, 1)), datacum))
+        re = w  # right edge ptr
         # TODO: check if datalen < w and act appropriately
-        if posterior_lengths[ii] > 1: # more than one full window fits into data length
+        if posterior_lengths[ii] > 1:  # more than one full window fits into data length
             for tt in range(posterior_lengths[ii]):
-                obs = datacum[:, re] - datacum[:, re-w] # spikes in window of size w
-                re+=1
+                obs = datacum[:, re] - datacum[:, re - w]  # spikes in window of size w
+                re += 1
                 post_idx = cum_posterior_lengths[ii] + tt
                 if obs.sum() == 0 and not _skip_empty_bins:
                     # no spikes to decode in window!
-                    posterior[:,:,post_idx] = nospk_prior
+                    posterior[:, :, post_idx] = nospk_prior
                 else:
-                    posterior[:,:,post_idx] = (tile_obs(obs, n_xbins, n_ybins) * lfx).sum(axis=0) + eterm
-        else: # only one window can fit in, and perhaps only partially. We just take all the data we can get,
-              # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
+                    posterior[:, :, post_idx] = (
+                        tile_obs(obs, n_xbins, n_ybins) * lfx
+                    ).sum(axis=0) + eterm
+        else:  # only one window can fit in, and perhaps only partially. We just take all the data we can get,
+            # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
             post_idx = cum_posterior_lengths[ii]
-            obs = datacum[:, -1] # spikes in window of size at most w
+            obs = datacum[:, -1]  # spikes in window of size at most w
             if obs.sum() == 0 and not _skip_empty_bins:
                 # no spikes to decode in window!
-                posterior[:,:,post_idx] = nospk_prior
+                posterior[:, :, post_idx] = nospk_prior
             else:
-                posterior[:,:,post_idx] = (tile_obs(obs, n_xbins, n_ybins) * lfx).sum(axis=0) + eterm
+                posterior[:, :, post_idx] = (tile_obs(obs, n_xbins, n_ybins) * lfx).sum(
+                    axis=0
+                ) + eterm
 
     # normalize posterior:
     # see http://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
 
     for tt in range(n_tbins):
-        posterior[:,:,tt] = posterior[:,:,tt] - posterior[:,:,tt].max()
-        posterior[:,:,tt] = np.exp(posterior[:,:,tt])
-        posterior[:,:,tt] = posterior[:,:,tt] / posterior[:,:,tt].sum()
+        posterior[:, :, tt] = posterior[:, :, tt] - posterior[:, :, tt].max()
+        posterior[:, :, tt] = np.exp(posterior[:, :, tt])
+        posterior[:, :, tt] = posterior[:, :, tt] / posterior[:, :, tt].sum()
 
     # if xbins is None:
     #     _, bins = np.histogram([], bins=n_xbins, range=(xmin,xmax))
@@ -470,21 +535,24 @@ def decode2D(bst, ratemap, xmin=0, xmax=100, ymin=0, ymax=100, w=1, nospk_prior=
 
     mode_pth = np.zeros((2, n_tbins))
     for tt in range(n_tbins):
-        if np.any(np.isnan(posterior[:,:,tt])):
-            mode_pth[0,tt] = np.nan
-            mode_pth[0,tt] = np.nan
+        if np.any(np.isnan(posterior[:, :, tt])):
+            mode_pth[0, tt] = np.nan
+            mode_pth[0, tt] = np.nan
         else:
-            x_, y_ = np.unravel_index(np.argmax(posterior[:,:,tt]), (n_xbins, n_ybins))
-            mode_pth[0,tt] = xbins[x_]
-            mode_pth[1,tt] = ybins[y_]
+            x_, y_ = np.unravel_index(
+                np.argmax(posterior[:, :, tt]), (n_xbins, n_ybins)
+            )
+            mode_pth[0, tt] = xbins[x_]
+            mode_pth[1, tt] = ybins[y_]
 
     expected_x = (xbin_centers * posterior.sum(axis=1).T).sum(axis=1)
     expected_y = (ybin_centers * posterior.sum(axis=0).T).sum(axis=1)
     mean_pth = np.vstack((expected_x, expected_y))
 
-    posterior = np.transpose(posterior, axes=[1,0,2])
+    posterior = np.transpose(posterior, axes=[1, 0, 2])
 
     return posterior, cum_posterior_lengths, mode_pth, mean_pth
+
 
 def k_fold_cross_validation(X, k=None, randomize=False):
     """
@@ -523,13 +591,14 @@ def k_fold_cross_validation(X, k=None, randomize=False):
         X = range(X)
     n_samples = len(X)
     if k is None:
-        k=5
-    elif k=='loo' or k=='LOO':
-        k=n_samples
+        k = 5
+    elif k == "loo" or k == "LOO":
+        k = n_samples
 
     if randomize:
         from random import shuffle
-        X=list(X)
+
+        X = list(X)
         shuffle(X)
     for _k_ in range(k):
         training = [x for i, x in enumerate(X) if i % k != _k_]
@@ -539,7 +608,6 @@ def k_fold_cross_validation(X, k=None, randomize=False):
         except StopIteration:
             return
 
-from scipy import interpolate
 
 class Cumhist(np.ndarray):
 
@@ -550,10 +618,9 @@ class Cumhist(np.ndarray):
 
     def __call__(self, *val):
 
-        f = interpolate.interp1d(x=self,
-                                 y=self._bincenters,
-                                 kind='linear',
-                                 fill_value=np.NaN)
+        f = interpolate.interp1d(
+            x=self, y=self._bincenters, kind="linear", fill_value=np.NaN
+        )
         try:
             vals = np.asscalar(f(*val))
         except ValueError:
@@ -561,7 +628,21 @@ class Cumhist(np.ndarray):
 
         return vals
 
-def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D, k=5, transfunc=None, n_extern=100, extmin=0, extmax=100, sigma=3, n_bins=None, randomize=False):
+
+def cumulative_dist_decoding_error_using_xval(
+    bst,
+    extern,
+    *,
+    decodefunc=decode1D,
+    k=5,
+    transfunc=None,
+    n_extern=100,
+    extmin=0,
+    extmax=100,
+    sigma=3,
+    n_bins=None,
+    randomize=False
+):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
     procedure.
@@ -611,22 +692,33 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
     # indices of training and validation epochs / events
 
     hist = np.zeros(n_bins)
-    for training, validation in k_fold_cross_validation(bst.n_epochs, k=k, randomize=randomize):
+    for training, validation in k_fold_cross_validation(
+        bst.n_epochs, k=k, randomize=randomize
+    ):
         # estimate place fields using bst[training]
-        tc = auxiliary.TuningCurve1D(bst=bst[training], extern=extern, n_extern=n_extern, extmin=extmin, extmax=extmax, sigma=sigma)
+        tc = auxiliary.TuningCurve1D(
+            bst=bst[training],
+            extern=extern,
+            n_extern=n_extern,
+            extmin=extmin,
+            extmax=extmax,
+            sigma=sigma,
+        )
         # decode position using bst[validation]
         posterior, _, mode_pth, mean_pth = decodefunc(bst[validation], tc)
         # calculate validation error (for current fold) by comapring
         # decoded pos v target pos
         target = transfunc(extern, at=bst[validation].bin_centers)
 
-        histnew, bins = np.histogram(np.abs(target - mean_pth), bins=n_bins, range=(0, max_error))
+        histnew, bins = np.histogram(
+            np.abs(target - mean_pth), bins=n_bins, range=(0, max_error)
+        )
         hist = hist + histnew
 
     # build cumulative error distribution
     cumhist = np.cumsum(hist)
     cumhist = cumhist / cumhist[-1]
-    bincenters = (bins + (bins[1] - bins[0])/2)[:-1]
+    bincenters = (bins + (bins[1] - bins[0]) / 2)[:-1]
 
     # modify to start at (0,0):
     cumhist = np.insert(cumhist, 0, 0)
@@ -639,9 +731,10 @@ def cumulative_dist_decoding_error_using_xval(bst, extern,*, decodefunc=decode1D
     cumhist = Cumhist(cumhist, bincenters)
     return cumhist, bincenters
 
-def cumulative_dist_decoding_error(bst, *, tuningcurve, extern,
-                                   decodefunc=decode1D, transfunc=None,
-                                   n_bins=None):
+
+def cumulative_dist_decoding_error(
+    bst, *, tuningcurve, extern, decodefunc=decode1D, transfunc=None, n_bins=None
+):
     """Cumulative distribution of decoding errors during epochs in
     BinnedSpikeTrainArray using a fixed TuningCurve.
 
@@ -685,14 +778,13 @@ def cumulative_dist_decoding_error(bst, *, tuningcurve, extern,
     posterior, _, mode_pth, mean_pth = decodefunc(bst=bst, ratemap=tuningcurve)
     target = transfunc(extern, at=bst.bin_centers)
     hist, bins = np.histogram(
-        np.abs(target - mean_pth),
-        bins=n_bins,
-        range=(0, max_error))
+        np.abs(target - mean_pth), bins=n_bins, range=(0, max_error)
+    )
 
     # build cumulative error distribution
     cumhist = np.cumsum(hist)
     cumhist = cumhist / cumhist[-1]
-    bincenters = (bins + (bins[1] - bins[0])/2)[:-1]
+    bincenters = (bins + (bins[1] - bins[0]) / 2)[:-1]
 
     # modify to start at (0,0):
     cumhist = np.insert(cumhist, 0, 0)
@@ -705,6 +797,7 @@ def cumulative_dist_decoding_error(bst, *, tuningcurve, extern,
     cumhist = Cumhist(cumhist, bincenters)
 
     return cumhist, bincenters
+
 
 def rmse(predictions, targets):
     """Calculate the root mean squared error of an array of predictions.
@@ -790,11 +883,15 @@ class BayesianDecoder(object):
 
     def predict_proba_bst(self, X, sigma=0, w=1):
         if isinstance(X, core.BinnedEventArray):
-            posteriors, bdries, mode_pth, mean_pth = decode1D(X, self.tuningcurve.smooth(sigma=sigma), w=w)
+            posteriors, bdries, mode_pth, mean_pth = decode1D(
+                X, self.tuningcurve.smooth(sigma=sigma), w=w
+            )
 
             m, n = posteriors.shape
 
-            bins, bin_centers, binned_support, support = utils._bst_get_bins(X.support, ds=X.ds, w=w)
+            bins, bin_centers, binned_support, support = utils._bst_get_bins(
+                X.support, ds=X.ds, w=w
+            )
             bst = core.BinnedSpikeTrainArray(empty=True)
             bst._binned_support = binned_support
             bst._bins = bins
@@ -804,7 +901,7 @@ class BayesianDecoder(object):
             bst._bin_centers = bin_centers
             bst.loc = ItemGetter_loc(bst)
             bst.iloc = ItemGetter_iloc(bst)
-            bst._ds = X.ds # funksie van bst.ds en w ?
+            bst._ds = X.ds  # funksie van bst.ds en w ?
             bst.series_ids = np.array(list(range(1, m + 1)), ndmin=1)
             bst.series_labels = np.array(list(range(1, m + 1)), ndmin=1)
             bst._series_tags = None

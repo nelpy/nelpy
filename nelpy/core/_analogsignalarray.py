@@ -6,31 +6,28 @@ RegularlySampledAnalogSignalArray
 Core object definition and implementation for RegularlySampledAnalogSignalArray.
 """
 
-__all__ = ['RegularlySampledAnalogSignalArray',
-           'AnalogSignalArray',
-           'PositionArray', # Trajectory?
-           'IMUSensorArray',
-           'MinimalExampleArray']
+__all__ = [
+    "RegularlySampledAnalogSignalArray",
+    "AnalogSignalArray",
+    "PositionArray",  # Trajectory?
+    "IMUSensorArray",
+    "MinimalExampleArray",
+]
 
-import logging
-import numpy as np
 import copy
+import logging
 import numbers
-
-from sys import float_info
+from collections import namedtuple
 from functools import wraps
+from sys import float_info
+
+import numpy as np
 from scipy import interpolate
 from scipy.stats import zscore
-from sys import float_info
-from collections import namedtuple
 
-from .. import core
-from .. import filtering
-from .. import auxiliary
-from .. import utils
-from .. import version
-
+from .. import core, filtering, utils, version
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
+
 
 class IntervalSignalSlicer(object):
     def __init__(self, obj):
@@ -46,9 +43,12 @@ class IntervalSignalSlicer(object):
             intervalslice = args[0]
         else:
             try:
-                slices = np.s_[args]; slices = slices[0]
+                slices = np.s_[args]
+                slices = slices[0]
                 if len(slices) > 2:
-                    raise IndexError("only [intervals, signal] slicing is supported at this time!")
+                    raise IndexError(
+                        "only [intervals, signal] slicing is supported at this time!"
+                    )
                 elif len(slices) == 2:
                     intervalslice, signalslice = slices
                 else:
@@ -59,6 +59,7 @@ class IntervalSignalSlicer(object):
 
         return intervalslice, signalslice
 
+
 class DataSlicer(object):
 
     def __init__(self, parent):
@@ -67,7 +68,7 @@ class DataSlicer(object):
     def _data_generator(self, interval_indices, signalslice):
         for start, stop in interval_indices:
             try:
-                yield self._parent._data[signalslice, start: stop]
+                yield self._parent._data[signalslice, start:stop]
             except StopIteration:
                 return
 
@@ -79,7 +80,7 @@ class DataSlicer(object):
 
         if len(interval_indices) < 2:
             start, stop = interval_indices[0]
-            return self._parent._data[signalslice, start: stop]
+            return self._parent._data[signalslice, start:stop]
         else:
             return self._data_generator(interval_indices, signalslice)
 
@@ -87,7 +88,7 @@ class DataSlicer(object):
         interval_indices = self._parent._data_interval_indices()
         for start, stop in interval_indices:
             try:
-                yield self._parent._data[:, start: stop]
+                yield self._parent._data[:, start:stop]
             except StopIteration:
                 return
 
@@ -105,9 +106,10 @@ class DataSlicer(object):
         interval_indices = interval_indices[index]
         start, stop = interval_indices
 
-        self._index +=1
+        self._index += 1
 
-        return self._parent._data[:, start: stop]
+        return self._parent._data[:, start:stop]
+
 
 class AbscissaSlicer(object):
 
@@ -117,7 +119,7 @@ class AbscissaSlicer(object):
     def _abscissa_vals_generator(self, interval_indices):
         for start, stop in interval_indices:
             try:
-                yield self._parent._abscissa_vals[start: stop]
+                yield self._parent._abscissa_vals[start:stop]
             except StopIteration:
                 return
 
@@ -129,7 +131,7 @@ class AbscissaSlicer(object):
 
         if len(interval_indices) < 2:
             start, stop = interval_indices[0]
-            return self._parent._abscissa_vals[start: stop]
+            return self._parent._abscissa_vals[start:stop]
         else:
             return self._abscissa_vals_generator(interval_indices)
 
@@ -137,7 +139,7 @@ class AbscissaSlicer(object):
         interval_indices = self._parent._data_interval_indices()
         for start, stop in interval_indices:
             try:
-                yield self._parent._abscissa_vals[start: stop]
+                yield self._parent._abscissa_vals[start:stop]
             except StopIteration:
                 return
 
@@ -155,9 +157,10 @@ class AbscissaSlicer(object):
         interval_indices = interval_indices[index]
         start, stop = interval_indices
 
-        self._index +=1
+        self._index += 1
 
-        return self._parent._abscissa_vals[start: stop]
+        return self._parent._abscissa_vals[start:stop]
+
 
 def rsasa_init_wrapper(func):
     """Decorator that helps figure out abscissa_vals, fs, and sample numbers"""
@@ -165,61 +168,68 @@ def rsasa_init_wrapper(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
 
-        if kwargs.get('empty', False):
+        if kwargs.get("empty", False):
             func(*args, **kwargs)
             return
 
         if len(args) > 2:
-            raise TypeError("__init__() takes 1 positional arguments but {} positional arguments (and {} keyword-only arguments) were given".format(len(args)-1, len(kwargs.items())))
+            raise TypeError(
+                "__init__() takes 1 positional arguments but {} positional arguments (and {} keyword-only arguments) were given".format(
+                    len(args) - 1, len(kwargs.items())
+                )
+            )
 
-        data = kwargs.get('data', [])
-        if data == []:
+        data = kwargs.get("data", [])
+        if len(data) == 0:
             data = args[1]
 
-        if data == []:
-            logging.warning('No ordinate data! Returning empty RegularlySampledAnalogSignalArray.')
+        if len(data) == 0:
+            logging.warning(
+                "No ordinate data! Returning empty RegularlySampledAnalogSignalArray."
+            )
             func(*args, **kwargs)
             return
 
         # handle casting other nelpy objects to RegularlySampledAnalogSignalArrays:
         if isinstance(data, core.BinnedEventArray):
             abscissa_vals = data.bin_centers
-            kwargs['abscissa_vals'] = abscissa_vals
+            kwargs["abscissa_vals"] = abscissa_vals
             # support = data.support
             # kwargs['support'] = support
             abscissa = data._abscissa
-            kwargs['abscissa'] = abscissa
-            fs = 1/data.ds
-            kwargs['fs'] = fs
+            kwargs["abscissa"] = abscissa
+            fs = 1 / data.ds
+            kwargs["fs"] = fs
             if list(data.series_labels):
                 labels = data.series_labels
             else:
                 labels = data.series_ids
-            kwargs['labels'] = labels
+            kwargs["labels"] = labels
             data = data.data.astype(float)
         # elif isinstance(data, auxiliary.PositionArray):
         elif isinstance(data, RegularlySampledAnalogSignalArray):
-            kwargs['data'] = data
+            kwargs["data"] = data
             func(args[0], **kwargs)
             return
 
-        #check if single AnalogSignal or multiple AnalogSignals in array
-        #and standardize data to 2D
-        if not np.any(np.iscomplex(data)):
-            data = np.squeeze(data).astype(float)
+        # check if single AnalogSignal or multiple AnalogSignals in array
+        # and standardize data to 2D
+        if not isinstance(data, np.memmap):  # memmap is a special case
+            if not np.any(np.iscomplex(data)):
+                data = np.squeeze(data)
         try:
-            if(data.shape[0] == data.size):
-                data = np.array(data,ndmin=2)
+            if data.shape[0] == data.size:
+                data = np.expand_dims(data, axis=0)
         except ValueError:
             raise TypeError("Unsupported data type!")
 
         re_estimate_fs = False
         no_fs = True
-        fs = kwargs.get('fs', None)
+        fs = kwargs.get("fs", None)
         if fs is not None:
             no_fs = False
             try:
-                if(fs <= 0):
+                if fs <= 0:
                     raise ValueError("fs must be positive")
             except TypeError:
                 raise TypeError("fs must be a scalar!")
@@ -227,33 +237,40 @@ def rsasa_init_wrapper(func):
             fs = 1
             re_estimate_fs = True
 
-        tdata = kwargs.get('tdata', None)
+        tdata = kwargs.get("tdata", None)
         if tdata is not None:
-            logging.warning("'tdata' has been deprecated! Use 'abscissa_vals' instead. 'tdata' will be interpreted as 'abscissa_vals' in seconds.")
+            logging.warning(
+                "'tdata' has been deprecated! Use 'abscissa_vals' instead. 'tdata' will be interpreted as 'abscissa_vals' in seconds."
+            )
             abscissa_vals = tdata
         else:
-            abscissa_vals = kwargs.get('abscissa_vals', None)
+            abscissa_vals = kwargs.get("abscissa_vals", None)
         if abscissa_vals is None:
-            abscissa_vals = np.linspace(0, data.shape[1]/fs, data.shape[1]+1)
+            abscissa_vals = np.linspace(0, data.shape[1] / fs, data.shape[1] + 1)
             abscissa_vals = abscissa_vals[:-1]
         else:
             if re_estimate_fs:
-                logging.warning('fs was not specified, so we try to estimate it from the data...')
-                fs = 1.0/np.median(np.diff(abscissa_vals))
-                logging.warning('fs was estimated to be {} Hz'.format(fs))
+                logging.warning(
+                    "fs was not specified, so we try to estimate it from the data..."
+                )
+                fs = 1.0 / np.median(np.diff(abscissa_vals))
+                logging.warning("fs was estimated to be {} Hz".format(fs))
             else:
                 if no_fs:
-                    logging.warning('fs was not specified, so we will assume default of 1 Hz...')
+                    logging.warning(
+                        "fs was not specified, so we will assume default of 1 Hz..."
+                    )
                     fs = 1
 
-        kwargs['fs'] = fs
-        kwargs['data'] = data
-        kwargs['abscissa_vals'] = np.squeeze(abscissa_vals)
+        kwargs["fs"] = fs
+        kwargs["data"] = data
+        kwargs["abscissa_vals"] = np.squeeze(abscissa_vals)
 
         func(args[0], **kwargs)
         return
 
     return wrapper
+
 
 ########################################################################
 # class RegularlySampledAnalogSignalArray
@@ -377,16 +394,35 @@ class RegularlySampledAnalogSignalArray:
     n_samples : int
         The number of abscissa values in the RSASA.
     """
+
     __aliases__ = {}
 
-    __attributes__ = ['_data','_abscissa_vals', '_fs', '_support', \
-                      '_interp', '_step', '_labels']
+    __attributes__ = [
+        "_data",
+        "_abscissa_vals",
+        "_fs",
+        "_support",
+        "_interp",
+        "_step",
+        "_labels",
+    ]
 
     @rsasa_init_wrapper
-    def __init__(self, data=[], *, abscissa_vals=None, fs=None,
-                 step=None, merge_sample_gap=0, support=None,
-                 in_core=True, labels=None, empty=False,
-                 abscissa=None, ordinate=None):
+    def __init__(
+        self,
+        data=[],
+        *,
+        abscissa_vals=None,
+        fs=None,
+        step=None,
+        merge_sample_gap=0,
+        support=None,
+        in_core=True,
+        labels=None,
+        empty=False,
+        abscissa=None,
+        ordinate=None
+    ):
 
         self._intervalsignalslicer = IntervalSignalSlicer(self)
         self._intervaldata = DataSlicer(self)
@@ -394,9 +430,9 @@ class RegularlySampledAnalogSignalArray:
 
         self.type_name = self.__class__.__name__
         if abscissa is None:
-            abscissa = core.Abscissa() #TODO: integrate into constructor?
+            abscissa = core.Abscissa()  # TODO: integrate into constructor?
         if ordinate is None:
-            ordinate = core.Ordinate() #TODO: integrate into constructor?
+            ordinate = core.Ordinate()  # TODO: integrate into constructor?
 
         self._abscissa = abscissa
         self._ordinate = ordinate
@@ -410,11 +446,11 @@ class RegularlySampledAnalogSignalArray:
         if isinstance(data, RegularlySampledAnalogSignalArray):
             self.__dict__ = copy.deepcopy(data.__dict__)
             # if self._has_changed:
-                # self.__renew__()
+            # self.__renew__()
             self.__renew__()
             return
 
-        if (empty):
+        if empty:
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
             self._abscissa.support = type(self._abscissa.support)(empty=True)
@@ -434,7 +470,9 @@ class RegularlySampledAnalogSignalArray:
                 self.__init__(empty=True)
                 return
         except TypeError:
-            logging.warning("unsupported type; creating empty RegularlySampledAnalogSignalArray")
+            logging.warning(
+                "unsupported type; creating empty RegularlySampledAnalogSignalArray"
+            )
             self.__init__(empty=True)
             return
 
@@ -442,15 +480,18 @@ class RegularlySampledAnalogSignalArray:
         # match, then TypeError!
 
         abscissa_vals = np.squeeze(abscissa_vals).astype(float)
-        if(abscissa_vals.shape[0] != data.shape[1]):
+        if abscissa_vals.shape[0] != data.shape[1]:
             # self.__init__([],empty=True)
-            raise TypeError("abscissa_vals and data size mismatch! Note: data "
-                            "is expected to have rows containing signals")
-        #data is not sorted and user wants it to be
+            raise TypeError(
+                "abscissa_vals and data size mismatch! Note: data "
+                "is expected to have rows containing signals"
+            )
+        # data is not sorted and user wants it to be
         # TODO: use faster is_sort from jagular
         if not utils.is_sorted(abscissa_vals):
-            logging.warning("Data is _not_ sorted! Data will be sorted "\
-                            "automatically.")
+            logging.warning(
+                "Data is _not_ sorted! Data will be sorted " "automatically."
+            )
             ind = np.argsort(abscissa_vals)
             abscissa_vals = abscissa_vals[ind]
             data = np.take(a=data, indices=ind, axis=-1)
@@ -458,18 +499,21 @@ class RegularlySampledAnalogSignalArray:
         self._data = data
         self._abscissa_vals = abscissa_vals
 
-        #handle labels
+        # handle labels
         if labels is not None:
-            labels = np.asarray(labels,dtype=np.str)
-            #label size doesn't match
+            labels = np.asarray(labels, dtype=str)
+            # label size doesn't match
             if labels.shape[0] > data.shape[0]:
-                logging.warning("More labels than data! Labels are truncated to "
-                              "size of data")
-                labels = labels[0:data.shape[0]]
+                logging.warning(
+                    "More labels than data! Labels are truncated to " "size of data"
+                )
+                labels = labels[0 : data.shape[0]]
             elif labels.shape[0] < data.shape[0]:
-                logging.warning("Fewer labels than abscissa_vals! Labels are filled with "
-                              "None to match data shape")
-                for i in range(labels.shape[0],data.shape[0]):
+                logging.warning(
+                    "Fewer labels than abscissa_vals! Labels are filled with "
+                    "None to match data shape"
+                )
+                for i in range(labels.shape[0], data.shape[0]):
                     labels.append(None)
         self._labels = labels
 
@@ -477,18 +521,20 @@ class RegularlySampledAnalogSignalArray:
         if support is not None:
             self._restrict_to_interval_array_fast(intervalarray=support)
         else:
-            logging.warning("creating support from abscissa_vals and "
-                            "sampling rate, fs!")
-            self._abscissa.support =type(self._abscissa.support)(
+            logging.warning(
+                "creating support from abscissa_vals and " "sampling rate, fs!"
+            )
+            self._abscissa.support = type(self._abscissa.support)(
                 utils.get_contiguous_segments(
-                    self._abscissa_vals,
-                    step=self._step,
-                    fs=fs,
-                    in_core=in_core))
+                    self._abscissa_vals, step=self._step, fs=fs, in_core=in_core
+                )
+            )
             if merge_sample_gap > 0:
-                self._abscissa.support = self._abscissa.support.merge(gap=merge_sample_gap)
+                self._abscissa.support = self._abscissa.support.merge(
+                    gap=merge_sample_gap
+                )
 
-        if np.abs((self.fs - self._estimate_fs())/self.fs) > 0.01:
+        if np.abs((self.fs - self._estimate_fs()) / self.fs) > 0.01:
             logging.warning("estimated fs and provided fs differ by more than 1%")
 
     def __bake__(self):
@@ -551,7 +597,7 @@ class RegularlySampledAnalogSignalArray:
         else:
             out = self.copy()
         std = np.atleast_1d(out.std())
-        std[std==0] = 1
+        std[std == 0] = 1
         out._data = (out._data.T / std).T
         return out
 
@@ -563,7 +609,7 @@ class RegularlySampledAnalogSignalArray:
             out = self.copy()
         out._data = (out._data.T - out.mean()).T
         std = np.atleast_1d(out.std())
-        std[std==0] = 1
+        std[std == 0] = 1
         out._data = (out._data.T / std).T
         return out
 
@@ -576,7 +622,9 @@ class RegularlySampledAnalogSignalArray:
 
     @property
     def is_wrapped(self):
-        if np.any(self.max() > self._ordinate.range.stop) | np.any(self.min() < self._ordinate.range.min):
+        if np.any(self.max() > self._ordinate.range.stop) | np.any(
+            self.min() < self._ordinate.range.min
+        ):
             self._ordinate._is_wrapped = False
         else:
             self._ordinate._is_wrapped = True
@@ -591,8 +639,8 @@ class RegularlySampledAnalogSignalArray:
     def _wrap(self, arr, vmin, vmax):
         """Wrap array within finite range."""
         if np.isinf(vmax - vmin):
-            raise ValueError('range has to be finite!')
-        return ((arr - vmin) % (vmax-vmin)) + vmin
+            raise ValueError("range has to be finite!")
+        return ((arr - vmin) % (vmax - vmin)) + vmin
 
     def wrap(self, inplace=False):
         """Wrap oridnate within finite range."""
@@ -601,22 +649,24 @@ class RegularlySampledAnalogSignalArray:
         else:
             out = self.copy()
 
-        out.data = np.atleast_2d(out._wrap(out.data, out._ordinate.range.min, out._ordinate.range.max ))
+        out.data = np.atleast_2d(
+            out._wrap(out.data, out._ordinate.range.min, out._ordinate.range.max)
+        )
         # out._is_wrapped = True
         return out
 
     def _unwrap(self, arr, vmin, vmax):
         """Unwrap 2D array (with one signal per row) by minimizing total displacement."""
         d = vmax - vmin
-        dh = d/2
+        dh = d / 2
 
         lin = copy.deepcopy(arr) - vmin
         n_signals, n_samples = arr.shape
         for ii in range(1, n_samples):
-            h1 = lin[:,ii] - lin[:,ii-1] >= dh
-            lin[h1,ii:] = lin[h1,ii:] - d
-            h2 = lin[:,ii] - lin[:,ii-1] < - dh
-            lin[h2,ii:] = lin[h2,ii:] + d
+            h1 = lin[:, ii] - lin[:, ii - 1] >= dh
+            lin[h1, ii:] = lin[h1, ii:] - d
+            h2 = lin[:, ii] - lin[:, ii - 1] < -dh
+            lin[h2, ii:] = lin[h2, ii:] + d
         return np.atleast_2d(lin + vmin)
 
     def unwrap(self, inplace=False):
@@ -626,7 +676,9 @@ class RegularlySampledAnalogSignalArray:
         else:
             out = self.copy()
 
-        out.data = np.atleast_2d(out._unwrap(out._data, out._ordinate.range.min, out._ordinate.range.max))
+        out.data = np.atleast_2d(
+            out._unwrap(out._data, out._ordinate.range.min, out._ordinate.range.max)
+        )
         # out._is_wrapped = False
         return out
 
@@ -647,7 +699,7 @@ class RegularlySampledAnalogSignalArray:
         """Docstring goes here.
         We use this to get the indices of samples / abscissa_vals within intervals
         """
-        tmp = np.insert(np.cumsum(self.lengths),0,0)
+        tmp = np.insert(np.cumsum(self.lengths), 0, 0)
         indices = np.vstack((tmp[:-1], tmp[1:])).T
         return indices
 
@@ -693,7 +745,7 @@ class RegularlySampledAnalogSignalArray:
         """
         signals = []
         for ii in range(self.n_signals):
-            signals.append(self[:,ii])
+            signals.append(self[:, ii])
         return signals
         # return np.asanyarray(signals).squeeze()
 
@@ -748,7 +800,11 @@ class RegularlySampledAnalogSignalArray:
             newasa._data = (self.data.T * other).T
             return newasa
         else:
-            raise TypeError("unsupported operand type(s) for *: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for *: 'RegularlySampledAnalogSignalArray' and '{}'".format(
+                    str(type(other))
+                )
+            )
 
     def __add__(self, other):
         """overloaded + operator."""
@@ -761,7 +817,11 @@ class RegularlySampledAnalogSignalArray:
             newasa._data = (self.data.T + other).T
             return newasa
         else:
-            raise TypeError("unsupported operand type(s) for +: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for +: 'RegularlySampledAnalogSignalArray' and '{}'".format(
+                    str(type(other))
+                )
+            )
 
     def __sub__(self, other):
         """overloaded - operator."""
@@ -774,7 +834,11 @@ class RegularlySampledAnalogSignalArray:
             newasa._data = (self.data.T - other).T
             return newasa
         else:
-            raise TypeError("unsupported operand type(s) for -: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for -: 'RegularlySampledAnalogSignalArray' and '{}'".format(
+                    str(type(other))
+                )
+            )
 
     def zscore(self):
         """Returns an object where each signal has been normalized using z scores."""
@@ -796,7 +860,11 @@ class RegularlySampledAnalogSignalArray:
             newasa._data = (self.data.T / other).T
             return newasa
         else:
-            raise TypeError("unsupported operand type(s) for /: 'RegularlySampledAnalogSignalArray' and '{}'".format(str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for /: 'RegularlySampledAnalogSignalArray' and '{}'".format(
+                    str(type(other))
+                )
+            )
 
     def __lshift__(self, val):
         """shift abscissa and support to left (<<)"""
@@ -806,7 +874,11 @@ class RegularlySampledAnalogSignalArray:
             new._abscissa.support = new._abscissa.support << val
             return new
         else:
-            raise TypeError("unsupported operand type(s) for <<: {} and {}".format(str(type(self)), str(type(val))))
+            raise TypeError(
+                "unsupported operand type(s) for <<: {} and {}".format(
+                    str(type(self)), str(type(val))
+                )
+            )
 
     def __rshift__(self, val):
         """shift abscissa and support to right (>>)"""
@@ -816,7 +888,11 @@ class RegularlySampledAnalogSignalArray:
             new._abscissa.support = new._abscissa.support >> val
             return new
         else:
-            raise TypeError("unsupported operand type(s) for >>: {} and {}".format(str(type(self)), str(type(val))))
+            raise TypeError(
+                "unsupported operand type(s) for >>: {} and {}".format(
+                    str(type(self)), str(type(val))
+                )
+            )
 
     def __len__(self):
         return self.n_intervals
@@ -831,7 +907,7 @@ class RegularlySampledAnalogSignalArray:
         """Estimate the sampling rate of the data."""
         if abscissa_vals is None:
             abscissa_vals = self._abscissa_vals
-        return 1.0/np.median(np.diff(abscissa_vals))
+        return 1.0 / np.median(np.diff(abscissa_vals))
 
     def downsample(self, *, fs_out, aafilter=True, inplace=False, **kwargs):
         """Downsamples the RegularlySampledAnalogSignalArray
@@ -859,10 +935,10 @@ class RegularlySampledAnalogSignalArray:
             raise ValueError("fs_out must be less than current sampling rate!")
 
         if aafilter:
-            fh = fs_out/2.0
+            fh = fs_out / 2.0
             out = filtering.sosfiltfilt(self, fl=None, fh=fh, inplace=inplace, **kwargs)
 
-        downsampled = out.simplify(ds=1/fs_out)
+        downsampled = out.simplify(ds=1 / fs_out)
         out._data = downsampled._data
         out._abscissa_vals = downsampled._abscissa_vals
         out._fs = fs_out
@@ -881,13 +957,15 @@ class RegularlySampledAnalogSignalArray:
         signal = np.squeeze(signal)
         if signal.ndim > 1:
             raise TypeError("Can only add one signal at a time!")
-        if self.data.ndim==1:
-            self._data = np.vstack([np.array(self.data, ndmin=2), np.array(signal, ndmin=2)])
+        if self.data.ndim == 1:
+            self._data = np.vstack(
+                [np.array(self.data, ndmin=2), np.array(signal, ndmin=2)]
+            )
         else:
             self._data = np.vstack([self.data, np.array(signal, ndmin=2)])
-        if label == None:
+        if label is None:
             logging.warning("None label appended")
-        self._labels = np.append(self._labels,label)
+        self._labels = np.append(self._labels, label)
         return self
 
     def _restrict_to_interval_array_fast(self, *, intervalarray=None, update=True):
@@ -897,26 +975,26 @@ class RegularlySampledAnalogSignalArray:
         Parameters
         ----------
         intervalarray : IntervalArray, optional
-        	IntervalArray on which to restrict AnalogSignal. Default is
-        	self._abscissa.support
+                IntervalArray on which to restrict AnalogSignal. Default is
+                self._abscissa.support
         update : bool, optional
-        	Overwrite self._abscissa.support with intervalarray if True (default).
+                Overwrite self._abscissa.support with intervalarray if True (default).
         """
         if intervalarray is None:
             intervalarray = self._abscissa.support
-            update = False # support did not change; no need to update
+            update = False  # support did not change; no need to update
 
         try:
             if intervalarray.isempty:
                 logging.warning("Support specified is empty")
                 # self.__init__([],empty=True)
-                exclude = ['_support','_data','_fs','_step']
+                exclude = ["_support", "_data", "_fs", "_step"]
                 attrs = (x for x in self.__attributes__ if x not in exclude)
                 logging.disable(logging.CRITICAL)
                 for attr in attrs:
                     exec("self." + attr + " = None")
                 logging.disable(0)
-                self._data = np.zeros([0,self.data.shape[0]])
+                self._data = np.zeros([0, self.data.shape[0]])
                 self._data[:] = np.nan
                 self._abscissa.support = intervalarray
                 return
@@ -927,19 +1005,25 @@ class RegularlySampledAnalogSignalArray:
         for interval in intervalarray.merge().data:
             a_start = interval[0]
             a_stop = interval[1]
-            frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop))
+            frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop + 1e-10))
             indices.append((frm, to))
         indices = np.array(indices, ndmin=2)
         if np.diff(indices).sum() < len(self._abscissa_vals):
-            logging.warning(
-                'ignoring signal outside of support')
+            logging.warning("ignoring signal outside of support")
+        # check if only one interval and interval is already bounds of data
+        # if so, we don't need to do anything
+        if len(indices) == 1:
+            if indices[0, 0] == 0 and indices[0, 1] == len(self._abscissa_vals):
+                if update:
+                    self._abscissa.support = intervalarray
+                    return
         try:
             data_list = []
             for start, stop in indices:
-                data_list.append(self._data[:,start:stop])
+                data_list.append(self._data[:, start:stop])
             self._data = np.hstack(data_list)
         except IndexError:
-            self._data = np.zeros([0,self.data.shape[0]])
+            self._data = np.zeros([0, self.data.shape[0]])
             self._data[:] = np.nan
         time_list = []
         for start, stop in indices:
@@ -961,26 +1045,26 @@ class RegularlySampledAnalogSignalArray:
         Parameters
         ----------
         intervalarray : IntervalArray, optional
-        	IntervalArray on which to restrict AnalogSignal. Default is
-        	self._abscissa.support
+                IntervalArray on which to restrict AnalogSignal. Default is
+                self._abscissa.support
         update : bool, optional
-        	Overwrite self._abscissa.support with intervalarray if True (default).
+                Overwrite self._abscissa.support with intervalarray if True (default).
         """
         if intervalarray is None:
             intervalarray = self._abscissa.support
-            update = False # support did not change; no need to update
+            update = False  # support did not change; no need to update
 
         try:
             if intervalarray.isempty:
                 logging.warning("Support specified is empty")
                 # self.__init__([],empty=True)
-                exclude = ['_support','_data','_fs','_step']
+                exclude = ["_support", "_data", "_fs", "_step"]
                 attrs = (x for x in self.__attributes__ if x not in exclude)
                 logging.disable(logging.CRITICAL)
                 for attr in attrs:
                     exec("self." + attr + " = None")
                 logging.disable(0)
-                self._data = np.zeros([0,self.data.shape[0]])
+                self._data = np.zeros([0, self.data.shape[0]])
                 self._data[:] = np.nan
                 self._abscissa.support = intervalarray
                 return
@@ -991,22 +1075,33 @@ class RegularlySampledAnalogSignalArray:
         for interval in intervalarray.merge().data:
             a_start = interval[0]
             a_stop = interval[1]
-            indices.append((self._abscissa_vals >= a_start) & (self._abscissa_vals < a_stop))
+            indices.append(
+                (self._abscissa_vals >= a_start) & (self._abscissa_vals < a_stop)
+            )
         indices = np.any(np.column_stack(indices), axis=1)
         if np.count_nonzero(indices) < len(self._abscissa_vals):
-            logging.warning(
-                'ignoring signal outside of support')
+            logging.warning("ignoring signal outside of support")
         try:
-            self._data = self.data[:,indices]
+            self._data = self.data[:, indices]
         except IndexError:
-            self._data = np.zeros([0,self.data.shape[0]])
+            self._data = np.zeros([0, self.data.shape[0]])
             self._data[:] = np.nan
         self._abscissa_vals = self._abscissa_vals[indices]
         if update:
             self._abscissa.support = intervalarray
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-    def smooth(self, *, fs=None, sigma=None, truncate=None, inplace=False, mode=None, cval=None, within_intervals=False):
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+    def smooth(
+        self,
+        *,
+        fs=None,
+        sigma=None,
+        truncate=None,
+        inplace=False,
+        mode=None,
+        cval=None,
+        within_intervals=False
+    ):
         """Smooths the regularly sampled RegularlySampledAnalogSignalArray with a Gaussian kernel.
 
         Smoothing is applied along the abscissa, and the same smoothing is applied to each
@@ -1050,15 +1145,17 @@ class RegularlySampledAnalogSignalArray:
         if sigma is None:
             sigma = 0.05
         if truncate is None:
-            truncate=4
+            truncate = 4
 
-        kwargs = {'inplace' : inplace,
-                'fs' : fs,
-                'sigma' : sigma,
-                'truncate' : truncate,
-                'mode': mode,
-                'cval' : cval,
-                'within_intervals': within_intervals}
+        kwargs = {
+            "inplace": inplace,
+            "fs": fs,
+            "sigma": sigma,
+            "truncate": truncate,
+            "mode": mode,
+            "cval": cval,
+            "within_intervals": within_intervals,
+        }
 
         if inplace:
             out = self
@@ -1072,53 +1169,79 @@ class RegularlySampledAnalogSignalArray:
                 out = out.unwrap()
 
         # case 1: abs.wrapping=False, ord.linking=False, ord.wrapping=False
-        if not self._abscissa.is_wrapping and not self._ordinate.is_linking and not self._ordinate.is_wrapping:
+        if (
+            not self._abscissa.is_wrapping
+            and not self._ordinate.is_linking
+            and not self._ordinate.is_wrapping
+        ):
             pass
 
         # case 2: abs.wrapping=False, ord.linking=False, ord.wrapping=True
-        elif not self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
+        elif (
+            not self._abscissa.is_wrapping
+            and not self._ordinate.is_linking
+            and self._ordinate.is_wrapping
+        ):
             pass
 
         # case 3: abs.wrapping=False, ord.linking=True, ord.wrapping=False
-        elif not self._abscissa.is_wrapping and self._ordinate.is_linking and not self._ordinate.is_wrapping:
+        elif (
+            not self._abscissa.is_wrapping
+            and self._ordinate.is_linking
+            and not self._ordinate.is_wrapping
+        ):
             raise NotImplementedError
 
         # case 4: abs.wrapping=False, ord.linking=True, ord.wrapping=True
-        elif not self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
+        elif (
+            not self._abscissa.is_wrapping
+            and self._ordinate.is_linking
+            and self._ordinate.is_wrapping
+        ):
             raise NotImplementedError
 
         # case 5: abs.wrapping=True, ord.linking=False, ord.wrapping=False
-        elif self._abscissa.is_wrapping and not self._ordinate.is_linking and not self._ordinate.is_wrapping:
+        elif (
+            self._abscissa.is_wrapping
+            and not self._ordinate.is_linking
+            and not self._ordinate.is_wrapping
+        ):
             if mode is None:
-                kwargs['mode'] = 'wrap'
+                kwargs["mode"] = "wrap"
 
         # case 6: abs.wrapping=True, ord.linking=False, ord.wrapping=True
-        elif self._abscissa.is_wrapping and not self._ordinate.is_linking and self._ordinate.is_wrapping:
+        elif (
+            self._abscissa.is_wrapping
+            and not self._ordinate.is_linking
+            and self._ordinate.is_wrapping
+        ):
             # (1) unwrap ordinate (abscissa wrap=False)
             # (2) smooth unwrapped ordinate (absissa wrap=False)
             # (3) repeat unwrapped signal based on conditions from (2):
-                # if smoothed wrapped ordinate samples
-                # HH ==> SSS (this must be done on a per-signal basis!!!) H = high; L = low; S = same
-                # LL ==> SSS (the vertical offset must be such that neighbors have smallest displacement)
-                # LH ==> LSH
-                # HL ==> HSL
+            # if smoothed wrapped ordinate samples
+            # HH ==> SSS (this must be done on a per-signal basis!!!) H = high; L = low; S = same
+            # LL ==> SSS (the vertical offset must be such that neighbors have smallest displacement)
+            # LH ==> LSH
+            # HL ==> HSL
             # (4) smooth expanded and unwrapped ordinate (abscissa wrap=False)
             # (5) cut out orignal signal
 
             # (1)
-            kwargs['mode'] = 'reflect'
+            kwargs["mode"] = "reflect"
             L = out._ordinate.range.max - out._ordinate.range.min
             D = out.domain.length
 
             tmp = utils.gaussian_filter(out.unwrap(), **kwargs)
             # (2) (3)
-            n_reps = int(np.ceil((sigma*truncate)/float(D)))
+            n_reps = int(np.ceil((sigma * truncate) / float(D)))
 
             smooth_data = []
             for ss, signal in enumerate(tmp.signals):
 
                 # signal = signal.wrap()
-                offset = float((signal._data[:,-1] - signal._data[:,0]) // (L/2))*L
+                offset = (
+                    float((signal._data[:, -1] - signal._data[:, 0]) // (L / 2)) * L
+                )
                 # print(offset)
                 # left_high = signal._data[:,0] >= out._ordinate.range.min + L/2
                 # right_high = signal._data[:,-1] >= out._ordinate.range.min + L/2
@@ -1126,7 +1249,9 @@ class RegularlySampledAnalogSignalArray:
 
                 expanded = signal.copy()
                 for nn in range(n_reps):
-                    expanded = expanded.join((signal << D*(nn+1))-offset).join((signal >> D*(nn+1))+offset)
+                    expanded = expanded.join((signal << D * (nn + 1)) - offset).join(
+                        (signal >> D * (nn + 1)) + offset
+                    )
                     # print(expanded)
                     # if left_high == right_high:
                     #     print('extending flat! signal {}'.format(ss))
@@ -1141,7 +1266,11 @@ class RegularlySampledAnalogSignalArray:
                     #     expanded = expanded.join((signal << D*(nn+1))+L).join((signal >> D*(nn+1))-L)
                 # (4)
                 smooth_signal = utils.gaussian_filter(expanded, **kwargs)
-                smooth_data.append(smooth_signal._data[:,n_reps*tmp.n_samples:(n_reps+1)*(tmp.n_samples)].squeeze())
+                smooth_data.append(
+                    smooth_signal._data[
+                        :, n_reps * tmp.n_samples : (n_reps + 1) * (tmp.n_samples)
+                    ].squeeze()
+                )
             # (5)
             out._data = np.array(smooth_data)
             out.__renew__()
@@ -1153,11 +1282,19 @@ class RegularlySampledAnalogSignalArray:
             return out
 
         # case 7: abs.wrapping=True, ord.linking=True, ord.wrapping=False
-        elif self._abscissa.is_wrapping and self._ordinate.is_linking and not self._ordinate.is_wrapping:
+        elif (
+            self._abscissa.is_wrapping
+            and self._ordinate.is_linking
+            and not self._ordinate.is_wrapping
+        ):
             raise NotImplementedError
 
         # case 8: abs.wrapping=True, ord.linking=True, ord.wrapping=True
-        elif self._abscissa.is_wrapping and self._ordinate.is_linking and self._ordinate.is_wrapping:
+        elif (
+            self._abscissa.is_wrapping
+            and self._ordinate.is_linking
+            and self._ordinate.is_wrapping
+        ):
             raise NotImplementedError
 
         out = utils.gaussian_filter(out, **kwargs)
@@ -1205,14 +1342,16 @@ class RegularlySampledAnalogSignalArray:
         else:
             epstr = ""
         try:
-            if(self.n_signals > 0):
+            if self.n_signals > 0:
                 nstr = " %s signals%s" % (self.n_signals, epstr)
         except IndexError:
             nstr = " 1 signal%s" % epstr
-        dstr = " for a total of {}".format(self._abscissa.formatter(self.support.length))
+        dstr = " for a total of {}".format(
+            self._abscissa.formatter(self.support.length)
+        )
         return "<%s%s:%s>%s" % (self.type_name, address_str, nstr, dstr)
 
-    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    @keyword_equivalence(this_or_that={"n_intervals": "n_epochs"})
     def partition(self, ds=None, n_intervals=None):
         """Returns an RegularlySampledAnalogSignalArray whose support has been
         partitioned.
@@ -1274,7 +1413,9 @@ class RegularlySampledAnalogSignalArray:
             self._abscissa.support = type(self._abscissa.support)([val[0], val[1]])
             self._abscissa.domain = prev_domain
         else:
-            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+            raise TypeError(
+                "support must be of type {}".format(str(type(self._abscissa.support)))
+            )
         # restrict data to new support
         self._restrict_to_interval_array_fast(intervalarray=self._abscissa.support)
 
@@ -1292,7 +1433,9 @@ class RegularlySampledAnalogSignalArray:
         elif isinstance(val, (tuple, list)):
             self._abscissa.domain = type(self._abscissa.support)([val[0], val[1]])
         else:
-            raise TypeError('support must be of type {}'.format(str(type(self._abscissa.support))))
+            raise TypeError(
+                "support must be of type {}".format(str(type(self._abscissa.support)))
+            )
         # restrict data to new support
         self._restrict_to_interval_array_fast(intervalarray=self._abscissa.support)
 
@@ -1309,7 +1452,7 @@ class RegularlySampledAnalogSignalArray:
 
     @property
     def step(self):
-        """ steps per sample
+        """steps per sample
         Example 1: sample_numbers = np.array([1,2,3,4,5,6]) #aka time
         Steps per sample in the above case would be 1
 
@@ -1340,7 +1483,7 @@ class RegularlySampledAnalogSignalArray:
         """(bool) checks length of data input"""
         try:
             return self.data.shape[1] == 0
-        except IndexError: #IndexError should happen if _data = []
+        except IndexError:  # IndexError should happen if _data = []
             return True
 
     @property
@@ -1379,7 +1522,9 @@ class RegularlySampledAnalogSignalArray:
         for attr in attrs:
             exec("intervalarray." + attr + " = self._abscissa.support." + attr)
         try:
-            intervalarray._data = self._abscissa.support.data[tuple([index]), :]  # use np integer indexing! Cool!
+            intervalarray._data = self._abscissa.support.data[
+                tuple([index]), :
+            ]  # use np integer indexing! Cool!
         except IndexError:
             # index is out of bounds, so return an empty IntervalArray
             pass
@@ -1387,17 +1532,19 @@ class RegularlySampledAnalogSignalArray:
 
         self._index += 1
 
-        asa = type(self)([],empty=True)
-        exclude = ['_interp','_support']
+        asa = type(self)([], empty=True)
+        exclude = ["_interp", "_support"]
         attrs = (x for x in self.__attributes__ if x not in exclude)
         logging.disable(logging.CRITICAL)
         for attr in attrs:
             exec("asa." + attr + " = self." + attr)
         logging.disable(0)
         asa._restrict_to_interval_array_fast(intervalarray=intervalarray)
-        if(asa.support.isempty):
-            logging.warning("Support is empty. Empty RegularlySampledAnalogSignalArray returned")
-            asa = type(self)([],empty=True)
+        if asa.support.isempty:
+            logging.warning(
+                "Support is empty. Empty RegularlySampledAnalogSignalArray returned"
+            )
+            asa = type(self)([], empty=True)
 
         asa.__renew__()
         return asa
@@ -1414,7 +1561,7 @@ class RegularlySampledAnalogSignalArray:
             out = self._copy_without_data()
         else:
             out = self
-            out._data = np.zeros((n_signals,0))
+            out._data = np.zeros((n_signals, 0))
         out._abscissa.support = type(self.support)(empty=True)
         out._abscissa_vals = []
         out.__renew__()
@@ -1438,7 +1585,11 @@ class RegularlySampledAnalogSignalArray:
             return asa
 
         if isinstance(intervalslice, slice):
-            if intervalslice.start == None and intervalslice.stop == None and intervalslice.step == None:
+            if (
+                intervalslice.start is None
+                and intervalslice.stop is None
+                and intervalslice.step is None
+            ):
                 asa.__renew__()
                 return asa
 
@@ -1457,9 +1608,13 @@ class RegularlySampledAnalogSignalArray:
     def _subset(self, idx):
         asa = self.copy()
         try:
-            asa._data = np.atleast_2d(self.data[idx,:])
+            asa._data = np.atleast_2d(self.data[idx, :])
         except IndexError:
-            raise IndexError("index {} is out of bounds for n_signals with size {}".format(idx, self.n_signals))
+            raise IndexError(
+                "index {} is out of bounds for n_signals with size {}".format(
+                    idx, self.n_signals
+                )
+            )
         asa.__renew__()
         return asa
 
@@ -1468,10 +1623,12 @@ class RegularlySampledAnalogSignalArray:
 
         Note: the support is left unchanged.
         """
-        out = copy.copy(self) # shallow copy
+        out = copy.copy(self)  # shallow copy
         out._abscissa_vals = None
         out._data = np.zeros((self.n_signals, 0))
-        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out = copy.deepcopy(
+            out
+        )  # just to be on the safe side, but at least now we are not copying the data!
         out.__renew__()
         return out
 
@@ -1481,55 +1638,80 @@ class RegularlySampledAnalogSignalArray:
         out.__renew__()
         return out
 
-    def median(self,*,axis=1):
+    def median(self, *, axis=1):
         """Returns the median of each signal in RegularlySampledAnalogSignalArray."""
         try:
             medians = np.nanmedian(self.data, axis=axis).squeeze()
             if medians.size == 1:
-                return np.asscalar(medians)
+                try:
+                    return np.asscalar(medians)
+                except ValueError:
+                    return np.ndarray.item(medians)
             return medians
         except IndexError:
-            raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate median")
+            raise IndexError(
+                "Empty RegularlySampledAnalogSignalArray cannot calculate median"
+            )
 
     def mean(self, *, axis=1):
         """Returns the mean of each signal in RegularlySampledAnalogSignalArray."""
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
-                return np.asscalar(means)
+                try:
+                    return np.asscalar(means)
+                except ValueError:
+                    return np.ndarray.item(means)
             return means
         except IndexError:
-            raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate mean")
+            raise IndexError(
+                "Empty RegularlySampledAnalogSignalArray cannot calculate mean"
+            )
 
     def std(self, *, axis=1):
         """Returns the standard deviation of each signal in RegularlySampledAnalogSignalArray."""
         try:
-            stds = np.nanstd(self.data,axis=axis).squeeze()
+            stds = np.nanstd(self.data, axis=axis).squeeze()
             if stds.size == 1:
-                return np.asscalar(stds)
+                try:
+                    return np.asscalar(stds)
+                except ValueError:
+                    return np.ndarray.item(stds)
             return stds
         except IndexError:
-            raise IndexError("Empty RegularlySampledAnalogSignalArray cannot calculate standard deviation")
+            raise IndexError(
+                "Empty RegularlySampledAnalogSignalArray cannot calculate standard deviation"
+            )
 
-    def max(self,*,axis=1):
+    def max(self, *, axis=1):
         """Returns the maximum of each signal in RegularlySampledAnalogSignalArray"""
         try:
-            maxes = np.amax(self.data,axis=axis).squeeze()
+            maxes = np.amax(self.data, axis=axis).squeeze()
             if maxes.size == 1:
-                return np.asscalar(maxes)
+                try:
+                    return np.asscalar(maxes)
+                except ValueError:
+                    return np.ndarray.item(maxes)
             return maxes
         except ValueError:
-            raise ValueError("Empty RegularlySampledAnalogSignalArray cannot calculate maximum")
+            raise ValueError(
+                "Empty RegularlySampledAnalogSignalArray cannot calculate maximum"
+            )
 
-    def min(self,*,axis=1):
+    def min(self, *, axis=1):
         """Returns the minimum of each signal in RegularlySampledAnalogSignalArray"""
         try:
-            mins = np.amin(self.data,axis=axis).squeeze()
+            mins = np.amin(self.data, axis=axis).squeeze()
             if mins.size == 1:
-                return np.asscalar(mins)
+                try:
+                    return np.asscalar(mins)
+                except ValueError:
+                    return np.ndarray.item(mins)
             return mins
         except ValueError:
-            raise ValueError("Empty RegularlySampledAnalogSignalArray cannot calculate minimum")
+            raise ValueError(
+                "Empty RegularlySampledAnalogSignalArray cannot calculate minimum"
+            )
 
     def clip(self, min, max):
         """Clip (limit) the values of each signal to min and max as specified.
@@ -1604,25 +1786,23 @@ class RegularlySampledAnalogSignalArray:
             try:
                 if len(np.array(start, ndmin=1)) > 2:
                     raise TypeError(
-                        "unsupported input to RegularlySampledAnalogSignalArray.trim()")
+                        "unsupported input to RegularlySampledAnalogSignalArray.trim()"
+                    )
                 stop = np.array(start[1], ndmin=1)
                 start = np.array(start[0], ndmin=1)
                 if len(start) != 1 or len(stop) != 1:
-                    raise TypeError(
-                        "start and stop must be scalar floats")
+                    raise TypeError("start and stop must be scalar floats")
             except TypeError:
-                raise TypeError(
-                    "start and stop must be scalar floats")
+                raise TypeError("start and stop must be scalar floats")
 
         logging.disable(logging.CRITICAL)
         interval = self._abscissa.support.intersect(
-            type(self.support)(
-                [start, stop],
-                fs=fs))
+            type(self.support)([start, stop], fs=fs)
+        )
         if not interval.isempty:
             analogsignalarray = self[interval]
         else:
-            analogsignalarray = type(self)([],empty=True)
+            analogsignalarray = type(self)([], empty=True)
         logging.disable(0)
         analogsignalarray.__renew__()
         return analogsignalarray
@@ -1649,8 +1829,15 @@ class RegularlySampledAnalogSignalArray:
         """returns skinny-format data s.t. each column is a signal."""
         return self.data.T
 
-    def _get_interp1d(self,* , kind='linear', copy=True, bounds_error=False,
-                      fill_value=np.nan, assume_sorted=None):
+    def _get_interp1d(
+        self,
+        *,
+        kind="linear",
+        copy=True,
+        bounds_error=False,
+        fill_value=np.nan,
+        assume_sorted=None
+    ):
         """returns a scipy interp1d object, extended to have values at all interval
         boundaries!
         """
@@ -1666,18 +1853,24 @@ class RegularlySampledAnalogSignalArray:
         abscissa_vals = self._abscissa_vals
 
         if self._ordinate.is_wrapping:
-            yvals = self._unwrap(self._data_rowsig, self._ordinate.range.min, self._ordinate.range.max) # always interpolate on the unwrapped data!
+            yvals = self._unwrap(
+                self._data_rowsig, self._ordinate.range.min, self._ordinate.range.max
+            )  # always interpolate on the unwrapped data!
         else:
             yvals = self._data_rowsig
 
         lengths = self.lengths
-        empty_interval_ids = np.argwhere(lengths==0).squeeze().tolist()
-        first_abscissavals_per_interval_idx = np.insert(np.cumsum(lengths[:-1]),0,0)
+        empty_interval_ids = np.argwhere(lengths == 0).squeeze().tolist()
+        first_abscissavals_per_interval_idx = np.insert(np.cumsum(lengths[:-1]), 0, 0)
         first_abscissavals_per_interval_idx[empty_interval_ids] = 0
-        last_abscissavals_per_interval_idx = np.cumsum(lengths)-1
+        last_abscissavals_per_interval_idx = np.cumsum(lengths) - 1
         last_abscissavals_per_interval_idx[empty_interval_ids] = 0
-        first_abscissavals_per_interval = self._abscissa_vals[first_abscissavals_per_interval_idx]
-        last_abscissavals_per_interval = self._abscissa_vals[last_abscissavals_per_interval_idx]
+        first_abscissavals_per_interval = self._abscissa_vals[
+            first_abscissavals_per_interval_idx
+        ]
+        last_abscissavals_per_interval = self._abscissa_vals[
+            last_abscissavals_per_interval_idx
+        ]
 
         boundary_abscissa_vals = []
         boundary_vals = []
@@ -1686,34 +1879,49 @@ class RegularlySampledAnalogSignalArray:
                 continue
             if first_abscissavals_per_interval[ii] > start:
                 boundary_abscissa_vals.append(start)
-                boundary_vals.append(yvals[:,first_abscissavals_per_interval_idx[ii]])
+                boundary_vals.append(yvals[:, first_abscissavals_per_interval_idx[ii]])
                 # print('adding {} at abscissa_vals {}'.format(yvals[:,first_abscissavals_per_interval_idx[ii]], start))
             if last_abscissavals_per_interval[ii] < stop:
                 boundary_abscissa_vals.append(stop)
-                boundary_vals.append(yvals[:,last_abscissavals_per_interval_idx[ii]])
+                boundary_vals.append(yvals[:, last_abscissavals_per_interval_idx[ii]])
 
         if boundary_abscissa_vals:
             insert_locs = np.searchsorted(abscissa_vals, boundary_abscissa_vals)
-            abscissa_vals = np.insert(abscissa_vals, insert_locs, boundary_abscissa_vals)
+            abscissa_vals = np.insert(
+                abscissa_vals, insert_locs, boundary_abscissa_vals
+            )
             yvals = np.insert(yvals, insert_locs, np.array(boundary_vals).T, axis=1)
 
             abscissa_vals, unique_idx = np.unique(abscissa_vals, return_index=True)
-            yvals = yvals[:,unique_idx]
+            yvals = yvals[:, unique_idx]
 
-        f = interpolate.interp1d(x=abscissa_vals,
-                                 y=yvals,
-                                 kind=kind,
-                                 axis=axis,
-                                 copy=copy,
-                                 bounds_error=bounds_error,
-                                 fill_value=fill_value,
-                                 assume_sorted=assume_sorted)
+        f = interpolate.interp1d(
+            x=abscissa_vals,
+            y=yvals,
+            kind=kind,
+            axis=axis,
+            copy=copy,
+            bounds_error=bounds_error,
+            fill_value=fill_value,
+            assume_sorted=assume_sorted,
+        )
         return f
 
-    def asarray(self,*, where=None, at=None, kind='linear', copy=True,
-                bounds_error=False, fill_value=np.nan, assume_sorted=None,
-                recalculate=False, store_interp=True, n_samples=None,
-                split_by_interval=False):
+    def asarray(
+        self,
+        *,
+        where=None,
+        at=None,
+        kind="linear",
+        copy=True,
+        bounds_error=False,
+        fill_value=np.nan,
+        assume_sorted=None,
+        recalculate=False,
+        store_interp=True,
+        n_samples=None,
+        split_by_interval=False
+    ):
         """returns a data_like array at requested points.
 
         Parameters
@@ -1742,25 +1950,38 @@ class RegularlySampledAnalogSignalArray:
         if split_by_interval:
             raise NotImplementedError("split_by_interval not yet implemented...")
 
-        XYArray = namedtuple('XYArray', ['xvals', 'yvals'])
+        XYArray = namedtuple("XYArray", ["xvals", "yvals"])
 
-        if at is None and where is None and split_by_interval is False and n_samples is None:
+        if (
+            at is None
+            and where is None
+            and split_by_interval is False
+            and n_samples is None
+        ):
             xyarray = XYArray(self._abscissa_vals, self._data_rowsig.squeeze())
             return xyarray
 
         if where is not None:
-            assert at is None and n_samples is None, "'where', 'at', and 'n_samples' cannot be used at the same time"
+            assert (
+                at is None and n_samples is None
+            ), "'where', 'at', and 'n_samples' cannot be used at the same time"
             if isinstance(where, tuple):
                 y = np.array(where[1]).squeeze()
                 x = where[0]
-                assert len(x) == len(y), "'where' condition and array must have same number of elements"
+                assert len(x) == len(
+                    y
+                ), "'where' condition and array must have same number of elements"
                 at = y[x]
             else:
                 x = np.asanyarray(where).squeeze()
-                assert len(x) == len(self._abscissa_vals), "'where' condition must have same number of elements as self._abscissa_vals"
+                assert len(x) == len(
+                    self._abscissa_vals
+                ), "'where' condition must have same number of elements as self._abscissa_vals"
                 at = self._abscissa_vals[x]
         elif at is not None:
-            assert n_samples is None, "'at' and 'n_samples' cannot be used at the same time"
+            assert (
+                n_samples is None
+            ), "'at' and 'n_samples' cannot be used at the same time"
         else:
             at = np.linspace(self.support.start, self.support.stop, n_samples)
 
@@ -1772,11 +1993,13 @@ class RegularlySampledAnalogSignalArray:
 
         # if we made it this far, either at or where has been specified, and at is now well defined.
 
-        kwargs = {'kind':kind,
-                  'copy':copy,
-                  'bounds_error':bounds_error,
-                  'fill_value':fill_value,
-                  'assume_sorted':assume_sorted}
+        kwargs = {
+            "kind": kind,
+            "copy": copy,
+            "bounds_error": bounds_error,
+            "fill_value": fill_value,
+            "assume_sorted": assume_sorted,
+        }
 
         # retrieve an existing, or construct a new interpolation object
         if recalculate:
@@ -1786,7 +2009,7 @@ class RegularlySampledAnalogSignalArray:
                 interpobj = self._interp
                 if interpobj is None:
                     interpobj = self._get_interp1d(**kwargs)
-            except AttributeError: # does not exist yet
+            except AttributeError:  # does not exist yet
                 interpobj = self._get_interp1d(**kwargs)
 
         # store interpolation object, if desired
@@ -1798,19 +2021,26 @@ class RegularlySampledAnalogSignalArray:
         # use broadcasting to check in a vectorized manner if
         # each sample falls within the support, haha aren't we clever?
         # (n_intervals, n_requested_samples)
-        valid = np.logical_and(at >= interval_data[:, 0, :],
-                               at <= interval_data[:, 1, :])
+        valid = np.logical_and(
+            at >= interval_data[:, 0, :], at <= interval_data[:, 1, :]
+        )
         valid_mask = np.any(valid, axis=0)
         n_invalid = at.size - np.sum(valid_mask)
         if n_invalid > 0:
-            logging.warning("{} values outside the support were removed".format(n_invalid))
+            logging.warning(
+                "{} values outside the support were removed".format(n_invalid)
+            )
         at = at[valid_mask]
 
         # do the actual interpolation
         if self._ordinate.is_wrapping:
             try:
                 if self.is_wrapped:
-                    out = self._wrap(interpobj(at), self._ordinate.range.min, self._ordinate.range.max)
+                    out = self._wrap(
+                        interpobj(at),
+                        self._ordinate.range.min,
+                        self._ordinate.range.max,
+                    )
                 else:
                     out = interpobj(at)
             except SystemError:
@@ -1818,7 +2048,11 @@ class RegularlySampledAnalogSignalArray:
                 if store_interp:
                     self._interp = interpobj
                 if self.is_wrapped:
-                    out = self._wrap(interpobj(at),self._ordinate.range.min, self._ordinate.range.max)
+                    out = self._wrap(
+                        interpobj(at),
+                        self._ordinate.range.min,
+                        self._ordinate.range.max,
+                    )
                 else:
                     out = interpobj(at)
         else:
@@ -1851,7 +2085,7 @@ class RegularlySampledAnalogSignalArray:
             new subset of points.
         """
 
-        return self.simplify(ds=1/fs)
+        return self.simplify(ds=1 / fs)
 
     def simplify(self, *, ds=None, n_samples=None, **kwargs):
         """Returns an RegularlySampledAnalogSignalArray where the data has been
@@ -1889,41 +2123,51 @@ class RegularlySampledAnalogSignalArray:
             return self
 
         # legacy kwarg support:
-            n_points = original_kwargs.pop('n_points', False)
-            if n_points:
-                n_samples = n_points
+        n_points = kwargs.pop("n_points", False)
+        if n_points:
+            n_samples = n_points
 
         if ds is not None and n_samples is not None:
             raise ValueError("ds and n_samples cannot be used together")
 
         if n_samples is not None:
-            assert float(n_samples).is_integer(), "n_samples must be a positive integer!"
+            assert float(
+                n_samples
+            ).is_integer(), "n_samples must be a positive integer!"
             assert n_samples > 1, "n_samples must be a positive integer > 1"
             # determine ds from number of desired points:
-            ds = self.support.length / (n_samples-1)
+            ds = self.support.length / (n_samples - 1)
 
         if ds is None:
             # neither n_samples nor ds was specified, so assume defaults:
-            n_samples = np.min((5000, 250+self.n_samples//2, self.n_samples))
-            ds = self.support.length / (n_samples-1)
+            n_samples = np.min((5000, 250 + self.n_samples // 2, self.n_samples))
+            ds = self.support.length / (n_samples - 1)
 
         # build list of points at which to evaluate the RegularlySampledAnalogSignalArray
 
         # we exclude all empty intervals:
         at = []
         lengths = self.lengths
-        empty_interval_ids = np.argwhere(lengths==0).squeeze().tolist()
-        first_abscissavals_per_interval_idx = np.insert(np.cumsum(lengths[:-1]),0,0)
+        empty_interval_ids = np.argwhere(lengths == 0).squeeze().tolist()
+        first_abscissavals_per_interval_idx = np.insert(np.cumsum(lengths[:-1]), 0, 0)
         first_abscissavals_per_interval_idx[empty_interval_ids] = 0
-        last_abscissavals_per_interval_idx = np.cumsum(lengths)-1
+        last_abscissavals_per_interval_idx = np.cumsum(lengths) - 1
         last_abscissavals_per_interval_idx[empty_interval_ids] = 0
-        first_abscissavals_per_interval = self._abscissa_vals[first_abscissavals_per_interval_idx]
-        last_abscissavals_per_interval = self._abscissa_vals[last_abscissavals_per_interval_idx]
+        first_abscissavals_per_interval = self._abscissa_vals[
+            first_abscissavals_per_interval_idx
+        ]
+        last_abscissavals_per_interval = self._abscissa_vals[
+            last_abscissavals_per_interval_idx
+        ]
 
         for ii, (start, stop) in enumerate(self.support.data):
             if lengths[ii] == 0:
                 continue
-            newxvals = utils.frange(first_abscissavals_per_interval[ii], last_abscissavals_per_interval[ii], step=ds).tolist()
+            newxvals = utils.frange(
+                first_abscissavals_per_interval[ii],
+                last_abscissavals_per_interval[ii],
+                step=ds,
+            ).tolist()
             at.extend(newxvals)
             try:
                 if newxvals[-1] < last_abscissavals_per_interval[ii]:
@@ -1938,7 +2182,7 @@ class RegularlySampledAnalogSignalArray:
         asa = self.copy()
         asa._abscissa_vals = np.asanyarray(at)
         asa._data = yvals
-        asa._fs = 1/ds
+        asa._fs = 1 / ds
 
         return asa
 
@@ -1970,26 +2214,26 @@ class RegularlySampledAnalogSignalArray:
         """
 
         if mode is None:
-            mode = 'left'
+            mode = "left"
 
-        asa = self.copy()    # copy without data since we change data at the end?
+        asa = self.copy()  # copy without data since we change data at the end?
 
-        times = np.zeros((1,0))
-        data = np.zeros((asa.n_signals,0))
+        times = np.zeros((1, 0))
+        data = np.zeros((asa.n_signals, 0))
 
         # if ASAs are disjoint:
-        if not self.support[other.support].length > 50*float_info.epsilon:
+        if not self.support[other.support].length > 50 * float_info.epsilon:
             # do a simple-as-butter join (concat) and sort
             times = np.append(times, self._abscissa_vals)
             data = np.hstack((data, self.data))
             times = np.append(times, other._abscissa_vals)
             data = np.hstack((data, other.data))
-        else: # not disjoint
+        else:  # not disjoint
             both_eps = self.support[other.support]
             self_eps = self.support - both_eps - other.support
             other_eps = other.support - both_eps - self.support
 
-            if mode=='left':
+            if mode == "left":
                 self_eps += both_eps
                 # print(self_eps)
 
@@ -2001,7 +2245,7 @@ class RegularlySampledAnalogSignalArray:
                     tmp = other[other_eps]
                     times = np.append(times, tmp._abscissa_vals)
                     data = np.hstack((data, tmp.data))
-            elif mode=='right':
+            elif mode == "right":
                 other_eps += both_eps
 
                 tmp = other[other_eps]
@@ -2013,11 +2257,15 @@ class RegularlySampledAnalogSignalArray:
                     times = np.append(times, tmp._abscissa_vals)
                     data = np.hstack((data, tmp.data))
             else:
-                raise NotImplementedError("asa.join() has not yet been implemented for mode '{}'!".format(mode))
+                raise NotImplementedError(
+                    "asa.join() has not yet been implemented for mode '{}'!".format(
+                        mode
+                    )
+                )
 
         sample_order = np.argsort(times)
         times = times[sample_order]
-        data = data[:,sample_order]
+        data = data[:, sample_order]
 
         asa._data = data
         asa._abscissa_vals = times
@@ -2038,19 +2286,20 @@ class RegularlySampledAnalogSignalArray:
             n_samples = 100
 
         if self.n_signals > 1:
-            raise NotImplementedError('multiple signals not supported yet!')
+            raise NotImplementedError("multiple signals not supported yet!")
 
         # fx, bins = np.histogram(self.data.squeeze(), bins=bins, normed=True)
         fx, bins = np.histogram(self.data.squeeze(), bins=bins)
-        bin_centers = (bins + (bins[1]-bins[0])/2)[:-1]
+        bin_centers = (bins + (bins[1] - bins[0]) / 2)[:-1]
 
         Ifx = integrate.simps(fx, bin_centers)
 
-        pdf = type(self)(abscissa_vals=bin_centers,
-                                data=fx/Ifx,
-                                fs=1/(bin_centers[1]-bin_centers[0]),
-                                support=type(self.support)(self.data.min(), self.data.max())
-                               ).simplify(n_samples=n_samples)
+        pdf = type(self)(
+            abscissa_vals=bin_centers,
+            data=fx / Ifx,
+            fs=1 / (bin_centers[1] - bin_centers[0]),
+            support=type(self.support)(self.data.min(), self.data.max()),
+        ).simplify(n_samples=n_samples)
 
         return pdf
 
@@ -2059,8 +2308,6 @@ class RegularlySampledAnalogSignalArray:
         #     fx, bins = np.histogram(signal, bins=bins)
         #     bin_centers = (bins + (bins[1]-bins[0])/2)[:-1]
 
-
-
     def _cdf(self, n_samples=None):
         """Return the probability distribution function for each signal."""
 
@@ -2068,16 +2315,17 @@ class RegularlySampledAnalogSignalArray:
             n_samples = 100
 
         if self.n_signals > 1:
-            raise NotImplementedError('multiple signals not supported yet!')
+            raise NotImplementedError("multiple signals not supported yet!")
 
         X = np.sort(self.data.squeeze())
-        F = np.array(range(self.n_samples))/float(self.n_samples)
+        F = np.array(range(self.n_samples)) / float(self.n_samples)
 
         logging.disable(logging.CRITICAL)
-        cdf = type(self)(abscissa_vals=X,
-                                    data=F,
-                                    support=type(self.support)(self.data.min(), self.data.max())
-                                ).simplify(n_samples=n_samples)
+        cdf = type(self)(
+            abscissa_vals=X,
+            data=F,
+            support=type(self.support)(self.data.min(), self.data.max()),
+        ).simplify(n_samples=n_samples)
         logging.disable(0)
 
         return cdf
@@ -2086,6 +2334,7 @@ class RegularlySampledAnalogSignalArray:
         """custom_func docstring goes here."""
 
         import matplotlib.pyplot as plt
+
         from ..plotting import utils as plotutils
 
         if ax is None:
@@ -2096,7 +2345,7 @@ class RegularlySampledAnalogSignalArray:
         xvals = self._abscissa_vals
 
         if pad is None:
-            pad = np.mean(self.data)/2
+            pad = np.mean(self.data) / 2
 
         data = self.data.copy()
 
@@ -2108,13 +2357,27 @@ class RegularlySampledAnalogSignalArray:
 
         for tt, trace in enumerate(data):
             if color is None:
-                line = ax.plot(xvals, tt*pad + trace, zorder=int(10+2*n_traces-2*tt))
+                line = ax.plot(
+                    xvals, tt * pad + trace, zorder=int(10 + 2 * n_traces - 2 * tt)
+                )
             else:
-                line = ax.plot(xvals, tt*pad + trace, zorder=int(10+2*n_traces-2*tt), color=color)
+                line = ax.plot(
+                    xvals,
+                    tt * pad + trace,
+                    zorder=int(10 + 2 * n_traces - 2 * tt),
+                    color=color,
+                )
             if fill:
                 # Get the color from the current curve
                 fillcolor = line[0].get_color()
-                ax.fill_between(xvals, tt*pad, tt*pad + trace, alpha=0.3, color=fillcolor, zorder=int(10+2*n_traces-2*tt-1))
+                ax.fill_between(
+                    xvals,
+                    tt * pad,
+                    tt * pad + trace,
+                    alpha=0.3,
+                    color=fillcolor,
+                    zorder=int(10 + 2 * n_traces - 2 * tt - 1),
+                )
 
         ax.set_xlim(xmin, xmax)
         if pad != 0:
@@ -2141,7 +2404,7 @@ class RegularlySampledAnalogSignalArray:
         if name == "aliases":
             raise AttributeError  # http://nedbatchelder.com/blog/201010/surprising_getattr_recursion.html
         name = self.__aliases__.get(name, name)
-        #return getattr(self, name) #Causes infinite recursion on non-existent attribute
+        # return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
 
@@ -2168,26 +2431,27 @@ def legacyASAkwargs(**kwargs):
                 num_non_null_args += 1
                 out = arg
         if num_non_null_args > 1:
-            raise ValueError ('multiple conflicting arguments received')
+            raise ValueError("multiple conflicting arguments received")
         return out
 
-     # legacy ASA constructor support for backward compatibility
-    abscissa_vals = kwargs.pop('abscissa_vals', None)
-    timestamps = kwargs.pop('timestamps', None)
-    time = kwargs.pop('time', None)
+    # legacy ASA constructor support for backward compatibility
+    abscissa_vals = kwargs.pop("abscissa_vals", None)
+    timestamps = kwargs.pop("timestamps", None)
+    time = kwargs.pop("time", None)
     # only one of the above, else raise exception
     abscissa_vals = only_one_of(abscissa_vals, timestamps, time)
     if abscissa_vals is not None:
-        kwargs['abscissa_vals'] = abscissa_vals
+        kwargs["abscissa_vals"] = abscissa_vals
 
-    data = kwargs.pop('data', None)
-    ydata = kwargs.pop('ydata', None)
+    data = kwargs.pop("data", None)
+    ydata = kwargs.pop("ydata", None)
     # only one of the above, else raise exception
     data = only_one_of(data, ydata)
     if data is not None:
-        kwargs['data'] = data
+        kwargs["data"] = data
 
     return kwargs
+
 
 ########################################################################
 # class AnalogSignalArray
@@ -2200,12 +2464,12 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
 
     # specify class-specific aliases:
     __aliases__ = {
-        'time': 'abscissa_vals',
-        '_time': '_abscissa_vals',
-        'n_epochs': 'n_intervals',
-        'ydata': 'data', # legacy support
-        '_ydata': '_data' # legacy support
-        }
+        "time": "abscissa_vals",
+        "_time": "_abscissa_vals",
+        "n_epochs": "n_intervals",
+        "ydata": "data",  # legacy support
+        "_ydata": "_data",  # legacy support
+    }
 
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
@@ -2214,14 +2478,17 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
         # legacy ASA constructor support for backward compatibility
         kwargs = legacyASAkwargs(**kwargs)
 
-        support = kwargs.get('support', core.EpochArray(empty=True))
-        abscissa = kwargs.get('abscissa', core.AnalogSignalArrayAbscissa(support=support))
-        ordinate = kwargs.get('ordinate', core.AnalogSignalArrayOrdinate())
+        support = kwargs.get("support", core.EpochArray(empty=True))
+        abscissa = kwargs.get(
+            "abscissa", core.AnalogSignalArrayAbscissa(support=support)
+        )
+        ordinate = kwargs.get("ordinate", core.AnalogSignalArrayOrdinate())
 
-        kwargs['abscissa'] = abscissa
-        kwargs['ordinate'] = ordinate
+        kwargs["abscissa"] = abscissa
+        kwargs["ordinate"] = ordinate
 
         super().__init__(*args, **kwargs)
+
 
 ########################################################################
 # class PositionArray
@@ -2233,15 +2500,13 @@ class PositionArray(AnalogSignalArray):
     """
 
     # specify class-specific aliases:
-    __aliases__ = {
-        'posdata': 'data'
-        }
+    __aliases__ = {"posdata": "data"}
 
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
-        xlim = kwargs.pop('xlim', None)
-        ylim = kwargs.pop('ylim', None)
+        xlim = kwargs.pop("xlim", None)
+        ylim = kwargs.pop("ylim", None)
         super().__init__(*args, **kwargs)
         self._xlim = xlim
         self._ylim = ylim
@@ -2263,38 +2528,48 @@ class PositionArray(AnalogSignalArray):
     @property
     def x(self):
         """return x-values, as numpy array."""
-        return self.data[0,:]
+        return self.data[0, :]
 
     @property
     def y(self):
         """return y-values, as numpy array."""
         if self.is_2d:
-            return self.data[1,:]
-        raise ValueError("PositionArray is not 2 dimensional, so y-values are undefined!")
+            return self.data[1, :]
+        raise ValueError(
+            "PositionArray is not 2 dimensional, so y-values are undefined!"
+        )
 
     @property
     def xlim(self):
         if self.is_2d:
             return self._xlim
-        raise ValueError("PositionArray is not 2 dimensional, so xlim is not undefined!")
+        raise ValueError(
+            "PositionArray is not 2 dimensional, so xlim is not undefined!"
+        )
 
     @xlim.setter
     def xlim(self, val):
         if self.is_2d:
-            self._xlim = xlim
-        raise ValueError("PositionArray is not 2 dimensional, so xlim cannot be defined!")
+            self._xlim = xlim  # noqa: F821
+        raise ValueError(
+            "PositionArray is not 2 dimensional, so xlim cannot be defined!"
+        )
 
     @property
     def ylim(self):
         if self.is_2d:
             return self._ylim
-        raise ValueError("PositionArray is not 2 dimensional, so ylim is not undefined!")
+        raise ValueError(
+            "PositionArray is not 2 dimensional, so ylim is not undefined!"
+        )
 
     @ylim.setter
     def ylim(self, val):
         if self.is_2d:
-            self._ylim = ylim
-        raise ValueError("PositionArray is not 2 dimensional, so ylim cannot be defined!")
+            self._ylim = ylim  # noqa: F821
+        raise ValueError(
+            "PositionArray is not 2 dimensional, so ylim cannot be defined!"
+        )
 
 
 ########################################################################
@@ -2313,6 +2588,7 @@ class IMUSensorArray(RegularlySampledAnalogSignalArray):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
         super().__init__(*args, **kwargs)
+
 
 ########################################################################
 # class MinimalExampleArray
@@ -2333,4 +2609,4 @@ class MinimalExampleArray(RegularlySampledAnalogSignalArray):
 
     def custom_func(self):
         """custom_func docstring goes here."""
-        print('Woot! We have some special skillz!')
+        print("Woot! We have some special skillz!")

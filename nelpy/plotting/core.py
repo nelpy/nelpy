@@ -1,11 +1,9 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 from matplotlib.collections import LineCollection
 import warnings
-import itertools
 
 from scipy import signal
 
@@ -82,7 +80,7 @@ def _plot_ratemap(ratemap, ax=None, normalize=False, pad=None, unit_labels=None,
         ratemap = (ratemap.T / peak_firing_rates).T
 
     # determine max firing rate
-    max_firing_rate = ratemap.max()
+    # max_firing_rate = ratemap.max()
     xvals = np.arange(n_ext)
 
     for unit, curve in enumerate(ratemap):
@@ -116,7 +114,7 @@ def _plot_ratemap(ratemap, ax=None, normalize=False, pad=None, unit_labels=None,
 
     return ax
 
-def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None):
+def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None,alpha=0.3):
     """
     WARNING! This function is not complete, and hence 'private',
     and may be moved somewhere else later on.
@@ -126,7 +124,7 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
     if ax is None:
         ax = plt.gca()
 
-    if isinstance(ratemap, auxiliary.TuningCurve1D):
+    if isinstance(ratemap, auxiliary.TuningCurve1D) | isinstance(ratemap, auxiliary._tuningcurve.TuningCurve1D):
         xmin = ratemap.bins[0]
         xmax = ratemap.bins[-1]
         xvals = ratemap.bin_centers
@@ -146,7 +144,7 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
         ratemap = (ratemap.T / peak_firing_rates).T
 
     # determine max firing rate
-    max_firing_rate = ratemap.max()
+    # max_firing_rate = ratemap.max()
 
     if xvals is None:
         xvals = np.arange(n_ext)
@@ -163,7 +161,7 @@ def plot_tuning_curves1D(ratemap, ax=None, normalize=False, pad=None, unit_label
         if fill:
             # Get the color from the current curve
             fillcolor = line[0].get_color()
-            ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=0.3, color=fillcolor, zorder=int(10+2*n_units-2*unit-1))
+            ax.fill_between(xvals, unit*pad, unit*pad + curve, alpha=alpha, color=fillcolor, zorder=int(10+2*n_units-2*unit-1))
 
     ax.set_xlim(xmin, xmax)
     if pad != 0:
@@ -499,7 +497,7 @@ def plot(obj, *args, **kwargs):
                     xmax = cxmax
                 if cymax > ymax:
                     ymax = cymax
-            except:
+            except Exception:
                 pass
         ax.set_xlim(xmin, xmax)
 
@@ -793,7 +791,7 @@ def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None, *
     ax_.set_xlim(ax.get_xlim())
 
 def rastercountplot(spiketrain, nbins=50, **kwargs):
-    fig = plt.figure(figsize=(14, 6))
+    plt.figure(figsize=(14, 6))
     gs = gridspec.GridSpec(2, 1, hspace=0.01, height_ratios=[0.2,0.8])
     ax1 = plt.subplot(gs[0])
     ax2 = plt.subplot(gs[1])
@@ -978,7 +976,39 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
 
 def epochplot(epochs, data=None, *, ax=None, height=None, fc='0.5', ec='0.5',
                       alpha=0.5, hatch='', label=None, hc=None,**kwargs):
-    """Docstring goes here.
+    """
+    Plot epochs as vertical bars on a plot.
+
+    Parameters
+    ----------
+    epochs : nelpy.EpochArray
+        EpochArray object to plot
+    data : array-like, optional
+        Data to plot on y axis; must be of size (epocharray.n_epochs,).
+    ax : axis object, optional
+        Plot in given axis; if None creates a new figure
+    height : float, optional
+        Height of the bars; default is 1.0
+    fc : matplotlib color, optional
+        Face color; default is '0.5'
+    ec : matplotlib color, optional
+        Edge color; default is '0.5'
+    alpha : float, optional
+        Transparency; default is 0.5
+    hatch : str, optional
+        Hatch pattern; default is ''
+    label : str, optional
+        Label for the plot
+    hc : matplotlib color, optional
+        Hatch color; default is None
+    kwargs :
+        Other keyword arguments are passed to main axvspan() call
+
+    Returns
+    -------
+    ax : matplotlib axis
+        Axis object with plot data.
+        
     """
     if ax is None:
         ax = plt.gca()

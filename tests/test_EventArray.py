@@ -2,14 +2,17 @@ import nelpy as nel
 from nelpy.utils import ragged_array
 import numpy as np
 
+
 class TestEventArray:
 
     def test_copy(self):
 
         abscissa_vals = np.array([[2, 3, 4, 5], [11, 12, 13, 14]])
         fs = 2
-        series_labels = ['a', 'b']
-        ea = nel.EventArray(abscissa_vals=abscissa_vals, fs=fs, series_labels=series_labels)
+        series_labels = ["a", "b"]
+        ea = nel.EventArray(
+            abscissa_vals=abscissa_vals, fs=fs, series_labels=series_labels
+        )
         copied_ea = ea.copy()
 
         # Ensure slicers are attached to copied object
@@ -29,13 +32,16 @@ class TestEventArray:
         for series in range(ea.n_series):
             assert np.all(ea.data[series] == copied_ea.data[series])
 
+
 class TestBinnedEventArray:
 
     def test_copy(self):
         abscissa_vals = np.array([[2, 3, 4, 5], [11, 12, 13, 14]])
         fs = 2
-        series_labels = ['a', 'b']
-        ea = nel.EventArray(abscissa_vals=abscissa_vals, fs=fs, series_labels=series_labels)
+        series_labels = ["a", "b"]
+        ea = nel.EventArray(
+            abscissa_vals=abscissa_vals, fs=fs, series_labels=series_labels
+        )
 
         bea = nel.BinnedEventArray(ea, ds=1)
         copied_bea = bea.copy()
@@ -57,22 +63,26 @@ class TestBinnedEventArray:
         assert np.all(bea._binned_support == copied_bea._binned_support)
         assert bea._eventarray == bea._eventarray
 
+
 class TestSpikeTrainArray:
 
     def test_construct(self):
 
         fs = 1
-        series_ids    = [21]
-        series_labels = ['pyr']
-        series_tags   = ['CA1']
-        label         = 'hippocampal units'
-        series_label  = 'Neuron$'
-        sta = nel.SpikeTrainArray([0, 1.5, 3], fs=fs,
-                                  label=label,
-                                  series_ids=series_ids,
-                                  series_labels=series_labels,
-                                  series_label=series_label,
-                                  series_tags=series_tags,)
+        series_ids = [21]
+        series_labels = ["pyr"]
+        series_tags = ["CA1"]
+        label = "hippocampal units"
+        series_label = "Neuron$"
+        sta = nel.SpikeTrainArray(
+            [0, 1.5, 3],
+            fs=fs,
+            label=label,
+            series_ids=series_ids,
+            series_labels=series_labels,
+            series_label=series_label,
+            series_tags=series_tags,
+        )
 
         # Verify STA's attributes are same as arguments
         # passed to the constructor
@@ -88,12 +98,15 @@ class TestSpikeTrainArray:
 
     def test_indexing(self):
 
-        sta = (nel.SpikeTrainArray([[1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10,
-                                    10.5, 11.4, 15, 18, 19, 20, 21], [4, 8, 17]],
-                                    support=nel.EpochArray([[0, 8], [12, 22]]),
-                                    fs=1)
-                                    .bin(ds=1))
-        sta._desc = 'test case for sta'
+        sta = nel.SpikeTrainArray(
+            [
+                [1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10, 10.5, 11.4, 15, 18, 19, 20, 21],
+                [4, 8, 17],
+            ],
+            support=nel.EpochArray([[0, 8], [12, 22]]),
+            fs=1,
+        ).bin(ds=1)
+        sta._desc = "test case for sta"
         data = sta.data
 
         sta_indexed = sta[nel.EpochArray([[2, 8], [9, 14], [19.5, 25]]), 1]
@@ -108,11 +121,11 @@ class TestSpikeTrainArray:
 
     def test_empty(self):
 
-        sta = nel.SpikeTrainArray([[3, 4, 5, 6, 7], [2, 4, 5]],
-                                   support=nel.EpochArray([0, 8]),
-                                   fs=1)
+        sta = nel.SpikeTrainArray(
+            [[3, 4, 5, 6, 7], [2, 4, 5]], support=nel.EpochArray([0, 8]), fs=1
+        )
 
-        desc = 'test case for sta'
+        desc = "test case for sta"
         sta._desc = desc
         n_series = sta.n_series
 
@@ -120,7 +133,7 @@ class TestSpikeTrainArray:
         sta.empty(inplace=True)
 
         assert sta.n_series == n_series
-        assert sta._desc == desc    # ensure metadata preserved
+        assert sta._desc == desc  # ensure metadata preserved
         assert sta.isempty
         assert sta.support.isempty
 
@@ -133,11 +146,11 @@ class TestSpikeTrainArray:
 
     def test_copy_without_data(self):
 
-        sta = nel.SpikeTrainArray([[3, 4, 5, 6, 7], [2, 4, 5]],
-                            support=nel.EpochArray([0, 8]),
-                            fs=1)
+        sta = nel.SpikeTrainArray(
+            [[3, 4, 5, 6, 7], [2, 4, 5]], support=nel.EpochArray([0, 8]), fs=1
+        )
 
-        desc = 'test case for sta'
+        desc = "test case for sta"
         sta._desc = desc
 
         sta_copied = sta._copy_without_data()
@@ -146,20 +159,24 @@ class TestSpikeTrainArray:
         assert sta_copied._desc == sta._desc
         assert sta_copied.isempty
 
+
 class TestBinnedSpikeTrainArray:
 
     def test_construct_with_sta(self):
 
-        fs            = 1
-        series_ids    = [21]
-        series_labels = ['pyr']
-        series_tags   = ['CA1']
-        label         = 'hippocampal units'
-        sta = nel.SpikeTrainArray([0, 1.5, 3], fs=fs,
-                                  label=label,
-                                  series_ids=series_ids,
-                                  series_labels=series_labels,
-                                  series_tags=series_tags)
+        fs = 1
+        series_ids = [21]
+        series_labels = ["pyr"]
+        series_tags = ["CA1"]
+        label = "hippocampal units"
+        sta = nel.SpikeTrainArray(
+            [0, 1.5, 3],
+            fs=fs,
+            label=label,
+            series_ids=series_ids,
+            series_labels=series_labels,
+            series_tags=series_tags,
+        )
 
         ds = 0.2
         bst = nel.BinnedSpikeTrainArray(sta, ds=ds)
@@ -188,21 +205,23 @@ class TestBinnedSpikeTrainArray:
 
     def test_indexing_1(self):
 
-        bst = (nel.SpikeTrainArray([[1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10,
-                                    10.5, 11.4, 15, 18, 19, 20, 21], [4, 8, 17]],
-                                    support=nel.EpochArray([[0, 8], [12, 22]]),
-                                    fs=1)
-                                    .bin(ds=1))
+        bst = nel.SpikeTrainArray(
+            [
+                [1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10, 10.5, 11.4, 15, 18, 19, 20, 21],
+                [4, 8, 17],
+            ],
+            support=nel.EpochArray([[0, 8], [12, 22]]),
+            fs=1,
+        ).bin(ds=1)
         data = bst.data
 
-        bst._desc = 'test case for bst'
+        bst._desc = "test case for bst"
 
-        expected_bins = np.array([ 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 20, 21, 22])
-        expected_bin_centers = np.array([ 2.5, 3.5, 4.5, 5.5, 6.5, 7.5,
-                                          12.5, 13.5, 20.5, 21.5])
-        expected_binned_support = np.array([[0, 5],
-                                            [6, 7],
-                                            [8, 9]])
+        expected_bins = np.array([2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 20, 21, 22])
+        expected_bin_centers = np.array(
+            [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 12.5, 13.5, 20.5, 21.5]
+        )
+        expected_binned_support = np.array([[0, 5], [6, 7], [8, 9]])
 
         bst_indexed = bst[nel.EpochArray([[2, 8], [9, 14], [19.5, 25]]), 1]
 
@@ -210,7 +229,7 @@ class TestBinnedSpikeTrainArray:
 
         # binned support is an int array and should be exact. The others
         # are floats so we use np.allclose
-        assert bst_indexed.binned_support.dtype.kind in ('i', 'u')
+        assert bst_indexed.binned_support.dtype.kind in ("i", "u")
         assert np.all(bst_indexed.binned_support == expected_binned_support)
         assert np.allclose(bst_indexed.bins, expected_bins)
         assert np.allclose(bst_indexed.bin_centers, expected_bin_centers)
@@ -224,13 +243,11 @@ class TestBinnedSpikeTrainArray:
     def test_indexing_2(self):
 
         # support indexing by list
-        bst = (nel.SpikeTrainArray([1, 2, 3, 4, 5, 6, 7, 8, 9.5,
-                                    10, 10.5, 11.4, 15, 18, 19, 20, 21],
-                                    support=nel.EpochArray([[0, 8],
-                                                           [10, 12],
-                                                           [15, 22]]),
-                                    fs=1)
-                                    .bin(ds=1))
+        bst = nel.SpikeTrainArray(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9.5, 10, 10.5, 11.4, 15, 18, 19, 20, 21],
+            support=nel.EpochArray([[0, 8], [10, 12], [15, 22]]),
+            fs=1,
+        ).bin(ds=1)
 
         bst_indexed = bst[[0, 1, 2]]
         assert bst_indexed.n_intervals == 3
@@ -243,21 +260,20 @@ class TestBinnedSpikeTrainArray:
 
     def test_empty(self):
 
-        bst = (nel.SpikeTrainArray([[3, 4, 5, 6, 7], [2, 4, 5]],
-                                   support=nel.EpochArray([0, 8]),
-                                   fs=1)
-                                   .bin(ds=1))
+        bst = nel.SpikeTrainArray(
+            [[3, 4, 5, 6, 7], [2, 4, 5]], support=nel.EpochArray([0, 8]), fs=1
+        ).bin(ds=1)
 
-        desc = 'test case for bst'
+        desc = "test case for bst"
         bst._desc = desc
         n_series = bst.n_series
 
         bst1 = bst.empty(inplace=False)
         bst.empty(inplace=True)
 
-        assert bst.binned_support == None
-        assert bst.bin_centers == None
-        assert bst.bins == None
+        assert bst.binned_support is None
+        assert bst.bin_centers is None
+        assert bst.bins is None
         assert bst.eventarray.isempty
         assert bst.n_series == n_series
         assert bst._desc == desc
@@ -274,12 +290,11 @@ class TestBinnedSpikeTrainArray:
 
     def copy_without_data(self):
 
-        bst = (nel.SpikeTrainArray([[3, 4, 5, 6, 7], [2, 4, 5]],
-                            support=nel.EpochArray([0, 8]),
-                            fs=1)
-                            .bin(ds=1))
+        bst = nel.SpikeTrainArray(
+            [[3, 4, 5, 6, 7], [2, 4, 5]], support=nel.EpochArray([0, 8]), fs=1
+        ).bin(ds=1)
 
-        desc = 'test case for bst'
+        desc = "test case for bst"
         bst._desc = desc
 
         bst_copied = bst._copy_without_data()
@@ -289,18 +304,19 @@ class TestBinnedSpikeTrainArray:
         assert bst.isempty
         assert bst.eventarray.isempty
 
+
 class TestSpikeTrainArrayEtienne:
 
     def test_1(self):
-        sta = nel.SpikeTrainArray([[],[],[]])
+        sta = nel.SpikeTrainArray([[], [], []])
         assert sta.n_units == 3  # failed before updates
 
     def test_2(self):
-        sta = nel.SpikeTrainArray([[],[],[3]])
+        sta = nel.SpikeTrainArray([[], [], [3]])
         assert sta.n_units == 3
 
     def test_3(self):
-        sta = nel.SpikeTrainArray([[1],[2],[3]])
+        sta = nel.SpikeTrainArray([[1], [2], [3]])
         assert sta.n_units == 3  # failed before updates
 
     def test_4(self):
@@ -320,19 +336,19 @@ class TestSpikeTrainArrayEtienne:
         assert sta.n_units == 1
 
     def test_8(self):
-        sta = nel.SpikeTrainArray([[1,2],[3,4]])
+        sta = nel.SpikeTrainArray([[1, 2], [3, 4]])
         assert sta.n_units == 2
 
     def test_9(self):
-        sta = nel.SpikeTrainArray([[1,2,3]])
+        sta = nel.SpikeTrainArray([[1, 2, 3]])
         assert sta.n_units == 1
 
     def test_10(self):
-        sta = nel.SpikeTrainArray([1,2,3])
+        sta = nel.SpikeTrainArray([1, 2, 3])
         assert sta.n_units == 1
 
     def test_11(self):
-        sta = nel.SpikeTrainArray([[1,2,3],[]])
+        sta = nel.SpikeTrainArray([[1, 2, 3], []])
         assert sta.n_units == 2
 
     def test_12(self):
@@ -340,21 +356,30 @@ class TestSpikeTrainArrayEtienne:
         assert sta.n_units == 0
 
     def test_13(self):
-        sta = nel.SpikeTrainArray([[[3,4],[4],[2]]])  # failed before updates
+        sta = nel.SpikeTrainArray([[[3, 4], [4], [2]]])  # failed before updates
         assert sta.n_units == 3
 
     def test_14(self):
-        sta = nel.SpikeTrainArray([[3,4],[4],[2]])
+        sta = nel.SpikeTrainArray([[3, 4], [4], [2]])
         assert sta.n_units == 3
 
     def test_15(self):
-        sta = nel.SpikeTrainArray([[1,2,3,5,10,11,12,15], [1,2,3,5,10,11,12,15]], fs=5)
+        sta = nel.SpikeTrainArray(
+            [[1, 2, 3, 5, 10, 11, 12, 15], [1, 2, 3, 5, 10, 11, 12, 15]], fs=5
+        )
         sta = sta.partition(n_epochs=5)
-        for aa, bb in zip(ragged_array([np.array([1, 2, 3]), np.array([1, 2, 3])]),  sta.iloc[0].data):
+        for aa, bb in zip(
+            ragged_array([np.array([1, 2, 3]), np.array([1, 2, 3])]), sta.iloc[0].data
+        ):
             assert np.allclose(aa, bb)
 
     def test_16(self):
-        sta = nel.SpikeTrainArray([[1,2,3,5,10,11,12,15], [1,2,3,5,10,11,12,15]], fs=5)
+        sta = nel.SpikeTrainArray(
+            [[1, 2, 3, 5, 10, 11, 12, 15], [1, 2, 3, 5, 10, 11, 12, 15]], fs=5
+        )
         sta = sta.partition(n_epochs=5)
-        for aa, bb in zip(ragged_array([np.array([5, 15]), np.array([5, 15])]),  sta.iloc[[1,4],:].data):
+        for aa, bb in zip(
+            ragged_array([np.array([5, 15]), np.array([5, 15])]),
+            sta.iloc[[1, 4], :].data,
+        ):
             assert np.allclose(aa, bb)

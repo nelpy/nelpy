@@ -7,31 +7,34 @@ import functools
 import numpy as np
 import matplotlib as mpl
 
-from . import palettes, _orig_rc_params
+from . import palettes
 
-mpl_ge_150 = LooseVersion(mpl.__version__) >= '1.5.0'
+_orig_rc_params = mpl.rcParams.copy()
+mpl_ge_150 = LooseVersion(mpl.__version__) >= "1.5.0"
 
-__all__ = ["setup", "reset_defaults", "reset_orig",
-           "axes_style", "set_style", "plotting_context", "set_context",
-           "set_palette"]
+__all__ = [
+    "setup",
+    "reset_defaults",
+    "reset_orig",
+    "axes_style",
+    "set_style",
+    "plotting_context",
+    "set_context",
+    "set_palette",
+]
 
 
 _style_keys = (
-
     "axes.facecolor",
     "axes.edgecolor",
     "axes.grid",
     "axes.axisbelow",
     "axes.linewidth",
     "axes.labelcolor",
-
     "figure.facecolor",
-
     "grid.color",
     "grid.linestyle",
-
     "text.color",
-
     "xtick.color",
     "ytick.color",
     "xtick.direction",
@@ -40,46 +43,45 @@ _style_keys = (
     "ytick.major.size",
     "xtick.minor.size",
     "ytick.minor.size",
-
     "legend.frameon",
     "legend.numpoints",
     "legend.scatterpoints",
-
     "lines.solid_capstyle",
-
     "image.cmap",
     "font.family",
     "font.sans-serif",
-    )
+)
 
 _context_keys = (
     "figure.figsize",
-
     "font.size",
     "axes.labelsize",
     "axes.titlesize",
     "xtick.labelsize",
     "ytick.labelsize",
     "legend.fontsize",
-
     "grid.linewidth",
     "lines.linewidth",
     "patch.linewidth",
     "lines.markersize",
     "lines.markeredgewidth",
-
     "xtick.major.width",
     "ytick.major.width",
     "xtick.minor.width",
     "ytick.minor.width",
-
     "xtick.major.pad",
-    "ytick.major.pad"
-    )
+    "ytick.major.pad",
+)
 
 
-def setup(context="notebook", style="ticks", palette="sweet",
-        font="sans-serif", font_scale=1, rc=None):
+def setup(
+    context="notebook",
+    style="ticks",
+    palette="sweet",
+    font="sans-serif",
+    font_scale=1,
+    rc=None,
+):
     """Set aesthetic figure parameters.
 
     Each set of parameters can be set directly or temporarily, see the
@@ -108,17 +110,21 @@ def setup(context="notebook", style="ticks", palette="sweet",
     if rc is not None:
         mpl.rcParams.update(rc)
 
+
 def set_fontsize(fontsize=14):
     """Set the fontsize for most plot elements."""
 
-    rc={"font.size":fontsize,
-        "axes.titlesize":fontsize,
-        "axes.labelsize":fontsize,
-        "xtick.labelsize":fontsize,
-        "ytick.labelsize":fontsize,
-        "legend.fontsize":fontsize}
+    rc = {
+        "font.size": fontsize,
+        "axes.titlesize": fontsize,
+        "axes.labelsize": fontsize,
+        "xtick.labelsize": fontsize,
+        "ytick.labelsize": fontsize,
+        "legend.fontsize": fontsize,
+    }
 
     mpl.rcParams.update(rc)
+
 
 def reset_defaults():
     """Restore all RC params to default settings."""
@@ -197,62 +203,81 @@ def axes_style(style=None, rc=None):
             "lines.linewidth": 1.75,
             "image.cmap": "Greys",
             "font.family": ["sans-serif"],
-            "font.sans-serif": ["DejaVu Sans", "Arial", "Liberation Sans",
-                                "Bitstream Vera Sans", "sans-serif"],
+            "font.sans-serif": [
+                "DejaVu Sans",
+                "Arial",
+                "Liberation Sans",
+                "Bitstream Vera Sans",
+                "sans-serif",
+            ],
             "grid.linestyle": "-",
             "lines.solid_capstyle": "round",
-            }
+        }
 
         # Set grid on or off
         if "grid" in style:
-            style_dict.update({
-                "axes.grid": True,
-                })
+            style_dict.update(
+                {
+                    "axes.grid": True,
+                }
+            )
         else:
-            style_dict.update({
-                "axes.grid": False,
-                })
+            style_dict.update(
+                {
+                    "axes.grid": False,
+                }
+            )
 
         # Set the color of the background, spines, and grids
         if style.startswith("dark"):
-            style_dict.update({
-                "axes.facecolor": "#EAEAF2",
-                "axes.edgecolor": "white",
-                "axes.linewidth": 0,
-                "grid.color": "white",
-                })
+            style_dict.update(
+                {
+                    "axes.facecolor": "#EAEAF2",
+                    "axes.edgecolor": "white",
+                    "axes.linewidth": 0,
+                    "grid.color": "white",
+                }
+            )
 
         elif style == "whitegrid":
-            style_dict.update({
-                "axes.facecolor": "white",
-                "axes.edgecolor": light_gray,
-                "axes.linewidth": 1,
-                "grid.color": light_gray,
-                })
+            style_dict.update(
+                {
+                    "axes.facecolor": "white",
+                    "axes.edgecolor": light_gray,
+                    "axes.linewidth": 1,
+                    "grid.color": light_gray,
+                }
+            )
 
         elif style in ["white", "ticks"]:
-            style_dict.update({
-                "axes.facecolor": "white",
-                "axes.edgecolor": dark_gray,
-                "axes.linewidth": 1.25,
-                "grid.color": light_gray,
-                })
+            style_dict.update(
+                {
+                    "axes.facecolor": "white",
+                    "axes.edgecolor": dark_gray,
+                    "axes.linewidth": 1.25,
+                    "grid.color": light_gray,
+                }
+            )
 
         # Show or hide the axes ticks
         if style == "ticks":
-            style_dict.update({
-                "xtick.major.size": 6,
-                "ytick.major.size": 6,
-                "xtick.minor.size": 3,
-                "ytick.minor.size": 3,
-                })
+            style_dict.update(
+                {
+                    "xtick.major.size": 6,
+                    "ytick.major.size": 6,
+                    "xtick.minor.size": 3,
+                    "ytick.minor.size": 3,
+                }
+            )
         else:
-            style_dict.update({
-                "xtick.major.size": 0,
-                "ytick.major.size": 0,
-                "xtick.minor.size": 0,
-                "ytick.minor.size": 0,
-                })
+            style_dict.update(
+                {
+                    "xtick.major.size": 0,
+                    "ytick.major.size": 0,
+                    "xtick.minor.size": 0,
+                    "ytick.minor.size": 0,
+                }
+            )
 
     # Override these settings with the provided rc dictionary
     if rc is not None:
@@ -356,7 +381,6 @@ def plotting_context(context=None, font_scale=1, rc=None):
 
         # Set up dictionary of default parameters
         base_context = {
-
             "figure.figsize": np.array([8, 5.5]),
             "font.size": 12,
             "axes.labelsize": 11,
@@ -364,29 +388,32 @@ def plotting_context(context=None, font_scale=1, rc=None):
             "xtick.labelsize": 10,
             "ytick.labelsize": 10,
             "legend.fontsize": 10,
-
             "grid.linewidth": 1,
             "lines.linewidth": 1.75,
-            "patch.linewidth": .3,
+            "patch.linewidth": 0.3,
             "lines.markersize": 7,
             "lines.markeredgewidth": 0,
-
             "xtick.major.width": 1,
             "ytick.major.width": 1,
-            "xtick.minor.width": .5,
-            "ytick.minor.width": .5,
-
+            "xtick.minor.width": 0.5,
+            "ytick.minor.width": 0.5,
             "xtick.major.pad": 7,
             "ytick.major.pad": 7,
-            }
+        }
 
         # Scale all the parameters by the same factor depending on the context
-        scaling = dict(paper=.8, notebook=1, talk=1.3, poster=1.6)[context]
+        scaling = dict(paper=0.8, notebook=1, talk=1.3, poster=1.6)[context]
         context_dict = {k: v * scaling for k, v in base_context.items()}
 
         # Now independently scale the fonts
-        font_keys = ["axes.labelsize", "axes.titlesize", "legend.fontsize",
-                     "xtick.labelsize", "ytick.labelsize", "font.size"]
+        font_keys = [
+            "axes.labelsize",
+            "axes.titlesize",
+            "legend.fontsize",
+            "xtick.labelsize",
+            "ytick.labelsize",
+            "font.size",
+        ]
         font_dict = {k: context_dict[k] * font_scale for k in font_keys}
         context_dict.update(font_dict)
 
@@ -463,19 +490,23 @@ class _RCAesthetics(dict):
         def wrapper(*args, **kwargs):
             with self:
                 return func(*args, **kwargs)
+
         return wrapper
 
 
 class _AxesStyle(_RCAesthetics):
     """Light wrapper on a dict to set style temporarily."""
+
     _keys = _style_keys
     _set = staticmethod(set_style)
 
 
 class _PlottingContext(_RCAesthetics):
     """Light wrapper on a dict to set context temporarily."""
+
     _keys = _context_keys
     _set = staticmethod(set_context)
+
 
 def set_palette(palette, n_colors=None, desat=None):
     """Set the matplotlib color cycle using a seaborn palette.
@@ -505,8 +536,9 @@ def set_palette(palette, n_colors=None, desat=None):
     colors = palettes.color_palette(palette, n_colors, desat)
     if mpl_ge_150:
         from cycler import cycler
-        cyl = cycler('color', colors)
-        mpl.rcParams['axes.prop_cycle'] = cyl
+
+        cyl = cycler("color", colors)
+        mpl.rcParams["axes.prop_cycle"] = cyl
     else:
         mpl.rcParams["axes.color_cycle"] = list(colors)
     mpl.rcParams["patch.facecolor"] = colors[0]

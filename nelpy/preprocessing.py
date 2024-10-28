@@ -3,22 +3,23 @@
 import numpy as np
 import logging
 
-from copy import copy as copycopy # to avoid name clash with local copy variable in StandardScaler
+from copy import (
+    copy as copycopy,
+)  # to avoid name clash with local copy variable in StandardScaler
 from functools import wraps
 
 from sklearn.base import BaseEstimator
-from sklearn.utils.validation import check_is_fitted
 from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
 
 from .utils import PrettyDuration
 from . import core
 
-__all__ = ['standardize_asa',
-           'DataWindow',
-           'StreamingDataWindow',
-           'StandardScaler']
+__all__ = ["standardize_asa", "DataWindow", "StreamingDataWindow", "StandardScaler"]
 
-def standardize_asa(func=None, *, asa, lengths=None, timestamps=None, fs=None, n_signals=None):
+
+def standardize_asa(
+    func=None, *, asa, lengths=None, timestamps=None, fs=None, n_signals=None
+):
     """
     Standardize nelpy RegularlySampledAnalogSignalArray to numpy representation.
 
@@ -53,7 +54,9 @@ def standardize_asa(func=None, *, asa, lengths=None, timestamps=None, fs=None, n
     """
     if n_signals is not None:
         try:
-            assert float(n_signals).is_integer(), "'n_signals' must be a positive integer!"
+            assert float(
+                n_signals
+            ).is_integer(), "'n_signals' must be a positive integer!"
             n_signals = int(n_signals)
         except ValueError:
             raise ValueError("'n_signals' must be a positive integer!")
@@ -61,9 +64,13 @@ def standardize_asa(func=None, *, asa, lengths=None, timestamps=None, fs=None, n
 
     assert isinstance(asa, str), "'asa' decorator argument must be a string!"
     if lengths is not None:
-        assert isinstance(lengths, str), "'lengths' decorator argument must be a string!"
+        assert isinstance(
+            lengths, str
+        ), "'lengths' decorator argument must be a string!"
     if timestamps is not None:
-        assert isinstance(timestamps, str), "'timestamps' decorator argument must be a string!"
+        assert isinstance(
+            timestamps, str
+        ), "'timestamps' decorator argument must be a string!"
     if fs is not None:
         assert isinstance(fs, str), "'fs' decorator argument must be a string!"
 
@@ -82,22 +89,36 @@ def standardize_asa(func=None, *, asa, lengths=None, timestamps=None, fs=None, n
                     asa_ = args[0]
                     kw = False
                 except IndexError:
-                    raise TypeError("{}() missing 1 required positional argument: '{}'".format(function.__name__, asa))
+                    raise TypeError(
+                        "{}() missing 1 required positional argument: '{}'".format(
+                            function.__name__, asa
+                        )
+                    )
 
             # standardize asa_ here...
             if isinstance(asa_, core.RegularlySampledAnalogSignalArray):
                 if n_signals is not None:
                     if not asa_.n_signals == n_signals:
-                        raise ValueError("Input object '{}'.n_signals=={}, but {} was expected!".format(asa, asa_.n_signals, n_signals))
+                        raise ValueError(
+                            "Input object '{}'.n_signals=={}, but {} was expected!".format(
+                                asa, asa_.n_signals, n_signals
+                            )
+                        )
                 if lengths_ is not None:
-                    logging.warning("'{}' was passed in, but will be overwritten" \
-                                    " by '{}'s 'lengths' attribute".format(lengths, asa))
+                    logging.warning(
+                        "'{}' was passed in, but will be overwritten"
+                        " by '{}'s 'lengths' attribute".format(lengths, asa)
+                    )
                 if timestamps_ is not None:
-                    logging.warning("'{}' was passed in, but will be overwritten" \
-                                    " by '{}'s 'abscissa_vals' attribute".format(timestamps, asa))
+                    logging.warning(
+                        "'{}' was passed in, but will be overwritten"
+                        " by '{}'s 'abscissa_vals' attribute".format(timestamps, asa)
+                    )
                 if fs_ is not None:
-                    logging.warning("'{}' was passed in, but will be overwritten" \
-                                    " by '{}'s 'fs' attribute".format(fs, asa))
+                    logging.warning(
+                        "'{}' was passed in, but will be overwritten"
+                        " by '{}'s 'fs' attribute".format(fs, asa)
+                    )
 
                 fs_ = asa_.fs
                 lengths_ = asa_.lengths
@@ -105,8 +126,10 @@ def standardize_asa(func=None, *, asa, lengths=None, timestamps=None, fs=None, n
                 asa_ = asa_.data.squeeze().copy()
 
             elif not isinstance(asa_, np.ndarray):
-                raise TypeError("'{}' was not a nelpy.RegularlySampledAnalogSignalArray" \
-                                " so expected a numpy ndarray but got {}".format(asa, type(asa_)))
+                raise TypeError(
+                    "'{}' was not a nelpy.RegularlySampledAnalogSignalArray"
+                    " so expected a numpy ndarray but got {}".format(asa, type(asa_))
+                )
 
             if kw:
                 kwargs[asa] = asa_
@@ -119,19 +142,30 @@ def standardize_asa(func=None, *, asa, lengths=None, timestamps=None, fs=None, n
                 kwargs[lengths] = lengths_
             if timestamps is not None:
                 if timestamps_ is None:
-                    raise TypeError("{}() missing 1 required keyword argument: '{}'".format(function.__name__, timestamps))
+                    raise TypeError(
+                        "{}() missing 1 required keyword argument: '{}'".format(
+                            function.__name__, timestamps
+                        )
+                    )
                 kwargs[timestamps] = timestamps_
             if fs is not None:
                 if fs_ is None:
-                    raise TypeError("{}() missing 1 required keyword argument: '{}'".format(function.__name__, fs))
+                    raise TypeError(
+                        "{}() missing 1 required keyword argument: '{}'".format(
+                            function.__name__, fs
+                        )
+                    )
                 kwargs[fs] = fs_
 
             return function(*args, **kwargs)
+
         return wrapped_function
+
     if func:
         return _decorate(func)
 
     return _decorate
+
 
 class DataWindow(BaseEstimator):
     """
@@ -166,7 +200,16 @@ class DataWindow(BaseEstimator):
             Total bin width = 5 seconds
     """
 
-    def __init__(self, bins_before=0, bins_after=0, bins_current=1, bins_stride=1, bin_width=None, flatten=False, sum=False):
+    def __init__(
+        self,
+        bins_before=0,
+        bins_after=0,
+        bins_current=1,
+        bins_stride=1,
+        bin_width=None,
+        flatten=False,
+        sum=False,
+    ):
         self.bins_before = bins_before
         self.bins_after = bins_after
         self.bins_current = bins_current
@@ -177,22 +220,41 @@ class DataWindow(BaseEstimator):
 
     def __str__(self):
         if self.bin_width is not None:
-            repr_string = "DataWindow(bins_before={}, bins_after={}, bins_current={}, bins_stride={}, bin_width={})" \
-            .format(self._bins_before, self._bins_after, self._bins_current, self._bins_stride, self._bin_width)
+            repr_string = "DataWindow(bins_before={}, bins_after={}, bins_current={}, bins_stride={}, bin_width={})".format(
+                self._bins_before,
+                self._bins_after,
+                self._bins_current,
+                self._bins_stride,
+                self._bin_width,
+            )
         else:
-            repr_string = "DataWindow(bins_before={}, bins_after={}, bins_current={}, bins_stride={})" \
-            .format(self._bins_before, self._bins_after, self._bins_current, self._bins_stride)
+            repr_string = "DataWindow(bins_before={}, bins_after={}, bins_current={}, bins_stride={})".format(
+                self._bins_before,
+                self._bins_after,
+                self._bins_current,
+                self._bins_stride,
+            )
         return repr_string
 
     def __repr__(self):
         if self.bin_width is not None:
-            repr_string = "DataWindow(bins_before={}, bins_after={}, bins_current={}, bins_stride={}, bin_width={})" \
-            .format(self.bins_before, self.bins_after, self.bins_current, self.bins_stride, self.bin_width)
-            repr_string += "\n\tTotal bin width = {}" \
-            .format(PrettyDuration((self.bins_before + self.bins_after + self.bins_current)*self.bin_width))
+            repr_string = "DataWindow(bins_before={}, bins_after={}, bins_current={}, bins_stride={}, bin_width={})".format(
+                self.bins_before,
+                self.bins_after,
+                self.bins_current,
+                self.bins_stride,
+                self.bin_width,
+            )
+            repr_string += "\n\tTotal bin width = {}".format(
+                PrettyDuration(
+                    (self.bins_before + self.bins_after + self.bins_current)
+                    * self.bin_width
+                )
+            )
         else:
-            repr_string = "DataWindow(bins_before={}, bins_after={}, bins_current={}, bins_stride={})" \
-            .format(self.bins_before, self.bins_after, self.bins_current, self.bins_stride)
+            repr_string = "DataWindow(bins_before={}, bins_after={}, bins_current={}, bins_stride={})".format(
+                self.bins_before, self.bins_after, self.bins_current, self.bins_stride
+            )
         return repr_string
 
     def fit(self, X, y=None, *, T=None, lengths=None, flatten=None):
@@ -211,19 +273,21 @@ class DataWindow(BaseEstimator):
 
         bins_before = self.bins_before
         bins_after = self.bins_after
-        bins_current = self.bins_current
+        # bins_current = self.bins_current
         stride = self.bins_stride
 
         X, T, lengths = self._tidy(X=X, T=T, lengths=lengths)
-        L = np.insert(np.cumsum(lengths),0,0)
+        L = np.insert(np.cumsum(lengths), 0, 0)
         idx = []
         n_zamples_tot = 0
         for kk, (ii, jj) in enumerate(self._iter_from_X_lengths(X=X, lengths=lengths)):
-            X_ = X[ii:jj] #, T[ii:jj]
+            X_ = X[ii:jj]  # , T[ii:jj]
             n_samples, n_features = X_.shape
-            n_zamples = int(np.ceil((n_samples - bins_before - bins_after)/stride))
+            n_zamples = int(np.ceil((n_samples - bins_before - bins_after) / stride))
             n_zamples_tot += n_zamples
-            idx += list(L[kk] + np.array(range(bins_before, n_samples-bins_after, stride)))
+            idx += list(
+                L[kk] + np.array(range(bins_before, n_samples - bins_after, stride))
+            )
 
         self.n_samples = n_zamples_tot
         self.idx = idx
@@ -339,7 +403,7 @@ class DataWindow(BaseEstimator):
         stride = self.bins_stride
 
         n_samples, n_features = X.shape
-        n_zamples = int(np.ceil((n_samples - bins_before - bins_after)/stride))
+        n_zamples = int(np.ceil((n_samples - bins_before - bins_after) / stride))
 
         if n_zamples < 1:
             Z = None
@@ -354,24 +418,33 @@ class DataWindow(BaseEstimator):
 
         for zz in range(n_zamples):
             if bins_current == 1:
-                idx = np.arange(frm_idx, frm_idx+bins_before + bins_after + bins_current)
+                idx = np.arange(
+                    frm_idx, frm_idx + bins_before + bins_after + bins_current
+                )
             else:
-                idx = list(range(frm_idx, frm_idx+bins_before))
-                idx.extend(list(range(frm_idx+bins_before+1, frm_idx+bins_before+1+bins_after)))
+                idx = list(range(frm_idx, frm_idx + bins_before))
+                idx.extend(
+                    list(
+                        range(
+                            frm_idx + bins_before + 1,
+                            frm_idx + bins_before + 1 + bins_after,
+                        )
+                    )
+                )
 
-        #     print('{}  @ {}'.format(idx, curr_idx))
+            #     print('{}  @ {}'.format(idx, curr_idx))
 
-            Z[zz,:] = X[idx,:]
+            Z[zz, :] = X[idx, :]
             curr_idx += stride
             frm_idx += stride
 
         if sum:
             Z = Z.sum(axis=1)
         elif flatten:
-            Z = Z.reshape(Z.shape[0],(Z.shape[1]*Z.shape[2]))
+            Z = Z.reshape(Z.shape[0], (Z.shape[1] * Z.shape[2]))
 
         if T is not None:
-            t_idx = list(range(bins_before, n_samples-bins_after, stride))
+            t_idx = list(range(bins_before, n_samples - bins_after, stride))
             T = T[t_idx]
 
         return Z, T
@@ -443,11 +516,18 @@ class DataWindow(BaseEstimator):
         if isinstance(X, core.BinnedEventArray):
             if self._bin_width is not None:
                 if self._bin_width != X.ds:
-                    raise ValueError('The DataWindow has ``bin_width``={}, whereas ``X.ds``={}.'
-                                     .format(self._bin_width, X.ds))
+                    raise ValueError(
+                        "The DataWindow has ``bin_width``={}, whereas ``X.ds``={}.".format(
+                            self._bin_width, X.ds
+                        )
+                    )
 
             if (T is not None) or (lengths is not None):
-                logging.warning("A {} was passed in, so 'T' and 'lengths' will be ignored...".format(X.type_name))
+                logging.warning(
+                    "A {} was passed in, so 'T' and 'lengths' will be ignored...".format(
+                        X.type_name
+                    )
+                )
 
             T = X.bin_centers
             lengths = X.lengths
@@ -456,42 +536,59 @@ class DataWindow(BaseEstimator):
             return X, T, lengths
 
         try:
-            x = X[0,0]
+            x = X[0, 0]
             if X.ndim != 2:
-                raise ValueError('X is expected to be array-like with shape (n_samples, n_features).')
+                raise ValueError(
+                    "X is expected to be array-like with shape (n_samples, n_features)."
+                )
             n_samples, n_features = X.shape
             if lengths is not None:
                 tot_length = np.sum(lengths)
                 if tot_length != n_samples:
-                    raise ValueError('The sum of ``lengths`` should equal ``n_samples``. [sum(lengths)={}; n_samples={}]'
-                             .format(tot_length, n_samples))
+                    raise ValueError(
+                        "The sum of ``lengths`` should equal ``n_samples``. [sum(lengths)={}; n_samples={}]".format(
+                            tot_length, n_samples
+                        )
+                    )
         except (IndexError, TypeError):
             try:
                 x = X[0]
                 if x.ndim != 2:
-                    raise ValueError('Each element of X is expected to be array-like with shape (n_samples, n_features).')
+                    raise ValueError(
+                        "Each element of X is expected to be array-like with shape (n_samples, n_features)."
+                    )
                 if lengths is not None:
-                    raise ValueError('``lengths`` should not be specified when the shape of X is (n_epochs,)')
+                    raise ValueError(
+                        "``lengths`` should not be specified when the shape of X is (n_epochs,)"
+                    )
                 n_samples, n_features = x.shape
                 lengths = []
                 for x in X:
                     lengths.append(x.shape[0])
                     if x.ndim != 2:
-                        raise ValueError('Each element of X is expected to be array-like with shape (n_samples, n_features).')
+                        raise ValueError(
+                            "Each element of X is expected to be array-like with shape (n_samples, n_features)."
+                        )
                     if x.shape[1] != n_features:
-                        raise ValueError('Each element of X is expected to have the same number of features.')
+                        raise ValueError(
+                            "Each element of X is expected to have the same number of features."
+                        )
                 X = np.vstack(X)
             except (IndexError, TypeError):
-                raise TypeError('Windowing of type {} not supported!'.format(str(type(X))))
+                raise TypeError(
+                    "Windowing of type {} not supported!".format(str(type(X)))
+                )
         n_samples, n_features = X.shape
         if T is not None:
-            assert len(T) == n_samples, "T must have the same number of elements as n_samples."
+            assert (
+                len(T) == n_samples
+            ), "T must have the same number of elements as n_samples."
         else:
             if self._bin_width is not None:
                 ds = self._bin_width
             else:
                 ds = 1
-            T = np.arange(n_samples)*ds + ds/2
+            T = np.arange(n_samples) * ds + ds / 2
 
         return X, T, lengths
 
@@ -517,7 +614,9 @@ class DataWindow(BaseEstimator):
         """
 
         if X.ndim != 2:
-            raise ValueError('X is expected to be array-like with shape (n_samples, n_features).')
+            raise ValueError(
+                "X is expected to be array-like with shape (n_samples, n_features)."
+            )
 
         n_samples = X.shape[0]
 
@@ -530,8 +629,11 @@ class DataWindow(BaseEstimator):
             end = np.cumsum(lengths).astype(np.int)
 
             if end[-1] != n_samples:
-                raise ValueError('The sum of ``lengths`` should equal ``n_samples``. [sum(lengths)={}; n_samples={}]'
-                                 .format(end[-1], n_samples))
+                raise ValueError(
+                    "The sum of ``lengths`` should equal ``n_samples``. [sum(lengths)={}; n_samples={}]".format(
+                        end[-1], n_samples
+                    )
+                )
 
             start = end - lengths
 
@@ -547,7 +649,9 @@ class DataWindow(BaseEstimator):
 
     @bins_before.setter
     def bins_before(self, val):
-        assert float(val).is_integer(), "``bins_before`` must be a non-negative integer!"
+        assert float(
+            val
+        ).is_integer(), "``bins_before`` must be a non-negative integer!"
         assert val >= 0, "``bins_before`` must be a non-negative integer!"
         self._bins_before = int(val)
 
@@ -568,7 +672,7 @@ class DataWindow(BaseEstimator):
     @bins_current.setter
     def bins_current(self, val):
         assert float(val).is_integer(), "``bins_current`` must be a either 1 or 0!"
-        assert val in [0,1], "``bins_current`` must be a either 1 or 0!"
+        assert val in [0, 1], "``bins_current`` must be a either 1 or 0!"
         self._bins_current = int(val)
 
     @property
@@ -577,7 +681,9 @@ class DataWindow(BaseEstimator):
 
     @bins_stride.setter
     def bins_stride(self, val):
-        assert float(val).is_integer(), "``bins_stride`` must be a non-negative integer!"
+        assert float(
+            val
+        ).is_integer(), "``bins_stride`` must be a non-negative integer!"
         assert val >= 0, "``bins_stride`` must be a non-negative integer!"
         self._bins_stride = int(val)
 
@@ -588,7 +694,9 @@ class DataWindow(BaseEstimator):
     @bin_width.setter
     def bin_width(self, val):
         if val is not None:
-            assert float(val) > 0, "``bin_width`` must be a non-negative number (float)!"
+            assert (
+                float(val) > 0
+            ), "``bin_width`` must be a non-negative number (float)!"
         self._bin_width = val
 
     @property
@@ -605,7 +713,7 @@ class DataWindow(BaseEstimator):
         self._flatten = val
 
 
-class StreamingDataWindow():
+class StreamingDataWindow:
     """
     StreamingDataWindow
 
@@ -624,8 +732,9 @@ class StreamingDataWindow():
         pass
 
     def __repr__(self):
-        return 'StreamingDataWindow(\n\tw={},\n\tX={},\n\tflatten={})' \
-                .format(str(self.w), str(self.X), str(self._flatten))# + str(self.w)
+        return "StreamingDataWindow(\n\tw={},\n\tX={},\n\tflatten={})".format(
+            str(self.w), str(self.X), str(self._flatten)
+        )  # + str(self.w)
 
     def __iter__(self):
         # initialize the internal index to zero when used as iterator
@@ -633,7 +742,7 @@ class StreamingDataWindow():
         return self
 
     def __next__(self):
-        index = self._index
+        # index = self._index
         # if index > self.n_intervals - 1:
         #     raise StopIteration
 
@@ -646,9 +755,10 @@ class StreamingDataWindow():
     @w.setter
     def w(self, val):
         if not isinstance(val, DataWindow):
-            raise TypeError('w must be a nelpy.preprocessing.DataWindow type!')
+            raise TypeError("w must be a nelpy.preprocessing.DataWindow type!")
         else:
             self._w = val
+
 
 class StandardScaler(SklearnStandardScaler):
 
@@ -666,7 +776,9 @@ class StandardScaler(SklearnStandardScaler):
             Ignored
         """
 
-        if isinstance(X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+        if isinstance(
+            X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)
+        ):
             X = X.data.T
 
         return super().fit(X, y)
@@ -689,7 +801,9 @@ class StandardScaler(SklearnStandardScaler):
             Ignored
         """
 
-        if isinstance(X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+        if isinstance(
+            X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)
+        ):
             X = X.data.T
 
         return super().partial_fit(X, y)
@@ -707,7 +821,9 @@ class StandardScaler(SklearnStandardScaler):
         if copy is None:
             copy = self.copy
 
-        if isinstance(X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+        if isinstance(
+            X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)
+        ):
             if copy:
                 Xdata = copycopy(X.data.T)
                 X = X.copy()
@@ -737,7 +853,9 @@ class StandardScaler(SklearnStandardScaler):
         if copy is None:
             copy = self.copy
 
-        if isinstance(X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)):
+        if isinstance(
+            X, (core.RegularlySampledAnalogSignalArray, core.BinnedEventArray)
+        ):
             if copy:
                 Xdata = copycopy(X.data.T)
                 X = X.copy()

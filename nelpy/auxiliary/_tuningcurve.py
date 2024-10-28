@@ -1,4 +1,4 @@
-__all__ = ['TuningCurve1D', 'TuningCurve2D', 'DirectionalTuningCurve1D']
+__all__ = ["TuningCurve1D", "TuningCurve2D", "DirectionalTuningCurve1D"]
 
 import copy
 import numpy as np
@@ -19,9 +19,11 @@ from ..utils_.decorators import keyword_deprecation
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
-warnings.formatwarning = lambda message, category, filename, lineno, \
-    line=None: formatwarning_orig(
-        message, category, filename, lineno, line='')
+warnings.formatwarning = (
+    lambda message, category, filename, lineno, line=None: formatwarning_orig(
+        message, category, filename, lineno, line=""
+    )
+)
 
 
 ########################################################################
@@ -38,15 +40,41 @@ class TuningCurve2D:
 
     """
 
-    __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels",
-                      "_unit_tags", "_label", "_mask"]
+    __attributes__ = [
+        "_ratemap",
+        "_occupancy",
+        "_unit_ids",
+        "_unit_labels",
+        "_unit_tags",
+        "_label",
+        "_mask",
+    ]
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-    def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None,
-                 truncate=None, ext_nx=None, ext_ny=None, transform_func=None,
-                 minbgrate=None, ext_xmin=0, ext_ymin=0, ext_xmax=1, ext_ymax=1,
-                 extlabels=None, min_duration=None, unit_ids=None,
-                 unit_labels=None, unit_tags=None, label=None, empty=False):
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+    def __init__(
+        self,
+        *,
+        bst=None,
+        extern=None,
+        ratemap=None,
+        sigma=None,
+        truncate=None,
+        ext_nx=None,
+        ext_ny=None,
+        transform_func=None,
+        minbgrate=None,
+        ext_xmin=0,
+        ext_ymin=0,
+        ext_xmax=1,
+        ext_ymax=1,
+        extlabels=None,
+        min_duration=None,
+        unit_ids=None,
+        unit_labels=None,
+        unit_tags=None,
+        label=None,
+        empty=False
+    ):
         """
 
         NOTE: tuning curves in 2D have shapes (n_units, ny, nx) so that
@@ -80,8 +108,12 @@ class TuningCurve2D:
         # TODO: input validation
         if not empty:
             if ratemap is None:
-                assert bst is not None, "bst must be specified or ratemap must be specified!"
-                assert extern is not None, "extern must be specified or ratemap must be specified!"
+                assert (
+                    bst is not None
+                ), "bst must be specified or ratemap must be specified!"
+                assert (
+                    extern is not None
+                ), "extern must be specified or ratemap must be specified!"
             else:
                 assert bst is None, "ratemap and bst cannot both be specified!"
                 assert extern is None, "ratemap and extern cannot both be specified!"
@@ -95,28 +127,30 @@ class TuningCurve2D:
         if ratemap is not None:
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self._init_from_ratemap(ratemap=ratemap,
-                                    ext_xmin=ext_xmin,
-                                    ext_xmax=ext_xmax,
-                                    ext_ymin=ext_ymin,
-                                    ext_ymax=ext_ymax,
-                                    extlabels=extlabels,
-                                    unit_ids=unit_ids,
-                                    unit_labels=unit_labels,
-                                    unit_tags=unit_tags,
-                                    label=label)
+            self._init_from_ratemap(
+                ratemap=ratemap,
+                ext_xmin=ext_xmin,
+                ext_xmax=ext_xmax,
+                ext_ymin=ext_ymin,
+                ext_ymax=ext_ymax,
+                extlabels=extlabels,
+                unit_ids=unit_ids,
+                unit_labels=unit_labels,
+                unit_tags=unit_tags,
+                label=label,
+            )
             return
 
-        self._mask = None # TODO: change this when we can learn a mask in __init__!
+        self._mask = None  # TODO: change this when we can learn a mask in __init__!
         self._bst = bst
         self._extern = extern
 
         if minbgrate is None:
-            minbgrate = 0.01 # Hz minimum background firing rate
+            minbgrate = 0.01  # Hz minimum background firing rate
 
         if ext_nx is not None:
             if ext_xmin is not None and ext_xmax is not None:
-                self._xbins = np.linspace(ext_xmin, ext_xmax, ext_nx+1)
+                self._xbins = np.linspace(ext_xmin, ext_xmax, ext_nx + 1)
             else:
                 raise NotImplementedError
         else:
@@ -124,7 +158,7 @@ class TuningCurve2D:
 
         if ext_ny is not None:
             if ext_ymin is not None and ext_ymax is not None:
-                self._ybins = np.linspace(ext_ymin, ext_ymax, ext_ny+1)
+                self._ybins = np.linspace(ext_ymin, ext_ymax, ext_ny + 1)
             else:
                 raise NotImplementedError
         else:
@@ -141,6 +175,8 @@ class TuningCurve2D:
 
         if transform_func is None:
             self.trans_func = self._trans_func
+        else:
+            self.trans_func = transform_func
 
         # compute occupancy
         self._occupancy = self._compute_occupancy()
@@ -149,7 +185,9 @@ class TuningCurve2D:
         # normalize firing rate by occupancy
         self._ratemap = self._normalize_firing_rate_by_occupancy()
         # enforce minimum background firing rate
-        self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
+        self._ratemap[self._ratemap < minbgrate] = (
+            minbgrate  # background firing rate of 0.01 Hz
+        )
 
         # TODO: support 2D sigma
         if sigma is not None:
@@ -198,10 +236,18 @@ class TuningCurve2D:
         Returns
         -------
         si : array of shape (n_units,)
-            spatial information (in bits) per unit
+            spatial information (in bits) per spike
         """
 
-        return utils.spatial_information(ratemap=self.ratemap)
+        return utils.spatial_information(ratemap=self.ratemap, Pi=self.occupancy)
+
+    def information_rate(self):
+        """Compute the information rate..."""
+        return utils.information_rate(ratemap=self.ratemap, Pi=self.occupancy)
+
+    def spatial_selectivity(self):
+        """Compute the spatial selectivity..."""
+        return utils.spatial_selectivity(ratemap=self.ratemap, Pi=self.occupancy)
 
     def spatial_sparsity(self):
         """Compute the spatial information and firing sparsity...
@@ -246,7 +292,7 @@ class TuningCurve2D:
         sparsity: array of shape (n_units,)
             sparsity (in percent) for each unit
         """
-        return utils.spatial_sparsity(ratemap=self.ratemap)
+        return utils.spatial_sparsity(ratemap=self.ratemap, Pi=self.occupancy)
 
     def _initialize_mask_from_extern(self, extern):
         """Attached a mask from extern.
@@ -254,15 +300,15 @@ class TuningCurve2D:
         Typically extern is an AnalogSignalArray or a PositionArray.
         """
         xpos, ypos = extern.asarray().yvals
-        mask_x = np.digitize(xpos, self._xbins, right=True) - 1 # spatial bin numbers
-        mask_y = np.digitize(ypos, self._ybins, right=True) - 1 # spatial bin numbers
+        mask_x = np.digitize(xpos, self._xbins, right=True) - 1  # spatial bin numbers
+        mask_y = np.digitize(ypos, self._ybins, right=True) - 1  # spatial bin numbers
 
         mask = np.empty((self.n_xbins, self.n_xbins))
         mask[:] = np.nan
         mask[mask_x, mask_y] = 1
 
-        self._mask_x = mask_x # may not be useful or necessary to store?
-        self._mask_y = mask_y # may not be useful or necessary to store?
+        self._mask_x = mask_x  # may not be useful or necessary to store?
+        self._mask_y = mask_y  # may not be useful or necessary to store?
         self._mask = mask
 
     def __add__(self, other):
@@ -274,7 +320,11 @@ class TuningCurve2D:
             # TODO: this should merge two TuningCurve2D objects
             raise NotImplementedError
         else:
-            raise TypeError("unsupported operand type(s) for +: 'TuningCurve2D' and '{}'".format(str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for +: 'TuningCurve2D' and '{}'".format(
+                    str(type(other))
+                )
+            )
         return out
 
     def __sub__(self, other):
@@ -297,10 +347,20 @@ class TuningCurve2D:
         out._ratemap = out.ratemap / other
         return out
 
-    def _init_from_ratemap(self, ratemap, occupancy=None, ext_xmin=0,
-                           ext_xmax=1, ext_ymin=0, ext_ymax=1,
-                           extlabels=None, unit_ids=None, unit_labels=None,
-                           unit_tags=None, label=None):
+    def _init_from_ratemap(
+        self,
+        ratemap,
+        occupancy=None,
+        ext_xmin=0,
+        ext_xmax=1,
+        ext_ymin=0,
+        ext_ymax=1,
+        extlabels=None,
+        unit_ids=None,
+        unit_labels=None,
+        unit_tags=None,
+        label=None,
+    ):
         """Initialize a TuningCurve2D object from a ratemap.
 
         Parameters
@@ -328,13 +388,13 @@ class TuningCurve2D:
         if ext_ymax is None:
             ext_ymax = ext_ymin + 1
 
-        self._xbins = np.linspace(ext_xmin, ext_xmax, ext_nx+1)
-        self._ybins = np.linspace(ext_ymin, ext_ymax, ext_ny+1)
+        self._xbins = np.linspace(ext_xmin, ext_xmax, ext_nx + 1)
+        self._ybins = np.linspace(ext_ymin, ext_ymax, ext_ny + 1)
         self._ratemap = ratemap
 
         # inherit unit IDs if available, otherwise initialize to default
         if unit_ids is None:
-            unit_ids = list(range(1,n_units + 1))
+            unit_ids = list(range(1, n_units + 1))
 
         unit_ids = np.array(unit_ids, ndmin=1)  # standardize unit_ids
 
@@ -352,6 +412,108 @@ class TuningCurve2D:
 
         return self
 
+    def max(self, *, axis=None):
+        """Returns the mean of firing rate (in Hz).
+        Parameters
+        ----------
+        axis : int, optional
+            When axis is None, the global max firing rate is returned.
+            When axis is 0, the max firing rates across units, as a
+            function of the external correlate (e.g. position) are
+            returned.
+            When axis is 1, the max firing rate for each unit is
+            returned.
+        Returns
+        -------
+        max :
+        """
+        if (axis is None) | (axis == 0):
+            maxes = np.max(self.ratemap, axis=axis)
+        elif axis == 1:
+            maxes = [
+                self.ratemap[unit_i, :, :].max()
+                for unit_i in range(self.ratemap.shape[0])
+            ]
+
+        return maxes
+
+    def min(self, *, axis=None):
+        """Returns the min of firing rate (in Hz).
+        Parameters
+        ----------
+        axis : int, optional
+            When axis is None, the global min firing rate is returned.
+            When axis is 0, the min firing rates across units, as a
+            function of the external correlate (e.g. position) are
+            returned.
+            When axis is 1, the min firing rate for each unit is
+            returned.
+        Returns
+        -------
+        min :
+        """
+
+        if (axis is None) | (axis == 0):
+            mins = np.min(self.ratemap, axis=axis)
+        elif axis == 1:
+            mins = [
+                self.ratemap[unit_i, :, :].min()
+                for unit_i in range(self.ratemap.shape[0])
+            ]
+
+        return mins
+
+    def mean(self, *, axis=None):
+        """Returns the mean of firing rate (in Hz).
+        Parameters
+        ----------
+        axis : int, optional
+            When axis is None, the global mean firing rate is returned.
+            When axis is 0, the mean firing rates across units, as a
+            function of the external correlate (e.g. position) are
+            returned.
+            When axis is 1, the mean firing rate for each unit is
+            returned.
+        Returns
+        -------
+        mean :
+        """
+
+        if (axis is None) | (axis == 0):
+            means = np.mean(self.ratemap, axis=axis)
+        elif axis == 1:
+            means = [
+                self.ratemap[unit_i, :, :].mean()
+                for unit_i in range(self.ratemap.shape[0])
+            ]
+
+        return means
+
+    def std(self, *, axis=None):
+        """Returns the std of firing rate (in Hz).
+        Parameters
+        ----------
+        axis : int, optional
+            When axis is None, the global std firing rate is returned.
+            When axis is 0, the std firing rates across units, as a
+            function of the external correlate (e.g. position) are
+            returned.
+            When axis is 1, the std firing rate for each unit is
+            returned.
+        Returns
+        -------
+        std :
+        """
+
+        if (axis is None) | (axis == 0):
+            stds = np.std(self.ratemap, axis=axis)
+        elif axis == 1:
+            stds = [
+                self.ratemap[unit_i, :, :].std()
+                for unit_i in range(self.ratemap.shape[0])
+            ]
+
+        return stds
 
     def _detach(self):
         """Detach bst and extern from tuning curve."""
@@ -366,7 +528,7 @@ class TuningCurve2D:
     @property
     def n_bins(self):
         """(int) Number of external correlates (bins)."""
-        return self.n_xbins*self.n_ybins
+        return self.n_xbins * self.n_ybins
 
     @property
     def n_xbins(self):
@@ -391,12 +553,12 @@ class TuningCurve2D:
     @property
     def xbin_centers(self):
         """External correlate bin centers."""
-        return (self.xbins + (self.xbins[1] - self.xbins[0])/2)[:-1]
+        return (self.xbins + (self.xbins[1] - self.xbins[0]) / 2)[:-1]
 
     @property
     def ybin_centers(self):
         """External correlate bin centers."""
-        return (self.ybins + (self.ybins[1] - self.ybins[0])/2)[:-1]
+        return (self.ybins + (self.ybins[1] - self.ybins[0]) / 2)[:-1]
 
     @property
     def bin_centers(self):
@@ -414,13 +576,34 @@ class TuningCurve2D:
         """
 
         _, ext = extern.asarray(at=at)
-        x, y = ext[0,:], ext[1,:]
+        x, y = ext[0, :], ext[1, :]
 
         return np.atleast_1d(x), np.atleast_1d(y)
 
+    def __getitem__(self, *idx):
+        """TuningCurve2D index access.
+
+        Accepts integers, slices, and lists"""
+
+        idx = [ii for ii in idx]
+        if len(idx) == 1 and not isinstance(idx[0], int):
+            idx = idx[0]
+        if isinstance(idx, tuple):
+            idx = [ii for ii in idx]
+
+        if self.isempty:
+            return self
+        try:
+            out = copy.copy(self)
+            out._ratemap = self.ratemap[idx, :]
+            out._unit_ids = (np.asanyarray(out._unit_ids)[idx]).tolist()
+            out._unit_labels = (np.asanyarray(out._unit_labels)[idx]).tolist()
+            return out
+        except Exception:
+            raise TypeError("unsupported subsctipting type {}".format(type(idx)))
+
     def _compute_occupancy(self):
-        """
-        """
+        """ """
 
         # Make sure that self._bst_centers fall within not only the support
         # of extern, but also within the extreme sample times; otherwise,
@@ -446,7 +629,9 @@ class TuningCurve2D:
         ymin = self.ybins[0]
         ymax = self.ybins[-1]
 
-        occupancy, _, _ = np.histogram2d(x, y, bins=[self.xbins, self.ybins], range=([[xmin, xmax], [ymin, ymax]]))
+        occupancy, _, _ = np.histogram2d(
+            x, y, bins=[self.xbins, self.ybins], range=([[xmin, xmax], [ymin, ymax]])
+        )
 
         return occupancy
 
@@ -481,11 +666,11 @@ class TuningCurve2D:
         ratemap = np.zeros((self.n_units, self.n_xbins, self.n_ybins))
 
         for tt, (bidxx, bidxy) in enumerate(zip(ext_bin_idx_x, ext_bin_idx_y)):
-            ratemap[:,bidxx-1, bidxy-1] += self._bst.data[:,tt]
+            ratemap[:, bidxx - 1, bidxy - 1] += self._bst.data[:, tt]
 
         # apply minimum observation duration
         for uu in range(self.n_units):
-            ratemap[uu][self.occupancy*self._bst.ds < min_duration] = 0
+            ratemap[uu][self.occupancy * self._bst.ds < min_duration] = 0
 
         return ratemap / self._bst.ds
 
@@ -509,8 +694,8 @@ class TuningCurve2D:
     def _normalize_firing_rate_by_occupancy(self):
 
         # normalize spike counts by occupancy:
-        denom = np.tile(self.occupancy, (self.n_units,1,1))
-        denom[denom==0] = 1
+        denom = np.tile(self.occupancy, (self.n_units, 1, 1))
+        denom[denom == 0] = 1
         ratemap = self.ratemap / denom
         return ratemap
 
@@ -527,7 +712,7 @@ class TuningCurve2D:
         """(int) The number of units."""
         try:
             return len(self._unit_ids)
-        except TypeError: # when unit_ids is an integer
+        except TypeError:  # when unit_ids is an integer
             return 1
         except AttributeError:
             return 0
@@ -537,15 +722,19 @@ class TuningCurve2D:
         """(tuple) The shape of the TuningCurve2D ratemap."""
         if self.isempty:
             return (self.n_units, 0, 0)
-        if len(self.ratemap.shape) ==1:
-            return ( self.ratemap.shape[0], 1, 1)
+        if len(self.ratemap.shape) == 1:
+            return (self.ratemap.shape[0], 1, 1)
         return self.ratemap.shape
 
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
             return "<empty TuningCurve2D" + address_str + ">"
-        shapestr = " with shape (%s, %s, %s)" % (self.shape[0], self.shape[1], self.shape[2])
+        shapestr = " with shape (%s, %s, %s)" % (
+            self.shape[0],
+            self.shape[1],
+            self.shape[2],
+        )
         return "<TuningCurve2D%s>%s" % (address_str, shapestr)
 
     @property
@@ -553,7 +742,7 @@ class TuningCurve2D:
         """(bool) True if TuningCurve1D is empty"""
         try:
             return len(self.ratemap) == 0
-        except TypeError: #TypeError should happen if ratemap = []
+        except TypeError:  # TypeError should happen if ratemap = []
             return True
 
     @property
@@ -563,7 +752,25 @@ class TuningCurve2D:
     def __len__(self):
         return self.n_units
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    def __iter__(self):
+        """TuningCurve2D iterator initialization"""
+        # initialize the internal index to zero when used as iterator
+        self._index = 0
+        return self
+
+    def __next__(self):
+        """TuningCurve2D iterator advancer."""
+        index = self._index
+        if index > self.n_units - 1:
+            raise StopIteration
+        out = copy.copy(self)
+        out._ratemap = self.ratemap[index, :]
+        out._unit_ids = self.unit_ids[index]
+        out._unit_labels = self.unit_labels[index]
+        self._index += 1
+        return out
+
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
     def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
 
@@ -575,16 +782,16 @@ class TuningCurve2D:
             Value to fill past edges of input if mode is ‘constant’. Default is 0.0
         """
         if sigma is None:
-            sigma = 0.1 # in units of extern
+            sigma = 0.1  # in units of extern
         if truncate is None:
             truncate = 4
         if mode is None:
-            mode = 'reflect'
+            mode = "reflect"
         if cval is None:
             cval = 0.0
 
-        ds_x = (self.xbins[-1] - self.xbins[0])/self.n_xbins
-        ds_y = (self.ybins[-1] - self.ybins[0])/self.n_ybins
+        ds_x = (self.xbins[-1] - self.xbins[0]) / self.n_xbins
+        ds_y = (self.ybins[-1] - self.ybins[0]) / self.n_ybins
         sigma_x = sigma / ds_x
         sigma_y = sigma / ds_y
 
@@ -594,30 +801,60 @@ class TuningCurve2D:
             out = self
 
         if self.mask is None:
-            if self.n_units > 1:
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
+            if (self.n_units > 1) | (self.ratemap.shape[0] > 1):
+                out._ratemap = scipy.ndimage.filters.gaussian_filter(
+                    self.ratemap,
+                    sigma=(0, sigma_x, sigma_y),
+                    truncate=truncate,
+                    mode=mode,
+                    cval=cval,
+                )
+            elif self.ratemap.shape[0] == 1:
+                out._ratemap[0, :, :] = scipy.ndimage.filters.gaussian_filter(
+                    self.ratemap[0, :, :],
+                    sigma=(sigma_x, sigma_y),
+                    truncate=truncate,
+                    mode=mode,
+                    cval=cval,
+                )
             else:
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
-        else: # we have a mask!
+                raise ValueError("ratemap has an unexpected shape")
+        else:  # we have a mask!
             # smooth, dealing properly with NANs
             # NB! see https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
 
-            masked_ratemap = self.ratemap.copy()*self.mask
-            V=masked_ratemap.copy()
-            V[masked_ratemap!=masked_ratemap]=0
-            W=0*masked_ratemap.copy()+1
-            W[masked_ratemap!=masked_ratemap]=0
+            masked_ratemap = self.ratemap.copy() * self.mask
+            V = masked_ratemap.copy()
+            V[masked_ratemap != masked_ratemap] = 0
+            W = 0 * masked_ratemap.copy() + 1
+            W[masked_ratemap != masked_ratemap] = 0
 
-            if self.n_units > 1:
-                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(0, sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
-                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(0, sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
-                Z=VV/WW
-                out._ratemap = Z*self.mask
+            if (self.n_units > 1) | (self.ratemap.shape[0] > 1):
+                VV = scipy.ndimage.filters.gaussian_filter(
+                    V,
+                    sigma=(0, sigma_x, sigma_y),
+                    truncate=truncate,
+                    mode=mode,
+                    cval=cval,
+                )
+                WW = scipy.ndimage.filters.gaussian_filter(
+                    W,
+                    sigma=(0, sigma_x, sigma_y),
+                    truncate=truncate,
+                    mode=mode,
+                    cval=cval,
+                )
+                Z = VV / WW
+                out._ratemap = Z * self.mask
             else:
-                VV=scipy.ndimage.filters.gaussian_filter(V, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
-                WW=scipy.ndimage.filters.gaussian_filter(W, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval)
-                Z=VV/WW
-                out._ratemap = Z*self.mask
+                VV = scipy.ndimage.filters.gaussian_filter(
+                    V, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval
+                )
+                WW = scipy.ndimage.filters.gaussian_filter(
+                    W, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval
+                )
+                Z = VV / WW
+                out._ratemap = Z * self.mask
 
         return out
 
@@ -631,16 +868,17 @@ class TuningCurve2D:
         ------
         out : reordered TuningCurve2D
         """
+
         def swap_units(arr, frm, to):
             """swap 'units' of a 3D np.array"""
-            arr[[frm, to],:,:] = arr[[to, frm],:,:]
+            arr[[frm, to], :, :] = arr[[to, frm], :, :]
 
         if inplace:
             out = self
         else:
             out = copy.deepcopy(self)
 
-        unit_ids = list(self.unit_ids)
+        # unit_ids = list(self.unit_ids)
 
         neworder = [self.unit_ids.index(x) for x in neworder]
 
@@ -649,8 +887,14 @@ class TuningCurve2D:
             frm = oldorder.index(ni)
             to = oi
             swap_units(out._ratemap, frm, to)
-            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
-            out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
+            out._unit_ids[frm], out._unit_ids[to] = (
+                out._unit_ids[to],
+                out._unit_ids[frm],
+            )
+            out._unit_labels[frm], out._unit_labels[to] = (
+                out._unit_labels[to],
+                out._unit_labels[frm],
+            )
             # TODO: re-build unit tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -722,9 +966,6 @@ class TuningCurve2D:
         self._label = label
 
 
-
-
-
 ########################################################################
 # class TuningCurve1D
 ########################################################################
@@ -746,14 +987,37 @@ class TuningCurve1D:
 
     """
 
-    __attributes__ = ["_ratemap", "_occupancy",  "_unit_ids", "_unit_labels", "_unit_tags", "_label"]
+    __attributes__ = [
+        "_ratemap",
+        "_occupancy",
+        "_unit_ids",
+        "_unit_labels",
+        "_unit_tags",
+        "_label",
+    ]
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-    def __init__(self, *, bst=None, extern=None, ratemap=None, sigma=None,
-                 truncate=None, n_extern=None, transform_func=None, minbgrate=None,
-                 extmin=0, extmax=1, extlabels=None, unit_ids=None,
-                 unit_labels=None, unit_tags=None, label=None,
-                 min_duration=None, empty=False):
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+    def __init__(
+        self,
+        *,
+        bst=None,
+        extern=None,
+        ratemap=None,
+        sigma=None,
+        truncate=None,
+        n_extern=None,
+        transform_func=None,
+        minbgrate=None,
+        extmin=0,
+        extmax=1,
+        extlabels=None,
+        unit_ids=None,
+        unit_labels=None,
+        unit_tags=None,
+        label=None,
+        min_duration=None,
+        empty=False
+    ):
         """
 
         If sigma is nonzero, then smoothing is applied.
@@ -768,8 +1032,12 @@ class TuningCurve1D:
         # TODO: input validation
         if not empty:
             if ratemap is None:
-                assert bst is not None, "bst must be specified or ratemap must be specified!"
-                assert extern is not None, "extern must be specified or ratemap must be specified!"
+                assert (
+                    bst is not None
+                ), "bst must be specified or ratemap must be specified!"
+                assert (
+                    extern is not None
+                ), "extern must be specified or ratemap must be specified!"
             else:
                 assert bst is None, "ratemap and bst cannot both be specified!"
                 assert extern is None, "ratemap and extern cannot both be specified!"
@@ -783,25 +1051,27 @@ class TuningCurve1D:
         if ratemap is not None:
             for attr in self.__attributes__:
                 exec("self." + attr + " = None")
-            self._init_from_ratemap(ratemap=ratemap,
-                                    extmin=extmin,
-                                    extmax=extmax,
-                                    extlabels=extlabels,
-                                    unit_ids=unit_ids,
-                                    unit_labels=unit_labels,
-                                    unit_tags=unit_tags,
-                                    label=label)
+            self._init_from_ratemap(
+                ratemap=ratemap,
+                extmin=extmin,
+                extmax=extmax,
+                extlabels=extlabels,
+                unit_ids=unit_ids,
+                unit_labels=unit_labels,
+                unit_tags=unit_tags,
+                label=label,
+            )
             return
 
         self._bst = bst
         self._extern = extern
 
         if minbgrate is None:
-            minbgrate = 0.01 # Hz minimum background firing rate
+            minbgrate = 0.01  # Hz minimum background firing rate
 
         if n_extern is not None:
             if extmin is not None and extmax is not None:
-                self._bins = np.linspace(extmin, extmax, n_extern+1)
+                self._bins = np.linspace(extmin, extmax, n_extern + 1)
             else:
                 raise NotImplementedError
         else:
@@ -827,7 +1097,9 @@ class TuningCurve1D:
         # normalize firing rate by occupancy
         self._ratemap = self._normalize_firing_rate_by_occupancy()
         # enforce minimum background firing rate
-        self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
+        self._ratemap[self._ratemap < minbgrate] = (
+            minbgrate  # background firing rate of 0.01 Hz
+        )
 
         if sigma is not None:
             if sigma > 0:
@@ -841,7 +1113,7 @@ class TuningCurve1D:
         return False
 
     def spatial_information(self):
-        """Compute the spatial information and firing sparsity...
+        """Compute the spatial information...
 
         The specificity index examines the amount of information
         (in bits) that a single spike conveys about the animal's
@@ -884,47 +1156,18 @@ class TuningCurve1D:
             sparsity (in percent) for each unit
         """
 
-        # Pi = self.occupancy / np.sum(self.occupancy)
-        # R = self.ratemap.mean(axis=1) # mean firing rate
-        # Ri = self.ratemap.T
-        # si = np.sum((Pi*((Ri / R)*np.log2(Ri / R)).T), axis=1)
+        return utils.spatial_information(ratemap=self.ratemap, Pi=self.occupancy)
 
-        # sparsity = np.sum((Pi*Ri.T), axis=1)/(R**2)
+    def information_rate(self):
+        """Compute the information rate..."""
+        return utils.information_rate(ratemap=self.ratemap, Pi=self.occupancy)
 
-        return utils.spatial_information(ratemap=self.ratemap)
+    def spatial_selectivity(self):
+        """Compute the spatial selectivity..."""
+        return utils.spatial_selectivity(ratemap=self.ratemap, Pi=self.occupancy)
 
     def spatial_sparsity(self):
-        """Compute the spatial information and firing sparsity...
-
-        The specificity index examines the amount of information
-        (in bits) that a single spike conveys about the animal's
-        location (i.e., how well cell firing redicts the animals
-        location).The spatial information content of cell discharge was
-        calculated using the formula:
-            information content = \Sum P_i(R_i/R)log_2(R_i/R)
-        where i is the bin number, P, is the probability for occupancy
-        of bin i, R, is the mean firing rate for bin i, and R is the
-        overall mean firing rate.
-
-        In order to account for the effects of low firing rates (with
-        fewer spikes there is a tendency toward higher information
-        content) or random bursts of firing, the spike firing
-        time-series was randomly offset in time from the rat location
-        time-series, and the information content was calculated. A
-        distribution of the information content based on 100 such random
-        shifts was obtained and was used to compute a standardized score
-        (Zscore) of information content for that cell. While the
-        distribution is not composed of independent samples, it was
-        nominally normally distributed, and a Z value of 2.29 was chosen
-        as a cut-off for significance (the equivalent of a one-tailed
-        t-test with P = 0.01 under a normal distribution).
-
-        Reference(s)
-        ------------
-        Markus, E. J., Barnes, C. A., McNaughton, B. L., Gladden, V. L.,
-            and Skaggs, W. E. (1994). "Spatial information content and
-            reliability of hippocampal CA1 neurons: effects of visual
-            input", Hippocampus, 4(4), 410-421.
+        """Compute the firing sparsity...
 
         Parameters
         ----------
@@ -936,9 +1179,20 @@ class TuningCurve1D:
         sparsity: array of shape (n_units,)
             sparsity (in percent) for each unit
         """
-        return utils.spatial_sparsity(ratemap=self.ratemap)
+        return utils.spatial_sparsity(ratemap=self.ratemap, Pi=self.occupancy)
 
-    def _init_from_ratemap(self, ratemap, occupancy=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None):
+    def _init_from_ratemap(
+        self,
+        ratemap,
+        occupancy=None,
+        extmin=0,
+        extmax=1,
+        extlabels=None,
+        unit_ids=None,
+        unit_labels=None,
+        unit_tags=None,
+        label=None,
+    ):
         """Initialize a TuningCurve1D object from a ratemap.
 
         Parameters
@@ -961,12 +1215,12 @@ class TuningCurve1D:
         if extmax is None:
             extmax = extmin + 1
 
-        self._bins = np.linspace(extmin, extmax, n_extern+1)
+        self._bins = np.linspace(extmin, extmax, n_extern + 1)
         self._ratemap = ratemap
 
         # inherit unit IDs if available, otherwise initialize to default
         if unit_ids is None:
-            unit_ids = list(range(1,n_units + 1))
+            unit_ids = list(range(1, n_units + 1))
 
         unit_ids = np.array(unit_ids, ndmin=1)  # standardize unit_ids
 
@@ -984,7 +1238,7 @@ class TuningCurve1D:
 
         return self
 
-    def mean(self,*,axis=None):
+    def mean(self, *, axis=None):
         """Returns the mean of firing rate (in Hz).
         Parameters
         ----------
@@ -1001,10 +1255,10 @@ class TuningCurve1D:
         """
         means = np.mean(self.ratemap, axis=axis).squeeze()
         if means.size == 1:
-            return np.asscalar(means)
+            return np.asarray(means).item()
         return means
 
-    def max(self,*,axis=None):
+    def max(self, *, axis=None):
         """Returns the mean of firing rate (in Hz).
         Parameters
         ----------
@@ -1021,10 +1275,10 @@ class TuningCurve1D:
         """
         maxes = np.max(self.ratemap, axis=axis).squeeze()
         if maxes.size == 1:
-            return np.asscalar(maxes)
+            return np.asarray(maxes).item()
         return maxes
 
-    def min(self,*,axis=None):
+    def min(self, *, axis=None):
         """Returns the mean of firing rate (in Hz).
         Parameters
         ----------
@@ -1041,7 +1295,7 @@ class TuningCurve1D:
         """
         mins = np.min(self.ratemap, axis=axis).squeeze()
         if mins.size == 1:
-            return np.asscalar(mins)
+            return np.asarray(mins).item()
         return mins
 
     @property
@@ -1065,7 +1319,7 @@ class TuningCurve1D:
     @property
     def bin_centers(self):
         """External correlate bin centers."""
-        return (self.bins + (self.bins[1] - self.bins[0])/2)[:-1]
+        return (self.bins + (self.bins[1] - self.bins[0]) / 2)[:-1]
 
     def _trans_func(self, extern, at):
         """Default transform function to map extern into numerical bins"""
@@ -1119,11 +1373,11 @@ class TuningCurve1D:
         ratemap = np.zeros((self.n_units, self.n_bins))
 
         for tt, bidx in enumerate(ext_bin_idx):
-            ratemap[:,bidx-1] += self._bst.data[:,tt]
+            ratemap[:, bidx - 1] += self._bst.data[:, tt]
 
         # apply minimum observation duration
         for uu in range(self.n_units):
-            ratemap[uu][self.occupancy*self._bst.ds < min_duration] = 0
+            ratemap[uu][self.occupancy * self._bst.ds < min_duration] = 0
 
         return ratemap / self._bst.ds
 
@@ -1143,8 +1397,8 @@ class TuningCurve1D:
 
     def _normalize_firing_rate_by_occupancy(self):
         # normalize spike counts by occupancy:
-        denom = np.tile(self.occupancy, (self.n_units,1))
-        denom[denom==0] = 1
+        denom = np.tile(self.occupancy, (self.n_units, 1))
+        denom[denom == 0] = 1
         ratemap = self.ratemap / denom
         return ratemap
 
@@ -1222,7 +1476,11 @@ class TuningCurve1D:
             # TODO: this should merge two TuningCurve1D objects
             raise NotImplementedError
         else:
-            raise TypeError("unsupported operand type(s) for +: 'TuningCurve1D' and '{}'".format(str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for +: 'TuningCurve1D' and '{}'".format(
+                    str(type(other))
+                )
+            )
         return out
 
     def __sub__(self, other):
@@ -1248,7 +1506,7 @@ class TuningCurve1D:
     def __len__(self):
         return self.n_units
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
     def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
 
@@ -1260,15 +1518,15 @@ class TuningCurve1D:
             Value to fill past edges of input if mode is ‘constant’. Default is 0.0
         """
         if sigma is None:
-            sigma = 0.1 # in units of extern
+            sigma = 0.1  # in units of extern
         if truncate is None:
             truncate = 4
         if mode is None:
-            mode = 'reflect'
+            mode = "reflect"
         if cval is None:
             cval = 0.0
 
-        ds = (self.bins[-1] - self.bins[0])/self.n_bins
+        ds = (self.bins[-1] - self.bins[0]) / self.n_bins
         sigma = sigma / ds
 
         if not inplace:
@@ -1277,9 +1535,13 @@ class TuningCurve1D:
             out = self
 
         if self.n_units > 1:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=(0,sigma), truncate=truncate, mode=mode, cval=cval)
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(
+                self.ratemap, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
+            )
         else:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(self.ratemap, sigma=sigma, truncate=truncate, mode=mode, cval=cval)
+            out._ratemap = scipy.ndimage.filters.gaussian_filter(
+                self.ratemap, sigma=sigma, truncate=truncate, mode=mode, cval=cval
+            )
 
         return out
 
@@ -1288,7 +1550,7 @@ class TuningCurve1D:
         """(int) The number of units."""
         try:
             return len(self._unit_ids)
-        except TypeError: # when unit_ids is an integer
+        except TypeError:  # when unit_ids is an integer
             return 1
         except AttributeError:
             return 0
@@ -1298,7 +1560,7 @@ class TuningCurve1D:
         """(tuple) The shape of the TuningCurve1D ratemap."""
         if self.isempty:
             return (self.n_units, 0)
-        if len(self.ratemap.shape) ==1:
+        if len(self.ratemap.shape) == 1:
             return (1, self.ratemap.shape[0])
         return self.ratemap.shape
 
@@ -1314,7 +1576,7 @@ class TuningCurve1D:
         """(bool) True if TuningCurve1D is empty"""
         try:
             return len(self.ratemap) == 0
-        except TypeError: #TypeError should happen if ratemap = []
+        except TypeError:  # TypeError should happen if ratemap = []
             return True
 
     def __iter__(self):
@@ -1329,7 +1591,7 @@ class TuningCurve1D:
         if index > self.n_units - 1:
             raise StopIteration
         out = copy.copy(self)
-        out._ratemap = self.ratemap[index,:]
+        out._ratemap = self.ratemap[index, :]
         out._unit_ids = self.unit_ids[index]
         out._unit_labels = self.unit_labels[index]
         self._index += 1
@@ -1350,13 +1612,12 @@ class TuningCurve1D:
             return self
         try:
             out = copy.copy(self)
-            out._ratemap = self.ratemap[idx,:]
+            out._ratemap = self.ratemap[idx, :]
             out._unit_ids = (np.asanyarray(out._unit_ids)[idx]).tolist()
             out._unit_labels = (np.asanyarray(out._unit_labels)[idx]).tolist()
             return out
         except Exception:
-            raise TypeError(
-                'unsupported subsctipting type {}'.format(type(idx)))
+            raise TypeError("unsupported subsctipting type {}".format(type(idx)))
 
     def _unit_subset(self, unit_list):
         """Return a TuningCurve1D restricted to a subset of units.
@@ -1371,7 +1632,9 @@ class TuningCurve1D:
             try:
                 id = self.unit_ids.index(unit)
             except ValueError:
-                warnings.warn("unit_id " + str(unit) + " not found in TuningCurve1D; ignoring")
+                warnings.warn(
+                    "unit_id " + str(unit) + " not found in TuningCurve1D; ignoring"
+                )
                 pass
             else:
                 unit_subset_ids.append(id)
@@ -1388,7 +1651,7 @@ class TuningCurve1D:
         newtuningcurve._unit_labels = new_unit_labels
         # TODO: implement tags
         # newtuningcurve._unit_tags =
-        newtuningcurve._ratemap = self.ratemap[unit_subset_ids,:]
+        newtuningcurve._ratemap = self.ratemap[unit_subset_ids, :]
         # TODO: shall we restrict _bst as well? This will require a copy to be made...
         # newtuningcurve._bst =
 
@@ -1434,8 +1697,14 @@ class TuningCurve1D:
             frm = oldorder.index(ni)
             to = oi
             utils.swap_rows(out._ratemap, frm, to)
-            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
-            out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
+            out._unit_ids[frm], out._unit_ids[to] = (
+                out._unit_ids[to],
+                out._unit_ids[frm],
+            )
+            out._unit_labels[frm], out._unit_labels[to] = (
+                out._unit_labels[to],
+                out._unit_labels[frm],
+            )
             # TODO: re-build unit tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -1466,8 +1735,14 @@ class TuningCurve1D:
             frm = oldorder.index(ni)
             to = oi
             utils.swap_rows(out._ratemap, frm, to)
-            out._unit_ids[frm], out._unit_ids[to] = out._unit_ids[to], out._unit_ids[frm]
-            out._unit_labels[frm], out._unit_labels[to] = out._unit_labels[to], out._unit_labels[frm]
+            out._unit_ids[frm], out._unit_ids[to] = (
+                out._unit_ids[to],
+                out._unit_ids[frm],
+            )
+            out._unit_labels[frm], out._unit_labels[to] = (
+                out._unit_labels[to],
+                out._unit_labels[frm],
+            )
             # TODO: re-build unit tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -1482,8 +1757,9 @@ class TuningCurve1D:
         self._bst = None
         self._extern = None
 
-#----------------------------------------------------------------------#
-#======================================================================#
+
+# ----------------------------------------------------------------------#
+# ======================================================================#
 
 ########################################################################
 # class TuningCurve1D
@@ -1509,8 +1785,9 @@ class TuningCurve1D:
 #     raise NotImplementedError
 
 
-#----------------------------------------------------------------------#
-#======================================================================#
+# ----------------------------------------------------------------------#
+# ======================================================================#
+
 
 class DirectionalTuningCurve1D(TuningCurve1D):
     """Directional tuning curves (1-dimensional) of multiple units.
@@ -1542,9 +1819,31 @@ class DirectionalTuningCurve1D(TuningCurve1D):
     __attributes__ = ["_unit_ids_l2r", "_unit_ids_r2l"]
     __attributes__.extend(TuningCurve1D.__attributes__)
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-    def __init__(self, *, bst_l2r, bst_r2l, bst_combined, extern, sigma=None, truncate=None, n_extern=None, transform_func=None, minbgrate=None, extmin=0, extmax=1, extlabels=None, unit_ids=None, unit_labels=None, unit_tags=None, label=None, empty=False,
-    min_peakfiringrate=None, max_avgfiringrate=None, unimodal=False):
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+    def __init__(
+        self,
+        *,
+        bst_l2r,
+        bst_r2l,
+        bst_combined,
+        extern,
+        sigma=None,
+        truncate=None,
+        n_extern=None,
+        transform_func=None,
+        minbgrate=None,
+        extmin=0,
+        extmax=1,
+        extlabels=None,
+        unit_ids=None,
+        unit_labels=None,
+        unit_tags=None,
+        label=None,
+        empty=False,
+        min_peakfiringrate=None,
+        max_avgfiringrate=None,
+        unimodal=False
+    ):
         """
 
         If sigma is nonzero, then smoothing is applied.
@@ -1568,17 +1867,17 @@ class DirectionalTuningCurve1D(TuningCurve1D):
         self._extern = extern
 
         if min_peakfiringrate is None:
-            min_peakfiringrate = 1.5 # Hz minimum peak firing rate
+            min_peakfiringrate = 1.5  # Hz minimum peak firing rate
 
         if max_avgfiringrate is None:
-            max_avgfiringrate = 10 # Hz maximum average firing rate
+            max_avgfiringrate = 10  # Hz maximum average firing rate
 
         if minbgrate is None:
-            minbgrate = 0.01 # Hz minimum background firing rate
+            minbgrate = 0.01  # Hz minimum background firing rate
 
         if n_extern is not None:
             if extmin is not None and extmax is not None:
-                self._bins = np.linspace(extmin, extmax, n_extern+1)
+                self._bins = np.linspace(extmin, extmax, n_extern + 1)
             else:
                 raise NotImplementedError
         else:
@@ -1604,7 +1903,9 @@ class DirectionalTuningCurve1D(TuningCurve1D):
         # normalize firing rate by occupancy
         self._ratemap = self._normalize_firing_rate_by_occupancy()
         # enforce minimum background firing rate
-        self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
+        self._ratemap[self._ratemap < minbgrate] = (
+            minbgrate  # background firing rate of 0.01 Hz
+        )
         if sigma is not None:
             if sigma > 0:
                 self.smooth(sigma=sigma, truncate=truncate, inplace=True)
@@ -1620,7 +1921,9 @@ class DirectionalTuningCurve1D(TuningCurve1D):
         # normalize firing rate by occupancy
         self._ratemap = self._normalize_firing_rate_by_occupancy()
         # enforce minimum background firing rate
-        self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
+        self._ratemap[self._ratemap < minbgrate] = (
+            minbgrate  # background firing rate of 0.01 Hz
+        )
         if sigma is not None:
             if sigma > 0:
                 self.smooth(sigma=sigma, truncate=truncate, inplace=True)
@@ -1636,12 +1939,14 @@ class DirectionalTuningCurve1D(TuningCurve1D):
         # normalize firing rate by occupancy
         self._ratemap = self._normalize_firing_rate_by_occupancy()
         # enforce minimum background firing rate
-        self._ratemap[self._ratemap < minbgrate] = minbgrate # background firing rate of 0.01 Hz
+        self._ratemap[self._ratemap < minbgrate] = (
+            minbgrate  # background firing rate of 0.01 Hz
+        )
         if sigma is not None:
             if sigma > 0:
                 self.smooth(sigma=sigma, truncate=truncate, inplace=True)
         # store combined ratemap
-        ratemap = self.ratemap
+        # ratemap = self.ratemap
 
         # determine unit membership:
         l2r_unit_ids = self.restrict_units(ratemap_l2r)
@@ -1673,12 +1978,28 @@ class DirectionalTuningCurve1D(TuningCurve1D):
             ratemap = self.ratemap
 
         # enforce minimum peak firing rate
-        unit_ids_to_keep = set(np.asanyarray(self.unit_ids)[np.argwhere(ratemap.max(axis=1)>self._min_peakfiringrate).squeeze().tolist()])
+        unit_ids_to_keep = set(
+            np.asanyarray(self.unit_ids)[
+                np.argwhere(ratemap.max(axis=1) > self._min_peakfiringrate)
+                .squeeze()
+                .tolist()
+            ]
+        )
         # enforce maximum average firing rate
-        unit_ids_to_keep = unit_ids_to_keep.intersection(set( np.asanyarray(self.unit_ids)[np.argwhere(ratemap.mean(axis=1)<self._max_avgfiringrate).squeeze().tolist()]))
+        unit_ids_to_keep = unit_ids_to_keep.intersection(
+            set(
+                np.asanyarray(self.unit_ids)[
+                    np.argwhere(ratemap.mean(axis=1) < self._max_avgfiringrate)
+                    .squeeze()
+                    .tolist()
+                ]
+            )
+        )
         # remove multimodal units
         if self._unimodal:
-            raise NotImplementedError("restriction to unimodal cells not yet implemented!")
+            raise NotImplementedError(
+                "restriction to unimodal cells not yet implemented!"
+            )
             # placecellidx = placecellidx.intersection(set(unimodal_cells))
 
         return unit_ids_to_keep

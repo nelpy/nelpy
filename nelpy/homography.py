@@ -21,6 +21,7 @@ from scipy.misc import imread
 
 W_MAZE = True
 
+
 def corr_picker_callback(event, x, y, ignored, data):
     image = data[5]
     window_name = data[6]
@@ -73,25 +74,52 @@ def corr_picker_callback(event, x, y, ignored, data):
             if len(data[0]) == n_pts_to_pick:
                 data_ = np.array([data[0]])
                 # outer arms
-                cv2.polylines(pick_image, data_[:,:5,:], False, (101/255, 170/255, 211/255), thickness=2)
+                cv2.polylines(
+                    pick_image,
+                    data_[:, :5, :],
+                    False,
+                    (101 / 255, 170 / 255, 211 / 255),
+                    thickness=2,
+                )
                 # central arm
-                cv2.polylines(pick_image, data_[:,[2,5],:], False, (101/255, 170/255, 211/255), thickness=2)
+                cv2.polylines(
+                    pick_image,
+                    data_[:, [2, 5], :],
+                    False,
+                    (101 / 255, 170 / 255, 211 / 255),
+                    thickness=2,
+                )
         else:
             if len(data[0]) == n_pts_to_pick:
-                cv2.polylines(pick_image, np.array([data[0]]), True, (101/255, 170/255, 211/255), thickness=2)
+                cv2.polylines(
+                    pick_image,
+                    np.array([data[0]]),
+                    True,
+                    (101 / 255, 170 / 255, 211 / 255),
+                    thickness=2,
+                )
                 # cv2.fillPoly(pick_image, np.array([data[0]]), (101/255, 170/255, 211/255, 0.8))
 
         for i, pt in enumerate(data[0]):
-            cv2.circle(pick_image, tuple(pt), 3, (151/255, 207/255, 0), -1)
-            cv2.putText(pick_image, str(i+1), tuple(pt), cv2.FONT_HERSHEY_SIMPLEX, 1, (151/255, 207/255, 0))
+            cv2.circle(pick_image, tuple(pt), 3, (151 / 255, 207 / 255, 0), -1)
+            cv2.putText(
+                pick_image,
+                str(i + 1),
+                tuple(pt),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (151 / 255, 207 / 255, 0),
+            )
 
         cv2.imshow(window_name, pick_image)
         data[4] = False
 
 
 def pick_corrs(images, n_pts_to_pick=4):
-    data = [ [[], 0, False, False, False, image, "Image %d" % i, n_pts_to_pick]
-            for i, image in enumerate(images)]
+    data = [
+        [[], 0, False, False, False, image, "Image %d" % i, n_pts_to_pick]
+        for i, image in enumerate(images)
+    ]
 
     for d in data:
         win_name = d[6]
@@ -101,25 +129,26 @@ def pick_corrs(images, n_pts_to_pick=4):
         cv2.imshow(win_name, d[5])
 
     key = None
-    while key != '\n' and key != '\r' and key != 'q':
+    while key != "\n" and key != "\r" and key != "q":
         key = cv2.waitKey(33)
         key = chr(key & 255) if key >= 0 else None
 
     cv2.destroyAllWindows()
 
-    if key == 'q':
+    if key == "q":
         return None
     else:
         return [d[0] for d in data]
+
 
 if __name__ == "__main__":
     """
     Example:
     ========
-    >>> python homography.py ../examples/homography1.jpg 
+    >>> python homography.py ../examples/homography1.jpg
     """
 
-    image = imread(sys.argv[1]).astype(np.float32) / 255.
+    image = imread(sys.argv[1]).astype(np.float32) / 255.0
     pts = pick_corrs([image[:, :, ::-1]], n_pts_to_pick=6)
     if pts is None:
         print("You must pick some points!")

@@ -1,4 +1,4 @@
-#encoding : utf-8
+# encoding : utf-8
 """This file contains the nelpy plotting functions and utilities.
 
 Some functions Copyright (c) 2016, Etienne R. Ackermann
@@ -21,53 +21,54 @@ included in all copies or substantial portions of the Software.
 # TODO: see https://gist.github.com/arnaldorusso/6611ff6c05e1efc2fb72
 # TODO: see https://github.com/nengo/nengo/blob/master/nengo/utils/matplotlib.py
 
-import numpy as np
-import matplotlib as mpl
-from matplotlib import cm
-from matplotlib import colors as mplcolors
-from matplotlib import cbook
-import matplotlib.gridspec as gridspec
-from matplotlib.image import AxesImage
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import matplotlib.pyplot as plt
 import colorsys
 import os
-import sys
-import inspect
-from . import palettes
-
 from distutils.version import LooseVersion
+
+import matplotlib as mpl
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import cbook, rcParams, colors as mcolors
+from matplotlib import colors as mplcolors
+from matplotlib.image import AxesImage
+from matplotlib.ticker import ScalarFormatter
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 mpl_ge_150 = LooseVersion(mpl.__version__) >= "1.5.0"
 
-__all__ = ['add_colorbar',
-           'align_xlabels',
-           'align_ylabels',
-           'annotate',
-           'clear_bottom',
-           'clear_left',
-           'clear_left_right',
-           'clear_right',
-           'clear_top',
-           'clear_top_bottom',
-           'figure_grid',
-           'FixedOrderFormatter',
-           'no_xticklabels',
-           'no_yticklabels',
-           'no_xticks',
-           'no_yticks',
-           'outward_ticks',
-           'savefig',
-           'set_figsize',
-           'set_scientific',
-           'set_xlabel_coords',
-           'set_ylabel_coords',
-           'suptitle',
-           'sync_xlims',
-           'sync_ylims',
-           'xticks_interval',
-           'yticks_interval',
-           'get_color_cycle',
-           'FigureManager']
+__all__ = [
+    "add_colorbar",
+    "align_xlabels",
+    "align_ylabels",
+    "annotate",
+    "clear_bottom",
+    "clear_left",
+    "clear_left_right",
+    "clear_right",
+    "clear_top",
+    "clear_top_bottom",
+    "figure_grid",
+    "FixedOrderFormatter",
+    "no_xticklabels",
+    "no_yticklabels",
+    "no_xticks",
+    "no_yticks",
+    "outward_ticks",
+    "savefig",
+    "set_figsize",
+    "set_scientific",
+    "set_xlabel_coords",
+    "set_ylabel_coords",
+    "suptitle",
+    "sync_xlims",
+    "sync_ylims",
+    "xticks_interval",
+    "yticks_interval",
+    "get_color_cycle",
+    "FigureManager",
+]
+
 
 def add_colorbar(img, ax=None):
     """
@@ -78,10 +79,11 @@ def add_colorbar(img, ax=None):
     """
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.15)
-    cb=plt.colorbar(img, cax=cax, orientation="vertical")
+    cb = plt.colorbar(img, cax=cax, orientation="vertical")
     # cb.set_label('probability', labelpad=-10)
     # cb.set_ticks([0,1])
     return cb
+
 
 class FigureManager(object):
     """Figure context manager.
@@ -112,16 +114,28 @@ class FigureManager(object):
     class Break(Exception):
         pass
 
-    def __init__(self, *, filename=None, save=False, show=False,
-                 nrows=1, ncols=1, figsize=(8,3), tight_layout=False,
-                 formats=None, dpi=None, verbose=True, overwrite=False,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        filename=None,
+        save=False,
+        show=False,
+        nrows=1,
+        ncols=1,
+        figsize=(8, 3),
+        tight_layout=False,
+        formats=None,
+        dpi=None,
+        verbose=True,
+        overwrite=False,
+        **kwargs
+    ):
 
-        self.nrows=nrows
-        self.ncols=ncols
-        self.figsize=figsize
-        self.tight_layout=tight_layout
-        self.dpi=dpi
+        self.nrows = nrows
+        self.ncols = ncols
+        self.figsize = figsize
+        self.tight_layout = tight_layout
+        self.dpi = dpi
         self.kwargs = kwargs
 
         self.filename = filename
@@ -139,11 +153,8 @@ class FigureManager(object):
 
     def __enter__(self):
         if not self.skip:
-            self.fig = plt.figure(figsize=self.figsize,
-                                  dpi=self.dpi,
-                                  **self.kwargs)
-            self.fig.npl_gs = gridspec.GridSpec(nrows=self.nrows,
-                                                ncols=self.ncols)
+            self.fig = plt.figure(figsize=self.figsize, dpi=self.dpi, **self.kwargs)
+            self.fig.npl_gs = gridspec.GridSpec(nrows=self.nrows, ncols=self.ncols)
 
             self.ax = np.array([self.fig.add_subplot(ss) for ss in self.fig.npl_gs])
             # self.fig, self.ax = plt.subplots(nrows=self.nrows,
@@ -161,7 +172,7 @@ class FigureManager(object):
             # gs1.tight_layout(fig, rect=[0, 0.03, 1, 0.95])
             if self.fig != plt.gcf():
                 self.clear()
-                raise RuntimeError('Figure does not match active mpl figure')
+                raise RuntimeError("Figure does not match active mpl figure")
             return self.fig, self.ax
         return -1, -1
 
@@ -171,12 +182,14 @@ class FigureManager(object):
         if not exc_type:
             if self.save:
                 assert self.filename is not None, "filename has to be specified!"
-                savefig(name=self.filename,
-                        fig=self.fig,
-                        formats=self.formats,
-                        dpi=self.dpi,
-                        verbose=self.verbose,
-                        overwrite=self.overwrite)
+                savefig(
+                    name=self.filename,
+                    fig=self.fig,
+                    formats=self.formats,
+                    dpi=self.dpi,
+                    verbose=self.verbose,
+                    overwrite=self.overwrite,
+                )
 
             if self.show:
                 plt.show(self.fig)
@@ -189,6 +202,7 @@ class FigureManager(object):
         plt.close(self.fig)
         del self.ax
         del self.fig
+
 
 def suptitle(t, gs=None, rect=(0, 0, 1, 0.95), **kwargs):
     """Add a suptitle to a figure with an embedded gridspec.
@@ -204,15 +218,19 @@ def suptitle(t, gs=None, rect=(0, 0, 1, 0.95), **kwargs):
         try:
             gs = fig.npl_gs
         except AttributeError:
-            raise AttributeError("nelpy suptitle requires an embedded gridspec! Use the nelpy FigureManager.")
+            raise AttributeError(
+                "nelpy suptitle requires an embedded gridspec! Use the nelpy FigureManager."
+            )
 
     fig.suptitle(t, **kwargs)
     gs.tight_layout(fig, rect=rect)
+
 
 def skip_if_no_output(fig):
     if fig == -1:
         raise FigureManager.Break
     return True
+
 
 def annotate(text, ax=None, xy=None, rotation=None, va=None, **kwargs):
     """Docstring goes here."""
@@ -223,19 +241,20 @@ def annotate(text, ax=None, xy=None, rotation=None, va=None, **kwargs):
         xy = (0.5, 0.5)
     if rotation is None:
         rotation = 0
-    if rotation == 'vert' or rotation == 'v':
+    if rotation == "vert" or rotation == "v":
         rotation = 90
-    if rotation == 'horz' or rotation == 'h':
+    if rotation == "horz" or rotation == "h":
         rotation = 0
     if va is None:
         if rotation == 90:
-            va = 'bottom'
+            va = "bottom"
         else:
-            va = 'baseline'
+            va = "baseline"
 
     ax.annotate(text, xy=xy, rotation=rotation, va=va, **kwargs)
 
-def figure_grid(b=True, fig=None ):
+
+def figure_grid(b=True, fig=None):
     """draw a figure grid over an entore figure to facilitate annotation placement"""
 
     if fig is None:
@@ -243,12 +262,13 @@ def figure_grid(b=True, fig=None ):
 
     if b:
         # new clear axis overlay with 0-1 limits
-        ax = fig.add_axes([0,0,1,1], axisbg=(1,1,1,0.7))
+        ax = fig.add_axes([0, 0, 1, 1], axisbg=(1, 1, 1, 0.7))
         ax.minorticks_on()
-        ax.grid(b=True, which='major', color='k')
-        ax.grid(b=True, which='minor', color='0.4', linestyle=':')
+        ax.grid(b=True, which="major", color="k")
+        ax.grid(b=True, which="minor", color="0.4", linestyle=":")
     else:
         pass
+
 
 def get_extension_from_filename(name):
     """Extracts an extension from a filename string.
@@ -256,14 +276,15 @@ def get_extension_from_filename(name):
     returns filename, extension
     """
     name = name.strip()
-    ext = ((name.split('\\')[-1]).split('/')[-1]).split('.')
-    if len(ext) > 1 and ext[-1] is not '':
-        nameOnly = '.'.join(name.split('.')[:-1])
+    ext = ((name.split("\\")[-1]).split("/")[-1]).split(".")
+    if len(ext) > 1 and ext[-1] != "":
+        nameOnly = ".".join(name.split(".")[:-1])
         ext = ext[-1]
     else:
         nameOnly = name
         ext = None
     return nameOnly, ext
+
 
 def savefig(name, fig=None, formats=None, dpi=None, verbose=True, overwrite=False):
     """Saves a figure in one or multiple formats.
@@ -296,13 +317,27 @@ def savefig(name, fig=None, formats=None, dpi=None, verbose=True, overwrite=Fals
     if dpi is None:
         dpi = 300
 
-    supportedFormats = ['eps', 'jpeg', 'jpg', 'pdf', 'pgf', 'png', 'ps', 'raw', 'rgba', 'svg', 'svgz', 'tif', 'tiff']
+    supportedFormats = [
+        "eps",
+        "jpeg",
+        "jpg",
+        "pdf",
+        "pgf",
+        "png",
+        "ps",
+        "raw",
+        "rgba",
+        "svg",
+        "svgz",
+        "tif",
+        "tiff",
+    ]
 
     name, ext = get_extension_from_filename(name)
 
-   # if no list of formats is given, use defaults
+    # if no list of formats is given, use defaults
     if formats is None and ext is None:
-        formats = ['pdf','png']
+        formats = ["pdf", "png"]
     # if the filename has an extension, AND a list of extensions is given, then use only the list
     elif formats is not None and ext is not None:
         if not isinstance(formats, list):
@@ -321,24 +356,30 @@ def savefig(name, fig=None, formats=None, dpi=None, verbose=True, overwrite=Fals
         if extension not in supportedFormats:
             print("WARNING! Format '{}' not supported. Aborting...".format(extension))
         else:
-            my_file = 'figures/{}.{}'.format(name, extension)
+            my_file = "figures/{}.{}".format(name, extension)
 
             if os.path.isfile(my_file):
                 # file exists
-                print('{} already exists!'.format(my_file))
+                print("{} already exists!".format(my_file))
 
                 if overwrite:
-                    fig.savefig(my_file, dpi=dpi, bbox_inches='tight')
+                    fig.savefig(my_file, dpi=dpi, bbox_inches="tight")
 
                     if verbose:
-                        print('{} saved successfully... [using overwrite]'.format(extension))
+                        print(
+                            "{} saved successfully... [using overwrite]".format(
+                                extension
+                            )
+                        )
             else:
-                fig.savefig(my_file, dpi=dpi, bbox_inches='tight')
+                fig.savefig(my_file, dpi=dpi, bbox_inches="tight")
 
                 if verbose:
-                    print('{} saved successfully...'.format(extension))
+                    print("{} saved successfully...".format(extension))
 
-from matplotlib.ticker import ScalarFormatter
+
+
+
 class FixedOrderFormatter(ScalarFormatter):
     """Formats axis ticks using scientific notation with a constant
     order of magnitude.
@@ -368,8 +409,8 @@ class FixedOrderFormatter(ScalarFormatter):
 matplotlib-format-axis-offset-values-to-whole-numbers-\
 or-specific-number
     """
-    def __init__(self, order_of_mag=0, *, useOffset=None,
-                 useMathText=None):
+
+    def __init__(self, order_of_mag=0, *, useOffset=None, useMathText=None):
         # set parameter defaults:
         if useOffset is None:
             useOffset = True
@@ -377,28 +418,34 @@ or-specific-number
             useMathText = True
 
         self._order_of_mag = order_of_mag
-        ScalarFormatter.__init__(self, useOffset=useOffset,
-                                 useMathText=useMathText)
+        ScalarFormatter.__init__(self, useOffset=useOffset, useMathText=useMathText)
 
     def _set_orderOfMagnitude(self, range):
         """Override to prevent order_of_mag being reset elsewhere."""
         self.orderOfMagnitude = self._order_of_mag
 
+
 def xticks_interval(step=10, *axes):
     """Set xticks interval."""
     if len(axes) == 0:
         axes = [plt.gca()]
-    loc = mpl.ticker.MultipleLocator(base=step) # this locator puts ticks at regular intervals
+    loc = mpl.ticker.MultipleLocator(
+        base=step
+    )  # this locator puts ticks at regular intervals
     for ax in axes:
         ax.xaxis.set_major_locator(loc)
+
 
 def yticks_interval(step=10, *axes):
     """Set yticks interval."""
     if len(axes) == 0:
         axes = [plt.gca()]
-    loc = mpl.ticker.MultipleLocator(base=step) # this locator puts ticks at regular intervals
+    loc = mpl.ticker.MultipleLocator(
+        base=step
+    )  # this locator puts ticks at regular intervals
     for ax in axes:
         ax.yaxis.set_major_locator(loc)
+
 
 def clear_top(*axes):
     """Remove the top edge of the axis bounding box.
@@ -415,8 +462,8 @@ def clear_top(*axes):
     if len(axes) == 0:
         axes = [plt.gca()]
     for ax in axes:
-        ax.spines['top'].set_color('none')
-        ax.xaxis.set_ticks_position('bottom')
+        ax.spines["top"].set_color("none")
+        ax.xaxis.set_ticks_position("bottom")
 
 
 def clear_bottom(*axes):
@@ -434,8 +481,8 @@ def clear_bottom(*axes):
     if len(axes) == 0:
         axes = [plt.gca()]
     for ax in axes:
-        ax.spines['bottom'].set_color('none')
-        ax.xaxis.set_ticks_position('top')
+        ax.spines["bottom"].set_color("none")
+        ax.xaxis.set_ticks_position("top")
 
 
 def clear_top_bottom(*axes):
@@ -453,8 +500,8 @@ def clear_top_bottom(*axes):
     if len(axes) == 0:
         axes = [plt.gca()]
     for ax in axes:
-        ax.spines['top'].set_color('none')
-        ax.spines['bottom'].set_color('none')
+        ax.spines["top"].set_color("none")
+        ax.spines["bottom"].set_color("none")
         ax.xaxis.set_ticks([])
 
 
@@ -473,8 +520,8 @@ def clear_left(*axes):
     if len(axes) == 0:
         axes = [plt.gca()]
     for ax in axes:
-        ax.spines['left'].set_color('none')
-        ax.yaxis.set_ticks_position('right')
+        ax.spines["left"].set_color("none")
+        ax.yaxis.set_ticks_position("right")
 
 
 def clear_right(*axes):
@@ -492,8 +539,9 @@ def clear_right(*axes):
     if len(axes) == 0:
         axes = [plt.gca()]
     for ax in axes:
-        ax.spines['right'].set_color('none')
-        ax.yaxis.set_ticks_position('left')
+        ax.spines["right"].set_color("none")
+        ax.yaxis.set_ticks_position("left")
+
 
 def clear_left_right(*axes):
     """Remove the left and right edges of the axis bounding box.
@@ -510,11 +558,12 @@ def clear_left_right(*axes):
     if len(axes) == 0:
         axes = [plt.gca()]
     for ax in axes:
-        ax.spines['left'].set_color('none')
-        ax.spines['right'].set_color('none')
+        ax.spines["left"].set_color("none")
+        ax.spines["right"].set_color("none")
         ax.yaxis.set_ticks([])
 
-def outward_ticks(*axes, axis='both'):
+
+def outward_ticks(*axes, axis="both"):
     """Make axis ticks face outwards rather than inwards (which is the
     default).
 
@@ -530,10 +579,11 @@ def outward_ticks(*axes, axis='both'):
     if len(axes) == 0:
         axes = [plt.gca()]
     for ax in axes:
-        if axis == 'both':
-            ax.tick_params(direction='out')
+        if axis == "both":
+            ax.tick_params(direction="out")
         else:
-            ax.tick_params(axis=axis, direction='out')
+            ax.tick_params(axis=axis, direction="out")
+
 
 def set_xlabel_coords(y, *axes, x=0.5):
     """Set the y-coordinate (and optionally the x-coordinate) of the x-axis
@@ -557,6 +607,7 @@ def set_xlabel_coords(y, *axes, x=0.5):
     for ax in axes:
         ax.xaxis.set_label_coords(x, y)
 
+
 def set_ylabel_coords(x, *axes, y=0.5):
     """Set the x-coordinate (and optionally the y-coordinate) of the y-axis
     label.
@@ -578,6 +629,7 @@ def set_ylabel_coords(x, *axes, y=0.5):
         axes = [plt.gca()]
     for ax in axes:
         ax.yaxis.set_label_coords(x, y)
+
 
 def align_ylabels(xcoord, *axes):
     """Align the y-axis labels of multiple axes.
@@ -608,6 +660,7 @@ def align_xlabels(ycoord, *axes):
     """
     set_xlabel_coords(ycoord, *axes)
 
+
 def no_xticks(*axes):
     """Remove the tick marks on the x-axis (but leave the labels).
 
@@ -619,7 +672,8 @@ def no_xticks(*axes):
     if len(axes) == 0:
         axes = [plt.gca()]
     for ax in axes:
-        ax.tick_params(axis=u'x', which=u'both',length=0)
+        ax.tick_params(axis="x", which="both", length=0)
+
 
 def no_yticks(*axes):
     """Remove the tick marks on the y-axis (but leave the labels).
@@ -632,7 +686,8 @@ def no_yticks(*axes):
     if len(axes) == 0:
         axes = [plt.gca()]
     for ax in axes:
-        ax.tick_params(axis=u'y', which=u'both',length=0)
+        ax.tick_params(axis="y", which="both", length=0)
+
 
 def no_ticks(*axes, where=None):
     """Remove the tick marks on the desired axes (but leave the labels).
@@ -647,24 +702,25 @@ def no_ticks(*axes, where=None):
     if len(axes) == 0:
         axes = [plt.gca()]
     if where is None:
-        where = ['all']
+        where = ["all"]
 
     if isinstance(where, str):
         where = [where]
     for ax in axes:
-        if 'left' in where:
-            ax.tick_params(axis=u'y', which=u'both', left=False)
-        if 'right' in where:
-            ax.tick_params(axis=u'y', which=u'both', right=False)
-        if 'top' in where:
-            ax.tick_params(axis=u'x', which=u'both', top=False)
-        if 'bottom' in where:
-            ax.tick_params(axis=u'x', which=u'both', bottom=False)
-        if 'all' in where:
-            ax.tick_params(axis=u'y', which=u'both', left=False)
-            ax.tick_params(axis=u'y', which=u'both', right=False)
-            ax.tick_params(axis=u'x', which=u'both', top=False)
-            ax.tick_params(axis=u'x', which=u'both', bottom=False)
+        if "left" in where:
+            ax.tick_params(axis="y", which="both", left=False)
+        if "right" in where:
+            ax.tick_params(axis="y", which="both", right=False)
+        if "top" in where:
+            ax.tick_params(axis="x", which="both", top=False)
+        if "bottom" in where:
+            ax.tick_params(axis="x", which="both", bottom=False)
+        if "all" in where:
+            ax.tick_params(axis="y", which="both", left=False)
+            ax.tick_params(axis="y", which="both", right=False)
+            ax.tick_params(axis="x", which="both", top=False)
+            ax.tick_params(axis="x", which="both", bottom=False)
+
 
 def no_xticklabels(*axes):
     """Remove the tick labels on the x-axis (but leave the tick marks).
@@ -679,6 +735,7 @@ def no_xticklabels(*axes):
     for ax in axes:
         ax.set_xticklabels([])
 
+
 def no_yticklabels(*axes):
     """Remove the tick labels on the y-axis (but leave the tick marks).
 
@@ -691,6 +748,7 @@ def no_yticklabels(*axes):
         axes = [plt.gca()]
     for ax in axes:
         ax.set_yticklabels([])
+
 
 def set_figsize(width, height, fig=None):
     """Set the figure width and height.
@@ -709,6 +767,7 @@ def set_figsize(width, height, fig=None):
         fig = plt.gcf()
     fig.set_figwidth(width)
     fig.set_figheight(height)
+
 
 def set_scientific(low, high, axis=None, *axes):
     """Set the axes or axis specified by `axis` to use scientific notation for
@@ -735,9 +794,9 @@ def set_scientific(low, high, axis=None, *axes):
     fmt.set_powerlimits((low, high))
     # format the axis/axes
     for ax in axes:
-        if axis is None or axis == 'x':
+        if axis is None or axis == "x":
             ax.get_yaxis().set_major_formatter(fmt)
-        if axis is None or axis == 'y':
+        if axis is None or axis == "y":
             ax.get_yaxis().set_major_formatter(fmt)
 
 
@@ -786,6 +845,7 @@ def sync_xlims(*axes):
         ax.set_xlim(xmin, xmax)
     return xmin, xmax
 
+
 def set_xlim(xlims, *axes):
     """Sets the xlims for all axes.
 
@@ -802,6 +862,7 @@ def set_xlim(xlims, *axes):
     """
     for ax in axes:
         ax.set_xlim(xlims[0], xlims[1])
+
 
 def set_ylim(ylims, *axes):
     """Sets the ylims for all axes.
@@ -820,17 +881,19 @@ def set_ylim(ylims, *axes):
     for ax in axes:
         ax.set_ylim(ylims[0], ylims[1])
 
+
 def get_color_cycle():
     if mpl_ge_150:
-        cyl = mpl.rcParams['axes.prop_cycle']
+        cyl = mpl.rcParams["axes.prop_cycle"]
         # matplotlib 1.5 verifies that axes.prop_cycle *is* a cycler
         # but no garuantee that there's a `color` key.
         # so users could have a custom rcParmas w/ no color...
         try:
-            return [x['color'] for x in cyl]
+            return [x["color"] for x in cyl]
         except KeyError:
             pass  # just return axes.color style below
-    return mpl.rcParams['axes.color_cycle']
+    return mpl.rcParams["axes.color_cycle"]
+
 
 def desaturate(color, prop):
     """Decrease the saturation channel of a color by some percent.
@@ -853,15 +916,16 @@ def desaturate(color, prop):
     rgb = mplcolors.colorConverter.to_rgb(color)
 
     # Convert to hls
-    h, l, s = colorsys.rgb_to_hls(*rgb)
+    h, lightness, s = colorsys.rgb_to_hls(*rgb)
 
     # Desaturate the saturation channel
     s *= prop
 
     # Convert back to rgb
-    new_color = colorsys.hls_to_rgb(h, l, s)
+    new_color = colorsys.hls_to_rgb(h, lightness, s)
 
     return new_color
+
 
 class ModestImage(AxesImage):
     """Computationally modest image class.
@@ -882,19 +946,20 @@ class ModestImage(AxesImage):
     may also be weird coordinate warping operations for images that
     I'm not aware of. Don't expect those to work either.
     """
+
     def __init__(self, *args, **kwargs):
         self._full_res = None
         self._sx, self._sy = None, None
         self._bounds = (None, None, None, None)
         self._origExtent = None
         super(ModestImage, self).__init__(*args, **kwargs)
-        if 'extent' in kwargs and kwargs['extent'] is not None:
-            self.set_extent(kwargs['extent'])
+        if "extent" in kwargs and kwargs["extent"] is not None:
+            self.set_extent(kwargs["extent"])
 
     def set_extent(self, extent):
-            super(ModestImage, self).set_extent(extent)
-            if self._origExtent is None:
-                self._origExtent = self.get_extent()
+        super(ModestImage, self).set_extent(extent)
+        if self._origExtent is None:
+            self._origExtent = self.get_extent()
 
     def get_image_extent(self):
         """Returns the extent of the whole image.
@@ -920,12 +985,12 @@ class ModestImage(AxesImage):
         self._full_res = A
         self._A = A
 
-        if (self._A.dtype != np.uint8 and
-                not np.can_cast(self._A.dtype, np.float)):
+        if self._A.dtype != np.uint8 and not np.can_cast(self._A.dtype, np.float):
             raise TypeError("Image data can not convert to float")
 
-        if (self._A.ndim not in (2, 3) or
-                (self._A.ndim == 3 and self._A.shape[-1] not in (3, 4))):
+        if self._A.ndim not in (2, 3) or (
+            self._A.ndim == 3 and self._A.shape[-1] not in (3, 4)
+        ):
             raise TypeError("Invalid dimensions for image data")
 
         self._imcache = None
@@ -939,16 +1004,24 @@ class ModestImage(AxesImage):
         return self._full_res
 
     def _scale_to_res(self):
-        """ Change self._A and _extent to render an image whose
+        """Change self._A and _extent to render an image whose
         resolution is matched to the eventual rendering."""
         # extent has to be set BEFORE set_data
         if self._origExtent is None:
             if self.origin == "upper":
-                self._origExtent = (0, self._full_res.shape[1],
-                                    self._full_res.shape[0], 0)
+                self._origExtent = (
+                    0,
+                    self._full_res.shape[1],
+                    self._full_res.shape[0],
+                    0,
+                )
             else:
-                self._origExtent = (0, self._full_res.shape[1],
-                                    0, self._full_res.shape[0])
+                self._origExtent = (
+                    0,
+                    self._full_res.shape[1],
+                    0,
+                    self._full_res.shape[0],
+                )
 
         if self.origin == "upper":
             origXMin, origXMax, origYMax, origYMin = self._origExtent[0:4]
@@ -973,14 +1046,19 @@ class ModestImage(AxesImage):
         x1 = min(self._full_res.shape[1], xlim[1] + 5)
         y0, y1, x0, x1 = [int(a) for a in [y0, y1, x0, x1]]
 
-        sy = int(max(1, min((y1 - y0) / 5., np.ceil(dy / ext[1]))))
-        sx = int(max(1, min((x1 - x0) / 5., np.ceil(dx / ext[0]))))
+        sy = int(max(1, min((y1 - y0) / 5.0, np.ceil(dy / ext[1]))))
+        sx = int(max(1, min((x1 - x0) / 5.0, np.ceil(dx / ext[0]))))
 
         # have we already calculated what we need?
         if (self._sx is not None) and (self._sy is not None):
-            if (sx >= self._sx and sy >= self._sy and
-                    x0 >= self._bounds[0] and x1 <= self._bounds[1] and
-                    y0 >= self._bounds[2] and y1 <= self._bounds[3]):
+            if (
+                sx >= self._sx
+                and sy >= self._sy
+                and x0 >= self._bounds[0]
+                and x1 <= self._bounds[1]
+                and y0 >= self._bounds[2]
+                and y1 <= self._bounds[3]
+            ):
                 return
 
         self._A = self._full_res[y0:y1:sy, x0:x1:sx]
@@ -1001,11 +1079,28 @@ class ModestImage(AxesImage):
         self._scale_to_res()
         super(ModestImage, self).draw(renderer, *args, **kwargs)
 
-def imshow(axes, X, cmap=None, norm=None, aspect=None,
-           interpolation=None, alpha=None, vmin=None, vmax=None,
-           origin=None, extent=None, shape=None, filternorm=1,
-           filterrad=4.0, imlim=None, resample=None, url=None, 
-           clearaxes=True, **kwargs):
+
+def imshow(
+    axes,
+    X,
+    cmap=None,
+    norm=None,
+    aspect=None,
+    interpolation=None,
+    alpha=None,
+    vmin=None,
+    vmax=None,
+    origin=None,
+    extent=None,
+    shape=None,
+    filternorm=1,
+    filterrad=4.0,
+    imlim=None,
+    resample=None,
+    url=None,
+    clearaxes=True,
+    **kwargs
+):
     """Similar to matplotlib's imshow command, but produces a ModestImage
 
     Unlike matplotlib version, must explicitly specify axes
@@ -1014,13 +1109,22 @@ def imshow(axes, X, cmap=None, norm=None, aspect=None,
     if clearaxes:
         axes.cla()
     if norm is not None:
-        assert(isinstance(norm, mcolors.Normalize))
+        assert isinstance(norm, mcolors.Normalize)
     if aspect is None:
-        aspect = rcParams['image.aspect']
+        aspect = rcParams["image.aspect"]
     axes.set_aspect(aspect)
-    im = ModestImage(axes, cmap, norm, interpolation, origin, extent,
-                     filternorm=filternorm,
-                     filterrad=filterrad, resample=resample, **kwargs)
+    im = ModestImage(
+        axes,
+        cmap,
+        norm,
+        interpolation,
+        origin,
+        extent,
+        filternorm=filternorm,
+        filterrad=filterrad,
+        resample=resample,
+        **kwargs
+    )
 
     im.set_data(X)
     im.set_alpha(alpha)
@@ -1047,5 +1151,3 @@ def imshow(axes, X, cmap=None, norm=None, aspect=None,
     im._remove_method = lambda h: axes.images.remove(h)
 
     return im
-
-

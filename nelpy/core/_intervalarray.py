@@ -1,9 +1,10 @@
-__all__ = ['IntervalArray', 'EpochArray', 'SpaceArray']
+__all__ = ["IntervalArray", "EpochArray", "SpaceArray"]
 
 import logging
 import numpy as np
 import copy
 import numbers
+from numba import jit
 
 from sys import float_info
 
@@ -12,6 +13,7 @@ from .. import utils
 from .. import version
 
 from ..utils_.decorators import keyword_equivalence
+
 
 ########################################################################
 # class IntervalArray
@@ -41,18 +43,28 @@ class IntervalArray:
     __aliases__ = {}
     __attributes__ = ["_data", "_meta", "_domain"]
 
-    def __init__(self, data=None, *args, length=None,
-                 meta=None, empty=False, domain=None, label=None):
+    def __init__(
+        self,
+        data=None,
+        *args,
+        length=None,
+        meta=None,
+        empty=False,
+        domain=None,
+        label=None
+    ):
 
         self.__version__ = version.__version__
 
         self.type_name = self.__class__.__name__
-        self._interval_label = 'interval'
+        self._interval_label = "interval"
         self.formatter = formatters.ArbitraryFormatter
         self.base_unit = self.formatter.base_unit
 
         if len(args) > 1:
-            raise TypeError("__init__() takes from 1 to 3 positional arguments but 4 were given")
+            raise TypeError(
+                "__init__() takes from 1 to 3 positional arguments but 4 were given"
+            )
         elif len(args) == 1:
             data = [data, args[0]]
 
@@ -87,19 +99,17 @@ class IntervalArray:
 
             if data.ndim == 2 and length.ndim == 1:
                 raise ValueError(
-                    "length not allowed when using start and stop "
-                    "values")
+                    "length not allowed when using start and stop " "values"
+                )
 
             if len(length) > 1:
                 if data.ndim == 1 and data.shape[0] != length.shape[0]:
-                    raise ValueError(
-                        "must have same number of data and length "
-                        "data"
-                        )
+                    raise ValueError("must have same number of data and length " "data")
             if data.ndim == 1 and length.ndim == 1:
                 stop_interval = data + length
                 data = np.hstack(
-                    (data[..., np.newaxis], stop_interval[..., np.newaxis]))
+                    (data[..., np.newaxis], stop_interval[..., np.newaxis])
+                )
         else:  # length was not specified, so assume we recived intervals
 
             # Note: if we have an empty array of data with no
@@ -111,9 +121,11 @@ class IntervalArray:
                     self.__init__(empty=True)
                     return
             except TypeError:
-                logging.warning("unsupported type ("
+                logging.warning(
+                    "unsupported type ("
                     + str(type(data))
-                    + "); creating empty {}".format(self.type_name))
+                    + "); creating empty {}".format(self.type_name)
+                )
                 self.__init__(empty=True)
                 return
 
@@ -121,8 +133,8 @@ class IntervalArray:
             # length and more than two values:
             if data.ndim == 1 and len(data) > 2:  # we already know length is None
                 raise TypeError(
-                    "data of size (n_intervals, ) has to be accompanied by "
-                    "a length")
+                    "data of size (n_intervals, ) has to be accompanied by " "a length"
+                )
 
             if data.ndim == 1:  # and length is None:
                 data = np.array([data])
@@ -132,8 +144,7 @@ class IntervalArray:
 
         try:
             if data[:, 0].shape[0] != data[:, 1].shape[0]:
-                raise ValueError(
-                    "must have the same number of start and stop values")
+                raise ValueError("must have the same number of start and stop values")
         except Exception:
             raise Exception("Unhandled {}.__init__ case.".format(self.type_name))
 
@@ -176,14 +187,16 @@ class IntervalArray:
         if name == "aliases":
             raise AttributeError  # http://nedbatchelder.com/blog/201010/surprising_getattr_recursion.html
         name = self.__aliases__.get(name, name)
-        #return getattr(self, name) #Causes infinite recursion on non-existent attribute
+        # return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
     def _copy_without_data(self):
         """Return a copy of self, without data."""
-        out = copy.copy(self) # shallow copy
+        out = copy.copy(self)  # shallow copy
         out._data = np.zeros((self.n_intervals, 2))
-        out = copy.deepcopy(out) # just to be on the safe side, but at least now we are not copying the data!
+        out = copy.deepcopy(
+            out
+        )  # just to be on the safe side, but at least now we are not copying the data!
         return out
 
     def __iter__(self):
@@ -222,38 +235,49 @@ class IntervalArray:
                 return type(self)(empty=True)
             return self.intersect(interval=idx)
         elif isinstance(idx, IntervalArray):
-            raise TypeError("Error taking intersection. {} expected, but got {}".format(self.type_name, idx.type_name))
+            raise TypeError(
+                "Error taking intersection. {} expected, but got {}".format(
+                    self.type_name, idx.type_name
+                )
+            )
         else:
-            try: # works for ints, lists, and slices
+            try:  # works for ints, lists, and slices
                 out = self.copy()
-                out._data = self.data[idx,:]
+                out._data = self.data[idx, :]
             except IndexError:
-                raise IndexError('{} index out of range'.format(self.type_name))
+                raise IndexError("{} index out of range".format(self.type_name))
             except Exception:
-                raise TypeError(
-                    'unsupported subscripting type {}'.format(type(idx)))
+                raise TypeError("unsupported subscripting type {}".format(type(idx)))
         return out
 
     def __add__(self, other):
         """add length to start and stop of each interval, or join two interval arrays without merging"""
         if isinstance(other, numbers.Number):
             new = copy.copy(self)
-            return new.expand(other, direction='both')
+            return new.expand(other, direction="both")
         elif isinstance(other, type(self)):
             return self.join(other)
         else:
-            raise TypeError("unsupported operand type(s) for +: {} and {}".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for +: {} and {}".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
     def __sub__(self, other):
         """subtract length from start and stop of each interval"""
         if isinstance(other, numbers.Number):
             new = copy.copy(self)
-            return new.shrink(other, direction='both')
+            return new.shrink(other, direction="both")
         elif isinstance(other, type(self)):
             # A - B = A intersect ~B
             return self.intersect(~other)
         else:
-            raise TypeError("unsupported operand type(s) for +: {} and {}".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for +: {} and {}".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
     def __mul__(self, other):
         """expand (>1) or shrink (<1) interval lengths"""
@@ -272,7 +296,11 @@ class IntervalArray:
                 new.domain._data = new.domain._data - other
             return new
         else:
-            raise TypeError("unsupported operand type(s) for <<: {} and {}".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for <<: {} and {}".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
     def __rshift__(self, other):
         """shift data to right (>>)"""
@@ -283,7 +311,11 @@ class IntervalArray:
                 new.domain._data = new.domain._data + other
             return new
         else:
-            raise TypeError("unsupported operand type(s) for >>: {} and {}".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for >>: {} and {}".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
     def __and__(self, other):
         """intersection of interval arrays"""
@@ -291,7 +323,11 @@ class IntervalArray:
             new = copy.copy(self)
             return new.intersect(other, boundaries=True)
         else:
-            raise TypeError("unsupported operand type(s) for &: {} and {}".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for &: {} and {}".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
     def __or__(self, other):
         """join and merge interval array; set union"""
@@ -301,7 +337,11 @@ class IntervalArray:
             union = joined.merge()
             return union
         else:
-            raise TypeError("unsupported operand type(s) for |: {} and {}".format(str(type(self)), str(type(other))))
+            raise TypeError(
+                "unsupported operand type(s) for |: {} and {}".format(
+                    str(type(self)), str(type(other))
+                )
+            )
 
     def __invert__(self):
         """complement within self.domain"""
@@ -315,7 +355,7 @@ class IntervalArray:
         """Remove duplicate intervals."""
         raise NotImplementedError
 
-    @keyword_equivalence(this_or_that={'n_intervals':'n_epochs'})
+    @keyword_equivalence(this_or_that={"n_intervals": "n_epochs"})
     def partition(self, *, ds=None, n_intervals=None):
         """Returns an IntervalArray that has been partitioned.
 
@@ -339,13 +379,15 @@ class IntervalArray:
         """
 
         if self.isempty:
-            raise ValueError ("cannot parition an empty object in a meaningful way!")
+            raise ValueError("cannot parition an empty object in a meaningful way!")
 
         if ds is not None and n_intervals is not None:
             raise ValueError("ds and n_intervals cannot be used together")
 
         if n_intervals is not None:
-            assert float(n_intervals).is_integer(), "n_intervals must be a positive integer!"
+            assert float(
+                n_intervals
+            ).is_integer(), "n_intervals must be a positive integer!"
             assert n_intervals > 1, "n_intervals must be a positive integer > 1"
             # determine ds from number of desired points:
             ds = self.length / n_intervals
@@ -370,8 +412,11 @@ class IntervalArray:
         # now make a new interval array:
         out = copy.copy(self)
         out._data = np.hstack(
-                [np.array(new_starts)[..., np.newaxis],
-                 np.array(new_stops)[..., np.newaxis]])
+            [
+                np.array(new_starts)[..., np.newaxis],
+                np.array(new_stops)[..., np.newaxis],
+            ]
+        )
         return out
 
     @property
@@ -420,21 +465,21 @@ class IntervalArray:
         # check that IntervalArray is fully merged, or merge it if necessary
         merged = self.merge()
         # build complement intervals
-        starts = np.insert(merged.stops, 0 , domain.start)
+        starts = np.insert(merged.stops, 0, domain.start)
         stops = np.append(merged.starts, domain.stop)
         newvalues = np.vstack([starts, stops]).T
         # remove intervals with zero length
-        lengths = newvalues[:,1] - newvalues[:,0]
-        newvalues = newvalues[lengths>0]
+        lengths = newvalues[:, 1] - newvalues[:, 0]
+        newvalues = newvalues[lengths > 0]
         complement = copy.copy(self)
         complement._data = newvalues
 
         if domain.n_intervals > 1:
             return complement[domain]
         try:
-            complement._data[0,0] = np.max((complement._data[0,0], domain.start))
-            complement._data[-1,-1] = np.min((complement._data[-1,-1], domain.stop))
-        except IndexError: # complement is empty
+            complement._data[0, 0] = np.max((complement._data[0, 0], domain.start))
+            complement._data[-1, -1] = np.min((complement._data[-1, -1], domain.stop))
+        except IndexError:  # complement is empty
             return type(self)(empty=True)
         return complement
 
@@ -448,7 +493,7 @@ class IntervalArray:
     @domain.setter
     def domain(self, val):
         """domain (in base units) within which support is defined"""
-        #TODO: add  input validation
+        # TODO: add  input validation
         if isinstance(val, type(self)):
             self._domain = val
         elif isinstance(val, (tuple, list)):
@@ -483,7 +528,7 @@ class IntervalArray:
     @property
     def is_finite(self):
         """Is the interval [start, stop) finite."""
-        return not(np.isinf(self.start) | np.isinf(self.stop))
+        return not (np.isinf(self.start) | np.isinf(self.stop))
 
     # @property
     # def _human_readable_posix_intervals(self):
@@ -580,7 +625,7 @@ class IntervalArray:
         if not utils.is_sorted(self.stops):
             return False
 
-        return np.all(self.data[1:,0] - self.data[:-1,1] > 0)
+        return np.all(self.data[1:, 0] - self.data[:-1, 1] > 0)
 
     def _ismerged(self, overlap=0.0):
         """(bool) No overlapping intervals with overlap >= overlap exist."""
@@ -593,7 +638,7 @@ class IntervalArray:
         if not utils.is_sorted(self.stops):
             return False
 
-        return np.all(self.data[1:,0] - self.data[:-1,1] > -overlap)
+        return np.all(self.data[1:, 0] - self.data[:-1, 1] > -overlap)
 
     @property
     def issorted(self):
@@ -622,85 +667,124 @@ class IntervalArray:
 
     def intersect(self, interval, *, boundaries=True):
         """Returns intersection (overlap) between current IntervalArray (self) and
-           other interval array ('interval').
+        other interval array ('interval').
         """
 
-        this = copy.deepcopy(self)
+        if self.isempty or interval.isempty:
+            logging.warning("interval intersection is empty")
+            return type(self)(empty=True)
+
         new_intervals = []
-        for epa in this:
-            cand_ep_idx = np.argwhere((interval.starts < epa.stop) & (interval.stops > epa.start)).squeeze()
-            if np.size(cand_ep_idx) > 0:
-                for epb in interval[cand_ep_idx.tolist()]:
-                    new_interval = self._intersect(epa, epb, boundaries=boundaries)
-                    if not new_interval.isempty:
-                        new_intervals.append([new_interval.start, new_interval.stop])
+
+        # Extract starts and stops and convert to np.array of float64 (for numba)
+        interval_starts_a = np.array(self.starts, dtype=np.float64)
+        interval_stops_a = np.array(self.stops, dtype=np.float64)
+        if interval.data.ndim == 1:
+            interval_starts_b = np.array([interval.data[0]], dtype=np.float64)
+            interval_stops_b = np.array([interval.data[1]], dtype=np.float64)
+        else:
+            interval_starts_b = np.array(interval.data[:, 0], dtype=np.float64)
+            interval_stops_b = np.array(interval.data[:, 1], dtype=np.float64)
+
+        new_starts, new_stops = interval_intersect(
+            interval_starts_a,
+            interval_stops_a,
+            interval_starts_b,
+            interval_stops_b,
+            boundaries,
+        )
+
+        for start, stop in zip(new_starts, new_stops):
+            new_intervals.append([start, stop])
+
+        # convert to np.array of float64
+        new_intervals = np.array(new_intervals, dtype=np.float64)
+
         out = type(self)(new_intervals)
         out._domain = self.domain
         return out
 
-    def _intersect(self, intervala, intervalb, *, boundaries=True, meta=None):
-        """Finds intersection (overlap) between two sets of interval arrays.
+    # def intersect(self, interval, *, boundaries=True):
+    #     """Returns intersection (overlap) between current IntervalArray (self) and
+    #        other interval array ('interval').
+    #     """
 
-        TODO: verify if this requires a merged IntervalArray to work properly?
-        ISSUE_261: not fixed yet
+    #     this = copy.deepcopy(self)
+    #     new_intervals = []
+    #     for epa in this:
+    #         cand_ep_idx = np.argwhere((interval.starts < epa.stop) & (interval.stops > epa.start)).squeeze()
+    #         if np.size(cand_ep_idx) > 0:
+    #             for epb in interval[cand_ep_idx.tolist()]:
+    #                 new_interval = self._intersect(epa, epb, boundaries=boundaries)
+    #                 if not new_interval.isempty:
+    #                     new_intervals.append([new_interval.start, new_interval.stop])
+    #     out = type(self)(new_intervals)
+    #     out._domain = self.domain
+    #     return out
 
-        TODO: domains are not preserved yet! careful consideration is necessary.
+    # def _intersect(self, intervala, intervalb, *, boundaries=True, meta=None):
+    #     """Finds intersection (overlap) between two sets of interval arrays.
 
-        Parameters
-        ----------
-        interval : nelpy.IntervalArray
-        boundaries : bool
-            If True, limits start, stop to interval start and stop.
-        meta : dict, optional
-            New dictionary of meta data for interval ontersection.
+    #     TODO: verify if this requires a merged IntervalArray to work properly?
+    #     ISSUE_261: not fixed yet
 
-        Returns
-        -------
-        intersect_intervals : nelpy.IntervalArray
-        """
-        if intervala.isempty or intervalb.isempty:
-            logging.warning('interval intersection is empty')
-            return type(self)(empty=True)
+    #     TODO: domains are not preserved yet! careful consideration is necessary.
 
-        new_starts = []
-        new_stops = []
-        interval_a = intervala.merge().copy()
-        interval_b = intervalb.merge().copy()
+    #     Parameters
+    #     ----------
+    #     interval : nelpy.IntervalArray
+    #     boundaries : bool
+    #         If True, limits start, stop to interval start and stop.
+    #     meta : dict, optional
+    #         New dictionary of meta data for interval ontersection.
 
-        for aa in interval_a.data:
-            for bb in interval_b.data:
-                if (aa[0] <= bb[0] < aa[1]) and (aa[0] < bb[1] <= aa[1]):
-                    new_starts.append(bb[0])
-                    new_stops.append(bb[1])
-                elif (aa[0] < bb[0] < aa[1]) and (aa[0] < bb[1] > aa[1]):
-                    new_starts.append(bb[0])
-                    if boundaries:
-                        new_stops.append(aa[1])
-                    else:
-                        new_stops.append(bb[1])
-                elif (aa[0] > bb[0] < aa[1]) and (aa[0] < bb[1] < aa[1]):
-                    if boundaries:
-                        new_starts.append(aa[0])
-                    else:
-                        new_starts.append(bb[0])
-                    new_stops.append(bb[1])
-                elif (aa[0] >= bb[0] < aa[1]) and (aa[0] < bb[1] >= aa[1]):
-                    if boundaries:
-                        new_starts.append(aa[0])
-                        new_stops.append(aa[1])
-                    else:
-                        new_starts.append(bb[0])
-                        new_stops.append(bb[1])
+    #     Returns
+    #     -------
+    #     intersect_intervals : nelpy.IntervalArray
+    #     """
+    #     if intervala.isempty or intervalb.isempty:
+    #         logging.warning('interval intersection is empty')
+    #         return type(self)(empty=True)
 
-        if not boundaries:
-            new_starts = np.unique(new_starts)
-            new_stops = np.unique(new_stops)
+    #     new_starts = []
+    #     new_stops = []
+    #     interval_a = intervala.merge().copy()
+    #     interval_b = intervalb.merge().copy()
 
-        interval_a._data = np.hstack(
-            [np.array(new_starts)[..., np.newaxis],
-                np.array(new_stops)[..., np.newaxis]])
+    #     for aa in interval_a.data:
+    #         for bb in interval_b.data:
+    #             if (aa[0] <= bb[0] < aa[1]) and (aa[0] < bb[1] <= aa[1]):
+    #                 new_starts.append(bb[0])
+    #                 new_stops.append(bb[1])
+    #             elif (aa[0] < bb[0] < aa[1]) and (aa[0] < bb[1] > aa[1]):
+    #                 new_starts.append(bb[0])
+    #                 if boundaries:
+    #                     new_stops.append(aa[1])
+    #                 else:
+    #                     new_stops.append(bb[1])
+    #             elif (aa[0] > bb[0] < aa[1]) and (aa[0] < bb[1] < aa[1]):
+    #                 if boundaries:
+    #                     new_starts.append(aa[0])
+    #                 else:
+    #                     new_starts.append(bb[0])
+    #                 new_stops.append(bb[1])
+    #             elif (aa[0] >= bb[0] < aa[1]) and (aa[0] < bb[1] >= aa[1]):
+    #                 if boundaries:
+    #                     new_starts.append(aa[0])
+    #                     new_stops.append(aa[1])
+    #                 else:
+    #                     new_starts.append(bb[0])
+    #                     new_stops.append(bb[1])
 
-        return interval_a
+    #     if not boundaries:
+    #         new_starts = np.unique(new_starts)
+    #         new_stops = np.unique(new_stops)
+
+    #     interval_a._data = np.hstack(
+    #         [np.array(new_starts)[..., np.newaxis],
+    #             np.array(new_stops)[..., np.newaxis]])
+
+    #     return interval_a
 
     def merge(self, *, gap=0.0, overlap=0.0):
         """Merge intervals that are close or overlapping.
@@ -736,7 +820,7 @@ class IntervalArray:
         if self.isempty:
             return self
 
-        if (self.ismerged) and (gap==0.0):
+        if (self.ismerged) and (gap == 0.0):
             # already merged
             return self
 
@@ -747,7 +831,7 @@ class IntervalArray:
 
         overlap_ = overlap
 
-        while not newintervalarray._ismerged(overlap=overlap) or gap>0:
+        while not newintervalarray._ismerged(overlap=overlap) or gap > 0:
             stops = newintervalarray.stops[:-1] + gap
             starts = newintervalarray.starts[1:] + overlap_
             to_merge = (stops - starts) >= 0
@@ -777,7 +861,7 @@ class IntervalArray:
 
         return newintervalarray
 
-    def expand(self, amount, direction='both'):
+    def expand(self, amount, direction="both"):
         """Expands interval by the given amount.
         Parameters
         ----------
@@ -790,29 +874,27 @@ class IntervalArray:
         -------
         expanded_intervals : nelpy.IntervalArray
         """
-        if direction == 'both':
+        if direction == "both":
             resize_starts = self.data[:, 0] - amount
             resize_stops = self.data[:, 1] + amount
-        elif direction == 'start':
+        elif direction == "start":
             resize_starts = self.data[:, 0] - amount
             resize_stops = self.data[:, 1]
-        elif direction == 'stop':
+        elif direction == "stop":
             resize_starts = self.data[:, 0]
             resize_stops = self.data[:, 1] + amount
         else:
-            raise ValueError(
-                "direction must be 'both', 'start', or 'stop'")
+            raise ValueError("direction must be 'both', 'start', or 'stop'")
 
         newintervalarray = copy.copy(self)
 
-        newintervalarray._data = np.hstack((
-                resize_starts[..., np.newaxis],
-                resize_stops[..., np.newaxis]
-                ))
+        newintervalarray._data = np.hstack(
+            (resize_starts[..., np.newaxis], resize_stops[..., np.newaxis])
+        )
 
         return newintervalarray
 
-    def shrink(self, amount, direction='both'):
+    def shrink(self, amount, direction="both"):
         """Shrinks interval by the given amount.
         Parameters
         ----------
@@ -826,11 +908,11 @@ class IntervalArray:
         shrinked_intervals : nelpy.IntervalArray
         """
         both_limit = min(self.lengths / 2)
-        if amount > both_limit and direction == 'both':
+        if amount > both_limit and direction == "both":
             raise ValueError("shrink amount too large")
 
         single_limit = min(self.lengths)
-        if amount > single_limit and direction != 'both':
+        if amount > single_limit and direction != "both":
             raise ValueError("shrink amount too large")
 
         return self.expand(-amount, direction)
@@ -857,15 +939,12 @@ class IntervalArray:
 
         newintervalarray = copy.copy(self)
 
-        join_starts = np.concatenate(
-            (self.data[:, 0], interval.data[:, 0]))
-        join_stops = np.concatenate(
-            (self.data[:, 1], interval.data[:, 1]))
+        join_starts = np.concatenate((self.data[:, 0], interval.data[:, 0]))
+        join_stops = np.concatenate((self.data[:, 1], interval.data[:, 1]))
 
-        newintervalarray._data = np.hstack((
-            join_starts[..., np.newaxis],
-            join_stops[..., np.newaxis]
-            ))
+        newintervalarray._data = np.hstack(
+            (join_starts[..., np.newaxis], join_stops[..., np.newaxis])
+        )
         if not newintervalarray.issorted:
             newintervalarray._sort()
         # if not newintervalarray.ismerged:
@@ -901,26 +980,28 @@ class IntervalArray:
         sort_idx = np.argsort(self.data[:, 0])
         self._data = self._data[sort_idx]
 
-#----------------------------------------------------------------------#
-#======================================================================#
+
+# ----------------------------------------------------------------------#
+# ======================================================================#
+
 
 class EpochArray(IntervalArray):
     """IntervalArray containing temporal intervals (epochs, in seconds)."""
 
     __aliases__ = {
-        'time': 'data',
-        '_time': '_data',
-        'n_epochs': 'n_intervals',
-        'duration': 'length',
-        'durations': 'lengths',
-        }
+        "time": "data",
+        "_time": "_data",
+        "n_epochs": "n_intervals",
+        "duration": "length",
+        "durations": "lengths",
+    }
 
     def __init__(self, *args, **kwargs):
         # add class-specific aliases to existing aliases:
         self.__aliases__ = {**super().__aliases__, **self.__aliases__}
         super().__init__(*args, **kwargs)
 
-        self._interval_label = 'epoch'
+        self._interval_label = "epoch"
         self.formatter = formatters.PrettyDuration
         self.base_unit = self.formatter.base_unit
 
@@ -953,6 +1034,7 @@ class EpochArray(IntervalArray):
     #     kwargs = {'ds':ds, 'n_intervals': n_intervals}
     #     return super().partition(**kwargs)
 
+
 class SpaceArray(IntervalArray):
     """IntervalArray containing spatial intervals (in cm)."""
 
@@ -965,3 +1047,27 @@ class SpaceArray(IntervalArray):
 
         self.formatter = formatters.PrettySpace
         self.base_unit = self.formatter.base_unit
+
+
+@jit(nopython=True)
+def interval_intersect(
+    interval_starts_a,
+    interval_stops_a,
+    interval_starts_b,
+    interval_stops_b,
+    boundaries=True,
+):
+    new_starts = []
+    new_stops = []
+
+    for start_a, stop_a in zip(interval_starts_a, interval_stops_a):
+        for start_b, stop_b in zip(interval_starts_b, interval_stops_b):
+            if start_a < stop_b and start_b < stop_a:
+                new_start = (
+                    max(start_a, start_b) if boundaries else min(start_a, start_b)
+                )
+                new_stop = min(stop_a, stop_b) if boundaries else max(stop_a, stop_b)
+                new_starts.append(new_start)
+                new_stops.append(new_stop)
+
+    return np.array(new_starts), np.array(new_stops)

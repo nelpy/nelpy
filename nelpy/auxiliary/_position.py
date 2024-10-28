@@ -7,13 +7,25 @@ from ..core import _analogsignalarray, _epocharray
 from .. import utils
 from ..utils_.decorators import keyword_deprecation
 
+
 class PositionArray(_analogsignalarray.AnalogSignalArray):
 
-    __attributes__ = ['_kalmanfilter'] # PositionArray-specific attributes
+    __attributes__ = ["_kalmanfilter"]  # PositionArray-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
-    def __init__(self,data=[], *, timestamps=None, fs=None,
-                 step=None, merge_sample_gap=0, support=None,
-                 in_memory=True, labels=None, empty=False):
+
+    def __init__(
+        self,
+        data=[],
+        *,
+        timestamps=None,
+        fs=None,
+        step=None,
+        merge_sample_gap=0,
+        support=None,
+        in_memory=True,
+        labels=None,
+        empty=False
+    ):
 
         # if an empty object is requested, return it:
         if empty:
@@ -28,14 +40,16 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
             self.__dict__ = copy.deepcopy(data.__dict__)
             self.__renew__()
         else:
-            kwargs = {"data":data,
-                    "timestamps": timestamps,
-                    "fs": fs,
-                    "step": step,
-                    "merge_sample_gap": merge_sample_gap,
-                    "support": support,
-                    "in_memory": in_memory,
-                    "labels": labels}
+            kwargs = {
+                "data": data,
+                "timestamps": timestamps,
+                "fs": fs,
+                "step": step,
+                "merge_sample_gap": merge_sample_gap,
+                "support": support,
+                "in_memory": in_memory,
+                "labels": labels,
+            }
 
             # initialize super:
             super().__init__(**kwargs)
@@ -72,21 +86,23 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
     @property
     def x(self):
         """return x-values, as numpy array."""
-        return self.data[0,:]
+        return self.data[0, :]
 
     @property
     def y(self):
         """return y-values, as numpy array."""
         if self.is_2d:
-            return self.data[1,:]
-        raise ValueError("PositionArray is not 2 dimensional, so y-values are undefined!")
+            return self.data[1, :]
+        raise ValueError(
+            "PositionArray is not 2 dimensional, so y-values are undefined!"
+        )
 
     @property
     def path_length(self):
         """Return the path length along the trajectory."""
         # raise NotImplementedError
-        lengths = np.sqrt(np.sum(np.diff(self._data_colsig, axis=0)**2, axis=1))
-        total_length = np.sum(lengths)
+        lengths = np.sqrt(np.sum(np.diff(self._data_colsig, axis=0) ** 2, axis=1))
+        return np.sum(lengths)
 
     def get_speed(self, sigma_pos=None, simga_spd=None):
         """Return the speed, as an AnalogSignalArray."""
@@ -94,29 +110,38 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         # compute the speed on the smoothed position. Optionally, then, the
         # speed should be smoothed as well.
 
-        raise NotImplementedError
-
-        cum_lengths = np.insert(np.cumsum(asa.lengths), 0, 0)
+        # raise NotImplementedError
+    
+        out = self.copy()
+        cum_lengths = np.insert(np.cumsum(self.lengths), 0, 0)
 
         # ensure that datatype is float
         out._data = out.data.astype(float)
 
         # now obtain the derivative for each epoch separately
-        for idx in range(asa.n_epochs):
+        for idx in range(self.n_epochs):
             # if 1D:
-            if asa.n_signals == 1:
-                if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+            if self.n_signals == 1:
+                if (cum_lengths[idx + 1] - cum_lengths[idx]) < 2:
                     # only single sample
-                    out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                    out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = 0
                 else:
-                    out._data[[0],cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[[0],cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
+                    out._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]] = (
+                        np.gradient(
+                            self._data[[0], cum_lengths[idx] : cum_lengths[idx + 1]],
+                            axis=1,
+                        )
+                    )
             else:
-                if (cum_lengths[idx+1]-cum_lengths[idx]) < 2:
+                if (cum_lengths[idx + 1] - cum_lengths[idx]) < 2:
                     # only single sample
-                    out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = 0
+                    out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = 0
                 else:
-                    out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = np.gradient(asa._data[:,cum_lengths[idx]:cum_lengths[idx+1]], axis=1)
-
+                    out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = np.gradient(
+                        self._data[:, cum_lengths[idx] : cum_lengths[idx + 1]], axis=1
+                    )
+        return out
+    
     def direction(self):
         """Return the instantaneous direction estimate as an AnalogSignalArray."""
         # If 1D, then left/right or up/down or fwd/reverse or whatever might
@@ -144,9 +169,10 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         """Bin position into grid."""
         raise NotImplementedError
 
-    @keyword_deprecation(replace_x_with_y={'bw':'truncate'})
-    def smooth(self, *, fs=None, sigma=None, truncate=None, inplace=False,
-               Kalman=False):
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+    def smooth(
+        self, *, fs=None, sigma=None, truncate=None, inplace=False, Kalman=False
+    ):
         """Smooths the regularly sampled PositionArray with a Gaussian kernel.
 
         Smoothing is applied in time, and the same smoothing is applied to each
@@ -188,10 +214,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
             out.__renew__()
             return out
 
-        kwargs = {'inplace' : inplace,
-                'fs' : fs,
-                'sigma' : sigma,
-                'truncate' : truncate}
+        kwargs = {"inplace": inplace, "fs": fs, "sigma": sigma, "truncate": truncate}
 
         out = utils.gaussian_filter(self, **kwargs)
         out.__renew__()
@@ -287,33 +310,33 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
             n_iter = 5
 
         if self.is_1d:
-            ss = 2 # state size (x, dx)
-            os = 1 # observation size, (x)
+            ss = 2  # state size (x, dx)
+            os = 1  # observation size, (x)
             # transition matrix:
             F = [[1, 1], [0, 1]]
             # observation matrix:
             H = [[1, 0]]
         elif self.is_2d:
-            ss = 4 # state size (x, y, dx, dy)
-            os = 2 # observation size, (x, y)
+            ss = 4  # state size (x, y, dx, dy)
+            os = 2  # observation size, (x, y)
             # transition matrix:
             F = [[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]]
             # observation matrix:
             H = [[1, 0, 0, 0], [0, 1, 0, 0]]
         else:
-            raise ValueError('Only 1D or 2D PositionArrays supported!')
+            raise ValueError("Only 1D or 2D PositionArrays supported!")
 
         if Q is None:
             Q = 1
         if R is None:
-            R = 10*self.fs #TODO: maybe a better default is self.fs * 10 ???
+            R = 10 * self.fs  # TODO: maybe a better default is self.fs * 10 ???
 
         if self.is_1d:
-            posdata = np.zeros((1,0))
-            speeddata = np.zeros((1,0))
+            posdata = np.zeros((1, 0))
+            speeddata = np.zeros((1, 0))
         elif self.is_2d:
-            posdata = np.zeros((2,0))
-            speeddata = np.zeros((2,0))
+            posdata = np.zeros((2, 0))
+            speeddata = np.zeros((2, 0))
 
         for snippet in self:
             measurements = snippet.data.T
@@ -326,24 +349,26 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
                 if self._kalmanfilter is None:
                     kf = KalmanFilter(transition_matrices=F, observation_matrices=H)
                     self._kalmanfilter = kf
-                self._kalmanfilter.transition_covariance = Q*np.eye(ss)
-                self._kalmanfilter.observation_covariance = R*np.eye(os)
+                self._kalmanfilter.transition_covariance = Q * np.eye(ss)
+                self._kalmanfilter.observation_covariance = R * np.eye(os)
 
             if self.is_1d:
-                self._kalmanfilter.initial_state_mean = np.append(snippet.data[0,0], 0)
+                self._kalmanfilter.initial_state_mean = np.append(snippet.data[0, 0], 0)
             elif self.is_2d:
-                self._kalmanfilter.initial_state_mean = np.append(snippet.data[:,0], (0, 0))
+                self._kalmanfilter.initial_state_mean = np.append(
+                    snippet.data[:, 0], (0, 0)
+                )
 
             kf = self._kalmanfilter
 
             smoothed_state_means, smoothed_state_covariances = kf.smooth(measurements)
 
-            position = smoothed_state_means[:,:os].T
-            speed = smoothed_state_means[:,os:].T
+            position = smoothed_state_means[:, :os].T
+            speed = smoothed_state_means[:, os:].T
 
             posdata = np.hstack((posdata, position))
             speeddata = np.hstack((speeddata, speed))
 
-        speeddata = self.fs*np.sqrt(np.sum(speeddata**2, axis=0))
+        speeddata = self.fs * np.sqrt(np.sum(speeddata**2, axis=0))
 
         return posdata, speeddata

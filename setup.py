@@ -31,6 +31,7 @@ setup(
                     'matplotlib>=1.5.0', # 1.4.3 doesn't support the step kwarg in rasterc yet
                     'dill', # so that we can pickle lambda functions
                     'scikit-learn',
+                    'numba>=0.56.0'
                     #'pykalman', # for smoothing trajectories
                     # 'shapely>=1.6'
                     ],

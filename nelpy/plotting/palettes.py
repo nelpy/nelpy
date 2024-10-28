@@ -6,55 +6,51 @@ Some of these functions are Copyright (c) 2012-2016, Michael L. Waskom
 import colorsys
 from itertools import cycle
 
+from matplotlib.colors import to_rgb
 import numpy as np
 import matplotlib as mpl
 
-from . import utils# import get_color_cycle, desaturate
+
+from . import utils  # import get_color_cycle, desaturate
 from . import colors
 
 NELPY_PALETTES = dict(
-    sweet=["#00CF97", "#F05340", "#56B4E9",
-           "#D3AA65", "#B47CC7", "#C44E52"],
+    sweet=["#00CF97", "#F05340", "#56B4E9", "#D3AA65", "#B47CC7", "#C44E52"],
     # sweet=["#00CF97", "#F05340", "#0098A9",
     #        "#6ACC65", "#4878CF", "#C44E52"],
-    old=["#6bacd0", "#cfa255", "#58b0a6",
-          "#e48065", "#5f486f", "#9a91c4"],
-    new=["#6BACD0", "#D3AA65", "#00CF97",
-           "#F05340", "#B47CC7", "#C44E52"]
-    )
+    old=["#6bacd0", "#cfa255", "#58b0a6", "#e48065", "#5f486f", "#9a91c4"],
+    new=["#6BACD0", "#D3AA65", "#00CF97", "#F05340", "#B47CC7", "#C44E52"],
+)
 
-    # blue orange green red purple brown pink
+# blue orange green red purple brown pink
 
-    # color_light="#5f486f",
-    #              color_dark="#355d7a",
-    #              color_extra="0.5",
-    #              color_contr1="#67a9cf",
-    #              color_contr2="#d6604d", # "#ef8a62",
-    #              color_pastel_green="#58b0a6",
-    #              color_pastel_blue="#6bacd0",
-    #              color_pastel_orange="#cfa255",
-    #              color_pastel_red="#e48065",
+# color_light="#5f486f",
+#              color_dark="#355d7a",
+#              color_extra="0.5",
+#              color_contr1="#67a9cf",
+#              color_contr2="#d6604d", # "#ef8a62",
+#              color_pastel_green="#58b0a6",
+#              color_pastel_blue="#6bacd0",
+#              color_pastel_orange="#cfa255",
+#              color_pastel_red="#e48065",
 
 SEABORN_PALETTES = dict(
-    deep=["#4C72B0", "#55A868", "#C44E52",
-          "#8172B2", "#CCB974", "#64B5CD"],
-    muted=["#4878CF", "#6ACC65", "#D65F5F",
-           "#B47CC7", "#C4AD66", "#77BEDB"],
-    pastel=["#92C6FF", "#97F0AA", "#FF9F9A",
-            "#D0BBFF", "#FFFEA3", "#B0E0E6"],
-    bright=["#003FFF", "#03ED3A", "#E8000B",
-            "#8A2BE2", "#FFC400", "#00D7FF"],
-    dark=["#001C7F", "#017517", "#8C0900",
-          "#7600A1", "#B8860B", "#006374"],
-    colorblind=["#0072B2", "#009E73", "#D55E00",
-                "#CC79A7", "#F0E442", "#56B4E9"]
-    )
+    deep=["#4C72B0", "#55A868", "#C44E52", "#8172B2", "#CCB974", "#64B5CD"],
+    muted=["#4878CF", "#6ACC65", "#D65F5F", "#B47CC7", "#C4AD66", "#77BEDB"],
+    pastel=["#92C6FF", "#97F0AA", "#FF9F9A", "#D0BBFF", "#FFFEA3", "#B0E0E6"],
+    bright=["#003FFF", "#03ED3A", "#E8000B", "#8A2BE2", "#FFC400", "#00D7FF"],
+    dark=["#001C7F", "#017517", "#8C0900", "#7600A1", "#B8860B", "#006374"],
+    colorblind=["#0072B2", "#009E73", "#D55E00", "#CC79A7", "#F0E442", "#56B4E9"],
+)
+
 
 class _ColorPalette(list):
     """Set the color palette in a with statement, otherwise be a list."""
+
     def __enter__(self):
         """Open the context."""
         from .rcmod import set_palette
+
         self._orig_palette = color_palette()
         set_palette(self)
         return self
@@ -62,6 +58,7 @@ class _ColorPalette(list):
     def __exit__(self, *args):
         """Close the context."""
         from .rcmod import set_palette
+
         set_palette(self._orig_palette)
 
     def as_hex(self):
@@ -210,6 +207,7 @@ def color_palette(palette=None, n_colors=None, desat=None):
 
     return palette
 
+
 def mpl_palette(name, n_colors=6):
     """Return discrete colors from a matplotlib palette.
 
@@ -270,9 +268,16 @@ def mpl_palette(name, n_colors=6):
         >>> sns.palplot(sns.mpl_palette("GnBu_d"))
 
     """
-    brewer_qual_pals = {"Accent": 8, "Dark2": 8, "Paired": 12,
-                        "Pastel1": 9, "Pastel2": 8,
-                        "Set1": 9, "Set2": 8, "Set3": 12}
+    brewer_qual_pals = {
+        "Accent": 8,
+        "Dark2": 8,
+        "Paired": 12,
+        "Pastel1": 9,
+        "Pastel2": 8,
+        "Set1": 9,
+        "Set2": 8,
+        "Set3": 12,
+    }
 
     if name.endswith("_d"):
         pal = ["#333333"]
@@ -294,8 +299,12 @@ def _color_to_rgb(color, input):
     if input == "hls":
         color = colorsys.hls_to_rgb(*color)
     elif input == "husl":
+        # lazy import husl here to avoid a hard dependency
+        import seaborn.external.husl as husl
         color = husl.husl_to_rgb(*color)
     elif input == "xkcd":
+        # lazy import xkcd_rgb here to avoid a hard dependency
+        import seaborn.colors.xkcd_rgb as xkcd_rgb
         color = xkcd_rgb[color]
     return color
 
@@ -382,8 +391,33 @@ def dark_palette(color, n_colors=6, reverse=False, as_cmap=False, input="rgb"):
     return blend_palette(colors, n_colors, as_cmap)
 
 
-def light_palette(color, n_colors=6, reverse=False, as_cmap=False,
-                  input="rgb"):
+def set_hls_values(color, h=None, l=None, s=None):  # noqa
+    """Independently manipulate the h, l, or s channels of a color.
+
+    Parameters
+    ----------
+    color : matplotlib color
+        hex, rgb-tuple, or html color name
+    h, l, s : floats between 0 and 1, or None
+        new values for each channel in hls space
+
+    Returns
+    -------
+    new_color : rgb tuple
+        new color code in RGB tuple representation
+
+    """
+    # Get an RGB tuple representation
+    rgb = to_rgb(color)
+    vals = list(colorsys.rgb_to_hls(*rgb))
+    for i, val in enumerate([h, l, s]):
+        if val is not None:
+            vals[i] = val
+
+    rgb = colorsys.hls_to_rgb(*vals)
+    return rgb
+
+def light_palette(color, n_colors=6, reverse=False, as_cmap=False, input="rgb"):
     """Make a sequential palette that blends from light to ``color``.
 
     This kind of palette is good for data that range between relatively
@@ -460,13 +494,12 @@ def light_palette(color, n_colors=6, reverse=False, as_cmap=False,
 
     """
     color = _color_to_rgb(color, input)
-    light = set_hls_values(color, l=.95)
+    light = set_hls_values(color, l=0.95)
     colors = [color, light] if reverse else [light, color]
     return blend_palette(colors, n_colors, as_cmap)
 
 
-def _flat_palette(color, n_colors=6, reverse=False, as_cmap=False,
-                  input="rgb"):
+def _flat_palette(color, n_colors=6, reverse=False, as_cmap=False, input="rgb"):
     """Make a sequential palette that blends from gray to ``color``.
 
     Parameters
@@ -492,8 +525,9 @@ def _flat_palette(color, n_colors=6, reverse=False, as_cmap=False,
     return blend_palette(colors, n_colors, as_cmap)
 
 
-def diverging_palette(h_neg, h_pos, s=75, l=50, sep=10, n=6, center="light",
-                      as_cmap=False):
+def diverging_palette(
+    h_neg, h_pos, s=75, lightness=50, sep=10, n=6, center="light", as_cmap=False
+):
     """Make a diverging palette between two HUSL colors.
 
     If you are using the IPython notebook, you can also choose this palette
@@ -505,7 +539,7 @@ def diverging_palette(h_neg, h_pos, s=75, l=50, sep=10, n=6, center="light",
         Anchor hues for negative and positive extents of the map.
     s : float in [0, 100], optional
         Anchor saturation for both extents of the map.
-    l : float in [0, 100], optional
+    lightness : float in [0, 100], optional
         Anchor lightness for both extents of the map.
     n : int, optional
         Number of colors in the palette (if not returning a cmap)
@@ -565,12 +599,13 @@ def diverging_palette(h_neg, h_pos, s=75, l=50, sep=10, n=6, center="light",
 
     """
     palfunc = dark_palette if center == "dark" else light_palette
-    neg = palfunc((h_neg, s, l), 128 - (sep / 2), reverse=True, input="husl")
-    pos = palfunc((h_pos, s, l), 128 - (sep / 2), input="husl")
-    midpoint = dict(light=[(.95, .95, .95, 1.)],
-                    dark=[(.133, .133, .133, 1.)])[center]
+    neg = palfunc((h_neg, s, lightness), 128 - (sep / 2), reverse=True, input="husl")
+    pos = palfunc((h_pos, s, lightness), 128 - (sep / 2), input="husl")
+    midpoint = dict(light=[(0.95, 0.95, 0.95, 1.0)], dark=[(0.133, 0.133, 0.133, 1.0)])[
+        center
+    ]
     mid = midpoint * sep
-    pal = blend_palette(np.concatenate([neg, mid,  pos]), n, as_cmap=as_cmap)
+    pal = blend_palette(np.concatenate([neg, mid, pos]), n, as_cmap=as_cmap)
     return pal
 
 

@@ -209,7 +209,7 @@ class PoissonHMM(PHMM):
     def __repr__(self):
         try:
             rep = super().__repr__()
-        except:
+        except Exception:
             warn(
                 "couldn't access super().__repr__;"
                 " upgrade dependencies to resolve this issue."
@@ -853,6 +853,7 @@ class PoissonHMM(PHMM):
 
         if n_extern is None:
             n_extern = len(unique(ext))
+            ext_map = np.arange(n_extern)
             for ii, ele in enumerate(unique(ext)):
                 ext_map[ele] = ii
         else:

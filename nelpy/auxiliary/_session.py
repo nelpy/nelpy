@@ -3,16 +3,18 @@ It has a common clock.
 
 This object is very much a work-in-progress!!!"""
 
-__all__ = ['Session']
+__all__ = ["Session"]
 
-import copy
 import warnings
 
 # Force warnings.warn() to omit the source code line in the message
 formatwarning_orig = warnings.formatwarning
-warnings.formatwarning = lambda message, category, filename, lineno, \
-    line=None: formatwarning_orig(
-        message, category, filename, lineno, line='')
+warnings.formatwarning = (
+    lambda message, category, filename, lineno, line=None: formatwarning_orig(
+        message, category, filename, lineno, line=""
+    )
+)
+
 
 ########################################################################
 # class Session
@@ -22,7 +24,9 @@ class Session:
 
     __attributes__ = ["_animal", "_label", "_st", "_extern", "_mua"]
 
-    def __init__(self, animal=None, st=None, extern=None, mua=None, label=None, empty=False):
+    def __init__(
+        self, animal=None, st=None, extern=None, mua=None, label=None, empty=False
+    ):
 
         # if an empty object is requested, return it:
         if empty:
@@ -70,5 +74,6 @@ class Session:
             label = val
         self._label = label
 
-#----------------------------------------------------------------------#
-#======================================================================#
+
+# ----------------------------------------------------------------------#
+# ======================================================================#
