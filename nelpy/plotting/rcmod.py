@@ -1,16 +1,16 @@
 """Functions that alter the matplotlib rc dictionary on the fly.
 Most of these are Copyright (c) 2012-2016, Michael L. Waskom"""
 
-from distutils.version import LooseVersion
 import functools
 
-import numpy as np
 import matplotlib as mpl
+import numpy as np
+from packaging.version import parse as Version
 
 from . import palettes
 
 _orig_rc_params = mpl.rcParams.copy()
-mpl_ge_150 = LooseVersion(mpl.__version__) >= "1.5.0"
+mpl_ge_150 = Version(mpl.__version__) >= Version("1.5.0")
 
 __all__ = [
     "setup",
@@ -374,7 +374,6 @@ def plotting_context(context=None, font_scale=1, rc=None):
         context_dict = context
 
     else:
-
         contexts = ["paper", "notebook", "talk", "poster"]
         if context not in contexts:
             raise ValueError("context must be in %s" % ", ".join(contexts))
