@@ -23,19 +23,20 @@ included in all copies or substantial portions of the Software.
 
 import colorsys
 import os
-from distutils.version import LooseVersion
 
 import matplotlib as mpl
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cbook, rcParams, colors as mcolors
+from matplotlib import cbook, rcParams
+from matplotlib import colors as mcolors
 from matplotlib import colors as mplcolors
 from matplotlib.image import AxesImage
 from matplotlib.ticker import ScalarFormatter
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from packaging.version import parse as Version
 
-mpl_ge_150 = LooseVersion(mpl.__version__) >= "1.5.0"
+mpl_ge_150 = Version(mpl.__version__) >= Version("1.5.0")
 
 __all__ = [
     "add_colorbar",
@@ -128,9 +129,8 @@ class FigureManager(object):
         dpi=None,
         verbose=True,
         overwrite=False,
-        **kwargs
+        **kwargs,
     ):
-
         self.nrows = nrows
         self.ncols = ncols
         self.figsize = figsize
@@ -376,8 +376,6 @@ def savefig(name, fig=None, formats=None, dpi=None, verbose=True, overwrite=Fals
 
                 if verbose:
                     print("{} saved successfully...".format(extension))
-
-
 
 
 class FixedOrderFormatter(ScalarFormatter):
@@ -1099,7 +1097,7 @@ def imshow(
     resample=None,
     url=None,
     clearaxes=True,
-    **kwargs
+    **kwargs,
 ):
     """Similar to matplotlib's imshow command, but produces a ModestImage
 
@@ -1123,7 +1121,7 @@ def imshow(
         filternorm=filternorm,
         filterrad=filterrad,
         resample=resample,
-        **kwargs
+        **kwargs,
     )
 
     im.set_data(X)
