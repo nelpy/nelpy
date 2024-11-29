@@ -1727,10 +1727,10 @@ def gaussian_filter(
             V[:, data_idx] = out.data
             W[:, missing_idx] = 0
 
-            VV = scipy.ndimage.filters.gaussian_filter(
+            VV = scipy.ndimage.gaussian_filter(
                 V, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
             )
-            WW = scipy.ndimage.filters.gaussian_filter(
+            WW = scipy.ndimage.gaussian_filter(
                 W, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
             )
 
