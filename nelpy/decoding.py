@@ -623,7 +623,7 @@ class Cumhist(np.ndarray):
         )
         try:
             vals = np.asscalar(f(*val))
-        except ValueError:
+        except AttributeError:
             vals = f(*val)
 
         return vals
