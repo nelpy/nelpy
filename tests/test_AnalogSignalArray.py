@@ -1,10 +1,11 @@
-import nelpy as nel
-import numpy as np
 from math import pi
+
+import numpy as np
+
+import nelpy as nel
 
 
 class TestRegularlySampledAnalogSignalArray:
-
     def test_copy(self):
         data = np.arange(100)
         fs = 10
@@ -141,9 +142,20 @@ class TestRegularlySampledAnalogSignalArray:
             means == np.array([np.array([1.5, 7.5, 3.5]), np.array([4.5, 9.5, 5.5])])
         ).all()
 
+    def test_asa_dim_mean1(self):
+        x = [[1, 2, 4, 5], [7, 8, 9, 10]]
+        asa = nel.AnalogSignalArray(x)
+        assert np.array(asa.mean(axis=0) == np.mean(x, axis=0)).all()
+        assert np.array(asa.mean(axis=1) == np.mean(x, axis=1)).all()
+
+    def test_asa_dim_mean2(self):
+        x = [[1, 2, 3, 4, 5]]
+        asa = nel.AnalogSignalArray(x)
+        assert np.array(asa.mean(axis=0) == np.mean(x, axis=0)).all()
+        assert np.array(asa.mean(axis=1) == np.mean(x, axis=1)).all()
+
 
 class TestHalfOpenIntervals:
-
     def test_asa_halfopen_1(self):
         asa = nel.AnalogSignalArray([0, 1, 2, 3, 4, 5, 6])
         assert asa.n_samples == 7
