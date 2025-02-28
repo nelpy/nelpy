@@ -1307,7 +1307,7 @@ class BinnedEventArray(BaseEventArray):
         try:
             medians = np.nanmedian(self.data, axis=axis).squeeze()
             if medians.size == 1:
-                return np.asscalar(medians)
+                return medians.item()
             return medians
         except IndexError:
             raise IndexError("Empty BinnedEventArray; cannot calculate median.")
@@ -1317,7 +1317,7 @@ class BinnedEventArray(BaseEventArray):
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
-                return np.asscalar(means)
+                return means.item()
             return means
         except IndexError:
             raise IndexError("Empty BinnedEventArray; cannot calculate mean.")
@@ -1327,7 +1327,7 @@ class BinnedEventArray(BaseEventArray):
         try:
             stds = np.nanstd(self.data, axis=axis).squeeze()
             if stds.size == 1:
-                return np.asscalar(stds)
+                return stds.item()
             return stds
         except IndexError:
             raise IndexError(
