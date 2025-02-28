@@ -1645,8 +1645,8 @@ class RegularlySampledAnalogSignalArray:
             if medians.size == 1:
                 try:
                     return np.asscalar(medians)
-                except ValueError:
-                    return np.ndarray.item(medians)
+                except AttributeError:
+                    return medians.item()
             return medians
         except IndexError:
             raise IndexError(
@@ -1660,8 +1660,8 @@ class RegularlySampledAnalogSignalArray:
             if means.size == 1:
                 try:
                     return np.asscalar(means)
-                except ValueError:
-                    return np.ndarray.item(means)
+                except AttributeError:
+                    return means.item()
             return means
         except IndexError:
             raise IndexError(
@@ -1675,8 +1675,8 @@ class RegularlySampledAnalogSignalArray:
             if stds.size == 1:
                 try:
                     return np.asscalar(stds)
-                except ValueError:
-                    return np.ndarray.item(stds)
+                except AttributeError:
+                    return stds.item()
             return stds
         except IndexError:
             raise IndexError(
@@ -1690,8 +1690,8 @@ class RegularlySampledAnalogSignalArray:
             if maxes.size == 1:
                 try:
                     return np.asscalar(maxes)
-                except ValueError:
-                    return np.ndarray.item(maxes)
+                except AttributeError:
+                    return maxes.item()
             return maxes
         except ValueError:
             raise ValueError(
@@ -1705,8 +1705,8 @@ class RegularlySampledAnalogSignalArray:
             if mins.size == 1:
                 try:
                     return np.asscalar(mins)
-                except ValueError:
-                    return np.ndarray.item(mins)
+                except AttributeError:
+                    return mins.item()
             return mins
         except ValueError:
             raise ValueError(
