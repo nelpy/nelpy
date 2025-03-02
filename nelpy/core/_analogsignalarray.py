@@ -1643,10 +1643,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             medians = np.nanmedian(self.data, axis=axis).squeeze()
             if medians.size == 1:
-                try:
-                    return np.asscalar(medians)
-                except ValueError:
-                    return np.ndarray.item(medians)
+                return medians.item()
             return medians
         except IndexError:
             raise IndexError(
@@ -1658,10 +1655,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
-                try:
-                    return np.asscalar(means)
-                except ValueError:
-                    return np.ndarray.item(means)
+                return means.item()
             return means
         except IndexError:
             raise IndexError(
@@ -1673,10 +1667,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             stds = np.nanstd(self.data, axis=axis).squeeze()
             if stds.size == 1:
-                try:
-                    return np.asscalar(stds)
-                except ValueError:
-                    return np.ndarray.item(stds)
+                return stds.item()
             return stds
         except IndexError:
             raise IndexError(
@@ -1688,10 +1679,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             maxes = np.amax(self.data, axis=axis).squeeze()
             if maxes.size == 1:
-                try:
-                    return np.asscalar(maxes)
-                except ValueError:
-                    return np.ndarray.item(maxes)
+                return maxes.item()
             return maxes
         except ValueError:
             raise ValueError(
@@ -1703,10 +1691,7 @@ class RegularlySampledAnalogSignalArray:
         try:
             mins = np.amin(self.data, axis=axis).squeeze()
             if mins.size == 1:
-                try:
-                    return np.asscalar(mins)
-                except ValueError:
-                    return np.ndarray.item(mins)
+                return mins.item()
             return mins
         except ValueError:
             raise ValueError(
