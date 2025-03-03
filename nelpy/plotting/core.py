@@ -902,7 +902,7 @@ def rasterplot(data, *, cmap=None, color=None, ax=None, lw=None, lh=None,
     if isinstance(data, core.EventArray):
 
         label_data = ax.findobj(match=RasterLabelData)[0].label_data
-        serieslist = [np.NINF for element in data.series_ids]
+        serieslist = [-np.inf for element in data.series_ids]
         # no override labels so use unit_labels from input
         if not series_labels:
             series_labels = data.series_labels
