@@ -1,4 +1,3 @@
-
 """ idea is to have abscissa and ordinate, and to use aliasing to have n_series,
     _series_subset, series_ids, (or trial_ids), and so on.
 
@@ -24,7 +23,7 @@ import numbers
 from abc import ABC, abstractmethod
 
 import numpy as np
-
+from scipy.stats import mode
 from .. import core, utils, version
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 from . import _accessors
@@ -2374,6 +2373,80 @@ class BinnedSpikeTrainArray(BinnedEventArray):
         kwargs["ordinate"] = ordinate
 
         super().__init__(*args, **kwargs)
+
+    def set_binned_data(
+        self,
+        data: np.ndarray,
+        bin_centers: np.ndarray,
+        binned_support: np.ndarray,
+        **kwargs,
+    ):
+        """Set binned data after initializing an empty BinnedSpikeTrainArray.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            The binned spike data with shape (n_series, n_bins).
+        bin_centers : np.ndarray
+            The centers of the bins in seconds.
+        binned_support : np.ndarray
+            The binned support of the BinnedSpikeTrainArray (in bin IDs) with shape (n_intervals, 2).
+        **kwargs : optional
+            Additional attributes to set. Valid options are dynamically detected from the class.
+        """
+
+        # Verify that the binned data has the correct shape (n_series, n_bins)
+        if data.shape[1] != len(bin_centers):
+            raise ValueError("data and bin_centers must have the same number of bins")
+
+        # Set the core attributes
+        self._data = data
+        self._bin_centers = bin_centers
+        # Compute the bin width (ds) if not provided in kwargs
+        self._ds = kwargs.get("ds", mode(np.diff(bin_centers)).mode)
+        self._binned_support = binned_support
+
+        bins = []
+        for starti, stopi in self._binned_support:
+            bins_edges_in_interval = (
+                self._bin_centers[starti : stopi + 1] - self._ds / 2
+            ).tolist()
+            bins_edges_in_interval.append(self._bin_centers[stopi] + self._ds / 2)
+            bins.extend(bins_edges_in_interval)
+        self._bins = np.array(bins)
+        
+        self._abscissa.support = type(self._abscissa.support)(
+            np.array([self._bins[0], self._bins[-1]])
+        )
+
+
+        # Set default series labels if not provided in kwargs
+        self._series_labels = kwargs.get(
+            "series_labels", (np.arange(data.shape[0]) + 1).astype(str)
+        )
+
+        try:
+            self._series_ids = (np.array(self.series_labels).astype(int)).tolist()
+        except (ValueError, TypeError):
+            self._series_ids = (np.arange(self.n_series) + 1).tolist()
+
+        # Create a minimal EventArray to initialize _eventarray
+        n_series = data.shape[0]  # Number of series is determined by the data
+        self._eventarray = EventArray(
+            [[0]] * n_series, series_labels=self.series_labels
+        )
+
+        # Dynamically detect valid attributes from the class
+        valid_attributes = list(self.__dict__.keys())
+
+        # Set additional attributes from kwargs
+        for key, value in kwargs.items():
+            if f"_{key}" in valid_attributes:
+                setattr(self, f"_{key}", value)
+            else:
+                raise AttributeError(
+                    f"'{key}' is not a valid attribute for {self.__class__.__name__}"
+                )
 
     # def partition(self, ds=None, n_intervals=None, n_epochs=None):
     #     if n_intervals is None:
