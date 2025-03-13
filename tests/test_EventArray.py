@@ -291,6 +291,104 @@ class TestBinnedSpikeTrainArray:
         assert bst.isempty
         assert bst.eventarray.isempty
 
+    def test_set_binned_data(self):
+        binned_data = np.array([[1, 2, 3], [4, 5, 6]])
+        bin_centers = np.array([1.5, 2.5, 3.5])
+        bins = np.array([1, 2, 3, 4])
+        binned_support = np.array([[0, 2]])
+
+        bst = nel.BinnedSpikeTrainArray(empty=True)
+
+        bst.set_binned_data(binned_data, bin_centers, binned_support)
+
+        assert np.all(bst.data == binned_data)
+        assert np.all(bst.bin_centers == bin_centers)
+        assert np.all(bst.bins == bins)
+        assert np.all(bst.binned_support == binned_support)
+        assert bst.n_series == 2
+        assert bst.n_intervals == 1
+        assert bst.n_bins == 3
+        assert bst.ds == 1
+
+    def test_set_binned_data_kwargs(self):
+        binned_data = np.array([[1, 2, 3], [4, 5, 6]])
+        bin_centers = np.array([1.5, 2.5, 3.5])
+        bins = np.array([1, 2, 3, 4])
+        binned_support = np.array([[0, 2]])
+        series_ids = [21, 22]
+        series_labels = ["pyr", "int"]
+        series_tags = ["CA1"]
+        label = "hippocampal units"
+
+        bst = nel.BinnedSpikeTrainArray(empty=True)
+
+        bst.set_binned_data(
+            binned_data,
+            bin_centers,
+            binned_support,
+            series_labels=series_labels,
+            series_ids=series_ids,
+            series_tags=series_tags,
+            label=label,
+        )
+
+        assert np.all(bst.data == binned_data)
+        assert np.all(bst.bin_centers == bin_centers)
+        assert np.all(bst.bins == bins)
+        assert np.all(bst.binned_support == binned_support)
+        assert bst.n_series == 2
+        assert bst.n_intervals == 1
+        assert bst.n_bins == 3
+        assert bst.ds == 1
+        assert bst.series_ids == series_ids
+        assert bst.series_labels == series_labels
+        assert bst.series_tags == series_tags
+        assert bst.label == label
+
+    def test_set_binned_data_slice(self):
+        binned_data = np.array([[1, 2, 3], [4, 5, 6]])
+        bin_centers = np.array([1.5, 2.5, 3.5])
+        binned_support = np.array([[0, 2]])
+
+        bst = nel.BinnedSpikeTrainArray(empty=True)
+
+        bst.set_binned_data(binned_data, bin_centers, binned_support)
+
+        intervals = nel.EpochArray([[2, 8], [9, 14], [19.5, 25]])
+
+        bst_indexed = bst[intervals]
+
+        assert bst_indexed.n_series == 2
+        assert np.all(bst_indexed.data == np.array([[2, 3], [5, 6]]))
+        assert np.all(bst_indexed.bin_centers == [2.5, 3.5])
+        assert np.all(bst_indexed.bins == [2, 3, 4])
+        assert np.all(bst_indexed.binned_support == [[0, 1]])
+        assert bst_indexed.n_intervals == 1
+        assert bst_indexed.n_bins == 2
+        assert bst_indexed.ds == 1
+
+    def test_set_binned_data_slice2(self):
+        binned_data = np.array([[1, 2, 3], [4, 5, 6]])
+        bin_centers = np.array([1.5, 2.5, 3.5])
+        binned_support = np.array([[0, 2]])
+
+        bst = nel.BinnedSpikeTrainArray(empty=True)
+
+        bst.set_binned_data(binned_data, bin_centers, binned_support)
+
+        intervals = nel.EpochArray([[1, 2], [3, 5]])
+
+        bst_indexed = bst[intervals]
+
+        assert bst_indexed.n_series == 2
+        assert np.all(bst_indexed.data == np.array([[1, 3], [4, 6]]))
+        assert np.all(bst_indexed.bin_centers == [1.5, 3.5])
+        # assert np.all(bst_indexed.bins == [2, 3])
+        assert np.all(bst_indexed.binned_support == [[0, 0], [1, 1]])
+        assert bst_indexed.n_intervals == 2
+        assert bst_indexed.n_bins == 2
+        assert bst_indexed.ds == 1
+
     def test_bst_mean1(self):
         bst = nel.SpikeTrainArray(
             [[3, 4, 5, 6, 7], [2, 4, 5]], support=nel.EpochArray([0, 8]), fs=1
