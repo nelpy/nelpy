@@ -1,6 +1,5 @@
-![nelpy-logo](https://raw.githubusercontent.com/nelpy/nelpy/master/nelpy-title.png){: width="20%" align="left" }
+![nelpy-logo](https://raw.githubusercontent.com/nelpy/nelpy/master/nelpy-title.png)
 
-\
 [![DOI](https://zenodo.org/badge/77548623.svg)](https://zenodo.org/badge/latestdoi/77548623)
 
 Neuroelectrophysiology object model, data exploration, and analysis in Python.
@@ -64,7 +63,7 @@ Estimating the place fields can be a complicated affair, and roughly involves th
 9. visualize the estimated tuning curves, and evaluate how well the tuning curves can be used to decode the animal's position
 10. ...
 
-![nelpy-logo](https://raw.githubusercontent.com/nelpy/nelpy/master/.placefields.png){: width="100%" align="center" }
+![nelpy-logo](https://raw.githubusercontent.com/nelpy/nelpy/master/.placefields.png)
 
 
 Nelpy makes it easy to do all of the above, to interact with the ephys data, and to visualize the results.
