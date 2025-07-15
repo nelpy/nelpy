@@ -329,11 +329,6 @@ class BaseValueEventArray(ABC):
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
-
         Parameters
         ----------
         ds : float, optional
@@ -346,6 +341,13 @@ class BaseValueEventArray(ABC):
         -------
         out : BaseEventArray
             BaseEventArray that has been partitioned.
+
+        Notes
+        -----
+        Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        underlying support is propagated, and the first and last points
+        of the supports are always included, even if this would cause
+        n_points or ds to be violated.
         """
         return
 
@@ -829,11 +831,6 @@ class ValueEventArray(BaseValueEventArray):
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
-
         Parameters
         ----------
         ds : float, optional
@@ -846,6 +843,13 @@ class ValueEventArray(BaseValueEventArray):
         -------
         out : BaseEventArray
             BaseEventArray that has been partitioned.
+
+        Notes
+        -----
+        Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        underlying support is propagated, and the first and last points
+        of the supports are always included, even if this would cause
+        n_points or ds to be violated.
         """
 
         out = self.copy()
@@ -1505,11 +1509,6 @@ class StatefulValueEventArray(BaseValueEventArray):
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
-
         Parameters
         ----------
         ds : float, optional
@@ -1522,6 +1521,13 @@ class StatefulValueEventArray(BaseValueEventArray):
         -------
         out : BaseEventArray
             BaseEventArray that has been partitioned.
+
+        Notes
+        -----
+        Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        underlying support is propagated, and the first and last points
+        of the supports are always included, even if this would cause
+        n_points or ds to be violated.
         """
 
         out = self.copy()
