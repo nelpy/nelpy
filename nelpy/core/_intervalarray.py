@@ -359,11 +359,6 @@ class IntervalArray:
     def partition(self, *, ds=None, n_intervals=None):
         """Returns an IntervalArray that has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
-
         Parameters
         ----------
         ds : float, optional
@@ -376,6 +371,13 @@ class IntervalArray:
         -------
         out : IntervalArray
             IntervalArray that has been partitioned.
+
+        Notes
+        -----
+        Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        underlying support is propagated, and the first and last points
+        of the supports are always included, even if this would cause
+        n_points or ds to be violated.
         """
 
         if self.isempty:

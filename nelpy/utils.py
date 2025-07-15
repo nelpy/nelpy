@@ -477,8 +477,8 @@ def pairwise(iterable):
     """returns a zip of all neighboring pairs.
     This is used as a helper function for is_sorted.
 
-    Example
-    -------
+    Examples
+    --------
     >>> mylist = [2, 3, 6, 8, 7]
     >>> list(pairwise(mylist))
     [(2, 3), (3, 6), (6, 8), (8, 7)]
@@ -652,8 +652,8 @@ def get_mua_events(
     mua_epochs : EpochArray
         EpochArray containing all the MUA events / PBEs.
 
-    Example
-    -------
+    Examples
+    --------
     mua = get_mua(spiketrain)
     mua_epochs = get_mua_events(mua)
     PBEs = get_PBEs(spiketrain, min_active=5)
@@ -901,7 +901,7 @@ def get_contiguous_segments(
     WARNING! Step is robustly computed in-core (i.e., when in_core is
         True), but is assumed to be 1 when out-of-core.
 
-    Example
+    Examples
     -------
     >>> data = [1,2,3,4,10,11,12]
     >>> get_contiguous_segments(data)

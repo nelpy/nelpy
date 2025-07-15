@@ -4,8 +4,8 @@
 This entire module will probably be deprecated soon, so don't rely
 on any of this to keep working!
 
-Example
-=======
+Examples
+--------
 
 datadirs = ['/home/etienne/Dropbox/neoReader/Data',
             'C:/etienne/Dropbox/neoReader/Data',

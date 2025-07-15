@@ -72,10 +72,9 @@ def fmpt(P):
            elements are the expected value for the number of intervals
            required for  a chain starting in state i to first enter state j
            If i=j then this is the recurrence time.
+
     Examples
     --------
-
-
     >>> import numpy as np
     >>> p=np.matrix([[.5, .25, .25],[.5,0,.5],[.25,.25,.5]])
     >>> fm=fmpt(p)

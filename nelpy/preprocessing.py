@@ -45,8 +45,8 @@ def standardize_asa(
        timestamps or abscissa_vals of the RegularlySampledAnalogSignalArray.
      - fs is replaced with the float corresponding to the sampling frequency.
 
-    Example
-    -------
+    Examples
+    --------
     @standardize_asa(asa='X', lengths='lengths', n_signals=2)
     def myfunc(*args, X=None, lengths=None):
         pass

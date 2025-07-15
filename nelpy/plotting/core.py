@@ -362,7 +362,7 @@ def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
         Axis object with plot data.
     image : matplotlib image
 
-    Example
+    Examples
     -------
     Plot a simple matrix using imagesc
 

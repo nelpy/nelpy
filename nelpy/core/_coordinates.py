@@ -210,9 +210,9 @@ class AnalogSignalArrayAbscissa(Abscissa):
 class AnalogSignalArrayOrdinate(Ordinate):
     """Ordinate for AnalogSignalArray.
 
-    Example
+    Examples
     -------
-    ng.AnalogSignalArrayOrdinate(base_unit='uV')
+    nel.AnalogSignalArrayOrdinate(base_unit='uV')
     """
 
     def __init__(self, *args, **kwargs):

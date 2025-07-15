@@ -143,8 +143,8 @@ def pick_corrs(images, n_pts_to_pick=4):
 
 if __name__ == "__main__":
     """
-    Example:
-    ========
+    Examples
+    -------
     >>> python homography.py ../examples/homography1.jpg
     """
 

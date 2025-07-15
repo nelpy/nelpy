@@ -738,8 +738,8 @@ class RegularlySampledAnalogSignalArray:
         WARNING: this method creates a copy of each signal, so is not
         particularly efficient at this time.
 
-        Example
-        =======
+        Examples
+        --------
         >>> for channel in lfp.signals:
             print(channel)
         """
@@ -1356,11 +1356,6 @@ class RegularlySampledAnalogSignalArray:
         """Returns an RegularlySampledAnalogSignalArray whose support has been
         partitioned.
 
-        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_samples or ds to be violated.
-
         Parameters
         ----------
         ds : float, optional
@@ -1373,6 +1368,13 @@ class RegularlySampledAnalogSignalArray:
         -------
         out : RegularlySampledAnalogSignalArray
             RegularlySampledAnalogSignalArray that has been partitioned.
+
+        Notes
+        -----
+        Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        underlying support is propagated, and the first and last points
+        of the supports are always included, even if this would cause
+        n_samples or ds to be violated.
         """
 
         out = self.copy()

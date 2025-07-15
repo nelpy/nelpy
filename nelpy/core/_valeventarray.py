@@ -706,7 +706,7 @@ class ValueEventArray(BaseValueEventArray):
             """Returns True if data represents event datas from a single series.
 
             Examples
-            ========
+            --------
             [1, 2, 3]           : True
             [[1, 2, 3]]         : True
             [[1, 2, 3], []]     : False
@@ -1380,7 +1380,7 @@ class StatefulValueEventArray(BaseValueEventArray):
             """Returns True if data represents event datas from a single series.
 
             Examples
-            ========
+            --------
             [1, 2, 3]           : True
             [[1, 2, 3]]         : True
             [[1, 2, 3], []]     : False
