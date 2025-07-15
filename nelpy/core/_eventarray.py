@@ -2463,9 +2463,119 @@ class SpikeTrainArray(EventArray):
 # class BinnedSpikeTrainArray
 ########################################################################
 class BinnedSpikeTrainArray(BinnedEventArray):
-    """Custom SpikeTrainArray docstring with kwarg descriptions.
+    """Binned spike train array for analyzing neural spike data.
 
-    TODO: add docstring here, using the aliases in the constructor.
+    A specialized version of BinnedEventArray designed specifically for spike train
+    analysis. This class bins spike events into discrete time intervals and provides
+    spike train-specific methods and properties through aliased attribute names.
+
+    Parameters
+    ----------
+    eventarray : nelpy.EventArray or nelpy.RegularlySampledAnalogSignalArray, optional
+        Input spike train data to be binned.
+    ds : float, optional
+        The bin width, in seconds. Default is 0.0625 (62.5 ms).
+    empty : bool, optional
+        Whether an empty BinnedSpikeTrainArray should be constructed (no data).
+        Default is False.
+    fs : float, optional
+        Sampling rate in Hz. If fs is passed as a parameter, then data
+        is assumed to be in sample numbers instead of actual time values.
+    support : nelpy.IntervalArray, optional
+        The support (time intervals) over which the spike trains are defined.
+    unit_ids : list of int, optional
+        Unit IDs for each spike train. Default creates sequential IDs starting from 1.
+    unit_labels : list of str, optional
+        Labels corresponding to units. Default casts unit_ids to str.
+    unit_tags : optional
+        Tags corresponding to units. Currently accepts any type.
+    label : str, optional
+        Information pertaining to the source of the spike train data.
+        Default is None.
+    abscissa : nelpy.TemporalAbscissa, optional
+        Object for the time (x-axis) coordinate. Default creates TemporalAbscissa.
+    ordinate : nelpy.AnalogSignalArrayOrdinate, optional
+        Object for the signal (y-axis) coordinate. Default creates AnalogSignalArrayOrdinate.
+    **kwargs : optional
+        Additional keyword arguments passed to the parent BinnedEventArray constructor.
+
+    Attributes
+    ----------
+    Note : Read the docstring for the BinnedEventArray parent class for additional
+    attributes that are defined there.
+    
+    Spike train-specific attributes (aliases):
+    time : np.array
+        Alias for data. Spike counts in all bins, with shape (n_units, n_bins).
+    n_epochs : int
+        Alias for n_intervals. The number of underlying time intervals.
+    n_units : int
+        Alias for n_series. The number of units (neurons).
+    n_spikes : np.ndarray
+        Alias for n_events. The number of spikes in each unit.
+    unit_ids : list of int
+        Alias for series_ids. Unit IDs contained in the spike train array.
+    unit_labels : list of str
+        Alias for series_labels. Labels corresponding to units.
+    unit_tags : 
+        Alias for series_tags. Tags corresponding to units.
+
+    Inherited attributes:
+    isempty : bool
+        Whether the BinnedSpikeTrainArray is empty (no data).
+    bin_centers : np.ndarray
+        The bin centers, in seconds.
+    data : np.array, with shape (n_units, n_bins)
+        Spike counts in all bins.
+    bins : np.ndarray
+        The bin edges, in seconds.
+    binned_support : np.ndarray, with shape (n_intervals, 2)
+        The binned support of the array (in bin IDs).
+    lengths : np.ndarray
+        Lengths of contiguous segments, in number of bins.
+    eventarray : nelpy.EventArray
+        The original EventArray associated with the binned spike data.
+    n_bins : int
+        The number of bins.
+    ds : float
+        Bin width, in seconds.
+    n_active : int
+        The number of active units. A unit is considered active if
+        it fired at least one spike.
+    n_active_per_bin : np.ndarray, with shape (n_bins, )
+        Number of active units per data bin.
+    support : nelpy.IntervalArray
+        The support of the BinnedSpikeTrainArray.
+
+    Methods
+    -------
+    All methods from BinnedEventArray are available, plus spike train-specific
+    aliases for method names:
+    
+    reorder_units_by_ids(*args, **kwargs)
+        Alias for reorder_series_by_ids. Reorder units by their IDs.
+    reorder_units(*args, **kwargs)
+        Alias for reorder_series. Reorder units.
+
+    Examples
+    --------
+    >>> import nelpy as nel
+    >>> # Create a BinnedSpikeTrainArray from spike times
+    >>> spike_times = [np.array([0.1, 0.3, 0.7]), np.array([0.2, 0.5, 0.8])]
+    >>> sta = SpikeTrainArray(spike_times, unit_ids=[1, 2], fs=1000)
+    >>> bst = nel.BinnedSpikeTrainArray(sta, ds=0.1)
+    >>> print(bst.n_units)
+    2
+    >>> print(bst.n_bins)
+    7
+    >>> print(bst.time.shape)  # alias for data
+    (2, 7)
+
+    See Also
+    --------
+    BinnedEventArray : Parent class for general event arrays
+    EventArray : Unbinned event array class
+    SpikeTrainArray : Unbinned spike train array class
     """
 
     # specify class-specific aliases:
