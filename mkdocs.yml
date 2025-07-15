@@ -90,3 +90,12 @@ plugins:
 nav:
 - Home: index.md
 - API Reference: reference/
+- Tutorials:
+  - AnalogSignalArray Tutorial: tutorials/AnalogSignalArrayTutorial.ipynb
+  - EpochArray Tutorial: tutorials/EpochArrayTutorial.ipynb
+  - Linear Track Demo: tutorials/LinearTrackDemo.ipynb
+  - SpikeTrain Smoothing: tutorials/SpikeTrainSmoothing.ipynb
+  - plotting: tutorials/plotting.ipynb
+  - WMaze Demo: tutorials/WMazeDemo.ipynb
+  - Backyard Brains EEG: tutorials/BackyardBrainsEEG.ipynb
+  - develop: tutorials/develop.ipynb
