@@ -2278,9 +2278,6 @@ class SpikeTrainArray(EventArray):
 
     Parameters
     ----------
-    abscissa_vals : array of np.array(dtype=np.float64), optional
-        Spike time data in seconds. Array of length n_units, each entry with 
-        shape (n_spikes,). Also accessible via alias 'time'.
     fs : float, optional
         Sampling rate in Hz. Default is 30,000.
     support : IntervalArray, optional
@@ -2299,15 +2296,6 @@ class SpikeTrainArray(EventArray):
         Information pertaining to the source of the spike train array.
     empty : bool, optional
         Whether an empty SpikeTrainArray should be constructed (no data).
-    assume_sorted : bool, optional
-        Whether the spike times should be treated as sorted (non-decreasing)
-        or not. Significant overhead during object creation can be removed
-        if this is True, but note that unsorted spike times will cause
-        issues. Default is False.
-    abscissa : core.TemporalAbscissa, optional
-        Object for the abscissa (time-axis) coordinate.
-    ordinate : core.AnalogSignalArrayOrdinate, optional
-        Object for the ordinate (y-axis) coordinate.
     **kwargs : optional
         Additional keyword arguments forwarded to the BaseEventArray
         constructor.

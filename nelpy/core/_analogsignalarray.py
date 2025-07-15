@@ -2444,11 +2444,93 @@ def legacyASAkwargs(**kwargs):
 # class AnalogSignalArray
 ########################################################################
 class AnalogSignalArray(RegularlySampledAnalogSignalArray):
-    """Custom ASA docstring with kwarg descriptions.
+    """Array of continuous analog signals with regular sampling rates.
 
-    TODO: add the ASA docstring here, using the aliases in the constructor.
+    This class extends RegularlySampledAnalogSignalArray with additional aliases
+    and legacy support for backward compatibility.
+
+    Parameters
+    ----------
+    data : np.ndarray, optional
+        Array of signal data with shape (n_signals, n_samples).
+        Default is empty array.
+    abscissa_vals : np.ndarray, optional
+        Time values corresponding to samples, with shape (n_samples,).
+        Default is None.
+    fs : float, optional
+        Sampling frequency in Hz. Default is None.
+    step : float, optional
+        Sampling interval in seconds. Default is None.
+    merge_sample_gap : float, optional
+        Maximum gap between samples to merge intervals (seconds).
+        Default is 0.
+    support : nelpy.IntervalArray, optional
+        Time intervals where signal is defined. Default is None.
+    in_core : bool, optional
+        Whether to keep data in core memory. Default is True.
+    labels : array-like, optional
+        Labels for each signal. Default is None.
+    empty : bool, optional
+        If True, creates empty array. Default is False.
+    abscissa : nelpy.core.AnalogSignalArrayAbscissa, optional
+        Abscissa object. Default is created from support.
+    ordinate : nelpy.core.AnalogSignalArrayOrdinate, optional
+        Ordinate object. Default is empty.
+
+    Aliases
+    -------
+    time : abscissa_vals
+        Alias for time values.
+
+    n_epochs : n_intervals
+        Alias for number of intervals.
+    ydata : data
+        Legacy alias for data.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from nelpy import AnalogSignalArray
+
+    >>> # Create a simple sine wave signal
+    >>> time = np.linspace(0, 1, 1000)  # 1 second of data
+    >>> signal = np.sin(2*np.pi*5*time)  # 5 Hz sine wave
+
+    >>> # Create AnalogSignalArray with default parameters
+    >>> asa = AnalogSignalArray(data=signal[np.newaxis,:], 
+    ...                         abscissa_vals=time,
+    ...                         fs=1000)  # 1 kHz sampling
+
+    >>> # Access data using different aliases
+    >>> print(asa.data.shape)  # (1, 1000)
+    >>> print(asa.ydata.shape)  # same as data (legacy alias)
+    >>> print(asa.time.shape)  # (1000,) alias for abscissa_vals
+
+    >>> # Plot the signal (requires matplotlib)
+    >>> # asa.plot()  
+
+    >>> # Create multi-channel signal with labels
+    >>> signals = np.vstack([signal, 
+    ...                     np.cos(2*np.pi*5*time)])  # add cosine wave
+    >>> asa2 = AnalogSignalArray(data=signals,
+    ...                          abscissa_vals=time,
+    ...                          fs=1000,
+    ...                          labels=['sine', 'cosine'])
+
+    >>> # Access individual channels
+    >>> sine_channel = asa2[:,0]
+    >>> cosine_channel = asa2[:,1]
+
+    Notes
+    -----
+    - Inherits all attributes and methods from RegularlySampledAnalogSignalArray
+    - Provides backward compatibility with legacy parameter names
+    - Automatically handles abscissa and ordinate objects if not provided
+
+    See Also
+    --------
+    RegularlySampledAnalogSignalArray : Parent class with core functionality
     """
-
     # specify class-specific aliases:
     __aliases__ = {
         "time": "abscissa_vals",
