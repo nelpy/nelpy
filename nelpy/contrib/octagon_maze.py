@@ -78,59 +78,59 @@ def linear_to_ideal(linear_asa, segments):
     return out
 
 
-def _smooth_unwrapped(self, *, fs=None, sigma=None, bw=None, inplace=False):
-    """Smooths the regularly sampled AnalogSignalArray with a Gaussian kernel.
+# def _smooth_unwrapped(self, *, fs=None, sigma=None, bw=None, inplace=False):
+#     """Smooths the regularly sampled AnalogSignalArray with a Gaussian kernel.
 
-    Smoothing is applied in time, and the same smoothing is applied to each
-    signal in the AnalogSignalArray.
+#     Smoothing is applied in time, and the same smoothing is applied to each
+#     signal in the AnalogSignalArray.
 
-    Smoothing is applied within each epoch.
+#     Smoothing is applied within each epoch.
 
-    Parameters
-    ----------
-    fs : float, optional
-        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
-        be obtained from asa.fs
-    sigma : float, optional
-        Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
-    bw : float, optional
-        Bandwidth outside of which the filter value will be zero. Default is 4.0
-    inplace : bool
-        If True the data will be replaced with the smoothed data.
-        Default is False.
+#     Parameters
+#     ----------
+#     fs : float, optional
+#         Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+#         be obtained from asa.fs
+#     sigma : float, optional
+#         Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+#     bw : float, optional
+#         Bandwidth outside of which the filter value will be zero. Default is 4.0
+#     inplace : bool
+#         If True the data will be replaced with the smoothed data.
+#         Default is False.
 
-    Returns
-    -------
-    out : AnalogSignalArray
-        An AnalogSignalArray with smoothed data is returned.
-    """
-    kwargs = {"inplace": inplace, "fs": fs, "sigma": sigma, "bw": bw}
-    out = copy.deepcopy(self)
-    out._data = np.atleast_2d(out._unwrap(out.data.squeeze()))
-    out = utils.gaussian_filter(out, **kwargs)
-    out._data = np.atleast_2d(out._wrap(out.data.squeeze()))
-    if inplace:
-        self._data = out._data
-    out.__renew__()
-    self.__renew__()
+#     Returns
+#     -------
+#     out : AnalogSignalArray
+#         An AnalogSignalArray with smoothed data is returned.
+#     """
+#     kwargs = {"inplace": inplace, "fs": fs, "sigma": sigma, "bw": bw}
+#     out = copy.deepcopy(self)
+#     out._data = np.atleast_2d(out._unwrap(out.data.squeeze()))
+#     out = utils.gaussian_filter(out, **kwargs)
+#     out._data = np.atleast_2d(out._wrap(out.data.squeeze()))
+#     if inplace:
+#         self._data = out._data
+#     out.__renew__()
+#     self.__renew__()
 
-    # kwargs = {'inplace' : inplace,
-    #         'fs' : fs,
-    #         'sigma' : sigma,
-    #         'bw' : bw}
-    # data = copy.deepcopy(self.data)
-    # self._data = np.atleast_2d(self._unwrap(self.data.squeeze()))
-    # out = utils.gaussian_filter(self, **kwargs)
-    # out._data = np.atleast_2d(self._wrap(out.data.squeeze()))
-    # out.__renew__()
+#     # kwargs = {'inplace' : inplace,
+#     #         'fs' : fs,
+#     #         'sigma' : sigma,
+#     #         'bw' : bw}
+#     # data = copy.deepcopy(self.data)
+#     # self._data = np.atleast_2d(self._unwrap(self.data.squeeze()))
+#     # out = utils.gaussian_filter(self, **kwargs)
+#     # out._data = np.atleast_2d(self._wrap(out.data.squeeze()))
+#     # out.__renew__()
 
-    # if inplace:
-    #     self._data = out._data
-    # else:
-    #     self._data =data
-    # self.__renew__()
+#     # if inplace:
+#     #     self._data = out._data
+#     # else:
+#     #     self._data =data
+#     # self.__renew__()
 
-    return out
+#     return out
 
 
 def _ideal_to_linear(points, segments, segment_assignments):
