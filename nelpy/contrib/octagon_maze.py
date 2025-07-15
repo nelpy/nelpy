@@ -2,8 +2,8 @@
 
 import copy
 import numpy as np
-from scipy import interpolate
-from collections import namedtuple
+# from scipy import interpolate
+# from collections import namedtuple
 
 from ..core import _analogsignalarray, _epocharray
 from ..auxiliary import _position
