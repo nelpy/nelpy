@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nelpy"
+dynamic = ["version"]
+description = "Neuroelectrophysiology object model and data analysis in Python."
+readme = "README.rst"
+license = {text = "MIT License"}
+authors = [
+    {name = "Etienne Ackermann", email = "era3@rice.edu"}
+]
+keywords = ["electrophysiology", "neuroscience", "data analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.16.0",
+    "scipy>=0.18.0",
+    "matplotlib>=1.5.0",
+    "dill",
+    "scikit-learn",
+    "numba>=0.56.0",
+]
+
+[project.optional-dependencies]
+
+# For documentation generation
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.5.34",
+    "mkdocstrings[python]>=0.26.1",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.1",
+    "mkdocs-section-index>=0.3.9",
+    "mkdocs-include-markdown-plugin>=6.2.2",
+    "mkdocs-jupyter>=0.24.8",
+    "mkdocs-minify-plugin>=0.8.0"
+]
+
+all = [
+    "numpy>=1.16.0",
+    "scipy>=0.18.0",
+    "matplotlib>=1.5.0",
+    "dill",
+    "scikit-learn",
+    "numba>=0.56.0",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.5.34",
+    "mkdocstrings[python]>=0.26.1",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.1",
+    "mkdocs-section-index>=0.3.9",
+    "mkdocs-include-markdown-plugin>=6.2.2",
+    "mkdocs-jupyter>=0.24.8",
+    "mkdocs-minify-plugin>=0.8.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/nelpy/nelpy/"
+Repository = "https://github.com/nelpy/nelpy/"
+Download = "https://github.com/nelpy/nelpy/releases"
+"Bug Tracker" = "https://github.com/nelpy/nelpy/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "nelpy.version.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["nelpy*"]
+
+[tool.setuptools.package-data]
+"*" = ["*"]
