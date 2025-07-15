@@ -5,7 +5,7 @@ However, I would have to figure out how to draw those polygons with mpl.
 
 Some of this code was mofified from https://www.cs.drexel.edu/~kon/introcompvis/
 
-To fix the Trodes videos, use ffmpeg -r 60 -f h264 -i sine_camera_test_05-30-2017\(17_01_35\).h264 -c copy output.mp4
+To fix the Trodes videos, use ffmpeg -r 60 -f h264 -i sine_camera_test_05-30-2017\\(17_01_35\\).h264 -c copy output.mp4
 
 or ffmpeg -r 60 -f h264 -i sine_camera_test_05-30-2017\(17_01_35\).h264 -vcodec copy -an output.mp4
 

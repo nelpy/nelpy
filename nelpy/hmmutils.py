@@ -305,7 +305,7 @@ class PoissonHMM(PHMM):
     def get_state_order(self, method=None, start_state=None):
         """return a state ordering, optionally using augmented data.
 
-        method \in ['transmat' (default), 'mode', 'mean']
+        method in ['transmat' (default), 'mode', 'mean']
 
         If 'mode' or 'mean' is selected, self._extern_ must exist
 

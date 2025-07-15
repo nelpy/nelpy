@@ -79,7 +79,7 @@ def get_num_electrodes(sessiondir, verbose=False):
     ]
     for ff in files:
         try:
-            found = re.search("\.clu\.[0-9]+$", ff).group(0)
+            found = re.search(r"\.clu\.[0-9]+$", ff).group(0)
             if verbose:
                 print(found)
             numelec += 1
@@ -109,7 +109,6 @@ def load_hc3_data(
     includeUnsortedSpikes=False,
     includeWaveforms=False,
 ):
-
     fileroot = os.path.normpath(fileroot)
     if track is None:
         anim_prefix = "{}-{}-{}".format(animal, month, day)

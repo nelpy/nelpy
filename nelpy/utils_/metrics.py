@@ -32,7 +32,7 @@ def gini(arr, mode="all"):
     equivalent to 'tmat_arrival'.
 
     Similarly, if arr is the observation (lambda) matrix of an HMM such that
-    lambda \in \mathcal{C}^{n_states \times n_units}, then 'row-wise' is
+    lambda \\in \\mathcal{C}^{n_states \\times n_units}, then 'row-wise' is
     equivalent to 'lambda_across_units' and 'col-wise' is equivalent to
     'lambda_across_units'.
 
@@ -90,7 +90,7 @@ def _gini(arr):
     relative mean difference:
 
     .. math::
-        G = \dfrac{\sum_{i=1}^n \sum_{j=1}^n |x_i - x_j|}{2n^2\bar{x}}
+        G = \\dfrac{\\sum_{i=1}^n \\sum_{j=1}^n |x_i - x_j|}{2n^2\\bar{x}}
     where x is an observed value, n is the number of values observed and
     x bar is the mean value.
 

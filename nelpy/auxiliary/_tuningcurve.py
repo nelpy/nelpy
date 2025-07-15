@@ -205,7 +205,7 @@ class TuningCurve2D:
         location (i.e., how well cell firing predicts the animal's
         location).The spatial information content of cell discharge was
         calculated using the formula:
-            information content = \Sum P_i(R_i/R)log_2(R_i/R)
+            information content = \\Sum P_i(R_i/R)log_2(R_i/R)
         where i is the bin number, P_i, is the probability for occupancy
         of bin i, R_i, is the mean firing rate for bin i, and R is the
         overall mean firing rate.
