@@ -4,6 +4,11 @@ experimental design and organization.
 import pandas as pd
 
 class Trial:
+    """
+    Experimental trial container.
+
+    This class is a placeholder for trial-specific metadata and methods.
+    """
     pass
 
 
@@ -20,16 +25,24 @@ class Shayok:
 
 
 def combine_rats(data, rats, n_sessions, only_sound=False):
-    """Combines behavioral measures from multiple rats, sessions and trials.
-    data: dict
-        With rat (str) as key, contains Rat objects for each rat
-    rats: list
-        With rat_id (str)
-    n_sessions: int
-    only_sound: boolean
+    """
+    Combine behavioral measures from multiple rats, sessions, and trials.
+
+    Parameters
+    ----------
+    data : dict
+        Dictionary with rat (str) as key, containing Rat objects for each rat.
+    rats : list
+        List of rat IDs (str).
+    n_sessions : int
+        Number of sessions per rat.
+    only_sound : bool, optional
+        If True, only include trials with cue == 'sound'. Default is False.
+
     Returns
     -------
-    df: pd.DataFrame
+    df : pd.DataFrame
+        DataFrame containing combined behavioral measures.
     """
     measures = ["durations", "numbers", "latency", "responses"]
     together = dict(
