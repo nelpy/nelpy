@@ -2563,9 +2563,101 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
 # class PositionArray
 ########################################################################
 class PositionArray(AnalogSignalArray):
-    """Custom PositionArray docstring with kwarg descriptions.
+    """An array for storing position data in 1D or 2D space.
 
-    TODO: add the docstring here, using the aliases in the constructor.
+    PositionArray is a specialized subclass of AnalogSignalArray designed to 
+    handle position tracking data. It provides convenient access to x and y 
+    coordinates, supports both 1D and 2D positional data, and includes 
+    spatial boundary information.
+
+    Parameters
+    ----------
+    data : array_like or None, optional
+        Position data with shape (n_signals, n_samples). For 1D position data,
+        n_signals should be 1. For 2D position data, n_signals should be 2,
+        where the first row contains x-coordinates and the second row contains
+        y-coordinates. Can also be specified using the alias 'posdata'.
+    timestamps : array_like or None, optional
+        Time stamps corresponding to each sample in data. If None, timestamps
+        are automatically generated based on fs and start time.
+    fs : float, optional
+        Sampling frequency in Hz. Used to generate timestamps if not provided.
+    support : EpochArray or None, optional
+        EpochArray defining the time intervals over which the position data
+        is valid.
+    label : str, optional
+        Descriptive label for the position array.
+    xlim : tuple or None, optional
+        Spatial boundaries for x-coordinate as (min_x, max_x).
+    ylim : tuple or None, optional
+        Spatial boundaries for y-coordinate as (min_y, max_y).
+
+    Attributes
+    ----------
+    x : ndarray
+        X-coordinates as a 1D numpy array.
+    y : ndarray
+        Y-coordinates as a 1D numpy array (only available for 2D data).
+    is_1d : bool
+        True if position data is 1-dimensional.
+    is_2d : bool
+        True if position data is 2-dimensional.
+    xlim : tuple or None
+        Spatial boundaries for x-coordinate (only for 2D data).
+    ylim : tuple or None
+        Spatial boundaries for y-coordinate (only for 2D data).
+
+    Examples
+    --------
+    Create a 1D position array:
+    
+    >>> import numpy as np
+    >>> import nelpy as nel
+    >>> 
+    >>> # 1D position data (e.g., position on a linear track)
+    >>> x_pos = np.linspace(0, 100, 1000)  # 100 cm track
+    >>> timestamps = np.linspace(0, 10, 1000)  # 10 seconds
+    >>> pos_1d = nel.PositionArray(data=x_pos[np.newaxis, :], 
+    ...                            timestamps=timestamps,
+    ...                            label='Linear track position')
+    >>> print(f"1D position: {pos_1d.is_1d}")
+    >>> print(f"X range: {pos_1d.x.min():.1f} to {pos_1d.x.max():.1f} cm")
+    
+    Create a 2D position array:
+    
+    >>> # 2D position data (e.g., open field behavior)
+    >>> t = np.linspace(0, 2*np.pi, 1000)
+    >>> x_pos = 50 + 30 * np.cos(t)  # circular trajectory
+    >>> y_pos = 50 + 30 * np.sin(t)
+    >>> pos_data = np.vstack([x_pos, y_pos])
+    >>> 
+    >>> pos_2d = nel.PositionArray(posdata=pos_data,
+    ...                            fs=100,  # 100 Hz sampling
+    ...                            xlim=(0, 100),
+    ...                            ylim=(0, 100),
+    ...                            label='Open field position')
+    >>> print(f"2D position: {pos_2d.is_2d}")
+    >>> print(f"X position shape: {pos_2d.x.shape}")
+    >>> print(f"Y position shape: {pos_2d.y.shape}")
+    >>> print(f"Spatial bounds: x={pos_2d.xlim}, y={pos_2d.ylim}")
+    
+    Access position data:
+
+    >>> # Get position at specific time
+    >>> time_idx = 500
+    >>> if pos_2d.is_2d:
+    ...     x_at_time = pos_2d.x[time_idx]
+    ...     y_at_time = pos_2d.y[time_idx]
+    ...     print(f"Position at sample {time_idx}: ({x_at_time:.1f}, {y_at_time:.1f})")
+    
+    Notes
+    -----
+    - For 2D position data, the first row of data should contain x-coordinates
+      and the second row should contain y-coordinates.
+    - The xlim and ylim parameters are only meaningful for 2D position data.
+    - Attempting to access y-coordinates or spatial limits on 1D data will
+      raise a ValueError.
+    - The 'posdata' alias can be used interchangeably with 'data' parameter.
     """
 
     # specify class-specific aliases:
