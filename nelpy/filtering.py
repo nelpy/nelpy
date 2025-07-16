@@ -34,24 +34,24 @@ def sosfiltfilt(
 ):
     """Zero-phase forward backward filtering using second-order-segments.
 
-    # spike  600--6000
-    # ripple 150--250
-    # delta 1--4
-    # theta 6--12
-    # gamma 32--100
+    spike  600--6000
+    ripple 150--250
+    delta 1--4
+    theta 6--12
+    gamma 32--100
 
-    # Delta wave – (0.1 – 3 Hz)
-    # Theta wave – (4 – 7 Hz)
-    # Alpha wave – (8 – 15 Hz)
-    # Mu wave – (7.5 – 12.5 Hz)
-    # SMR wave – (12.5 – 15.5 Hz)
-    # Beta wave – (16 – 31 Hz)
-    # Gamma wave – (32 – 100 Hz)
+    Delta wave - (0.1 - 3 Hz)
+    Theta wave - (4 - 7 Hz)
+    Alpha wave - (8 - 15 Hz)
+    Mu wave - (7.5 - 12.5 Hz)
+    SWR wave - (12.5 - 15.5 Hz)
+    Beta wave - (16 - 31 Hz)
+    Gamma wave - (32 - 100 Hz)
 
-    # slow gamma : 10–50 Hz
-    # hippocampal theta : 6–10 Hz
-    # motionless but alert theta : 6–7 Hz
-    # cat & rabbit theta: 4-6 Hz meow! hop!
+    slow gamma : 10-50 Hz
+    hippocampal theta : 6-10 Hz
+    motionless but alert theta : 6-7 Hz
+    cat & rabbit theta: 4-6 Hz meow! hop!
 
     Parameters
     ----------
@@ -299,29 +299,6 @@ def getsos(
 ):
     """Return second-order sections representation of the IIR filter.
 
-    This is useful to plot the frequency response using scipy.signal.sosfreqz,
-    for example:
-
-    >>> import matplotlib.pyplot as plt
-    >>> from scipy import signal
-    >>>
-    >>> sos = getsos(...)
-    >>> w, h = signal.sosfreqz(sos, worN=1500)
-    >>> db = 20*np.log10(np.abs(h))
-    >>> freq = w*fs/(2*np.pi)
-    >>> plt.subplot(2, 1, 1)
-    >>> plt.ylabel('Gain [dB]')
-    >>> plt.plot(freq, db)
-    >>> plt.subplot(2, 1, 2)
-    >>> plt.plot(freq, np.angle(h))
-    >>> plt.ylabel('Phase [rad]')
-
-    Although not currently supported, filters can be stacked as well, as follows:
-    >>> sos = np.vstack((nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),\
-                 nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),\
-                 nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),\
-                 nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=1, ftype='butter')))
-
     Parameters
     ----------
     fs : float
@@ -349,6 +326,29 @@ def getsos(
     -------
     sos : ndarray
         Second-order sections representation of the IIR filter.
+
+    Examples
+    -------
+    >>> import matplotlib.pyplot as plt
+    >>> from scipy import signal
+    >>>
+    >>> sos = getsos(...)
+    >>> w, h = signal.sosfreqz(sos, worN=1500)
+    >>> db = 20*np.log10(np.abs(h))
+    >>> freq = w*fs/(2*np.pi)
+    >>> plt.subplot(2, 1, 1)
+    >>> plt.ylabel('Gain [dB]')
+    >>> plt.plot(freq, db)
+    >>> plt.subplot(2, 1, 2)
+    >>> plt.plot(freq, np.angle(h))
+    >>> plt.ylabel('Phase [rad]')
+
+    Although not currently supported, filters can be stacked as well, as follows:
+    >>> sos = np.vstack((nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),
+                 nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),
+                 nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),
+                 nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=1, ftype='butter')))
+
     """
 
     try:
