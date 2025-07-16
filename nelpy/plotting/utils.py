@@ -450,7 +450,7 @@ def clear_top(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     References
     ----------
@@ -469,7 +469,7 @@ def clear_bottom(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     References
     ----------
@@ -488,7 +488,7 @@ def clear_top_bottom(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     References
     ----------
@@ -508,7 +508,7 @@ def clear_left(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     References
     ----------
@@ -527,7 +527,7 @@ def clear_right(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     References
     ----------
@@ -546,7 +546,7 @@ def clear_left_right(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     References
     ----------
@@ -567,7 +567,7 @@ def outward_ticks(*axes, axis="both"):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
     axis : string (default='both')
         The axis (either 'x', 'y', or 'both') for which to set the tick
         direction.
@@ -593,7 +593,7 @@ def set_xlabel_coords(y, *axes, x=0.5):
         y-coordinate for the label
     x : float (default=0.5)
         x-coordinate for the label
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     References
     ----------
@@ -616,7 +616,7 @@ def set_ylabel_coords(x, *axes, y=0.5):
         x-coordinate for the label
     y : float (default=0.5)
         y-coordinate for the label
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     References
     ----------
@@ -664,7 +664,7 @@ def no_xticks(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     """
     if len(axes) == 0:
@@ -678,7 +678,7 @@ def no_yticks(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     """
     if len(axes) == 0:
@@ -692,7 +692,7 @@ def no_ticks(*axes, where=None):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
     where : string, optional (default 'all') or list
         Where to remove ticks ['left', 'right', 'top', 'bottom', 'all']
 
@@ -725,7 +725,7 @@ def no_xticklabels(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     """
     if len(axes) == 0:
@@ -739,7 +739,7 @@ def no_yticklabels(*axes):
 
     Parameters
     ----------
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
 
     """
     if len(axes) == 0:
@@ -779,7 +779,7 @@ def set_scientific(low, high, axis=None, *axes):
         Upper exponent bound for non-scientific notation
     axis : str (default=None)
         Which axis to format ('x', 'y', or None for both)
-    ax : axis object (default=pyplot.gca())
+    axes : axis object (default=pyplot.gca())
         The matplotlib axis object to use
 
     """
@@ -855,7 +855,7 @@ def set_xlim(xlims, *axes):
 
     Returns
     -------
-
+    None
 
     """
     for ax in axes:
@@ -873,7 +873,7 @@ def set_ylim(ylims, *axes):
 
     Returns
     -------
-
+    None
 
     """
     for ax in axes:
