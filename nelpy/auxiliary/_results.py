@@ -10,9 +10,37 @@ import dill as pickle
 
 
 class ResultsContainer(object):
-    """Extremely simple namespace for passing around and pickling data."""
+    """
+    Extremely simple namespace for passing around and pickling data.
+
+    This container is used to group, store, and load results from analyses or experiments.
+
+    Parameters
+    ----------
+    description : str, optional
+        Description of the results container.
+    **kwargs :
+        Additional attributes to store in the container.
+
+    Attributes
+    ----------
+    description : str
+        Description of the results container.
+    _index : int
+        Internal index for iteration.
+    """
 
     def __init__(self, *args, description=None, **kwargs):
+        """
+        Initialize a ResultsContainer.
+
+        Parameters
+        ----------
+        description : str, optional
+            Description of the results container.
+        **kwargs :
+            Additional attributes to store in the container.
+        """
         kwargs["description"] = description
 
         if len(args) > 0:
@@ -51,6 +79,14 @@ class ResultsContainer(object):
     #     self.description = None
 
     def __repr__(self):
+        """
+        Return a string representation of the ResultsContainer.
+
+        Returns
+        -------
+        repr_str : str
+            String representation of the ResultsContainer, including address, number of objects, and description.
+        """
         if self.isempty:
             return "<Empty ResultsContainer>"
         if self.n_objects == 1:

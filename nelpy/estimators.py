@@ -44,7 +44,23 @@ BayesianDecoder(BaseEstimator):
 
 
 class KeywordError(Exception):
+    """
+    Exception raised for errors in keyword arguments.
+
+    Parameters
+    ----------
+    message : str
+        Explanation of the error.
+    """
     def __init__(self, message):
+        """
+        Initialize the KeywordError.
+
+        Parameters
+        ----------
+        message : str
+            Explanation of the error.
+        """
         self.message = message
 
 
@@ -174,19 +190,33 @@ class RateMap(BaseEstimator):
 
     Parameters
     ----------
-    connectivity : string ['continuous', 'discrete', 'circular'], optional
+    connectivity : str, optional
         Defines how smoothing is applied. If 'discrete', then no smoothing is
         applied. Default is 'continuous'.
     """
-
     def __init__(self, connectivity="continuous"):
-        self.connectivity = connectivity
+        """
+        Initialize a RateMap object.
 
+        Parameters
+        ----------
+        connectivity : str, optional
+            Defines how smoothing is applied. If 'discrete', then no smoothing is
+            applied. Default is 'continuous'.
+        """
+        self.connectivity = connectivity
         self._slicer = UnitSlicer(self)
         self.loc = ItemGetter_loc(self)
         self.iloc = ItemGetter_iloc(self)
-
     def __repr__(self):
+        """
+        Return a string representation of the RateMap, including shape if fitted.
+
+        Returns
+        -------
+        r : str
+            String representation of the RateMap.
+        """
         r = super().__repr__()
         if self._is_fitted():
             if self.is_1d:
@@ -196,25 +226,27 @@ class RateMap(BaseEstimator):
                     *self.shape
                 )
         return r
-
     def fit(self, X, y, dt=1, unit_ids=None):
-        """Fit firing rates
+        """
+        Fit firing rates to the provided data.
 
         Parameters
         ----------
-        X : array-like, shape (n_bins,), or (n_bins_x, n_bins_y)
+        X : array-like, shape (n_bins,) or (n_bins_x, n_bins_y)
             Bin locations (centers) where ratemap is defined.
         y : array-like, shape (n_units, n_bins) or (n_units, n_bins_x, n_bins_y)
             Expected number of spikes in a temporal bin of width dt, for each of
             the predictor bins specified in X.
-        dt : float, optional (default=1)
-            Temporal bin size with which firing rate y is defined.
-            For example, if dt==1, then the firing rate is in Hz. If dt==0.001,
-            then the firing rate is in kHz, and so on.
-        unit_ids : array-like, shape (n_units,), optional (default=None)
+        dt : float, optional
+            Temporal bin size with which firing rate y is defined. Default is 1.
+        unit_ids : array-like, shape (n_units,), optional
             Persistent unit IDs that are used to associate units after
-            permutation. Unit IDs are inherited from nelpy.core.BinnedEventArray
-            objects, or initialized to np.arange(n_units).
+            permutation. If None, uses np.arange(n_units).
+
+        Returns
+        -------
+        self : RateMap
+            The fitted RateMap instance.
         """
         n_units, n_bins_x, n_bins_y = self._check_X_y(X, y)
         if n_bins_y > 0:
@@ -266,10 +298,36 @@ class RateMap(BaseEstimator):
             self._unit_ids = np.arange(n_units)
 
     def predict(self, X):
+        """
+        Predict firing rates for the given bin locations.
+
+        Parameters
+        ----------
+        X : array-like
+            Bin locations to predict firing rates for.
+
+        Returns
+        -------
+        rates : array-like
+            Predicted firing rates.
+        """
         check_is_fitted(self, "ratemap_")
         raise NotImplementedError
 
     def synthesize(self, X):
+        """
+        Generate synthetic spike data based on the ratemap.
+
+        Parameters
+        ----------
+        X : array-like
+            Bin locations to synthesize spikes for.
+
+        Returns
+        -------
+        spikes : array-like
+            Synthetic spike data.
+        """
         check_is_fitted(self, "ratemap_")
         raise NotImplementedError
 
@@ -294,12 +352,19 @@ class RateMap(BaseEstimator):
         return out
 
     def __getitem__(self, *idx):
-        """RateMap unit index access.
+        """
+        Access RateMap units by index.
 
-        NOTE: this is index-based, not label-based. For label-based,
-              use loc[...]
+        Parameters
+        ----------
+        *idx : int, slice, or list
+            Indices of units to access.
 
-        Accepts integers, slices, and lists"""
+        Returns
+        -------
+        out : RateMap
+            Subset RateMap with selected units.
+        """
         idx = [ii for ii in idx]
         if len(idx) == 1 and not isinstance(idx[0], int):
             idx = idx[0]
@@ -997,43 +1062,54 @@ class FiringRateEstimator(BaseEstimator):
 
     (gvm = generalized von mises; see http://kordinglab.com/spykes/getting-started.html)
 
-    QQQ. Do we always bin first? does GLM and BARS use spike times, or binned
-         spike counts? I think GLM uses binned spike counts with Poisson
-         regression; not sure about BARS.
-
-    QQQ. What other methods should be supported? BAKS? What is state of the art?
-
-    QQQ. What if we want to know the fring rate over time? What does the input y
-         look like then? How about trial averaged? How about a tuning curve?
-
-    AAA. At the end of the day, this class should estimate a ratemap, and we
-         need some way to set the domain of that ratemap, if desired, but it
-         should not have to assume anything else. Values in y might be repeated,
-         but if not, then we estimate the (single-trial) firing rate over time
-         or whatever the associated y represents.
-
-    See https://arxiv.org/pdf/1602.07389.pdf for more GLM intuition? and http://www.stat.columbia.edu/~liam/teaching/neurostat-fall18/glm-notes.pdf
-
-    [2] https://www.biorxiv.org/content/biorxiv/early/2017/02/24/111450.full.pdf?%3Fcollection=
-    http://kordinglab.com/spykes/getting-started.html
-    https://xcorr.net/2011/10/03/using-the-binomial-glm-instead-of-the-poisson-for-spike-data/
-
-    [1] http://www.stat.cmu.edu/~kass/papers/bars.pdf
-    https://gist.github.com/AustinRochford/d640a240af12f6869a7b9b592485ca15
-    https://discourse.pymc.io/t/bayesian-adaptive-regression-splines-and-mcmc-some-questions/756/5
-
+    See Also
+    --------
+    RateMap
     """
-
     def __init__(self, mode="hist"):
+        """
+        Initialize a FiringRateEstimator.
 
+        Parameters
+        ----------
+        mode : str, optional
+            The estimation mode. Default is 'hist'.
+        """
         if mode not in ["hist"]:
             raise NotImplementedError(
                 "mode '{}' not supported / implemented yet!".format(mode)
             )
-
         self._mode = mode
-
     def _check_X_y_dt(self, X, y, lengths=None, dt=None, timestamps=None, n_bins=None):
+        """
+        Validate and standardize input data for fitting or prediction.
+
+        Parameters
+        ----------
+        X : array-like or BinnedEventArray
+            Input data.
+        y : array-like or RegularlySampledAnalogSignalArray
+            Target values.
+        lengths : array-like, optional
+            Lengths of intervals.
+        dt : float, optional
+            Temporal bin size.
+        timestamps : array-like, optional
+            Timestamps for the data.
+        n_bins : int or array-like, optional
+            Number of bins for discretization.
+
+        Returns
+        -------
+        X : np.ndarray
+            Standardized input data.
+        y : np.ndarray
+            Standardized target values.
+        dt : float
+            Temporal bin size.
+        n_bins : int or array-like
+            Number of bins for discretization.
+        """
         if isinstance(X, core.BinnedEventArray):
             T = X.bin_centers
             if lengths is not None:
@@ -1089,7 +1165,6 @@ class FiringRateEstimator(BaseEstimator):
             ), "'n_bins' must have one entry for each dimension in 'y'!"
 
         return X, y, dt, n_bins
-
     def fit(
         self,
         X,
@@ -1101,21 +1176,32 @@ class FiringRateEstimator(BaseEstimator):
         n_bins=None,
         sample_weight=None,
     ):
-        """Fit Gaussian Naive Bayes according to X, y
+        """
+        Fit the firing rate estimator to the data.
+
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_X_features)
-            Training vectors, where n_samples is the number of samples
-            and n_X_features is the number of features, typically n_units.
-        y : array-like, shape (n_samples, n_y_features)
+        X : array-like
+            Input data.
+        y : array-like
             Target values.
-        sample_weight : array-like, shape (n_samples,), optional (default=None)
-            Weights applied to individual samples (1. for unweighted).
-            .. versionadded:: 0.17
-               Gaussian Naive Bayes supports fitting with *sample_weight*.
+        lengths : array-like, optional
+            Lengths of intervals.
+        dt : float, optional
+            Temporal bin size.
+        timestamps : array-like, optional
+            Timestamps for the data.
+        unit_ids : array-like, optional
+            Unit identifiers.
+        n_bins : int or array-like, optional
+            Number of bins for discretization.
+        sample_weight : array-like, optional
+            Weights for each sample.
+
         Returns
         -------
-        self : object
+        self : FiringRateEstimator
+            The fitted estimator.
         """
         X, y, dt, n_bins = self._check_X_y_dt(
             X=X, y=y, lengths=lengths, dt=dt, timestamps=timestamps, n_bins=n_bins
@@ -1139,15 +1225,79 @@ class FiringRateEstimator(BaseEstimator):
         return self._mode
 
     def predict(self, X, lengths=None):
+        """
+        Predict firing rates for the given input data.
+
+        Parameters
+        ----------
+        X : array-like
+            Input data.
+        lengths : array-like, optional
+            Lengths of intervals.
+
+        Returns
+        -------
+        rates : array-like
+            Predicted firing rates.
+        """
         raise NotImplementedError
 
     def predict_proba(self, X, lengths=None):
+        """
+        Predict firing rate probabilities for the given input data.
+
+        Parameters
+        ----------
+        X : array-like
+            Input data.
+        lengths : array-like, optional
+            Lengths of intervals.
+
+        Returns
+        -------
+        probabilities : array-like
+            Predicted probabilities.
+        """
         raise NotImplementedError
 
     def score(self, X, y, lengths=None):
+        """
+        Return the mean accuracy on the given test data and labels.
+
+        Parameters
+        ----------
+        X : array-like
+            Test samples.
+        y : array-like
+            True values for X.
+        lengths : array-like, optional
+            Lengths of intervals.
+
+        Returns
+        -------
+        score : float
+            Mean accuracy of self.predict(X) wrt. y.
+        """
         raise NotImplementedError
 
     def score_samples(self, X, y, lengths=None):
+        """
+        Return the per-sample accuracy on the given test data and labels.
+
+        Parameters
+        ----------
+        X : array-like
+            Test samples.
+        y : array-like
+            True values for X.
+        lengths : array-like, optional
+            Lengths of intervals.
+
+        Returns
+        -------
+        scores : array-like
+            Per-sample accuracy of self.predict(X) wrt. y.
+        """
         raise NotImplementedError
 
 
@@ -1302,7 +1452,8 @@ class NDRateMap(BaseEstimator):
         return r
 
     def fit(self, X, y, dt=1, unit_ids=None):
-        """Fit firing rates
+        """
+        Fit firing rates to the provided data.
 
         Parameters
         ----------
@@ -1312,14 +1463,16 @@ class NDRateMap(BaseEstimator):
         y : array-like, shape (n_units, n_bins_d1, ..., n_bins_dN)
             Expected number of spikes in a temporal bin of width dt, for each of
             the predictor bins specified in X.
-        dt : float, optional (default=1)
-            Temporal bin size with which firing rate y is defined.
-            For example, if dt==1, then the firing rate is in Hz. If dt==0.001,
-            then the firing rate is in kHz, and so on.
-        unit_ids : array-like, shape (n_units,), optional (default=None)
+        dt : float, optional
+            Temporal bin size with which firing rate y is defined. Default is 1.
+        unit_ids : array-like, shape (n_units,), optional
             Persistent unit IDs that are used to associate units after
-            permutation. Unit IDs are inherited from nelpy.core.BinnedEventArray
-            objects, or initialized to np.arange(n_units).
+            permutation. If None, uses np.arange(n_units).
+
+        Returns
+        -------
+        self : NDRateMap
+            The fitted NDRateMap instance.
         """
         n_units, n_bins, n_dims = self._check_X_y(X, y)
 
@@ -1359,10 +1512,36 @@ class NDRateMap(BaseEstimator):
             self._unit_ids = np.arange(n_units)
 
     def predict(self, X):
+        """
+        Predict firing rates for the given bin locations.
+
+        Parameters
+        ----------
+        X : array-like
+            Bin locations to predict firing rates for.
+
+        Returns
+        -------
+        rates : array-like
+            Predicted firing rates.
+        """
         check_is_fitted(self, "ratemap_")
         raise NotImplementedError
 
     def synthesize(self, X):
+        """
+        Generate synthetic spike data based on the ratemap.
+
+        Parameters
+        ----------
+        X : array-like
+            Bin locations to synthesize spikes for.
+
+        Returns
+        -------
+        spikes : array-like
+            Synthetic spike data.
+        """
         check_is_fitted(self, "ratemap_")
         raise NotImplementedError
 
@@ -1387,12 +1566,19 @@ class NDRateMap(BaseEstimator):
         return out
 
     def __getitem__(self, *idx):
-        """RateMap unit index access.
+        """
+        Access RateMap units by index.
 
-        NOTE: this is index-based, not label-based. For label-based,
-              use loc[...]
+        Parameters
+        ----------
+        *idx : int, slice, or list
+            Indices of units to access.
 
-        Accepts integers, slices, and lists"""
+        Returns
+        -------
+        out : NDRateMap
+            Subset NDRateMap with selected units.
+        """
         idx = [ii for ii in idx]
         if len(idx) == 1 and not isinstance(idx[0], int):
             idx = idx[0]
