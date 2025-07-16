@@ -105,6 +105,7 @@ nav:
     - Preprocessing: reference/preprocessing.md
     - HMM Utils: reference/hmmutils.md
 - Tutorials:
+  - Getting Started: tutorials/GettingStarted.ipynb
   - AnalogSignalArray Tutorial: tutorials/AnalogSignalArrayTutorial.ipynb
   - EpochArray Tutorial: tutorials/EpochArrayTutorial.ipynb
   - Linear Track Demo: tutorials/LinearTrackDemo.ipynb
