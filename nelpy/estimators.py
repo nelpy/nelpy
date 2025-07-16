@@ -179,20 +179,30 @@ class RateMap(BaseEstimator):
     """
     RateMap with persistent unit_ids and firing rates in Hz.
 
-    NOTE: RateMap assumes a [uniform] isometric spacing in all dimensions of the
-          rate map. This is only relevant when smoothing is applied.
-
-    mode = ['continuous', 'discrete', 'circular']
-
-    fit(X, y) estimates ratemap [discrete, continuous, circular]
-    predict(X) predicts firing rate
-    synthesize(X) generates spikes based on input (inhomogenous Poisson?)
+    This class estimates and stores firing rate maps for neural data, supporting both 1D and 2D spatial representations.
 
     Parameters
     ----------
-    connectivity : str, optional
-        Defines how smoothing is applied. If 'discrete', then no smoothing is
-        applied. Default is 'continuous'.
+    connectivity : {'continuous', 'discrete', 'circular'}, optional
+        Defines how smoothing is applied. Default is 'continuous'.
+        - 'continuous': Continuous smoothing.
+        - 'discrete': No smoothing is applied.
+        - 'circular': Circular smoothing (for angular variables).
+
+    Attributes
+    ----------
+    connectivity : str
+        Smoothing mode.
+    ratemap_ : np.ndarray
+        The estimated firing rate map.
+    _unit_ids : np.ndarray
+        Persistent unit IDs.
+    _bins_x, _bins_y : np.ndarray
+        Bin edges for each dimension.
+    _bin_centers_x, _bin_centers_y : np.ndarray
+        Bin centers for each dimension.
+    _mask : np.ndarray
+        Mask for valid regions.
     """
     def __init__(self, connectivity="continuous"):
         """
@@ -711,35 +721,25 @@ class BayesianDecoderTemp(BaseEstimator):
     """
     Bayesian decoder wrapper class.
 
-    mode = ['hist', 'glm-poisson', 'glm-binomial', 'glm', 'gvm', 'bars', 'gp']
+    This class implements a Bayesian decoder for neural data, supporting various estimation modes.
 
-    (gvm = generalized von mises; see http://kordinglab.com/spykes/getting-started.html)
+    Parameters
+    ----------
+    rate_estimator : FiringRateEstimator, optional
+        The firing rate estimator to use.
+    w : any, optional
+        Window parameter for decoding.
+    ratemap : RateMap, optional
+        Precomputed rate map.
 
-    QQQ. Do we always bin first? does GLM and BARS use spike times, or binned
-         spike counts? I think GLM uses binned spike counts with Poisson
-         regression; not sure about BARS.
-
-    QQQ. What other methods should be supported? BAKS? What is state of the art?
-
-    QQQ. What if we want to know the fring rate over time? What does the input y
-         look like then? How about trial averaged? How about a tuning curve?
-
-    AAA. At the end of the day, this class should estimate a ratemap, and we
-         need some way to set the domain of that ratemap, if desired, but it
-         should not have to assume anything else. Values in y might be repeated,
-         but if not, then we estimate the (single-trial) firing rate over time
-         or whatever the associated y represents.
-
-    See https://arxiv.org/pdf/1602.07389.pdf for more GLM intuition? and http://www.stat.columbia.edu/~liam/teaching/neurostat-fall18/glm-notes.pdf
-
-    [2] https://www.biorxiv.org/content/biorxiv/early/2017/02/24/111450.full.pdf?%3Fcollection=
-    http://kordinglab.com/spykes/getting-started.html
-    https://xcorr.net/2011/10/03/using-the-binomial-glm-instead-of-the-poisson-for-spike-data/
-
-    [1] http://www.stat.cmu.edu/~kass/papers/bars.pdf
-    https://gist.github.com/AustinRochford/d640a240af12f6869a7b9b592485ca15
-    https://discourse.pymc.io/t/bayesian-adaptive-regression-splines-and-mcmc-some-questions/756/5
-
+    Attributes
+    ----------
+    rate_estimator : FiringRateEstimator
+        The firing rate estimator.
+    ratemap : RateMap
+        The estimated or provided rate map.
+    w : any
+        Window parameter.
     """
 
     def __init__(self, rate_estimator=None, w=None, ratemap=None):
@@ -1058,13 +1058,24 @@ class FiringRateEstimator(BaseEstimator):
     FiringRateEstimator
     Estimate the firing rate of a spike train.
 
-    mode = ['hist', 'glm-poisson', 'glm-binomial', 'glm', 'gvm', 'bars', 'gp']
+    Parameters
+    ----------
+    mode : {'hist', 'glm-poisson', 'glm-binomial', 'glm', 'gvm', 'bars', 'gp'}, optional
+        The estimation mode. Default is 'hist'.
+        - 'hist': Histogram-based estimation.
+        - 'glm-poisson': Generalized linear model with Poisson distribution.
+        - 'glm-binomial': Generalized linear model with Binomial distribution.
+        - 'glm': Generalized linear model.
+        - 'gvm': Generalized von Mises.
+        - 'bars': Bayesian adaptive regression splines.
+        - 'gp': Gaussian process.
 
-    (gvm = generalized von mises; see http://kordinglab.com/spykes/getting-started.html)
-
-    See Also
-    --------
-    RateMap
+    Attributes
+    ----------
+    mode : str
+        The estimation mode.
+    tc_ : TuningCurve1D or TuningCurve2D
+        The estimated tuning curve.
     """
     def __init__(self, mode="hist"):
         """
@@ -1417,22 +1428,30 @@ def decode_bayesian_memoryless_nd(X, *, ratemap, bin_centers, dt=1):
 
 class NDRateMap(BaseEstimator):
     """
-    RateMap with persistent unit_ids and firing rates in Hz.
-
-    NOTE: RateMap assumes a [uniform] isometric spacing in all dimensions of the
-          rate map. This is only relevant when smoothing is applied.
-
-    mode = ['continuous', 'discrete', 'circular']
-
-    fit(X, y) estimates ratemap [discrete, continuous, circular]
-    predict(X) predicts firing rate
-    synthesize(X) generates spikes based on input (inhomogenous Poisson?)
+    NDRateMap with persistent unit_ids and firing rates in Hz for N-dimensional data.
 
     Parameters
     ----------
-    connectivity : string ['continuous', 'discrete', 'circular'], optional
-        Defines how smoothing is applied. If 'discrete', then no smoothing is
-        applied. Default is 'continuous'.
+    connectivity : {'continuous', 'discrete', 'circular'}, optional
+        Defines how smoothing is applied. Default is 'continuous'.
+        - 'continuous': Continuous smoothing.
+        - 'discrete': No smoothing is applied.
+        - 'circular': Circular smoothing (for angular variables).
+
+    Attributes
+    ----------
+    connectivity : str
+        Smoothing mode.
+    ratemap_ : np.ndarray
+        The estimated firing rate map.
+    _unit_ids : np.ndarray
+        Persistent unit IDs.
+    _bins : np.ndarray
+        Bin edges for each dimension.
+    _bin_centers : np.ndarray
+        Bin centers for each dimension.
+    _mask : np.ndarray
+        Mask for valid regions.
     """
 
     def __init__(self, connectivity="continuous"):
