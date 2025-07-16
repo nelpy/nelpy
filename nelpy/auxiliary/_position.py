@@ -9,6 +9,46 @@ from ..utils_.decorators import keyword_deprecation
 
 
 class PositionArray(_analogsignalarray.AnalogSignalArray):
+    """
+    PositionArray for 1D and 2D position data as regularly sampled analog signals.
+
+    This class extends AnalogSignalArray to represent position data, with support for
+    1D and 2D trajectories, smoothing, linearization, and other position-specific operations.
+
+    Parameters
+    ----------
+    data : array-like, optional
+        Position data (1D or 2D).
+    timestamps : array-like, optional
+        Timestamps for the data samples.
+    fs : float, optional
+        Sampling frequency in Hz.
+    step : float, optional
+        Step size between samples.
+    merge_sample_gap : int, optional
+        Maximum gap to merge samples.
+    support : IntervalArray, optional
+        Support intervals for the data.
+    in_memory : bool, optional
+        Whether to store data in memory. Default is True.
+    labels : list of str, optional
+        Labels for the signals.
+    empty : bool, optional
+        If True, create an empty PositionArray.
+
+    Attributes
+    ----------
+    is_1d : bool
+        True if the position data is 1D.
+    is_2d : bool
+        True if the position data is 2D.
+    x : np.ndarray
+        X-values of the position.
+    y : np.ndarray
+        Y-values of the position (if 2D).
+    path_length : float
+        Total path length along the trajectory.
+    """
 
     __attributes__ = ["_kalmanfilter"]  # PositionArray-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
@@ -26,7 +66,30 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         labels=None,
         empty=False
     ):
+        """
+        Initialize a PositionArray.
 
+        Parameters
+        ----------
+        data : array-like, optional
+            Position data (1D or 2D).
+        timestamps : array-like, optional
+            Timestamps for the data samples.
+        fs : float, optional
+            Sampling frequency in Hz.
+        step : float, optional
+            Step size between samples.
+        merge_sample_gap : int, optional
+            Maximum gap to merge samples.
+        support : IntervalArray, optional
+            Support intervals for the data.
+        in_memory : bool, optional
+            Whether to store data in memory. Default is True.
+        labels : list of str, optional
+            Labels for the signals.
+        empty : bool, optional
+            If True, create an empty PositionArray.
+        """
         # if an empty object is requested, return it:
         if empty:
             super().__init__(empty=True)
@@ -71,6 +134,14 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
     @property
     def is_2d(self):
+        """
+        Check if the position data is 2D.
+
+        Returns
+        -------
+        bool
+            True if the position data is 2D, False otherwise.
+        """
         try:
             return self.n_signals == 2
         except IndexError:
@@ -78,6 +149,14 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
     @property
     def is_1d(self):
+        """
+        Check if the position data is 1D.
+
+        Returns
+        -------
+        bool
+            True if the position data is 1D, False otherwise.
+        """
         try:
             return self.n_signals == 1
         except IndexError:
@@ -85,12 +164,31 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
     @property
     def x(self):
-        """return x-values, as numpy array."""
+        """
+        Return the x-values of the position as a numpy array.
+
+        Returns
+        -------
+        np.ndarray
+            X-values of the position.
+        """
         return self.data[0, :]
 
     @property
     def y(self):
-        """return y-values, as numpy array."""
+        """
+        Return the y-values of the position as a numpy array.
+
+        Returns
+        -------
+        np.ndarray
+            Y-values of the position (if 2D).
+
+        Raises
+        ------
+        ValueError
+            If the position data is not 2D.
+        """
         if self.is_2d:
             return self.data[1, :]
         raise ValueError(
@@ -99,13 +197,27 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
     @property
     def path_length(self):
-        """Return the path length along the trajectory."""
+        """
+        Return the path length along the trajectory.
+
+        Returns
+        -------
+        float
+            Total path length along the trajectory.
+        """
         # raise NotImplementedError
         lengths = np.sqrt(np.sum(np.diff(self._data_colsig, axis=0) ** 2, axis=1))
         return np.sum(lengths)
 
     def get_speed(self, sigma_pos=None, simga_spd=None):
-        """Return the speed, as an AnalogSignalArray."""
+        """
+        Return the speed, as an AnalogSignalArray.
+
+        Returns
+        -------
+        AnalogSignalArray
+            A PositionArray with smoothed data is returned.
+        """
         # Idea is to smooth the position with a good default, and then to
         # compute the speed on the smoothed position. Optionally, then, the
         # speed should be smoothed as well.

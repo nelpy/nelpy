@@ -30,14 +30,62 @@ warnings.formatwarning = (
 # class TuningCurve2D
 ########################################################################
 class TuningCurve2D:
-    """Tuning curves (2-dimensional) of multiple units.
+    """
+    Tuning curves (2-dimensional) of multiple units.
 
     Parameters
     ----------
+    bst : BinnedSpikeTrainArray, optional
+        Binned spike train array for tuning curve estimation.
+    extern : array-like, optional
+        External correlates (e.g., position).
+    ratemap : np.ndarray, optional
+        Precomputed rate map.
+    sigma : float, optional
+        Standard deviation for Gaussian smoothing.
+    truncate : float, optional
+        Truncation parameter for smoothing.
+    ext_nx : int, optional
+        Number of bins in x-dimension.
+    ext_ny : int, optional
+        Number of bins in y-dimension.
+    transform_func : callable, optional
+        Function to transform external correlates.
+    minbgrate : float, optional
+        Minimum background firing rate.
+    ext_xmin, ext_xmax, ext_ymin, ext_ymax : float, optional
+        Extent of the external correlates.
+    extlabels : list, optional
+        Labels for external correlates.
+    min_duration : float, optional
+        Minimum duration for occupancy.
+    unit_ids : list, optional
+        Unit IDs.
+    unit_labels : list, optional
+        Unit labels.
+    unit_tags : list, optional
+        Unit tags.
+    label : str, optional
+        Label for the tuning curve.
+    empty : bool, optional
+        If True, create an empty TuningCurve2D.
 
     Attributes
     ----------
-
+    ratemap : np.ndarray
+        The 2D rate map.
+    occupancy : np.ndarray
+        Occupancy map.
+    unit_ids : list
+        Unit IDs.
+    unit_labels : list
+        Unit labels.
+    unit_tags : list
+        Unit tags.
+    label : str
+        Label for the tuning curve.
+    mask : np.ndarray
+        Mask for valid regions.
     """
 
     __attributes__ = [
@@ -970,21 +1018,58 @@ class TuningCurve2D:
 # class TuningCurve1D
 ########################################################################
 class TuningCurve1D:
-    """Tuning curves (1-dimensional) of multiple units.
-
-    Get in BST
-    Get in queriable object for external correlates
-
-    Get in bins, binlabels
-    Get in n_bins, xmin, xmax
-    Get in a transform function f
+    """
+    Tuning curves (1-dimensional) of multiple units.
 
     Parameters
     ----------
+    bst : BinnedSpikeTrainArray, optional
+        Binned spike train array for tuning curve estimation.
+    extern : array-like, optional
+        External correlates (e.g., position).
+    ratemap : np.ndarray, optional
+        Precomputed rate map.
+    sigma : float, optional
+        Standard deviation for Gaussian smoothing.
+    truncate : float, optional
+        Truncation parameter for smoothing.
+    n_extern : int, optional
+        Number of bins for external correlates.
+    transform_func : callable, optional
+        Function to transform external correlates.
+    minbgrate : float, optional
+        Minimum background firing rate.
+    extmin, extmax : float, optional
+        Extent of the external correlates.
+    extlabels : list, optional
+        Labels for external correlates.
+    unit_ids : list, optional
+        Unit IDs.
+    unit_labels : list, optional
+        Unit labels.
+    unit_tags : list, optional
+        Unit tags.
+    label : str, optional
+        Label for the tuning curve.
+    min_duration : float, optional
+        Minimum duration for occupancy.
+    empty : bool, optional
+        If True, create an empty TuningCurve1D.
 
     Attributes
     ----------
-
+    ratemap : np.ndarray
+        The 1D rate map.
+    occupancy : np.ndarray
+        Occupancy map.
+    unit_ids : list
+        Unit IDs.
+    unit_labels : list
+        Unit labels.
+    unit_tags : list
+        Unit tags.
+    label : str
+        Label for the tuning curve.
     """
 
     __attributes__ = [
@@ -1790,30 +1875,53 @@ class TuningCurve1D:
 
 
 class DirectionalTuningCurve1D(TuningCurve1D):
-    """Directional tuning curves (1-dimensional) of multiple units.
-
-    Get in BST
-    Get in queriable object for external correlates
-
-    Get in bins, binlabels
-    Get in n_bins, xmin, xmax
-    Get in a transform function f
-
-    # idea:
-    # 1. estimate stratified tuning curves
-    # 2. eliminate inactive cells from each stratification
-    # 3. find subset that belongs to all (both) stratifications
-    # 4. re-estimate tuning curves for common cells using all the epochs
-    # 5. remove common cells from stratifications
-    #
-    # another option is to combine these as three separate TuningCurve1Ds
+    """
+    Directional tuning curves (1-dimensional) of multiple units.
 
     Parameters
     ----------
+    bst_l2r : BinnedSpikeTrainArray
+        Binned spike train array for left-to-right direction.
+    bst_r2l : BinnedSpikeTrainArray
+        Binned spike train array for right-to-left direction.
+    bst_combined : BinnedSpikeTrainArray
+        Combined binned spike train array.
+    extern : array-like
+        External correlates (e.g., position).
+    sigma : float, optional
+        Standard deviation for Gaussian smoothing.
+    truncate : float, optional
+        Truncation parameter for smoothing.
+    n_extern : int, optional
+        Number of bins for external correlates.
+    transform_func : callable, optional
+        Function to transform external correlates.
+    minbgrate : float, optional
+        Minimum background firing rate.
+    extmin, extmax : float, optional
+        Extent of the external correlates.
+    extlabels : list, optional
+        Labels for external correlates.
+    unit_ids : list, optional
+        Unit IDs.
+    unit_labels : list, optional
+        Unit labels.
+    unit_tags : list, optional
+        Unit tags.
+    label : str, optional
+        Label for the tuning curve.
+    min_peakfiringrate : float, optional
+        Minimum peak firing rate.
+    max_avgfiringrate : float, optional
+        Maximum average firing rate.
+    unimodal : bool, optional
+        If True, enforce unimodality.
+    empty : bool, optional
+        If True, create an empty DirectionalTuningCurve1D.
 
     Attributes
     ----------
-
+    All attributes of TuningCurve1D, plus direction-specific attributes.
     """
 
     __attributes__ = ["_unit_ids_l2r", "_unit_ids_r2l"]
