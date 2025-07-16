@@ -25,6 +25,43 @@ from ..decoding import get_mode_pth_from_array, k_fold_cross_validation
 
 
 def get_line_of_best_Davidson_score(bst, tuningcurve, w=3, n_samples=50000):
+    """
+    Find the best-fit line through the decoded posterior for a single event using the Davidson et al. 2009 method.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing a single event (PBE).
+    tuningcurve : TuningCurve1D
+        Tuning curve for decoding.
+    w : int, optional
+        Half-width of the band for scoring (default is 3).
+    n_samples : int, optional
+        Number of random lines to sample (default is 50000).
+
+    Returns
+    -------
+    score : float
+        The best trajectory score found.
+    ri : np.ndarray
+        Row indices of the best-fit line.
+    ci : np.ndarray
+        Column indices (time bins).
+
+    Raises
+    ------
+    TypeError
+        If more than one event is passed in bst.
+
+    Notes
+    -----
+    This function decodes the posterior, samples random lines, and finds the one with the highest score.
+
+    References
+    ----------
+    Davidson TJ, Kloosterman F, Wilson MA (2009)
+        Hippocampal replay of extended experience. Neuron 63:497–507
+    """
     tc = tuningcurve
 
     if bst.n_epochs > 1:
@@ -131,8 +168,33 @@ def get_line_of_best_Davidson_score(bst, tuningcurve, w=3, n_samples=50000):
 def score_hmm_events(
     bst, k_folds=None, num_states=30, n_shuffles=5000, shuffle="row-wise", verbose=False
 ):
-    """score all sequences in the entire bst using the transition matrix shuffle and cross-validation"""
+    """
+    Score all sequences in the entire BinnedSpikeTrainArray using HMM transition matrix shuffling and cross-validation.
 
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    k_folds : int, optional
+        Number of cross-validation folds (default is 5).
+    num_states : int, optional
+        Number of hidden states in the HMM (default is 30).
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution (default is 5000).
+    shuffle : {'row-wise', 'col-wise', 'timeswap', 'pooled-timeswap'}, optional
+        Type of shuffling to use for the null distribution (default is 'row-wise').
+    verbose : bool, optional
+        If True, print progress information.
+
+    Returns
+    -------
+    scores_hmm : np.ndarray
+        Log-likelihood scores for each event.
+    scores_hmm_shuffled : np.ndarray
+        Shuffled log-likelihood scores for each event and shuffle.
+    scores_hmm_percentile : np.ndarray
+        Percentile of the real score within the shuffled distribution for each event.
+    """
     # lazy import hmmutils
     from .. import hmmutils
 
@@ -236,8 +298,35 @@ def score_hmm_events_no_xval(
     shuffle="row-wise",
     verbose=False,
 ):
-    """same as score_hmm_events, but train on training set, and only score validation set..."""
+    """
+    Score sequences using HMM, training on a specified training set and scoring a validation set.
 
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    training : list or np.ndarray
+        Indices for training events.
+    validation : list or np.ndarray
+        Indices for validation events.
+    num_states : int, optional
+        Number of hidden states in the HMM (default is 30).
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution (default is 5000).
+    shuffle : {'row-wise', 'col-wise', 'timeswap'}, optional
+        Type of shuffling to use for the null distribution (default is 'row-wise').
+    verbose : bool, optional
+        If True, print progress information.
+
+    Returns
+    -------
+    scores_hmm : np.ndarray
+        Log-likelihood scores for each event in the validation set.
+    scores_hmm_shuffled : np.ndarray
+        Shuffled log-likelihood scores for each event and shuffle.
+    scores_hmm_percentile : np.ndarray
+        Percentile of the real score within the shuffled distribution for each event.
+    """
     # lazy import hmmutils
     from .. import hmmutils
 
@@ -308,8 +397,28 @@ def score_hmm_events_no_xval(
 def score_Davidson_final_bst_fast(
     bst, tuningcurve, w=None, n_shuffles=2000, n_samples=35000, verbose=False
 ):
-    """Compute the trajectory scores from Davidson et al. 2009 for each event
-    in the BinnedSpikeTrainArray. DO IT EVEN FASTER!!!
+    """
+    Compute trajectory scores for each event in the BinnedSpikeTrainArray using the Davidson et al. 2009 method (fast version).
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    tuningcurve : TuningCurve1D
+        Tuning curve for decoding.
+    w : int, optional
+        Half-width of the band for scoring (default is None, treated as 0).
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution (default is 2000).
+    n_samples : int, optional
+        Number of random lines to sample (default is 35000).
+    verbose : bool, optional
+        If True, print progress information.
+
+    Returns
+    -------
+    scores_bayes : np.ndarray
+        Trajectory scores for each event.
     """
 
     def sub2ind(n_cols, rows, cols):
@@ -517,8 +626,28 @@ def score_Davidson_final_bst_fast(
 def score_Davidson_final_bst(
     bst, tuningcurve, w=None, n_shuffles=2000, n_samples=35000, verbose=False
 ):
-    """Compute the trajectory scores from Davidson et al. 2009 for each event
-    in the BinnedSpikeTrainArray. DO IT FAST!!!
+    """
+    Compute trajectory scores for each event in the BinnedSpikeTrainArray using the Davidson et al. 2009 method.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    tuningcurve : TuningCurve1D
+        Tuning curve for decoding.
+    w : int, optional
+        Half-width of the band for scoring (default is None, treated as 0).
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution (default is 2000).
+    n_samples : int, optional
+        Number of random lines to sample (default is 35000).
+    verbose : bool, optional
+        If True, print progress information.
+
+    Returns
+    -------
+    scores_bayes : np.ndarray
+        Trajectory scores for each event.
     """
 
     def sub2ind(array_shape, rows, cols):
@@ -668,7 +797,25 @@ def score_Davidson_final_bst(
 
 
 def linregress_ting(bst, tuningcurve, n_shuffles=250):
-    """perform linear regression on all the events in bst, and return the R^2 values"""
+    """
+    Perform linear regression on all the events in bst, and return the R^2 values.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    tuningcurve : TuningCurve1D
+        Tuning curve for decoding.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution (default is 250).
+
+    Returns
+    -------
+    r2values : np.ndarray
+        R^2 values for each event.
+    r2values_shuffled : np.ndarray
+        Shuffled R^2 values for each event and shuffle.
+    """
 
     if float(n_shuffles).is_integer:
         n_shuffles = int(n_shuffles)
@@ -710,7 +857,23 @@ def linregress_ting(bst, tuningcurve, n_shuffles=250):
 
 
 def linregress_array(posterior):
-    """perform linear regression on the posterior matrix, and return the slope, intercept, and R^2 value"""
+    """
+    Perform linear regression on the posterior matrix, and return the slope, intercept, and R^2 value.
+
+    Parameters
+    ----------
+    posterior : np.ndarray
+        Posterior probability matrix (position x time).
+
+    Returns
+    -------
+    slope : float
+        Slope of the best-fit line.
+    intercept : float
+        Intercept of the best-fit line.
+    r2 : float
+        R^2 value of the fit.
+    """
 
     mode_pth = get_mode_pth_from_array(posterior)
 
@@ -727,7 +890,25 @@ def linregress_array(posterior):
 
 
 def linregress_bst(bst, tuningcurve):
-    """perform linear regression on all the events in bst, and return the slopes, intercepts, and R^2 values"""
+    """
+    Perform linear regression on all the events in bst, and return the slopes, intercepts, and R^2 values.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    tuningcurve : TuningCurve1D
+        Tuning curve for decoding.
+
+    Returns
+    -------
+    slopes : np.ndarray
+        Slopes for each event.
+    intercepts : np.ndarray
+        Intercepts for each event.
+    r2values : np.ndarray
+        R^2 values for each event.
+    """
 
     posterior, bdries, mode_pth, mean_pth = decode(bst=bst, ratemap=tuningcurve)
 
@@ -755,9 +936,22 @@ def linregress_bst(bst, tuningcurve):
 
 
 def time_swap_array(posterior):
-    """Time swap.
+    """
+    Time swap.
+
     Note: it is often possible to simply shuffle the time bins, and not the actual data, for computational
-    efficiency. Still, this function works as expected."""
+    efficiency. Still, this function works as expected.
+
+    Parameters
+    ----------
+    posterior : np.ndarray
+        Posterior probability matrix (position x time).
+
+    Returns
+    -------
+    out : np.ndarray
+        Time-swapped posterior matrix.
+    """
     out = copy.deepcopy(posterior)
     rows, cols = posterior.shape
 
@@ -769,7 +963,19 @@ def time_swap_array(posterior):
 
 
 def time_swap_bst(bst):
-    """Time swap on BinnedSpikeTrainArray, swapping only within each epoch."""
+    """
+    Time swap on BinnedSpikeTrainArray, swapping only within each epoch.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array to swap.
+
+    Returns
+    -------
+    out : BinnedSpikeTrainArray
+        Time-swapped spike train array.
+    """
     out = copy.deepcopy(bst)  # should this be deep? YES! Oh my goodness, yes!
     shuffled = np.arange(bst.n_bins)
     edges = np.insert(np.cumsum(bst.lengths), 0, 0)
@@ -783,7 +989,19 @@ def time_swap_bst(bst):
 
 
 def pooled_time_swap_bst(bst):
-    """Time swap on BinnedSpikeTrainArray, swapping within entire bst."""
+    """
+    Time swap on BinnedSpikeTrainArray, swapping within entire bst.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array to swap.
+
+    Returns
+    -------
+    out : BinnedSpikeTrainArray
+        Time-swapped spike train array.
+    """
     out = copy.deepcopy(bst)  # should this be deep? YES! Oh my goodness, yes!
     shuffled = np.random.permutation(bst.n_bins)
     out._data = out._data[:, shuffled]
@@ -791,7 +1009,19 @@ def pooled_time_swap_bst(bst):
 
 
 def pooled_incoherent_shuffle_bst(bst):
-    """Incoherent shuffle on BinnedSpikeTrainArray, swapping within entire bst."""
+    """
+    Perform incoherent shuffle on BinnedSpikeTrainArray, swapping within the entire array.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array to shuffle.
+
+    Returns
+    -------
+    out : BinnedSpikeTrainArray
+        Shuffled spike train array.
+    """
     raise NotImplementedError("function not done yet!")
     out = copy.deepcopy(bst)  # should this be deep? YES! Oh my goodness, yes!
     data = out._data
@@ -807,7 +1037,19 @@ def pooled_incoherent_shuffle_bst(bst):
 
 
 def incoherent_shuffle_bst(bst):
-    """Incoherent shuffle on BinnedSpikeTrainArray, swapping only within each epoch."""
+    """
+    Incoherent shuffle on BinnedSpikeTrainArray, swapping only within each epoch.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array to shuffle.
+
+    Returns
+    -------
+    out : BinnedSpikeTrainArray
+        Shuffled spike train array.
+    """
     out = copy.deepcopy(bst)  # should this be deep? YES! Oh my goodness, yes!
     data = out._data
     edges = np.insert(np.cumsum(bst.lengths), 0, 0)
@@ -822,7 +1064,19 @@ def incoherent_shuffle_bst(bst):
 
 
 def poisson_surrogate_bst(bst):
-    """Create a Poisson surrogate of BinnedSpikeTrainArray."""
+    """
+    Create a Poisson surrogate of BinnedSpikeTrainArray.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array.
+
+    Returns
+    -------
+    out : BinnedSpikeTrainArray
+        Poisson surrogate spike train array.
+    """
     firing_rates = bst.n_spikes / bst.support.duration  # firing rates in Hz
 
     spikes = []
@@ -849,7 +1103,21 @@ def poisson_surrogate_bst(bst):
 
 
 def spike_id_shuffle_bst(bst, st_flat):
-    """Create a spike ID shuffled surrogate of BinnedSpikeTrainArray."""
+    """
+    Create a spike ID shuffled surrogate of BinnedSpikeTrainArray.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array.
+    st_flat : np.ndarray
+        Flattened spike train array for shuffling.
+
+    Returns
+    -------
+    out : BinnedSpikeTrainArray
+        Shuffled spike train array.
+    """
     all_spiketimes = st_flat.time.squeeze()
     spike_ids = np.zeros(len(all_spiketimes))
 
@@ -881,7 +1149,19 @@ def spike_id_shuffle_bst(bst, st_flat):
 
 
 def unit_id_shuffle_bst(bst):
-    """Create a unit ID shuffled surrogate of BinnedSpikeTrainArray."""
+    """
+    Create a unit ID shuffled surrogate of BinnedSpikeTrainArray.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array.
+
+    Returns
+    -------
+    out : BinnedSpikeTrainArray
+        Shuffled spike train array.
+    """
     out = copy.deepcopy(bst)  # should this be deep? yes!
     data = out._data
     edges = np.insert(np.cumsum(bst.lengths), 0, 0)
@@ -898,10 +1178,21 @@ def unit_id_shuffle_bst(bst):
 
 
 def column_cycle_array(posterior, amt=None):
-    """Also called 'position cycle' by Kloosterman et al.
-    If amt is an array of the same length as posterior, then
-    cycle each column by the corresponding amount in amt.
-    Otherwise, cycle each column by a random amount."""
+    """
+    Cycle each column of the posterior matrix by a random or specified amount.
+
+    Parameters
+    ----------
+    posterior : np.ndarray
+        Posterior probability matrix (position x time).
+    amt : array-like or None, optional
+        Amount to cycle each column. If None, random cycling is used.
+
+    Returns
+    -------
+    out : np.ndarray
+        Cycled posterior matrix.
+    """
     out = copy.deepcopy(posterior)
     rows, cols = posterior.shape
 
@@ -926,15 +1217,29 @@ def column_cycle_array(posterior, amt=None):
 def trajectory_score_array(
     posterior, slope=None, intercept=None, w=None, weights=None, normalize=False
 ):
-    """Docstring goes here
+    """
+    Compute the trajectory score for a given posterior matrix and line parameters.
 
-    This is the score that Davidson et al. maximizes, in order to get a linear trajectory,
-    but here we kind of assume that that we have the trajectory already, and then just score it.
+    Parameters
+    ----------
+    posterior : np.ndarray
+        Posterior probability matrix (position x time).
+    slope : float, optional
+        Slope of the line. If None, estimated from the data.
+    intercept : float, optional
+        Intercept of the line. If None, estimated from the data.
+    w : int, optional
+        Half band width for calculating the trajectory score. Default is 0.
+    weights : array-like, optional
+        Weights for the band around the line (not yet implemented).
+    normalize : bool, optional
+        If True, normalize the score by the number of non-NaN bins.
 
-    w is the number of bin rows to include in score, in each direction. That is, w=0 is only the modes,
-    and w=1 is a band of width=3, namely the modes, and 1 bin above, and 1 bin below the mode.
-
-    The score is NOT averaged!"""
+    Returns
+    -------
+    score : float
+        Trajectory score for the event.
+    """
 
     rows, cols = posterior.shape
 
@@ -966,66 +1271,32 @@ def trajectory_score_array(
 def trajectory_score_bst(
     bst, tuningcurve, w=None, n_shuffles=250, weights=None, normalize=False
 ):
-    """Compute the trajectory scores from Davidson et al. for each event
-    in the BinnedSpikeTrainArray.
-
-    This function returns the trajectory scores by decoding all the
-    events in the BinnedSpikeTrainArray, and then calling an external
-    function to determine the slope and intercept for each event, and
-    then finally computing the scores for those events.
-
-    If n_shuffles > 0, then in addition to the trajectory scores,
-    shuffled scores will be returned for both column cycle shuffling, as
-    well as posterior time bin shuffling (time swap).
-
-    NOTE1: this function does NOT attempt to find the line that
-    maximizes the trajectory score. Instead, it delegates the
-    determination of the line to an external function (which currently
-    is called from trajectory_score_array), and at the time of writing
-    this documentation, is simply the best line fit to the modes of the
-    decoded posterior distribution.
-
-    NOTE2: the score is then the sum of the probabilities in a band of
-    w bins around the line, ignoring bins that are NaNs. Even when w=0
-    (only the sum of peak probabilities) this is different from the r^2
-    coefficient of determination, in that here more concentrated
-    posterior probabilities contribute more heavily than weaker ones.
-
-    NOTE3: the returned scores are NOT normalized, but if desired, they
-    can be normalized by dividing by the number of non-NaN bins in each
-    event.
-
-    Reference(s)
-    ------------
-    Davidson TJ, Kloosterman F, Wilson MA (2009)
-        Hippocampal replay of extended experience. Neuron 63:497–507
+    """
+    Compute the trajectory scores from Davidson et al. for each event in the BinnedSpikeTrainArray.
 
     Parameters
     ----------
     bst : BinnedSpikeTrainArray
-        BinnedSpikeTrainArray containing all the candidate events to
-        score.
+        Binned spike train array containing all candidate events.
     tuningcurve : TuningCurve1D
         Tuning curve to decode events in bst.
-    w : int, optional (default is 0)
-        Half band width for calculating the trajectory score. If w=0,
-        then only the probabilities falling directly under the line are
-        used. If w=1, then a total band of 2*w+1 = 3 will be used.
-    n_shuffles : int, optional (default is 250)
-        Number of times to perform both time_swap and column_cycle
-        shuffles.
-    weights : not yet used, but idea is to assign weights to the bands
-        surrounding the line
-    normalize : bool, optional (default is False)
-        If True, the scores will be normalized by the number of non-NaN
-        bins in each event.
+    w : int, optional
+        Half band width for calculating the trajectory score. Default is 0.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    weights : array-like, optional
+        Weights for the band around the line (not yet implemented).
+    normalize : bool, optional
+        If True, normalize the score by the number of non-NaN bins.
 
     Returns
     -------
-    scores, [scores_time_swap, scores_col_cycle]
-        scores is of size (bst.n_epochs, )
-        scores_time_swap and scores_col_cycle are each of size
-            (n_shuffles, bst.n_epochs)
+    scores : np.ndarray
+        Trajectory scores for each event.
+    scores_time_swap : np.ndarray
+        Shuffled scores using time swap.
+    scores_col_cycle : np.ndarray
+        Shuffled scores using column cycle.
     """
 
     if w is None:
@@ -1071,7 +1342,8 @@ def trajectory_score_bst(
 
 
 def shuffle_transmat(transmat):
-    """Shuffle transition probability matrix within each row, leaving self transitions in tact.
+    """
+    Shuffle transition probability matrix within each row, leaving self transitions in tact.
 
     It is assumed that the transmat is stochastic-row-wise, meaning that A_{ij} = Pr(S_{t+1}=j|S_t=i).
 
@@ -1098,7 +1370,8 @@ def shuffle_transmat(transmat):
 
 
 def shuffle_transmat_Kourosh_breaks_stochasticity(transmat):
-    """Shuffle transition probability matrix within each column, leaving self transitions in tact.
+    """
+    Shuffle transition probability matrix within each column, leaving self transitions in tact.
 
     It is assumed that the transmat is stochastic-row-wise, meaning that A_{ij} = Pr(S_{t+1}=j|S_t=i).
 
@@ -1128,19 +1401,21 @@ def shuffle_transmat_Kourosh_breaks_stochasticity(transmat):
 
 
 def score_hmm_logprob(bst, hmm, normalize=False):
-    """Score events in a BinnedSpikeTrainArray by computing the log
-    probability under the model.
+    """
+    Score events in a BinnedSpikeTrainArray by computing the log probability under the model.
 
     Parameters
     ----------
     bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
     hmm : PoissonHMM
-    normalize : bool, optional. Default is False.
-        If True, log probabilities will be normalized by their sequence
-        lengths.
+        Trained hidden Markov model.
+    normalize : bool, optional
+        If True, log probabilities will be normalized by their sequence lengths.
+
     Returns
     -------
-    logprob : array of size (n_events,)
+    logprob : np.ndarray
         Log probabilities, one for each event in bst.
     """
 
@@ -1152,26 +1427,26 @@ def score_hmm_logprob(bst, hmm, normalize=False):
 
 
 def score_hmm_transmat_shuffle(bst, hmm, n_shuffles=250, normalize=False):
-    """Score sequences using a hidden Markov model, and a model where
-    the transition probability matrix has been shuffled.BaseException
+    """
+    Score sequences using a hidden Markov model and a model where the transition probability matrix has been shuffled.
 
     Parameters
     ----------
     bst : BinnedSpikeTrainArray
-        BinnedSpikeTrainArray containing all the candidate events to
-        score.
+        Binned spike train array containing all candidate events.
     hmm : PoissonHMM
-        Trained hidden markov model to score sequences.
-    n_shuffles : int, optional (default is 250)
-        Number of times to perform both time_swap and column_cycle
-        shuffles.
-    normalize : bool, optional (default is False)
-        If True, the scores will be normalized by event lengths.
+        Trained hidden Markov model.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    normalize : bool, optional
+        If True, normalize the scores by event lengths.
 
     Returns
     -------
-    scores : array of size (n_events,)
-    shuffled : array of size (n_shuffles, n_events)
+    scores : np.ndarray
+        Log probabilities for each event.
+    shuffled : np.ndarray
+        Shuffled log probabilities for each event and shuffle.
     """
 
     if float(n_shuffles).is_integer:
@@ -1193,26 +1468,26 @@ def score_hmm_transmat_shuffle(bst, hmm, n_shuffles=250, normalize=False):
 
 
 def score_hmm_timeswap_shuffle(bst, hmm, n_shuffles=250, normalize=False):
-    """Score sequences using a hidden Markov model, and a model where
-    the transition probability matrix has been shuffled.
+    """
+    Score sequences using a hidden Markov model and a model where the transition probability matrix has been shuffled (time swap).
 
     Parameters
     ----------
     bst : BinnedSpikeTrainArray
-        BinnedSpikeTrainArray containing all the candidate events to
-        score.
+        Binned spike train array containing all candidate events.
     hmm : PoissonHMM
-        Trained hidden markov model to score sequences.
-    n_shuffles : int, optional (default is 250)
-        Number of times to perform both time_swap and column_cycle
-        shuffles.
-    normalize : bool, optional (default is False)
-        If True, the scores will be normalized by event lengths.
+        Trained hidden Markov model.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    normalize : bool, optional
+        If True, normalize the scores by event lengths.
 
     Returns
     -------
-    scores : array of size (n_events,)
-    shuffled : array of size (n_shuffles, n_events)
+    scores : np.ndarray
+        Log probabilities for each event.
+    shuffled : np.ndarray
+        Shuffled log probabilities for each event and shuffle.
     """
 
     scores = score_hmm_logprob(bst=bst, hmm=hmm, normalize=normalize)
@@ -1228,25 +1503,26 @@ def score_hmm_timeswap_shuffle(bst, hmm, n_shuffles=250, normalize=False):
 
 
 def score_hmm_pooled_timeswap_shuffle(bst, hmm, n_shuffles=250, normalize=False):
-    """Description goes here.
+    """
+    Score sequences using a hidden Markov model and a model where the transition probability matrix has been shuffled (pooled time swap).
 
     Parameters
     ----------
     bst : BinnedSpikeTrainArray
-        BinnedSpikeTrainArray containing all the candidate events to
-        score.
+        Binned spike train array containing all candidate events.
     hmm : PoissonHMM
-        Trained hidden markov model to score sequences.
-    n_shuffles : int, optional (default is 250)
-        Number of times to perform both time_swap and column_cycle
-        shuffles.
-    normalize : bool, optional (default is False)
-        If True, the scores will be normalized by event lengths.
+        Trained hidden Markov model.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    normalize : bool, optional
+        If True, normalize the scores by event lengths.
 
     Returns
     -------
-    scores : array of size (n_events,)
-    shuffled : array of size (n_shuffles, n_events)
+    scores : np.ndarray
+        Log probabilities for each event.
+    shuffled : np.ndarray
+        Shuffled log probabilities for each event and shuffle.
     """
 
     scores = score_hmm_logprob(bst=bst, hmm=hmm, normalize=normalize)
@@ -1262,12 +1538,26 @@ def score_hmm_pooled_timeswap_shuffle(bst, hmm, n_shuffles=250, normalize=False)
 
 
 def score_hmm_incoherent_shuffle(bst, hmm, n_shuffles=250, normalize=False):
-    """Docstring goes here.
+    """
+    Score sequences using a hidden Markov model and a model where the transition probability matrix has been shuffled (incoherent shuffle).
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    hmm : PoissonHMM
+        Trained hidden Markov model.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    normalize : bool, optional
+        If True, normalize the scores by event lengths.
 
     Returns
     -------
-    scores : array of size (n_events,)
-    shuffled : array of size (n_shuffles, n_events)
+    scores : np.ndarray
+        Log probabilities for each event.
+    shuffled : np.ndarray
+        Shuffled log probabilities for each event and shuffle.
     """
 
     scores = score_hmm_logprob(bst=bst, hmm=hmm, normalize=normalize)
@@ -1283,12 +1573,26 @@ def score_hmm_incoherent_shuffle(bst, hmm, n_shuffles=250, normalize=False):
 
 
 def score_hmm_poisson_shuffle(bst, hmm, n_shuffles=250, normalize=False):
-    """Docstring goes here.
+    """
+    Score sequences using a hidden Markov model and a model where the transition probability matrix has been shuffled (Poisson shuffle).
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    hmm : PoissonHMM
+        Trained hidden Markov model.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    normalize : bool, optional
+        If True, normalize the scores by event lengths.
 
     Returns
     -------
-    scores : array of size (n_events,)
-    shuffled : array of size (n_shuffles, n_events)
+    scores : np.ndarray
+        Log probabilities for each event.
+    shuffled : np.ndarray
+        Shuffled log probabilities for each event and shuffle.
     """
 
     scores = score_hmm_logprob(bst=bst, hmm=hmm, normalize=normalize)
@@ -1304,12 +1608,28 @@ def score_hmm_poisson_shuffle(bst, hmm, n_shuffles=250, normalize=False):
 
 
 def score_hmm_spike_id_shuffle(bst, hmm, st_flat, n_shuffles=250, normalize=False):
-    """Docstring goes here.
+    """
+    Score sequences using a hidden Markov model and a model where spike IDs are shuffled.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    hmm : PoissonHMM
+        Trained hidden Markov model.
+    st_flat : np.ndarray
+        Flattened spike train array for shuffling.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    normalize : bool, optional
+        If True, normalize the scores by event lengths.
 
     Returns
     -------
-    scores : array of size (n_events,)
-    shuffled : array of size (n_shuffles, n_events)
+    scores : np.ndarray
+        Log probabilities for each event.
+    shuffled : np.ndarray
+        Shuffled log probabilities for each event and shuffle.
     """
 
     scores = score_hmm_logprob(bst=bst, hmm=hmm, normalize=normalize)
@@ -1325,12 +1645,26 @@ def score_hmm_spike_id_shuffle(bst, hmm, st_flat, n_shuffles=250, normalize=Fals
 
 
 def score_hmm_unit_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
-    """Docstring goes here.
+    """
+    Score sequences using a hidden Markov model and a model where unit IDs are shuffled.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
+    hmm : PoissonHMM
+        Trained hidden Markov model.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    normalize : bool, optional
+        If True, normalize the scores by event lengths.
 
     Returns
     -------
-    scores : array of size (n_events,)
-    shuffled : array of size (n_shuffles, n_events)
+    scores : np.ndarray
+        Log probabilities for each event.
+    shuffled : np.ndarray
+        Shuffled log probabilities for each event and shuffle.
     """
 
     scores = score_hmm_logprob(bst=bst, hmm=hmm, normalize=normalize)
@@ -1346,26 +1680,24 @@ def score_hmm_unit_id_shuffle(bst, hmm, n_shuffles=250, normalize=False):
 
 
 def get_significant_events(scores, shuffled_scores, q=95):
-    """Return the significant events based on percentiles.
-
-    NOTE: The score is compared to the distribution of scores obtained
-    using the randomized data and a Monte Carlo p-value can be computed
-    according to: p = (r+1)/(n+1), where r is the number of
-    randomizations resulting in a score higher than (ETIENNE EDIT: OR EQUAL TO?)
-    the real score and n is the total number of randomizations performed.
+    """
+    Return the significant events based on percentiles.
 
     Parameters
     ----------
-    scores : array of shape (n_events,)
-    shuffled_scores : array of shape (n_shuffles, n_events)
-    q : float in range of [0,100]
-        Percentile to compute, which must be between 0 and 100 inclusive.
+    scores : np.ndarray
+        Scores for each event.
+    shuffled_scores : np.ndarray
+        Shuffled scores for each event and shuffle.
+    q : float, optional
+        Percentile to compute (default is 95).
 
     Returns
     -------
-    sig_event_idx : array of shape (n_sig_events,)
-        Indices (from 0 to n_events-1) of significant events.
-    pvalues :
+    sig_event_idx : np.ndarray
+        Indices of significant events.
+    pvalues : np.ndarray
+        Monte Carlo p-values for each event.
     """
 
     n, _ = shuffled_scores.shape
@@ -1380,20 +1712,22 @@ def get_significant_events(scores, shuffled_scores, q=95):
 
 
 def score_hmm_logprob_cumulative(bst, hmm, normalize=False):
-    """Score events in a BinnedSpikeTrainArray by computing the log
-    probability under the model.
+    """
+    Score events in a BinnedSpikeTrainArray by computing the cumulative log probability under the model.
 
     Parameters
     ----------
     bst : BinnedSpikeTrainArray
+        Binned spike train array containing all candidate events.
     hmm : PoissonHMM
-    normalize : bool, optional. Default is False.
-        If True, log probabilities will be normalized by their sequence
-        lengths.
+        Trained hidden Markov model.
+    normalize : bool, optional
+        If True, log probabilities will be normalized by their sequence lengths.
+
     Returns
     -------
-    logprob : array of size (n_events,)
-        Log probabilities, one for each event in bst.
+    logprob : np.ndarray
+        Cumulative log probabilities for each event in bst.
     """
 
     logprob = np.atleast_1d(hmm._cum_score_per_bin(bst))
@@ -1408,26 +1742,26 @@ def score_hmm_logprob_cumulative(bst, hmm, normalize=False):
 
 
 def score_hmm_time_resolved(bst, hmm, n_shuffles=250, normalize=False):
-    """Score sequences using a hidden Markov model, and a model where
-    the transition probability matrix has been shuffled.BaseException
+    """
+    Score sequences using a hidden Markov model and a model where the transition probability matrix has been shuffled (time-resolved).
 
     Parameters
     ----------
     bst : BinnedSpikeTrainArray
-        BinnedSpikeTrainArray containing all the candidate events to
-        score.
+        Binned spike train array containing all candidate events.
     hmm : PoissonHMM
-        Trained hidden markov model to score sequences.
-    n_shuffles : int, optional (default is 250)
-        Number of times to perform both time_swap and column_cycle
-        shuffles.
-    normalize : bool, optional (default is False)
-        If True, the scores will be normalized by event lengths.
+        Trained hidden Markov model.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    normalize : bool, optional
+        If True, normalize the scores by event lengths.
 
     Returns
     -------
-    scores : array of size (n_events,)
-    shuffled : array of size (n_shuffles, n_events)
+    scores : np.ndarray
+        Log probabilities for each event.
+    shuffled : np.ndarray
+        Shuffled log probabilities for each event and shuffle.
     """
 
     if float(n_shuffles).is_integer:
@@ -1495,9 +1829,30 @@ def three_consecutive_bins_above_q(pvals, lengths, q=0.75, n_consecutive=3):
 def _scoreOrderD_time_swap(
     hmm, state_sequences, lengths, n_shuffles=250, normalize=False
 ):
-    """Compute order score of state sequences
+    """
+    Compute order score of state sequences.
 
     A score of 0 means there's only one state.
+
+    Parameters
+    ----------
+    hmm : PoissonHMM
+        Trained hidden Markov model.
+    state_sequences : list of np.ndarray
+        List of state sequences for each event.
+    lengths : list of int
+        List of lengths for each event.
+    n_shuffles : int, optional
+        Number of shuffles for the null distribution. Default is 250.
+    normalize : bool, optional
+        If True, normalize the scores by event lengths.
+
+    Returns
+    -------
+    scoresD : np.ndarray
+        Scores with no adjacent duplicates.
+    shuffled : np.ndarray
+        Shuffled scores for each event and shuffle.
     """
 
     scoresD = []  # scores with no adjacent duplicates
