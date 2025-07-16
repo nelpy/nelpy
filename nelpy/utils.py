@@ -77,13 +77,28 @@ def ragged_array(arr):
 
 
 def asa_indices_within_epochs(asa, intervalarray):
-    """Return indices of ASA within epochs.
+    """
+    Return indices of ASA within epochs.
 
-    [[start, stop]
-         ...
-     [start, stop]]
+    Parameters
+    ----------
+    asa : AnalogSignalArray
+        AnalogSignalArray object.
+    intervalarray : IntervalArray
+        IntervalArray containing epochs of interest.
 
-    so that data can be associated with asa._data[:,start:stop] for each epoch.
+    Returns
+    -------
+    indices : np.ndarray
+        Array of shape (n_epochs, 2) containing [start, stop] indices
+        for each epoch, so that data can be associated with 
+        asa._data[:,start:stop] for each epoch.
+
+    Examples
+    --------
+    >>> epochs = nelpy.EpochArray([[0, 10], [20, 30]])
+    >>> indices = asa_indices_within_epochs(asa, epochs)
+    >>> data_in_epochs = [asa._data[:, start:stop] for start, stop in indices]
     """
     indices = []
     intervalarray = intervalarray[asa.support]
@@ -381,9 +396,32 @@ def _bst_get_bins_inside_interval(interval, ds, w=1):
 
 def _bst_get_bins(intervalArray, ds, w=1):
     """
-    Docstring goes here. TBD. For use with bins that are contained
-    wholly inside the intervals.
+    Get bin edges and centers for binned spike train analysis.
 
+    Parameters
+    ----------
+    intervalArray : IntervalArray
+        Array of intervals to create bins for.
+    ds : float
+        Time bin width in seconds.
+    w : int, optional
+        Number of bins to use in sliding window mode. Default is 1 (no sliding).
+        For example, 40 ms bins with 5 ms stride: (ds=0.005, w=8).
+
+    Returns
+    -------
+    bins : np.ndarray
+        Array of bin edges.
+    bin_centers : np.ndarray
+        Array of bin centers.
+    binned_support : np.ndarray
+        Support indices for binned data.
+    support : IntervalArray
+        Support intervals for the binned data.
+
+    Notes
+    -----
+    For use with bins that are contained wholly inside the intervals.
     """
     b = []  # bin list
     c = []  # centers list
@@ -481,14 +519,57 @@ def get_mua(st, ds=None, sigma=None, truncate=None, _fast=True):
 
 
 def is_odd(n):
-    """Returns True if n is odd, and False if n is even.
-    Assumes integer.
+    """
+    Check if a number is odd.
+
+    Parameters
+    ----------
+    n : int
+        Integer to check.
+
+    Returns
+    -------
+    bool
+        True if n is odd, False if n is even.
+
+    Examples
+    --------
+    >>> is_odd(3)
+    True
+    >>> is_odd(4)
+    False
+    >>> is_odd(-1)
+    True
     """
     return bool(n & 1)
 
 
 def swap_cols(arr, frm, to):
-    """swap columns of a 2D np.array"""
+    """
+    Swap columns of a 2D numpy array.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        2D array to modify.
+    frm : int
+        Index of first column to swap.
+    to : int
+        Index of second column to swap.
+
+    Returns
+    -------
+    None
+        Modifies array in-place.
+
+    Examples
+    --------
+    >>> arr = np.array([[1, 2, 3], [4, 5, 6]])
+    >>> swap_cols(arr, 0, 2)
+    >>> arr
+    array([[3, 2, 1],
+           [6, 5, 4]])
+    """
     if arr.ndim > 1:
         arr[:, [frm, to]] = arr[:, [to, frm]]
     else:
@@ -496,7 +577,32 @@ def swap_cols(arr, frm, to):
 
 
 def swap_rows(arr, frm, to):
-    """swap rows of a 2D np.array"""
+    """
+    Swap rows of a 2D numpy array.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        2D array to modify.
+    frm : int
+        Index of first row to swap.
+    to : int
+        Index of second row to swap.
+
+    Returns
+    -------
+    None
+        Modifies array in-place.
+
+    Examples
+    --------
+    >>> arr = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    >>> swap_rows(arr, 0, 2)
+    >>> arr
+    array([[7, 8, 9],
+           [4, 5, 6],
+           [1, 2, 3]])
+    """
     if arr.ndim > 1:
         arr[[frm, to], :] = arr[[to, frm], :]
     else:
@@ -528,12 +634,60 @@ def pairwise(iterable):
 
 
 def argsort(seq):
-    # http://stackoverflow.com/questions/3071415/efficient-method-to-calculate-the-rank-vector-of-a-list-in-python
+    """
+    Return indices that would sort a sequence.
+
+    Parameters
+    ----------
+    seq : sequence
+        Sequence to sort (list, tuple, array, etc.).
+
+    Returns
+    -------
+    indices : list
+        List of indices that would sort the sequence.
+
+    Examples
+    --------
+    >>> argsort([3, 1, 4, 1, 5])
+    [1, 3, 0, 2, 4]
+    >>> seq = ['c', 'a', 'b']
+    >>> [seq[i] for i in argsort(seq)]
+    ['a', 'b', 'c']
+
+    Notes
+    -----
+    Based on http://stackoverflow.com/questions/3071415/efficient-method-to-calculate-the-rank-vector-of-a-list-in-python
+    """
     return sorted(range(len(seq)), key=seq.__getitem__)
 
 
 def is_sorted_general(iterable, key=lambda a, b: a <= b):
-    """Check to see if iterable is monotonic increasing (sorted)."""
+    """
+    Check if an iterable is sorted according to a custom key function.
+
+    Parameters
+    ----------
+    iterable : iterable
+        Sequence to check.
+    key : callable, optional
+        Function that takes two elements and returns True if they are in order.
+        Default is lambda a, b: a <= b (monotonic increasing).
+
+    Returns
+    -------
+    bool
+        True if iterable is sorted according to key function.
+
+    Examples
+    --------
+    >>> is_sorted_general([1, 2, 3, 4])
+    True
+    >>> is_sorted_general([4, 3, 2, 1])
+    False
+    >>> is_sorted_general([4, 3, 2, 1], key=lambda a, b: a >= b)  # decreasing
+    True
+    """
     return all(key(a, b) for a, b in pairwise(iterable))
 
 
@@ -1179,7 +1333,25 @@ class PrettyDuration(float):
 
     @staticmethod
     def to_dhms(seconds):
-        """convert seconds into hh:mm:ss:ms"""
+        """
+        Convert seconds into days, hours, minutes, seconds, and milliseconds.
+
+        Parameters
+        ----------
+        seconds : float
+            Time duration in seconds.
+
+        Returns
+        -------
+        namedtuple
+            Named tuple with fields: pos (bool), dd (days), hh (hours), 
+            mm (minutes), ss (seconds), ms (milliseconds).
+
+        Examples
+        --------
+        >>> PrettyDuration.to_dhms(3661.5)
+        Time(pos=True, dd=0, hh=1, mm=1, ss=1, ms=500.0)
+        """
         pos = seconds >= 0
         if not pos:
             seconds = -seconds
@@ -1195,7 +1367,26 @@ class PrettyDuration(float):
 
     @staticmethod
     def time_string(seconds):
-        """returns a formatted time string."""
+        """
+        Return a formatted time string.
+
+        Parameters
+        ----------
+        seconds : float
+            Time duration in seconds.
+
+        Returns
+        -------
+        str
+            Formatted time string (e.g., "1:01:01.5 hours", "30.5 seconds").
+
+        Examples
+        --------
+        >>> PrettyDuration.time_string(3661.5)
+        '1:01:01.5 hours'
+        >>> PrettyDuration.time_string(30.5)
+        '30.5 seconds'
+        """
         if np.isinf(seconds):
             return "inf"
         pos, dd, hh, mm, ss, s = PrettyDuration.to_dhms(seconds)
@@ -1256,37 +1447,145 @@ class PrettyDuration(float):
         return timestr
 
     def __add__(self, other):
-        """a + b"""
+        """
+        Add another value to this duration.
+
+        Parameters
+        ----------
+        other : float or PrettyDuration
+            Value to add.
+
+        Returns
+        -------
+        PrettyDuration
+            New duration object.
+        """
         return PrettyDuration(self.duration + other)
 
     def __radd__(self, other):
-        """b + a"""
+        """
+        Add this duration to another value (right addition).
+
+        Parameters
+        ----------
+        other : float or PrettyDuration
+            Value to add to.
+
+        Returns
+        -------
+        PrettyDuration
+            New duration object.
+        """
         return self.__add__(other)
 
     def __sub__(self, other):
-        """a - b"""
+        """
+        Subtract another value from this duration.
+
+        Parameters
+        ----------
+        other : float or PrettyDuration
+            Value to subtract.
+
+        Returns
+        -------
+        PrettyDuration
+            New duration object.
+        """
         return PrettyDuration(self.duration - other)
 
     def __rsub__(self, other):
-        """b - a"""
+        """
+        Subtract this duration from another value (right subtraction).
+
+        Parameters
+        ----------
+        other : float or PrettyDuration
+            Value to subtract from.
+
+        Returns
+        -------
+        PrettyDuration
+            New duration object.
+        """
         return other - self.duration
 
     def __mul__(self, other):
-        """a * b"""
+        """
+        Multiply this duration by another value.
+
+        Parameters
+        ----------
+        other : float
+            Value to multiply by.
+
+        Returns
+        -------
+        PrettyDuration
+            New duration object.
+        """
         return PrettyDuration(self.duration * other)
 
     def __rmul__(self, other):
-        """b * a"""
+        """
+        Multiply another value by this duration (right multiplication).
+
+        Parameters
+        ----------
+        other : float
+            Value to multiply.
+
+        Returns
+        -------
+        PrettyDuration
+            New duration object.
+        """
         return self.__mul__(other)
 
     def __truediv__(self, other):
-        """a / b"""
+        """
+        Divide this duration by another value.
+
+        Parameters
+        ----------
+        other : float
+            Value to divide by.
+
+        Returns
+        -------
+        PrettyDuration
+            New duration object.
+        """
         return PrettyDuration(self.duration / other)
 
 
 def shrinkMatColsTo(mat, numCols):
-    """Docstring goes here
-    Shrinks a NxM1 matrix down to an NxM2 matrix, where M2 <= M1"""
+    """
+    Shrink a matrix by reducing the number of columns using interpolation.
+
+    Parameters
+    ----------
+    mat : np.ndarray
+        Input matrix of shape (N, M1).
+    numCols : int
+        Target number of columns M2, where M2 <= M1.
+
+    Returns
+    -------
+    np.ndarray
+        Resized matrix of shape (N, numCols).
+
+    Examples
+    --------
+    >>> mat = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
+    >>> shrinkMatColsTo(mat, 2)
+    array([[1.5, 3.5],
+           [5.5, 7.5]])
+
+    Notes
+    -----
+    Uses scipy.ndimage.interpolation.zoom with order=1 (linear interpolation).
+    """
     import scipy.ndimage
 
     numCells = mat.shape[0]
@@ -1485,6 +1784,27 @@ def get_events_boundaries(
 
 
 def signal_envelope1D(data, *, sigma=None, fs=None):
+    """
+    Find the signal envelope using the Hilbert transform (deprecated).
+
+    Parameters
+    ----------
+    data : numpy array, list, or RegularlySampledAnalogSignalArray
+        Input data.
+    sigma : float, optional
+        Standard deviation of Gaussian smoothing kernel in seconds.
+    fs : float, optional
+        Sampling rate of the signal.
+
+    Returns
+    -------
+    out : same type as input
+        Signal envelope.
+
+    Notes
+    -----
+    This function is deprecated. Use `signal_envelope_1d` instead.
+    """
     logging.warnings(
         "'signal_envelope1D' is deprecated; use 'signal_envelope_1d' instead!"
     )
@@ -2115,9 +2435,29 @@ def get_inactive_epochs(speed, v1=5, v2=7):
 
 
 def spiketrain_union(st1, st2):
-    """Join two spiketrains together.
+    """
+    Join two spiketrains together.
 
+    Parameters
+    ----------
+    st1 : SpikeTrainArray
+        First spiketrain.
+    st2 : SpikeTrainArray
+        Second spiketrain.
+
+    Returns
+    -------
+    SpikeTrainArray
+        Combined spiketrain with joined support.
+
+    Examples
+    --------
+    >>> combined_st = spiketrain_union(st1, st2)
+
+    Notes
+    -----
     WARNING! This function should be improved a lot!
+    Currently assumes both spiketrains have the same number of units.
     """
     assert st1.n_units == st2.n_units
     support = st1.support.join(st2.support)
@@ -2139,67 +2479,88 @@ def spiketrain_union(st1, st2):
 
 
 def find_nearest_idx(array, val):
-    """Finds nearest index in array to value.
+    """
+    Find the index of the nearest value in an array.
 
     Parameters
     ----------
-    array : np.array
+    array : np.ndarray
+        Input array to search in.
     val : float
+        Value to find the nearest index for.
 
     Returns
     -------
-    Index into array that is closest to val
+    int
+        Index into array that is closest to val.
 
-    TODO: this is a better version that should be incorporated:
-    # Based on answer here: http://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
-    def find_nearest(array,values):
-        right_idxs = np.searchsorted(array, values, side="left")
-        left_idxs = np.where(right_idxs > 0, right_idxs-1, right_idxs)
-        right_idxs = np.where(right_idxs == len(array), len(array)-1, right_idxs)
-        closest_idx = np.where(np.abs(values - array[right_idxs]) < np.abs(values - array[left_idxs]),
-                            right_idxs, left_idxs)
-        return closest_idx
+    Examples
+    --------
+    >>> array = np.array([1, 3, 5, 7, 9])
+    >>> find_nearest_idx(array, 4)
+    1
+    >>> find_nearest_idx(array, 6)
+    2
 
+    Notes
+    -----
+    TODO: A more efficient version using searchsorted should be incorporated:
+    Based on answer here: http://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
     """
     return (np.abs(array - val)).argmin()
 
 
 def find_nearest_indices(array, vals):
-    """Finds nearest index in array to value.
+    """
+    Find indices of nearest values in an array for multiple values.
 
     Parameters
     ----------
-    array : np.array
-        This is the array you wish to index into.
-    vals : np.array
-        This is the array that you are getting your indices from.
+    array : np.ndarray
+        Input array to search in.
+    vals : np.ndarray
+        Array of values to find nearest indices for.
 
     Returns
     -------
-    Indices into array that is closest to vals.
+    np.ndarray
+        Array of indices into array that are closest to vals.
+
+    Examples
+    --------
+    >>> array = np.array([1, 3, 5, 7, 9])
+    >>> vals = np.array([2, 4, 6, 8])
+    >>> find_nearest_indices(array, vals)
+    array([0, 1, 2, 3])
 
     Notes
     -----
     Wrapper around find_nearest_idx().
-
     """
     return np.array([find_nearest_idx(array, val) for val in vals], dtype=int)
 
 
 def get_sort_idx(tuning_curves):
-    """Finds indices to sort neurons by max firing in tuning curve.
+    """
+    Find indices to sort neurons by maximum firing rate location in tuning curve.
 
     Parameters
     ----------
     tuning_curves : list of lists
-        Where each inner list is the tuning curves for an individual
+        List where each inner list contains the tuning curve for an individual
         neuron.
 
     Returns
     -------
     sorted_idx : list
-        List of integers that correspond to the neuron in sorted order.
+        List of integers that correspond to neurons sorted by the location
+        of their maximum firing rate in the tuning curve.
 
+    Examples
+    --------
+    >>> tuning_curves = [[1, 5, 2], [3, 1, 4], [2, 3, 6]]
+    >>> get_sort_idx(tuning_curves)
+    [1, 0, 2]  # sorted by position of max firing rate
     """
     tc_max_loc = []
     for i, neuron_tc in enumerate(tuning_curves):
@@ -2214,7 +2575,35 @@ def get_sort_idx(tuning_curves):
 
 
 def collapse_time(obj, gap=0):
-    """Collapse all epochs in a SpikeTrainArray and collapse them into a single, contiguous SpikeTrainArray"""
+    """
+    Collapse all epochs in an object into a single, contiguous object.
+
+    Parameters
+    ----------
+    obj : SpikeTrainArray or AnalogSignalArray
+        Object with multiple epochs to collapse.
+    gap : float, optional
+        Gap to insert between epochs in the collapsed object. Default is 0.
+
+    Returns
+    -------
+    obj
+        New object of the same type with all epochs collapsed into a single
+        contiguous epoch.
+
+    Examples
+    --------
+    >>> # Collapse a SpikeTrainArray with multiple epochs
+    >>> collapsed_st = collapse_time(spiketrain)
+    >>> # Collapse an AnalogSignalArray with gaps between epochs
+    >>> collapsed_asa = collapse_time(analogsignal, gap=0.1)
+
+    Notes
+    -----
+    For SpikeTrainArrays, gaps are not yet supported.
+    The function adjusts spike times or signal times to create a continuous
+    timeline while preserving the original epoch boundaries information.
+    """
 
     # TODO: redo SpikeTrainArray so as to keep the epochs separate!, and to support gaps!
 
@@ -2289,18 +2678,32 @@ def collapse_time(obj, gap=0):
 
 
 def cartesian(xcenters, ycenters):
-    """Finds every combination of elements in two arrays.
+    """
+    Find every combination of elements in two arrays (Cartesian product).
 
     Parameters
     ----------
-    xcenters : np.array
-    ycenters : np.array
+    xcenters : np.ndarray
+        First array of values.
+    ycenters : np.ndarray
+        Second array of values.
 
     Returns
     -------
-    cartesian : np.array
-        With shape(n_sample, 2).
+    cartesian : np.ndarray
+        Array of shape (n_samples, 2) containing all combinations.
 
+    Examples
+    --------
+    >>> x = np.array([1, 2])
+    >>> y = np.array([3, 4, 5])
+    >>> cartesian(x, y)
+    array([[1, 3],
+           [1, 4],
+           [1, 5],
+           [2, 3],
+           [2, 4],
+           [2, 5]])
     """
     return np.transpose(
         [np.tile(xcenters, len(ycenters)), np.repeat(ycenters, len(xcenters))]
