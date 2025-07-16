@@ -779,8 +779,13 @@ class RegularlySampledAnalogSignalArray:
         return self._abscissa.base_unit
 
     def _data_interval_indices(self):
-        """Docstring goes here.
-        We use this to get the indices of samples / abscissa_vals within intervals
+        """
+        Get the start and stop indices for each interval in the analog signal array.
+
+        Returns
+        -------
+        indices : np.ndarray
+            Array of shape (n_intervals, 2), where each row contains the start and stop indices for an interval.
         """
         tmp = np.insert(np.cumsum(self.lengths), 0, 0)
         indices = np.vstack((tmp[:-1], tmp[1:])).T
@@ -924,7 +929,14 @@ class RegularlySampledAnalogSignalArray:
             )
 
     def zscore(self):
-        """Returns an object where each signal has been normalized using z scores."""
+        """
+        Normalize each signal in the array using z-scores (zero mean, unit variance).
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            New object with z-scored data.
+        """
         out = self.copy()
         out._data = zscore(out._data, axis=1)
         return out
@@ -1736,7 +1748,19 @@ class RegularlySampledAnalogSignalArray:
             )
 
     def mean(self, *, axis=1):
-        """Returns the mean of each signal in RegularlySampledAnalogSignalArray."""
+        """
+        Compute the mean of the data along the specified axis.
+
+        Parameters
+        ----------
+        axis : int, optional
+            Axis along which to compute the mean (default is 1, i.e., across samples).
+
+        Returns
+        -------
+        mean : np.ndarray
+            Mean values along the specified axis.
+        """
         try:
             means = np.nanmean(self.data, axis=axis).squeeze()
             if means.size == 1:
@@ -1748,7 +1772,19 @@ class RegularlySampledAnalogSignalArray:
             )
 
     def std(self, *, axis=1):
-        """Returns the standard deviation of each signal in RegularlySampledAnalogSignalArray."""
+        """
+        Compute the standard deviation of the data along the specified axis.
+
+        Parameters
+        ----------
+        axis : int, optional
+            Axis along which to compute the standard deviation (default is 1).
+
+        Returns
+        -------
+        std : np.ndarray
+            Standard deviation values along the specified axis.
+        """
         try:
             stds = np.nanstd(self.data, axis=axis).squeeze()
             if stds.size == 1:
@@ -1760,7 +1796,19 @@ class RegularlySampledAnalogSignalArray:
             )
 
     def max(self, *, axis=1):
-        """Returns the maximum of each signal in RegularlySampledAnalogSignalArray"""
+        """
+        Compute the maximum value of the data along the specified axis.
+
+        Parameters
+        ----------
+        axis : int, optional
+            Axis along which to compute the maximum (default is 1).
+
+        Returns
+        -------
+        max : np.ndarray
+            Maximum values along the specified axis.
+        """
         try:
             maxes = np.amax(self.data, axis=axis).squeeze()
             if maxes.size == 1:
@@ -1772,7 +1820,19 @@ class RegularlySampledAnalogSignalArray:
             )
 
     def min(self, *, axis=1):
-        """Returns the minimum of each signal in RegularlySampledAnalogSignalArray"""
+        """
+        Compute the minimum value of the data along the specified axis.
+
+        Parameters
+        ----------
+        axis : int, optional
+            Axis along which to compute the minimum (default is 1).
+
+        Returns
+        -------
+        min : np.ndarray
+            Minimum values along the specified axis.
+        """
         try:
             mins = np.amin(self.data, axis=axis).squeeze()
             if mins.size == 1:
@@ -1784,58 +1844,42 @@ class RegularlySampledAnalogSignalArray:
             )
 
     def clip(self, min, max):
-        """Clip (limit) the values of each signal to min and max as specified.
-
-        Parameters
-        ----------
-        min : scalar
-            Minimum value
-        max : scalar
-            Maximum value
-
-        Returns
-        ----------
-        clipped_analogsignalarray : RegularlySampledAnalogSignalArray
-            RegularlySampledAnalogSignalArray with the signal clipped with the elements of data, but where the values <
-            min are replaced with min and the values > max are replaced
-            with max.
         """
-        new_data = np.clip(self.data, min, max)
-        newasa = self.copy()
-        newasa._data = new_data
-        return newasa
-
-    def trim(self, start, stop=None, *, fs=None):
-        """Trim the RegularlySampledAnalogSignalArray to a single interval.
+        Clip (limit) the values in the data to the interval [min, max].
 
         Parameters
         ----------
-        start : float or two element array-like
-            (float) Left boundary of interval in time (seconds) if
-            fs=None, otherwise left boundary is start / fs.
-            (2 elements) Left and right boundaries in time (seconds) if
-            fs=None, otherwise boundaries are left / fs. Stop must be
-            None if 2 element start is used.
-        stop : float, optional
-            Right boundary of interval in time (seconds) if fs=None,
-            otherwise right boundary is stop / fs.
-        fs : float, optional
-            Sampling rate in Hz.
+        min : float
+            Minimum value.
+        max : float
+            Maximum value.
 
         Returns
         -------
-        trim : RegularlySampledAnalogSignalArray
-            The RegularlySampledAnalogSignalArray on the interval [start, stop].
+        out : RegularlySampledAnalogSignalArray
+            New object with clipped data.
+        """
+        out = self.copy()
+        out._data = np.clip(self.data, min, max)
+        return out
 
-        Examples
-        --------
-        >>> as.trim([0, 3], fs=1)  # recommended for readability
-        >>> as.trim(start=0, stop=3, fs=1)
-        >>> as.trim(start=[0, 3])
-        >>> as.trim(0, 3)
-        >>> as.trim((0, 3))
-        >>> as.trim([0, 3])
-        >>> as.trim(np.array([0, 3]))
+    def trim(self, start, stop=None, *, fs=None):
+        """
+        Trim the signal to the specified start and stop times.
+
+        Parameters
+        ----------
+        start : float
+            Start time.
+        stop : float, optional
+            Stop time. If None, trims to the end.
+        fs : float, optional
+            Sampling frequency. If None, uses self.fs.
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            Trimmed signal array.
         """
         logging.warning("RegularlySampledAnalogSignalArray: Trim may not work!")
         # TODO: do comprehensive input validation
