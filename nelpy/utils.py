@@ -51,9 +51,23 @@ except ImportError:
 
 
 def ragged_array(arr):
-    """Takes a list of arrays, and returns a ragged array.
+    """
+    Convert a list of arrays into a ragged array (object dtype).
 
-    See https://github.com/numpy/numpy/issues/12468
+    Parameters
+    ----------
+    arr : list of np.ndarray
+        List of arrays to combine into a ragged array.
+
+    Returns
+    -------
+    out : np.ndarray
+        Ragged array of dtype object.
+
+    Examples
+    --------
+    >>> ragged_array([np.arange(3), np.arange(5)])
+    array([array([0, 1, 2]), array([0, 1, 2, 3, 4])], dtype=object)
     """
     n_elem = len(arr)
     out = np.array(n_elem * [None])
@@ -84,12 +98,28 @@ def asa_indices_within_epochs(asa, intervalarray):
 
 
 def frange(start, stop, step):
-    """arange with floating point step"""
-    # TODO: this function is not very general; we can extend it to work
-    # for reverse (stop < start), empty, and default args, etc.
-    # there are also many edge cases where this is weird.
-    # see https://stackoverflow.com/questions/7267226/range-for-floats
-    # for better alternatives.
+    """
+    Generate a range of floating point values with a given step size.
+
+    Parameters
+    ----------
+    start : float
+        Start value.
+    stop : float
+        Stop value (exclusive).
+    step : float
+        Step size.
+
+    Returns
+    -------
+    out : np.ndarray
+        Array of values from start to stop (exclusive) with given step.
+
+    Examples
+    --------
+    >>> frange(0, 1, 0.2)
+    array([0. , 0.2, 0.4, 0.6, 0.8])
+    """
     num_steps = int(np.floor((stop - start) / step))
     return np.linspace(start, stop, num=num_steps, endpoint=False)
 
@@ -474,13 +504,22 @@ def swap_rows(arr, frm, to):
 
 
 def pairwise(iterable):
-    """returns a zip of all neighboring pairs.
-    This is used as a helper function for is_sorted.
+    """
+    Return a zip of all neighboring pairs in an iterable.
+
+    Parameters
+    ----------
+    iterable : iterable
+        Input iterable.
+
+    Returns
+    -------
+    pairs : zip
+        Iterator of pairs (a, b).
 
     Examples
     --------
-    >>> mylist = [2, 3, 6, 8, 7]
-    >>> list(pairwise(mylist))
+    >>> list(pairwise([2, 3, 6, 8, 7]))
     [(2, 3), (3, 6), (6, 8), (8, 7)]
     """
     a, b = tee(iterable)
@@ -499,13 +538,27 @@ def is_sorted_general(iterable, key=lambda a, b: a <= b):
 
 
 def is_sorted(x, chunk_size=None):
-    """Returns True if iterable is monotonic increasing (sorted).
+    """
+    Check if a 1D array, list, or tuple is monotonically increasing (sorted).
 
-    NOTE: intended for 1D array, list or tuple. Will not work on
-    more than 1D
+    Parameters
+    ----------
+    x : array-like
+        1D array, list, or tuple to check.
+    chunk_size : int, optional
+        Size of chunks to check at a time (for large arrays).
 
-    This function works in-core with memory footrpint XXX.
-    chunk_size = 100000 is probably a good choice.
+    Returns
+    -------
+    sorted : bool
+        True if x is sorted, False otherwise.
+
+    Examples
+    --------
+    >>> is_sorted([1, 2, 3])
+    True
+    >>> is_sorted([1, 3, 2])
+    False
     """
 
     if not isinstance(x, (tuple, list, np.ndarray)):
@@ -527,25 +580,26 @@ def is_sorted(x, chunk_size=None):
 
 
 def linear_merge(list1, list2):
-    """Merge two SORTED lists in linear time.
+    """
+    Merge two sorted lists in linear time.
 
-    UPDATED TO WORK WITH PYTHON 3.7+ (see https://stackoverflow.com/questions/51700960/runtimeerror-generator-raised-stopiteration-every-time-i-try-to-run-app)
+    Parameters
+    ----------
+    list1 : list or np.ndarray
+        First sorted list.
+    list2 : list or np.ndarray
+        Second sorted list.
 
-    Returns a generator of the merged result.
+    Returns
+    -------
+    merged : generator
+        Generator yielding merged, sorted elements.
 
     Examples
     --------
-    >>> a = [1, 3, 5, 7]
-    >>> b = [2, 4, 6, 8]
-    >>> [i for i in linear_merge(a, b)]
-    [1, 2, 3, 4, 5, 6, 7, 8]
-
-    >>> [i for i in linear_merge(b, a)]
-    [1, 2, 3, 4, 5, 6, 7, 8]
-
-    >>> a = [1, 2, 2, 3]
-    >>> b = [2, 2, 4, 4]
-    >>> [i for i in linear_merge(a, b)]
+    >>> list(linear_merge([1, 3, 5], [2, 4, 6]))
+    [1, 2, 3, 4, 5, 6]
+    >>> list(linear_merge([1, 2, 2, 3], [2, 2, 4, 4]))
     [1, 2, 2, 2, 2, 3, 4, 4]
     """
 
