@@ -1,7 +1,7 @@
 site_name: "nelpy"
 repo_name: nelpy/nelpy
 repo_url: https://github.com/nelpy/nelpy
-edit_uri: edit/main/docs/
+edit_uri: edit/master/docs/
 
 extra_css:
   - stylesheets/extra.css
