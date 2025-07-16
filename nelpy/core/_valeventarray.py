@@ -1171,18 +1171,46 @@ class ValueEventArray(BaseValueEventArray):
 # class MarkedSpikeTrainArray
 ########################################################################
 class MarkedSpikeTrainArray(ValueEventArray):
-    """Custom MarkedSpikeTrainArray docstring with kwarg descriptions.
+    """
+    MarkedSpikeTrainArray for storing spike times with associated marks (e.g., waveform features).
 
-    TODO: add docstring here, using the aliases in the constructor.
+    This class extends ValueEventArray to support marks for each spike event, such as tetrode features or other metadata.
 
-    Canonical signature: msta = nel.MarkedSpikeTrainArray(
-                                        events=events, #spikes? spiketimes? timestamps?
-                                        marks=marks,
-                                        support=support,
-                                        fs=fs,
-                                        series_label='tetrodes',
-                                        **kwargs
-                                        )
+    Parameters
+    ----------
+    events : array-like
+        Spike times or event times.
+    marks : array-like
+        Associated marks/features for each event.
+    support : nelpy.IntervalArray, optional
+        Support intervals for the spike train.
+    fs : float, optional
+        Sampling frequency in Hz.
+    series_label : str, optional
+        Label for the series (e.g., 'tetrodes').
+    **kwargs :
+        Additional keyword arguments passed to the parent class.
+
+    Attributes
+    ----------
+    events : array-like
+        Spike times or event times.
+    marks : array-like
+        Associated marks/features for each event.
+    support : nelpy.IntervalArray
+        Support intervals for the spike train.
+    fs : float
+        Sampling frequency in Hz.
+    series_label : str
+        Label for the series.
+
+    Examples
+    --------
+    >>> msta = MarkedSpikeTrainArray(events=spike_times, marks=features, fs=30000)
+    >>> msta.events
+    array([...])
+    >>> msta.marks
+    array([...])
     """
 
     # specify class-specific aliases:
@@ -1252,19 +1280,52 @@ class MarkedSpikeTrainArray(ValueEventArray):
 # class StatefulValueEventArray
 ########################################################################
 class StatefulValueEventArray(BaseValueEventArray):
-    """Custom StatefulValueEventArray docstring with kwarg descriptions.
+    """
+    StatefulValueEventArray for storing events with associated values and states.
 
-    TODO: add docstring here, using the aliases in the constructor.
+    This class extends BaseValueEventArray to support state information for each event, such as behavioral or experimental states.
 
-    Canonical signature: sveva = nel.StatefulValueEventArray(
-                                        events=events,
-                                        values=values,
-                                        states=states, # what's the format of these?
-                                        support=support,
-                                        fs=fs,
-                                        series_label='tetrodes',
-                                        **kwargs
-                                        )
+    Parameters
+    ----------
+    events : array-like
+        Event times.
+    values : array-like
+        Values associated with each event.
+    states : array-like
+        States associated with each event.
+    support : nelpy.IntervalArray, optional
+        Support intervals for the events.
+    fs : float, optional
+        Sampling frequency in Hz.
+    series_label : str, optional
+        Label for the series.
+    **kwargs :
+        Additional keyword arguments passed to the parent class.
+
+    Attributes
+    ----------
+    events : array-like
+        Event times.
+    values : array-like
+        Values associated with each event.
+    states : array-like
+        States associated with each event.
+    support : nelpy.IntervalArray
+        Support intervals for the events.
+    fs : float
+        Sampling frequency in Hz.
+    series_label : str
+        Label for the series.
+
+    Examples
+    --------
+    >>> sveva = StatefulValueEventArray(events=event_times, values=event_values, states=event_states, fs=1000)
+    >>> sveva.events
+    array([...])
+    >>> sveva.values
+    array([...])
+    >>> sveva.states
+    array([...])
     """
 
     # specify class-specific aliases:
