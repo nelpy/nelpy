@@ -1110,8 +1110,78 @@ class EpochArray(IntervalArray):
 
 
 class SpaceArray(IntervalArray):
-    """IntervalArray containing spatial intervals (in cm)."""
+    """
+    IntervalArray containing spatial intervals (in centimeters).
 
+    This class extends `IntervalArray` to specifically handle space-based
+    intervals, such as linear or 2D spatial regions. It provides a formatter
+    for displaying spatial lengths and can be used for spatial segmentation
+    in behavioral or neural data analysis.
+
+    Parameters
+    ----------
+    data : np.array, optional
+        If shape (n_intervals, 1) or (n_intervals,), the start position for each
+        interval (which then requires a `length` to be specified).
+        If shape (n_intervals, 2), the start and stop positions for each interval.
+        Defaults to None, creating an empty `SpaceArray`.
+    length : np.array, float, or None, optional
+        The length of the interval (in base units, centimeters). If a float,
+        the same length is assumed for every interval. Only used if `data`
+        is a 1D array of start positions.
+    meta : dict, optional
+        Metadata associated with the spatial intervals.
+    empty : bool, optional
+        If True, an empty `SpaceArray` is returned, ignoring `data` and `length`.
+        Defaults to False.
+    domain : IntervalArray, optional
+        The domain within which the spatial intervals are defined. If None, it defaults
+        to an infinite domain.
+    label : str, optional
+        A descriptive label for the space array.
+
+    Attributes
+    ----------
+    data : np.array
+        The start and stop positions for each interval, with shape (n_intervals, 2).
+    n_intervals : int
+        The number of spatial intervals in the array.
+    lengths : np.array
+        The length of each spatial interval (in centimeters).
+    formatter : formatters.PrettySpace
+        The formatter used for displaying spatial lengths.
+    base_unit : str
+        The base unit of the intervals, which is 'cm' for SpaceArray.
+
+    Notes
+    -----
+    This class inherits all methods and properties from `IntervalArray`.
+    It is intended for use with spatial data, such as segmenting a linear track
+    or defining regions of interest in a behavioral arena.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from nelpy.core import SpaceArray
+
+    >>> # Create a SpaceArray from start and stop positions
+    >>> regions = SpaceArray(data=np.array([[0, 50], [100, 150]]))
+    >>> print(regions)
+    <SpaceArray at 0x...: 2 intervals> of length 100 cm
+
+    >>> # Create a SpaceArray from start positions and a common length
+    >>> starts = np.array([0, 100])
+    >>> length = 25.0
+    >>> regions_with_length = SpaceArray(data=starts, length=length)
+    >>> print(regions_with_length)
+    <SpaceArray at 0x...: 2 intervals> of length 50 cm
+
+    >>> # Accessing attributes
+    >>> print(f"Number of regions: {regions.n_intervals}")
+    Number of regions: 2
+    >>> print(f"Lengths: {regions.lengths}")
+    Lengths: [50 50]
+    """
     __aliases__ = {}
 
     def __init__(self, *args, **kwargs):
