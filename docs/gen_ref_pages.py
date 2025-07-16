@@ -29,8 +29,8 @@ for path in sorted(src.rglob("*.py")):
         continue
 
     # Skip known problematic modules
-    # if "octagon_maze" in parts:
-    #     continue
+    if "contrib" in parts:
+        continue
 
     nav_parts = [f"{mod_symbol} {part}" for part in parts]
     nav[tuple(nav_parts)] = doc_path.as_posix()
