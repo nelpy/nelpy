@@ -79,6 +79,7 @@ plugins:
     execute: false
     allow_errors: true
     include_requirejs: true
+    custom_mathjax_url: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML-full,Safe"
 - minify:
     minify_html: true
     minify_js: true
