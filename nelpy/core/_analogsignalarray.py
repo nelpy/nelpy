@@ -30,11 +30,40 @@ from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 
 
 class IntervalSignalSlicer(object):
-    def __init__(self, obj):
-        self.obj = obj
+    """
+    Slicer for extracting intervals and signals from analog signal arrays.
 
+    Parameters
+    ----------
+    obj : object
+        The parent object to slice.
+    """
+    def __init__(self, obj):
+        """
+        Initialize the IntervalSignalSlicer.
+
+        Parameters
+        ----------
+        obj : object
+            The parent object to slice.
+        """
+        self.obj = obj
     def __getitem__(self, *args):
-        """intervals, signals"""
+        """
+        Extract intervals and signals based on the provided arguments.
+
+        Parameters
+        ----------
+        *args : int, slice, or IntervalArray
+            Indices or slices for intervals and signals.
+
+        Returns
+        -------
+        intervalslice : int, slice, or IntervalArray
+            The interval slice.
+        signalslice : int or slice
+            The signal slice.
+        """
         # by default, keep all signals
         signalslice = slice(None, None, None)
         if isinstance(*args, int):
@@ -61,17 +90,45 @@ class IntervalSignalSlicer(object):
 
 
 class DataSlicer(object):
+    """
+    Slicer for extracting data from analog signal arrays by interval and signal.
 
+    Parameters
+    ----------
+    parent : object
+        The parent object to slice.
+    """
     def __init__(self, parent):
-        self._parent = parent
+        """
+        Initialize the DataSlicer.
 
+        Parameters
+        ----------
+        parent : object
+            The parent object to slice.
+        """
+        self._parent = parent
     def _data_generator(self, interval_indices, signalslice):
+        """
+        Generator for data slices by interval and signal.
+
+        Parameters
+        ----------
+        interval_indices : list or array-like
+            Indices of intervals.
+        signalslice : int or slice
+            Signal slice.
+
+        Yields
+        ------
+        data : np.ndarray
+            Data for each interval and signal.
+        """
         for start, stop in interval_indices:
             try:
                 yield self._parent._data[signalslice, start:stop]
             except StopIteration:
                 return
-
     def __getitem__(self, idx):
         intervalslice, signalslice = self._parent._intervalsignalslicer[idx]
 
@@ -112,17 +169,43 @@ class DataSlicer(object):
 
 
 class AbscissaSlicer(object):
+    """
+    Slicer for extracting abscissa values from analog signal arrays by interval.
 
+    Parameters
+    ----------
+    parent : object
+        The parent object to slice.
+    """
     def __init__(self, parent):
-        self._parent = parent
+        """
+        Initialize the AbscissaSlicer.
 
+        Parameters
+        ----------
+        parent : object
+            The parent object to slice.
+        """
+        self._parent = parent
     def _abscissa_vals_generator(self, interval_indices):
+        """
+        Generator for abscissa values by interval.
+
+        Parameters
+        ----------
+        interval_indices : list or array-like
+            Indices of intervals.
+
+        Yields
+        ------
+        abscissa_vals : np.ndarray
+            Abscissa values for each interval.
+        """
         for start, stop in interval_indices:
             try:
                 yield self._parent._abscissa_vals[start:stop]
             except StopIteration:
                 return
-
     def __getitem__(self, idx):
         intervalslice, signalslice = self._parent._intervalsignalslicer[idx]
 
@@ -2737,11 +2820,30 @@ class PositionArray(AnalogSignalArray):
 # class IMUSensorArray
 ########################################################################
 class IMUSensorArray(RegularlySampledAnalogSignalArray):
-    """Custom IMUSensorArray docstring with kwarg descriptions.
-
-    TODO: add the docstring here, using the aliases in the constructor.
     """
+    Array for storing IMU (Inertial Measurement Unit) sensor data with regular sampling rates.
 
+    This class extends RegularlySampledAnalogSignalArray for IMU-specific data, such as accelerometer, gyroscope, and magnetometer signals.
+
+    Parameters
+    ----------
+    *args :
+        Positional arguments passed to the parent class.
+    **kwargs :
+        Keyword arguments passed to the parent class.
+
+    Attributes
+    ----------
+    __aliases__ : dict
+        Dictionary of class-specific aliases.
+
+    Examples
+    --------
+    >>> imu = IMUSensorArray(data=[[0, 1, 2], [3, 4, 5]], fs=100)
+    >>> imu.data
+    array([[0, 1, 2],
+           [3, 4, 5]])
+    """
     # specify class-specific aliases:
     __aliases__ = {}
 
