@@ -1,3 +1,3 @@
-# utils API Reference
+# Utilities API Reference
 
 ::: nelpy.utils 
