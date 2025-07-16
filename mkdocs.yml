@@ -95,7 +95,6 @@ nav:
     - AnalogSignalArray: reference/core/analogsignalarray.md
     - IntervalArray: reference/core/intervalarray.md
     - ValeventArray: reference/core/valeventarray.md
-    - Accessors: reference/core/accessors.md
     - Coordinates: reference/core/coordinates.md
     - Analysis: reference/analysis.md
     - Auxiliary: reference/auxiliary.md
