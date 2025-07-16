@@ -24,6 +24,10 @@ for path in sorted(src.rglob("*.py")):
     if parts[-1] == "__init__":
         continue
 
+    # Skip temporary files
+    if parts[-1] == "temp":
+        continue
+
     # Skip private modules (starting with underscore)
     elif parts[-1].startswith("_"):
         continue
