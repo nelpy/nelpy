@@ -36,6 +36,14 @@ for path in sorted(src.rglob("*.py")):
     if "contrib" in parts:
         continue
 
+    # skip homography files
+    if "homography" in parts:
+        continue
+
+    # skip version.py
+    if parts[-1] == "version":
+        continue
+
     nav_parts = [f"{mod_symbol} {part}" for part in parts]
     nav[tuple(nav_parts)] = doc_path.as_posix()
 
