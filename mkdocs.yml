@@ -90,7 +90,22 @@ plugins:
 
 nav:
 - Home: index.md
-- API Reference: reference/
+- API Reference:
+    - Core:
+        - EventArray: reference/core/eventarray.md
+        - AnalogSignalArray: reference/core/analogsignalarray.md
+        - IntervalArray: reference/core/intervalarray.md
+        - ValeventArray: reference/core/valeventarray.md
+        - Accessors: reference/core/accessors.md
+        - Coordinates: reference/core/coordinates.md
+    - Analysis: reference/analysis.md
+    - Auxiliary: reference/auxiliary.md
+    - Decoding: reference/decoding.md
+    - Plotting: reference/plotting.md
+    - Estimators: reference/estimators.md
+    - Filtering: reference/filtering.md
+    - Preprocessing: reference/preprocessing.md
+    - HMM Utils: reference/hmmutils.md
 - Tutorials:
   - AnalogSignalArray Tutorial: tutorials/AnalogSignalArrayTutorial.ipynb
   - EpochArray Tutorial: tutorials/EpochArrayTutorial.ipynb
