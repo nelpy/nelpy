@@ -25,21 +25,39 @@ __all__ = ['PoissonHMM',
            'estimate_model_quality']
 
 def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_folds=5, mode='timeswap-pooled', verbose=False):
-    """Estimate the HMM 'model quality' associated with the set of events in bst.
+    """
+    Estimate the HMM 'model quality' associated with the set of events in bst.
 
-    TODO: finish docstring, and do some more consistency checking...
-    TODO: add other modes of shuffling
-
-    Params
-    ======
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        The binned spike train array containing the events to evaluate.
+    hmm : PoissonHMM, optional
+        An existing HMM model to use. If None, a new model is fit for each fold.
+    n_states : int, optional
+        Number of hidden states in the HMM. If None and hmm is provided, uses hmm.n_components.
+    n_shuffles : int, optional
+        Number of shuffles to perform for the null distribution. Default is 1000.
+    k_folds : int, optional
+        Number of cross-validation folds. Default is 5.
+    mode : {'timeswap-pooled', 'timeswap-within-event', 'temporal-within-event'}, optional
+        Shuffling mode to use for generating the null distribution. Default is 'timeswap-pooled'.
+    verbose : bool, optional
+        If True, print progress information. Default is False.
 
     Returns
-    =======
+    -------
+    quality : float
+        Z-score of the model quality compared to the shuffled null distribution.
+    scores : np.ndarray
+        Array of log-likelihood scores for each fold.
+    shuffled : np.ndarray
+        Array of log-likelihood scores for each shuffle and fold.
 
-    quality :
-    scores :
-    shuffled :
-
+    Examples
+    --------
+    >>> from nelpy.hmmutils import estimate_model_quality
+    >>> quality, scores, shuffled = estimate_model_quality(bst, n_states=3, n_shuffles=100, k_folds=5)
     """
     from . decoding import k_fold_cross_validation
     from scipy.stats import zmap

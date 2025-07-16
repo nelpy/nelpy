@@ -252,54 +252,37 @@ def spectrogram(data, *, h):
 
 def psdplot(data, *, fs=None, window=None, nfft=None, detrend='constant',
             return_onesided=True, scaling='density', ax=None):
-
-    """Plot the power spectrum of a regularly-sampled time-domain signal.
-
-    TODO: Here we have to be careful: AnalogSignalArray is not guaranteed
-          to have a working / accurate asa.fs parameter :/
-
-          Also, we should probably collapse all the samples, (asdata
-          should be already) and then assume a fixed sampling rate.
-
-    TODO: Should we speed up FFTs by zero padding, or is this done
-          automatically by numpy?
-
-    TODO: implement uneven temporal sampling:
-    https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.signal.lombscargle.html#scipy.signal.lombscargle
-
-    TODO: implement https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html#scipy.signal.welch
+    """
+    Plot the power spectrum of a regularly-sampled time-domain signal.
 
     Parameters
     ----------
+    data : RegularlySampledAnalogSignalArray
+        The input signal to analyze. Must be a 1D regularly sampled signal.
     fs : float, optional
-        Sampling frequency of the x time series in units of Hz.
-        Defaults to data.fs if available.
+        Sampling frequency of the time series in Hz. Defaults to data.fs if available.
     window : str or tuple or array_like, optional
-        Desired window to use. See get_window for a list of windows and
-        required parameters. If window is an array it will be used
-        directly as the window. Defaults to None; equivalent to 'boxcar’.
+        Desired window to use. See scipy.signal.get_window for options. If an array, used directly as the window. Defaults to None ('boxcar').
     nfft : int, optional
-        Length of the FFT used. If None the length of data will be used.
+        Length of the FFT used. If None, the length of data will be used.
     detrend : str or function, optional
-        Specifies how to detrend x prior to computing the spectrum. If
-        detrend is a string, it is passed as the type argument to detrend.
-        If it is a function, it should return a detrended array.
-        Defaults to 'constant’.
+        Specifies how to detrend data prior to computing the spectrum. If a string, passed as the type argument to detrend. If a function, should return a detrended array. Defaults to 'constant'.
     return_onesided : bool, optional
-        If True, return a one-sided spectrum for real data. If False
-        return a two-sided spectrum. Note that for complex data, a
-        two-sided spectrum is always returned.
-    scaling : { 'density’, 'spectrum’ }, optional
-        Selects between computing the power spectral density ('density’)
-        where Pxx has units of V**2/Hz if x is measured in V and
-        computing the power spectrum ('spectrum’) where Pxx has units of
-        V**2 if x is measured in V. Defaults to 'density’
-    ax : matplotlib axis, optional
-        Plot in given axis; if None creates a new figure
+        If True, return a one-sided spectrum for real data. If False, return a two-sided spectrum. For complex data, always returns two-sided spectrum.
+    scaling : {'density', 'spectrum'}, optional
+        Selects between computing the power spectral density ('density', units V**2/Hz) and the power spectrum ('spectrum', units V**2). Defaults to 'density'.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, creates a new figure and axis.
 
     Returns
     -------
-    ax : matplotlib axis
+    ax : matplotlib.axes.Axes
+        The axis with the plotted power spectrum.
+
+    Examples
+    --------
+    >>> from nelpy.plotting.core import psdplot
+    >>> ax = psdplot(my_signal)
     """
 
     if ax is None:
@@ -756,7 +739,18 @@ def comboplot(*, ax=None, raster=None, analog=None, events=None):
     return ax
 
 def occupancy():
-    """Docstring goes here. TODO: complete me."""
+    """
+    Compute and/or plot the occupancy (time spent) in each spatial bin.
+
+    Returns
+    -------
+    occupancy : np.ndarray
+        Array of occupancy values for each bin.
+
+    Notes
+    -----
+    This function is not yet implemented.
+    """
     raise NotImplementedError("occupancy() not implemented yet")
 
 def overviewstrip(epochs, *, ax=None, lw=5, solid_capstyle='butt', label=None, **kwargs):

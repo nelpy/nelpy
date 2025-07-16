@@ -143,7 +143,18 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         return out
     
     def direction(self):
-        """Return the instantaneous direction estimate as an AnalogSignalArray."""
+        """
+        Return the instantaneous direction estimate as an AnalogSignalArray.
+
+        Returns
+        -------
+        direction : AnalogSignalArray
+            The estimated direction at each time point. For 1D, this may be a binary or signed value; for 2D, this may be a continuous angle or vector.
+
+        Notes
+        -----
+        Not yet implemented.
+        """
         # If 1D, then left/right or up/down or fwd/reverse or whatever might
         # make sense, so this signal could be binarized.
         # When 2D, then a continuous cartesian direction vector might make sense
@@ -153,20 +164,62 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         raise NotImplementedError
 
     def idealize(self, segments):
-        """Project the position onto idealized segments."""
+        """
+        Project the position onto idealized segments.
+
+        Parameters
+        ----------
+        segments : array-like
+            The segments onto which to project the position.
+
+        Returns
+        -------
+        idealized : PositionArray
+            The position array constrained to the desired segments.
+
+        Notes
+        -----
+        Not yet implemented.
+        """
         # plan is to return a PositionArray constrained to the desired segments.
 
         raise NotImplementedError
 
     def linearize(self):
-        """Linearize the position estimates."""
+        """
+        Linearize the position estimates.
 
+        Returns
+        -------
+        linearized : PositionArray
+            The linearized position array.
+
+        Notes
+        -----
+        Not yet implemented.
+        """
         # This is unclear how we should do it universally? Maybe have a few presets?
 
         raise NotImplementedError
 
     def bin(self, **kwargs):
-        """Bin position into grid."""
+        """
+        Bin position into a grid.
+
+        Parameters
+        ----------
+        **kwargs :
+            Additional keyword arguments for binning.
+
+        Returns
+        -------
+        binned : np.ndarray
+            The binned position indices or values.
+
+        Notes
+        -----
+        Not yet implemented.
+        """
         raise NotImplementedError
 
     @keyword_deprecation(replace_x_with_y={"bw": "truncate"})

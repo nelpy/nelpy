@@ -1123,12 +1123,12 @@ class RegularlySampledAnalogSignalArray:
         inplace : bool
             If True the data will be replaced with the smoothed data.
             Default is False.
-        mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+        mode : {'reflect', 'constant', 'nearest', 'mirror', 'wrap'}, optional
             The mode parameter determines how the array borders are handled,
-            where cval is the value when mode is equal to ‘constant’. Default is
-            ‘reflect’.
+            where cval is the value when mode is equal to 'constant'. Default is
+            'reflect'.
         cval : scalar, optional
-            Value to fill past edges of input if mode is ‘constant’. Default is 0.0.
+            Value to fill past edges of input if mode is 'constant'. Default is 0.0.
         within_intervals : boolean, optional
             If True, then smooth within each epoch. Otherwise smooth across epochs.
             Default is False.
@@ -2755,11 +2755,29 @@ class IMUSensorArray(RegularlySampledAnalogSignalArray):
 # class MinimalExampleArray
 ########################################################################
 class MinimalExampleArray(RegularlySampledAnalogSignalArray):
-    """Custom MinimalExampleArray docstring with kwarg descriptions.
-
-    TODO: add the docstring here, using the aliases in the constructor.
     """
+    MinimalExampleArray is a custom example subclass of RegularlySampledAnalogSignalArray.
 
+    This class demonstrates how to extend RegularlySampledAnalogSignalArray with custom aliases and methods.
+
+    Parameters
+    ----------
+    *args :
+        Positional arguments passed to the parent class.
+    **kwargs :
+        Keyword arguments passed to the parent class.
+
+    Attributes
+    ----------
+    __aliases__ : dict
+        Dictionary of class-specific aliases.
+
+    Examples
+    --------
+    >>> arr = MinimalExampleArray(data=[[1, 2, 3]], fs=1000)
+    >>> arr.custom_func()
+    Woot! We have some special skillz!
+    """
     # specify class-specific aliases:
     __aliases__ = {}
 
@@ -2769,5 +2787,13 @@ class MinimalExampleArray(RegularlySampledAnalogSignalArray):
         super().__init__(*args, **kwargs)
 
     def custom_func(self):
-        """custom_func docstring goes here."""
+        """
+        Print a custom message demonstrating a special method.
+
+        Examples
+        --------
+        >>> arr = MinimalExampleArray(data=[[1, 2, 3]], fs=1000)
+        >>> arr.custom_func()
+        Woot! We have some special skillz!
+        """
         print("Woot! We have some special skillz!")
