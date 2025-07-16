@@ -91,13 +91,12 @@ plugins:
 nav:
 - Home: index.md
 - API Reference:
-    - Core:
-        - EventArray: reference/core/eventarray.md
-        - AnalogSignalArray: reference/core/analogsignalarray.md
-        - IntervalArray: reference/core/intervalarray.md
-        - ValeventArray: reference/core/valeventarray.md
-        - Accessors: reference/core/accessors.md
-        - Coordinates: reference/core/coordinates.md
+    - EventArray: reference/core/eventarray.md
+    - AnalogSignalArray: reference/core/analogsignalarray.md
+    - IntervalArray: reference/core/intervalarray.md
+    - ValeventArray: reference/core/valeventarray.md
+    - Accessors: reference/core/accessors.md
+    - Coordinates: reference/core/coordinates.md
     - Analysis: reference/analysis.md
     - Auxiliary: reference/auxiliary.md
     - Decoding: reference/decoding.md
