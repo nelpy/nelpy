@@ -985,11 +985,83 @@ class IntervalArray:
 
 # ----------------------------------------------------------------------#
 # ======================================================================#
-
-
 class EpochArray(IntervalArray):
-    """IntervalArray containing temporal intervals (epochs, in seconds)."""
+    """IntervalArray containing temporal intervals (epochs, in seconds).
 
+    This class extends `IntervalArray` to specifically handle time-based
+    intervals, referred to as epochs. It provides aliases for common
+    time-related attributes and uses a `PrettyDuration` formatter for
+    displaying lengths.
+
+    Parameters
+    ----------
+    data : np.array, optional
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each
+        epoch (which then requires a `length` to be specified).
+        If shape (n_epochs, 2), the start and stop times for each epoch.
+        Defaults to None, creating an empty `EpochArray`.
+    length : np.array, float, or None, optional
+        The duration of the epoch (in base units, seconds). If a float,
+        the same duration is assumed for every epoch. Only used if `data`
+        is a 1D array of start times.
+    meta : dict, optional
+        Metadata associated with the epoch array.
+    empty : bool, optional
+        If True, an empty `EpochArray` is returned, ignoring `data` and `length`.
+        Defaults to False.
+    domain : IntervalArray, optional
+        The domain within which the epochs are defined. If None, it defaults
+        to an infinite domain.
+    label : str, optional
+        A descriptive label for the epoch array.
+
+    Attributes
+    ----------
+    time : np.array
+        Alias for `data`. The start and stop times for each epoch, with shape
+        (n_epochs, 2).
+    n_epochs : int
+        Alias for `n_intervals`. The number of epochs in the array.
+    duration : float
+        Alias for `length`. The total duration of the [merged] epoch array.
+    durations : np.array
+        Alias for `lengths`. The duration of each individual epoch.
+    formatter : formatters.PrettyDuration
+        The formatter used for displaying time durations.
+    base_unit : str
+        The base unit of the intervals, which is 's' (seconds) for EpochArray.
+
+    Notes
+    -----
+    This class inherits all methods and properties from `IntervalArray`.
+    Aliases are provided for convenience to make the API more intuitive
+    for temporal data.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from nelpy.core import EpochArray
+
+    >>> # Create an EpochArray from start and stop times
+    >>> epochs = EpochArray(data=np.array([[0, 10], [20, 30], [40, 50]]))
+    >>> print(epochs)
+    <EpochArray at 0x21b641f0950: 3 epochs> of length 30 seconds
+
+    >>> # Create an EpochArray from start times and a common length
+    >>> starts = np.array([0, 20, 40])
+    >>> length = 5.0
+    >>> epochs_with_length = EpochArray(data=starts, length=length)
+    >>> print(epochs_with_length)
+    <EpochArray at 0x21b631c6050: 3 epochs> of length 15 seconds
+
+    >>> # Accessing aliased attributes
+    >>> print(f"Number of epochs: {epochs.n_epochs}")
+    Number of epochs: 3
+    >>> print(f"Total duration: {epochs.duration}")
+    Total duration: 30 seconds
+    >>> print(f"Individual durations: {epochs.durations}")
+    Individual durations: [10 10 10]
+    """
     __aliases__ = {
         "time": "data",
         "_time": "_data",
