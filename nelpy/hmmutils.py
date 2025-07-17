@@ -312,38 +312,89 @@ class PoissonHMM(PHMM):
 
     @property
     def unit_ids(self):
+        """
+        List of unit IDs associated with the model.
+
+        Returns
+        -------
+        list
+            List of unit IDs.
+        """
         return self._unit_ids
 
     @property
     def unit_labels(self):
+        """
+        List of unit labels associated with the model.
+
+        Returns
+        -------
+        list
+            List of unit labels.
+        """
         return self._unit_labels
 
     @property
     def means(self):
-        """Observation matrix, (n_components, n_units)."""
+        """
+        Observation matrix (mean firing rates for each state and unit).
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape (n_components, n_units) containing the mean parameters for each state.
+        """
         return self.means_
 
     @property
     def transmat(self):
-        """Transition probability matrix, (n_components, n_components).
-        NOTE: Aij = Pr(S_{t+1}=j|S_t=i).
+        """
+        Transition probability matrix.
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape (n_components, n_components) where A[i, j] = Pr(S_{t+1}=j | S_t=i).
         """
         return self.transmat_
 
     @property
     def startprob(self):
-        """Prior distribution over states, (n_components,)."""
+        """
+        Prior distribution over states.
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape (n_components,) representing the initial state probabilities.
+        """
         return self.startprob_
 
     def get_state_order(self, method=None, start_state=None):
-        """return a state ordering, optionally using augmented data.
+        """
+        Return a state ordering, optionally using augmented data.
 
-        method in ['transmat' (default), 'mode', 'mean']
+        Parameters
+        ----------
+        method : {'transmat', 'mode', 'mean'}, optional
+            Method to use for ordering states. 'transmat' (default) uses the transition matrix.
+            'mode' or 'mean' use the external mapping (requires self._extern_).
+        start_state : int, optional
+            Initial state to begin from (used only if method is 'transmat').
 
-        If 'mode' or 'mean' is selected, self._extern_ must exist
+        Returns
+        -------
+        neworder : list
+            List of state indices in the new order.
 
-        NOTE: both 'mode' and 'mean' assume that _extern_ is in sorted
-        order; this is not verified explicitly.
+        Notes
+        -----
+        Both 'mode' and 'mean' assume that _extern_ is in sorted order; this is not verified explicitly.
+
+        Examples
+        --------
+        >>> order = hmm.get_state_order(method='transmat')
+        >>> order = hmm.get_state_order(method='mode')
         """
         if method is None:
             method = 'transmat'
@@ -370,18 +421,25 @@ class PoissonHMM(PHMM):
         return neworder
 
     def _reorder_units_by_ids(self, neworder):
-        """Reorder unit_ids to match that of a BinnedSpikeTrain.
-
-        WARNING! modifies self.means_ in-place
-
-        neworder must be list-like, of size (n_units,) and in terms of
-        unit_ids
-
-        Return
-        ------
-        self : reordered PoissonHMM
         """
+        Reorder unit_ids to match that of a BinnedSpikeTrain.
 
+        WARNING! Modifies self.means_ in-place.
+
+        Parameters
+        ----------
+        neworder : list or array-like
+            List of unit IDs specifying the new order. Must be of size (n_units,).
+
+        Returns
+        -------
+        self : PoissonHMM
+            The reordered PoissonHMM instance.
+
+        Examples
+        --------
+        >>> hmm._reorder_units_by_ids([3, 1, 2, 0])
+        """
         neworder = [self.unit_ids.index(x) for x in neworder]
 
         oldorder = list(range(len(neworder)))
@@ -397,9 +455,17 @@ class PoissonHMM(PHMM):
         return self
 
     def reorder_states(self, neworder):
-        """Reorder internal HMM states according to a specified order.
+        """
+        Reorder internal HMM states according to a specified order.
 
-        neworder must be list-like, of size (n_components,)
+        Parameters
+        ----------
+        neworder : list or array-like
+            List of state indices specifying the new order. Must be of size (n_components,).
+
+        Examples
+        --------
+        >>> hmm.reorder_states([2, 0, 1])
         """
         oldorder = list(range(len(neworder)))
         for oi, ni in enumerate(neworder):
@@ -414,12 +480,16 @@ class PoissonHMM(PHMM):
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
     def assume_attributes(self, binnedSpikeTrainArray):
-        """Assume subset of attributes from a BinnedSpikeTrainArray.
-
-        This is used primarily to enable the sampling of sequences after
-        a model has been fit.
         """
+        Assume subset of attributes from a BinnedSpikeTrainArray.
 
+        This is used primarily to enable the sampling of sequences after a model has been fit.
+
+        Parameters
+        ----------
+        binnedSpikeTrainArray : BinnedSpikeTrainArray
+            The BinnedSpikeTrainArray instance from which to copy attributes.
+        """
         if self._ds is not None:
             warn("PoissonHMM(BinnedSpikeTrain) attributes already exist.")
         for attrib in self.__attributes__:
@@ -429,7 +499,24 @@ class PoissonHMM(PHMM):
         self._unit_tags = copy.copy(binnedSpikeTrainArray.unit_tags)
 
     def _has_same_unit_id_order(self, unit_ids):
-        """Returns True if the unit_ids are in the specified order."""
+        """
+        Check if the provided unit_ids are in the same order as the model's unit_ids.
+
+        Parameters
+        ----------
+        unit_ids : list or array-like
+            List of unit IDs to compare.
+
+        Returns
+        -------
+        bool
+            True if the unit_ids are in the same order, False otherwise.
+
+        Raises
+        ------
+        TypeError
+            If the number of unit_ids does not match.
+        """
         if self._unit_ids is None:
             return True
         if len(unit_ids) != len(self.unit_ids):
@@ -440,20 +527,36 @@ class PoissonHMM(PHMM):
         return True
 
     def _sliding_window_array(self, bst, w=1):
-        """Returns an unwrapped data array by sliding w bins one bin at a time.
+        """
+        Returns an unwrapped data array by sliding w bins one bin at a time.
 
         If w==1, then bins are non-overlapping.
 
         Parameters
         ----------
-        bst : BinnedSpikeTrainArray, with data array of shape (n_units, n_bins)
+        bst : BinnedSpikeTrainArray
+            Input with data array of shape (n_units, n_bins).
+        w : int, optional
+            Window size (number of bins). Default is 1.
 
         Returns
         -------
-        unwrapped : new data array of shape (n_sliding_bins, n_units)
-        lengths : array of shape (n_sliding_bins,)
-        """
+        unwrapped : np.ndarray
+            New data array of shape (n_sliding_bins, n_units).
+        lengths : np.ndarray
+            Array of shape (n_sliding_bins,) indicating the lengths of each window.
 
+        Raises
+        ------
+        NotImplementedError
+            If bst is not a BinnedSpikeTrainArray.
+        AssertionError
+            If w is not a positive integer.
+
+        Examples
+        --------
+        >>> unwrapped, lengths = hmm._sliding_window_array(bst, w=3)
+        """
         if w is None:
             w=1
         assert float(w).is_integer(), "w must be a positive integer!"
