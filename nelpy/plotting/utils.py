@@ -73,10 +73,29 @@ __all__ = [
 
 def add_colorbar(img, ax=None):
     """
-    TODO: get keywords from **kwargs, i.e. if they're there, then use
-    them, but if not, then don't. This should go for orientation, etc.
-    Some others might have good defaults, so use them!
-    TODO this function is barebones for now
+    Add a colorbar to the given axis for the provided image.
+
+    Parameters
+    ----------
+    img : matplotlib.image.AxesImage
+        The image to which the colorbar applies.
+    ax : matplotlib.axes.Axes, optional
+        The axis to which the colorbar will be added. If None, uses current axis.
+
+    Returns
+    -------
+    cb : matplotlib.colorbar.Colorbar
+        The colorbar object.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> import numpy as np
+    >>> from nelpy.plotting.utils import add_colorbar
+    >>> fig, ax = plt.subplots()
+    >>> im = ax.imshow(np.random.rand(10, 10))
+    >>> cb = add_colorbar(im, ax=ax)
+    >>> plt.show()
     """
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.15)
@@ -87,7 +106,8 @@ def add_colorbar(img, ax=None):
 
 
 class FigureManager(object):
-    """Figure context manager.
+    """
+    Figure context manager for creating, displaying, and saving figures.
 
     See http://stackoverflow.com/questions/12594148/skipping-execution-of-with-block
     but I was unable to get a solution so far...
@@ -97,22 +117,41 @@ class FigureManager(object):
 
     Parameters
     ----------
-    filename : string
+    filename : str, optional
         Filename without an extension. If an extension is present,
         AND if formats is empty, then the filename extension will be used.
-    save : bool
+    save : bool, optional
         If True, figure will be saved to disk.
-    formats: list
+    show : bool, optional
+        If True, figure will be shown.
+    nrows : int, optional
+        Number of subplot rows.
+    ncols : int, optional
+        Number of subplot columns.
+    figsize : tuple, optional
+        Figure size in inches (width, height).
+    tight_layout : bool, optional
+        If True, use tight layout.
+    formats : list, optional
         List of formats to export. Defaults to ['pdf', 'png']
-    dpi: float, default 300
+    dpi : float, optional
         Resolution of the figure in dots per inch (DPI).
-    verbose: bool, optional
-        If true, print additional output to screen.
-    overwrite: bool, optional
-        If true, file will be overwritten.
+    verbose : bool, optional
+        If True, print additional output to screen.
+    overwrite : bool, optional
+        If True, file will be overwritten.
+    **kwargs : dict
+        Additional keyword arguments passed to plt.figure().
+
+    Examples
+    --------
+    >>> with FigureManager(filename="myfig", save=True, show=False) as (fig, ax):
+    ...     ax.plot([1, 2, 3], [4, 5, 6])
+    ...
     """
 
     class Break(Exception):
+        """Exception to break out of the context manager block."""
         pass
 
     def __init__(
@@ -152,6 +191,16 @@ class FigureManager(object):
             self.skip = True
 
     def __enter__(self):
+        """
+        Enter the context manager, creating the figure and axes.
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The created figure.
+        ax : matplotlib.axes.Axes or numpy.ndarray
+            The created axes (single or array, depending on nrows/ncols).
+        """
         if not self.skip:
             self.fig = plt.figure(figsize=self.figsize, dpi=self.dpi, **self.kwargs)
             self.fig.npl_gs = gridspec.GridSpec(nrows=self.nrows, ncols=self.ncols)
@@ -177,6 +226,18 @@ class FigureManager(object):
         return -1, -1
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """
+        Exit the context manager, saving and/or showing the figure if requested.
+
+        Parameters
+        ----------
+        exc_type : type
+            Exception type, if any.
+        exc_value : Exception
+            Exception value, if any.
+        traceback : traceback
+            Traceback object, if any.
+        """
         if self.skip:
             return True
         if not exc_type:
@@ -199,19 +260,37 @@ class FigureManager(object):
             return False
 
     def clear(self):
+        """
+        Close the figure and clean up references.
+        """
         plt.close(self.fig)
         del self.ax
         del self.fig
 
 
 def suptitle(t, gs=None, rect=(0, 0, 1, 0.95), **kwargs):
-    """Add a suptitle to a figure with an embedded gridspec.
+    """
+    Add a suptitle to a figure with an embedded gridspec.
 
-    rect is in figure coords (0,0) bottom left, and more specifically
-        in (x1, y1, x2, y2) with (x1, y1) bottom left, and (x2, y2) top
-        right
+    Parameters
+    ----------
+    t : str
+        The suptitle text.
+    gs : matplotlib.gridspec.GridSpec, optional
+        The gridspec to use. If None, uses fig.npl_gs.
+    rect : tuple, optional
+        Rectangle in figure coordinates (x1, y1, x2, y2).
+    **kwargs : dict
+        Additional keyword arguments passed to fig.suptitle().
 
-    see https://matplotlib.org/users/tight_layout_guide.html
+    Raises
+    ------
+    AttributeError
+        If no gridspec is found in the figure.
+
+    See Also
+    --------
+    https://matplotlib.org/users/tight_layout_guide.html
     """
     fig = plt.gcf()
     if gs is None:
@@ -227,13 +306,50 @@ def suptitle(t, gs=None, rect=(0, 0, 1, 0.95), **kwargs):
 
 
 def skip_if_no_output(fig):
+    """
+    Raise FigureManager.Break if the figure is not to be output.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure or int
+        The figure object or -1 if not outputting.
+
+    Returns
+    -------
+    bool
+        True if output should continue, otherwise raises exception.
+    """
     if fig == -1:
         raise FigureManager.Break
     return True
 
 
 def annotate(text, ax=None, xy=None, rotation=None, va=None, **kwargs):
-    """Docstring goes here."""
+    """
+    Annotate the given axis with text at a specified location and rotation.
+
+    Parameters
+    ----------
+    text : str
+        The annotation text.
+    ax : matplotlib.axes.Axes, optional
+        The axis to annotate. If None, uses current axis.
+    xy : tuple, optional
+        The (x, y) location for the annotation. Defaults to (0.5, 0.5).
+    rotation : float or str, optional
+        The rotation angle in degrees, or 'vert'/'v' for 90, 'horz'/'h' for 0.
+    va : str, optional
+        Vertical alignment. If None, chosen based on rotation.
+    **kwargs : dict
+        Additional keyword arguments passed to ax.annotate().
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> fig, ax = plt.subplots()
+    >>> annotate('Hello', ax=ax, xy=(0.2, 0.8), rotation=45)
+    >>> plt.show()
+    """
 
     if ax is None:
         ax = plt.gca()
@@ -255,7 +371,16 @@ def annotate(text, ax=None, xy=None, rotation=None, va=None, **kwargs):
 
 
 def figure_grid(b=True, fig=None):
-    """draw a figure grid over an entore figure to facilitate annotation placement"""
+    """
+    Draw a figure grid over an entire figure to facilitate annotation placement.
+
+    Parameters
+    ----------
+    b : bool, optional
+        Whether to draw the grid (default True).
+    fig : matplotlib.figure.Figure, optional
+        The figure to draw on. If None, uses current figure.
+    """
 
     if fig is None:
         fig = plt.gcf()
@@ -271,9 +396,20 @@ def figure_grid(b=True, fig=None):
 
 
 def get_extension_from_filename(name):
-    """Extracts an extension from a filename string.
+    """
+    Extract the extension from a filename string.
 
-    returns filename, extension
+    Parameters
+    ----------
+    name : str
+        The filename string.
+
+    Returns
+    -------
+    nameOnly : str
+        The filename without extension.
+    ext : str or None
+        The extension, or None if not present.
     """
     name = name.strip()
     ext = ((name.split("\\")[-1]).split("/")[-1]).split(".")
@@ -287,28 +423,35 @@ def get_extension_from_filename(name):
 
 
 def savefig(name, fig=None, formats=None, dpi=None, verbose=True, overwrite=False):
-    """Saves a figure in one or multiple formats.
+    """
+    Save a figure in one or multiple formats.
 
     Parameters
     ----------
-    name : string
+    name : str
         Filename without an extension. If an extension is present,
         AND if formats is empty, then the filename extension will be used.
-    fig : matplotlib figure, optional
+    fig : matplotlib.figure.Figure, optional
         Figure to save, default uses current figure.
-    formats: list
+    formats : list, optional
         List of formats to export. Defaults to ['pdf', 'png']
-    dpi: float, default 300
+    dpi : float, optional
         Resolution of the figure in dots per inch (DPI).
-    verbose: bool, optional
-        If true, print additional output to screen.
-    overwrite: bool, optional
-        If true, file will be overwritten.
+    verbose : bool, optional
+        If True, print additional output to screen.
+    overwrite : bool, optional
+        If True, file will be overwritten.
 
     Returns
     -------
-    none
+    None
 
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> fig, ax = plt.subplots()
+    >>> ax.plot([1, 2, 3], [4, 5, 6])
+    >>> savefig('myplot', fig=fig, formats=['png'], overwrite=True)
     """
     # Check inputs
     # if not 0 <= prop <= 1:
@@ -379,13 +522,13 @@ def savefig(name, fig=None, formats=None, dpi=None, verbose=True, overwrite=Fals
 
 
 class FixedOrderFormatter(ScalarFormatter):
-    """Formats axis ticks using scientific notation with a constant
-    order of magnitude.
+    """
+    Formats axis ticks using scientific notation with a constant order of magnitude.
 
     Parameters
     ----------
     order_of_mag : int
-        order of magnitude for the exponent
+        Order of magnitude for the exponent.
     useOffset : bool, optional
         If True includes an offset. Default is True.
     useMathText : bool, optional
@@ -393,19 +536,15 @@ class FixedOrderFormatter(ScalarFormatter):
 
     Examples
     --------
-    # Force the y-axis ticks to use 1e+2 as a base exponent :
+    Force the y-axis ticks to use 1e+2 as a base exponent:
     >>> ax.yaxis.set_major_formatter(npl.FixedOrderFormatter(+2))
 
-    # Make the x-axis ticks formatted to 0 decimal places:
-    >>> from matplotlib.ticker FormatStrFormatter
+    Make the x-axis ticks formatted to 0 decimal places:
+    >>> from matplotlib.ticker import FormatStrFormatter
     >>> ax.xaxis.set_major_formatter(FormatStrFormatter('%0.0f'))
 
-    # Turn off offset on x-axis:
+    Turn off offset on x-axis:
     >>> ax.xaxis.get_major_formatter().set_useOffset(False)
-
-    See http://stackoverflow.com/questions/3677368/\
-matplotlib-format-axis-offset-values-to-whole-numbers-\
-or-specific-number
     """
 
     def __init__(self, order_of_mag=0, *, useOffset=None, useMathText=None):
