@@ -19,6 +19,32 @@ from .core import imagesc, rasterplot
 
 
 def plot_posteriors(bst, tuningcurve, idx=None, w=1, bin_px_size=0.08):
+    """
+    Plot posterior probabilities for decoded neural activity.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray
+        The binned spike train array to decode.
+    tuningcurve : TuningCurve1D
+        The tuning curve used for decoding.
+    idx : array-like, optional
+        Indices of events to plot. If None, all events are plotted.
+    w : int, optional
+        Window size for decoding (default is 1).
+    bin_px_size : float, optional
+        Size of each bin in pixels for the plot (default is 0.08).
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the posterior plot.
+
+    Examples
+    --------
+    >>> ax = plot_posteriors(bst, tc)
+    >>> plt.show()
+    """
     if idx is not None:
         bst = bst[idx]
     tc = tuningcurve
@@ -75,14 +101,34 @@ def decode_and_plot_events1D(
     *, bst, tc, raster=True, st=None, st_order="track", evt_subset=None, **kwargs
 ):
     """
+    Decode and plot 1D events with optional raster plot overlay.
+
+    Parameters
+    ----------
     bst : BinnedSpikeTrainArray
+        The binned spike train array to decode.
     tc : TuningCurve1D
-    raster : bool
+        The tuning curve used for decoding.
+    raster : bool, optional
+        Whether to include a raster plot (default is True).
     st : SpikeTrainArray, optional
-    st_order : string, optional
-        = ['track', 'first', 'random']
+        The spike train array for raster plotting.
+    st_order : str or array-like, optional
+        Order of units for raster plot. Options: 'track', 'first', 'random', or array of unit ids.
     evt_subset : list, optional
-        List of integer indices. If the list is not sorted, it will be sorted first.
+        List of integer indices for event selection. If not sorted, will be sorted.
+    **kwargs
+        Additional keyword arguments for plotting.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The figure containing the plot.
+
+    Examples
+    --------
+    >>> fig = decode_and_plot_events1D(bst=bst, tc=tc, st=st)
+    >>> plt.show()
     """
 
     # TODO: add **kwargs
@@ -210,18 +256,61 @@ def plot_cum_error_dist(
     color=None,
     **kwargs,
 ):
-    """Plot (and optionally compute) the cumulative distribution of
-    decoding errors, evaluated using a cross-validation procedure.
+    """
+    Plot (and optionally compute) the cumulative distribution of decoding errors.
 
-    See Fig 3.(b) of "Analysis of Hippocampal Memory Replay Using Neural
-        Population Decoding", Fabian Kloosterman, 2012.
+    Evaluated using a cross-validation procedure. See Fig 3.(b) of "Analysis of Hippocampal Memory Replay Using Neural Population Decoding", Fabian Kloosterman, 2012.
 
     Parameters
     ----------
-
+    cumhist : array-like, optional
+        Precomputed cumulative histogram of errors. If None, will be computed.
+    bincenters : array-like, optional
+        Bin centers for the cumulative histogram. If None, will be computed.
+    bst : BinnedSpikeTrainArray, optional
+        Required if cumhist and bincenters are not provided. Used for error computation.
+    extern : array-like, optional
+        External variable (e.g., position) for decoding. Required if cumhist and bincenters are not provided.
+    decodefunc : callable, optional
+        Decoding function to use. Defaults to decoding.decode1D.
+    k : int, optional
+        Number of cross-validation folds. Default is 5.
+    transfunc : callable, optional
+        Optional transformation function for the external variable.
+    n_extern : int, optional
+        Number of external variable samples. Default is 100.
+    n_bins : int, optional
+        Number of bins for the error histogram. Default is 200.
+    extmin : float, optional
+        Minimum value of the external variable. Default is 0.
+    extmax : float, optional
+        Maximum value of the external variable. Default is 100.
+    sigma : float, optional
+        Smoothing parameter. Default is 3.
+    lw : float, optional
+        Line width for the plot. Default is 1.5.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    inset : bool, optional
+        Whether to include an inset plot. Default is True.
+    inset_ax : matplotlib.axes.Axes, optional
+        Axis for the inset plot. If None, one will be created.
+    color : color, optional
+        Line color. If None, uses next color in cycle.
+    **kwargs
+        Additional keyword arguments for plotting.
 
     Returns
     -------
+    ax : matplotlib.axes.Axes
+        The axis with the cumulative error plot.
+    inset_ax : matplotlib.axes.Axes, optional
+        The axis with the inset plot (if inset=True).
+
+    Examples
+    --------
+    >>> ax, inset_ax = plot_cum_error_dist(bst=bst, extern=pos)
+    >>> plt.show()
     """
 
     if ax is None:
