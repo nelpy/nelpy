@@ -4,6 +4,27 @@ import numpy as np
 
 
 def draw_transmat_graph(G, edge_threshold=0, lw=1, ec="0.2", node_size=15):
+    """
+    Draw a transition matrix as a circular graph.
+
+    Parameters
+    ----------
+    G : networkx.Graph
+        The graph to draw, with edge weights as transition probabilities.
+    edge_threshold : float, optional
+        Edges with weights below this value are not drawn (default is 0).
+    lw : float, optional
+        Line width scaling for edges (default is 1).
+    ec : color, optional
+        Edge color (default is '0.2').
+    node_size : int, optional
+        Size of the nodes (default is 15).
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the graph plot.
+    """
     num_states = G.number_of_nodes()
 
     edgewidth = [d["weight"] for (u, v, d) in G.edges(data=True)]
@@ -32,6 +53,27 @@ def draw_transmat_graph(G, edge_threshold=0, lw=1, ec="0.2", node_size=15):
 
 
 def draw_transmat_graph_inner(G, edge_threshold=0, lw=1, ec="0.2", node_size=15):
+    """
+    Draw the inner part of a transition matrix as a circular graph.
+
+    Parameters
+    ----------
+    G : networkx.Graph
+        The graph to draw, with edge weights as transition probabilities.
+    edge_threshold : float, optional
+        Edges with weights below this value are not drawn (default is 0).
+    lw : float, optional
+        Line width scaling for edges (default is 1).
+    ec : color, optional
+        Edge color (default is '0.2').
+    node_size : int, optional
+        Size of the nodes (default is 15).
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the graph plot.
+    """
     # num_states = G.number_of_nodes()
 
     edgewidth = [d["weight"] for (u, v, d) in G.edges(data=True)]
@@ -50,6 +92,27 @@ def draw_transmat_graph_inner(G, edge_threshold=0, lw=1, ec="0.2", node_size=15)
 
 
 def double_circular_layout(Gi, scale=1, center=None, dim=2, direction="CCW"):
+    """
+    Create a double circular layout for a graph, with inner and outer circles.
+
+    Parameters
+    ----------
+    Gi : networkx.Graph
+        The graph to layout.
+    scale : float, optional
+        Scale factor for the inner circle (default is 1).
+    center : array-like or None, optional
+        Center of the layout (default is None).
+    dim : int, optional
+        Dimension of layout (default is 2).
+    direction : {'CCW', 'CW'}, optional
+        Direction of node placement (default is 'CCW').
+
+    Returns
+    -------
+    npos : dict
+        Dictionary of node positions keyed by node.
+    """
     inner = circular_layout(
         Gi, center=center, dim=dim, scale=scale, direction=direction
     )
@@ -71,6 +134,31 @@ def double_circular_layout(Gi, scale=1, center=None, dim=2, direction="CCW"):
 def draw_transmat_graph_outer(
     Go, Gi, edge_threshold=0, lw=1, ec="0.2", nc="k", node_size=15
 ):
+    """
+    Draw the outer part of a transition matrix as a double circular graph.
+
+    Parameters
+    ----------
+    Go : networkx.Graph
+        The outer graph to draw.
+    Gi : networkx.Graph
+        The inner graph for layout reference.
+    edge_threshold : float, optional
+        Edges with weights below this value are not drawn (default is 0).
+    lw : float, optional
+        Line width scaling for edges (default is 1).
+    ec : color, optional
+        Edge color (default is '0.2').
+    nc : color, optional
+        Node color (default is 'k').
+    node_size : int, optional
+        Size of the nodes (default is 15).
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the graph plot.
+    """
     # num_states = Go.number_of_nodes()
 
     edgewidth = [d["weight"] for (u, v, d) in Go.edges(data=True)]
@@ -90,6 +178,19 @@ def draw_transmat_graph_outer(
 
 
 def graph_from_transmat(transmat):
+    """
+    Create a symmetric undirected graph from a transition matrix.
+
+    Parameters
+    ----------
+    transmat : array-like
+        Transition matrix (2D square array).
+
+    Returns
+    -------
+    G : networkx.Graph
+        The resulting symmetric graph.
+    """
     G = nx.Graph()
     num_states = transmat.shape[1]
     # make symmetric
@@ -103,6 +204,19 @@ def graph_from_transmat(transmat):
 
 
 def outer_graph_from_transmat(transmat):
+    """
+    Create an outer graph from a transition matrix, connecting states to outer nodes.
+
+    Parameters
+    ----------
+    transmat : array-like
+        Transition matrix (2D square array).
+
+    Returns
+    -------
+    G : networkx.Graph
+        The resulting outer graph.
+    """
     G = nx.Graph()
     num_states = transmat.shape[1]
     # make symmetric
@@ -120,6 +234,19 @@ def outer_graph_from_transmat(transmat):
 
 
 def inner_graph_from_transmat(transmat):
+    """
+    Create an inner graph from a transition matrix, clearing the super diagonal.
+
+    Parameters
+    ----------
+    transmat : array-like
+        Transition matrix (2D square array).
+
+    Returns
+    -------
+    G : networkx.Graph
+        The resulting inner graph.
+    """
     G = nx.Graph()
     num_states = transmat.shape[1]
     # make symmetric
@@ -137,6 +264,25 @@ def inner_graph_from_transmat(transmat):
 
 
 def _process_params(G, center, dim):
+    """
+    Process graph and center parameters for layout functions.
+
+    Parameters
+    ----------
+    G : networkx.Graph or list
+        The graph or list of nodes.
+    center : array-like or None
+        Center coordinates.
+    dim : int
+        Dimension of layout.
+
+    Returns
+    -------
+    G : networkx.Graph
+        The processed graph.
+    center : np.ndarray
+        The processed center coordinates.
+    """
     # Some boilerplate code.
 
     if not isinstance(G, nx.Graph):
@@ -157,7 +303,8 @@ def _process_params(G, center, dim):
 
 
 def rescale_layout(pos, scale=1):
-    """Return scaled position array to (-scale, scale) in all axes.
+    """
+    Return scaled position array to (-scale, scale) in all axes.
 
     The function acts on NumPy arrays which hold position information.
     Each position is one row of the array. The dimension of the space
@@ -170,17 +317,15 @@ def rescale_layout(pos, scale=1):
 
     Parameters
     ----------
-    pos : numpy array
-        positions to be scaled. Each row is a position.
-
-    scale : number (default: 1)
-        The size of the resulting extent in all directions.
+    pos : numpy.ndarray
+        Positions to be scaled. Each row is a position.
+    scale : float, optional
+        The size of the resulting extent in all directions (default is 1).
 
     Returns
     -------
-    pos : numpy array
-        scaled positions. Each row is a position.
-
+    pos : numpy.ndarray
+        Scaled positions. Each row is a position.
     """
     # Find max length over all dimensions
     lim = 0  # max coordinate for all axes
@@ -195,37 +340,36 @@ def rescale_layout(pos, scale=1):
 
 
 def circular_layout(G, scale=1, center=None, dim=2, direction="CCW"):
-    # dim=2 only
-    """Position nodes on a circle.
+    """
+    Position nodes on a circle.
 
     Parameters
     ----------
-    G : NetworkX graph or list of nodes
-
-    scale : float
-        Scale factor for positions
-
-    center : array-like or None
-        Coordinate pair around which to center the layout.
-
-    dim : int
-        Dimension of layout, currently only dim=2 is supported
+    G : networkx.Graph or list
+        The graph or list of nodes.
+    scale : float, optional
+        Scale factor for positions (default is 1).
+    center : array-like or None, optional
+        Coordinate pair around which to center the layout (default is None).
+    dim : int, optional
+        Dimension of layout, currently only dim=2 is supported (default is 2).
+    direction : {'CCW', 'CW'}, optional
+        Direction of node placement (default is 'CCW').
 
     Returns
     -------
     pos : dict
-        A dictionary of positions keyed by node
+        A dictionary of positions keyed by node.
 
     Examples
     --------
     >>> G = nx.path_graph(4)
-    >>> pos = nx.circular_layout(G)
+    >>> pos = circular_layout(G)
 
     Notes
     -----
     This algorithm currently only works in two dimensions and does not
     try to minimize edge crossings.
-
     """
 
     G, center = _process_params(G, center, dim)

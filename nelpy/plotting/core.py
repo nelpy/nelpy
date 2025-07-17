@@ -28,7 +28,31 @@ __all__ = [
 
 
 def colorline(x, y, cmap=None, cm_range=(0, 0.7), **kwargs):
-    """Colorline plots a trajectory of (x,y) points with a colormap"""
+    """
+    Plot a trajectory of (x, y) points with a colormap along the path.
+
+    Parameters
+    ----------
+    x : array-like
+        X coordinates of the trajectory.
+    y : array-like
+        Y coordinates of the trajectory.
+    cmap : matplotlib.colors.Colormap, optional
+        Colormap to use for coloring the line. Defaults to plt.cm.Blues_r.
+    cm_range : tuple of float, optional
+        Range of the colormap to use (min, max). Defaults to (0, 0.7).
+    **kwargs : dict
+        Additional keyword arguments passed to the plot (e.g., ax, lw).
+
+    Returns
+    -------
+    lc : matplotlib.collections.LineCollection
+        The colored line collection added to the axis.
+
+    Examples
+    --------
+    >>> colorline(x, y, cmap=plt.cm.viridis)
+    """
 
     # plt.plot(x, y, '-k', zorder=1)
     # plt.scatter(x, y, s=40, c=plt.cm.RdBu(np.linspace(0,1,40)), zorder=2, edgecolor='k')
@@ -59,10 +83,33 @@ def _plot_ratemap(
     ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None
 ):
     """
-    WARNING! This function is not complete, and hence 'private',
-    and may be moved somewhere else later on.
+    Plot a set of ratemaps (e.g., tuning curves) for multiple units.
 
-    If pad=0 then the y-axis is assumed to be firing rate
+    Parameters
+    ----------
+    ratemap : object
+        Object with .ratemap_ attribute (2D array: n_units x n_ext) and .unit_ids.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    normalize : bool, optional
+        If True, normalize each curve to its peak value.
+    pad : float, optional
+        Vertical offset between curves. If None, uses mean of ratemap / 2.
+    unit_labels : list, optional
+        Labels for each unit. If None, uses ratemap.unit_ids.
+    fill : bool, optional
+        Whether to fill under each curve. Default is True.
+    color : color or None, optional
+        Color for all curves. If None, uses default color cycle.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted ratemaps.
+
+    Examples
+    --------
+    >>> _plot_ratemap(ratemap)
     """
     if ax is None:
         ax = plt.gca()
@@ -144,10 +191,35 @@ def plot_tuning_curves1D(
     alpha=0.3,
 ):
     """
-    WARNING! This function is not complete, and hence 'private',
-    and may be moved somewhere else later on.
+    Plot 1D tuning curves for multiple units.
 
-    If pad=0 then the y-axis is assumed to be firing rate
+    Parameters
+    ----------
+    ratemap : auxiliary.TuningCurve1D or similar
+        Object with .ratemap (2D array: n_units x n_ext), .bins, .bin_centers, and .unit_labels.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    normalize : bool, optional
+        If True, normalize each curve to its peak value.
+    pad : float, optional
+        Vertical offset between curves. If None, uses mean of ratemap / 2.
+    unit_labels : list, optional
+        Labels for each unit. If None, uses ratemap.unit_labels.
+    fill : bool, optional
+        Whether to fill under each curve. Default is True.
+    color : color or None, optional
+        Color for all curves. If None, uses default color cycle.
+    alpha : float, optional
+        Transparency for the fill. Default is 0.3.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted tuning curves.
+
+    Examples
+    --------
+    >>> plot_tuning_curves1D(tc)
     """
     if ax is None:
         ax = plt.gca()
@@ -232,55 +304,14 @@ def plot_tuning_curves1D(
 def spectrogram(data, *, h):
     """
     Compute a spectrogram with consecutive Fourier transforms.
-    Spectrograms can be used as a way of visualizing the change of a
-    nonstationary signal's frequency content over time.
+
     Parameters
     ----------
-    x : array_like
-        Time series of measurement values
-    fs : float, optional
-        Sampling frequency of the `x` time series. Defaults to 1.0.
-    window : str or tuple or array_like, optional
-        Desired window to use. See `get_window` for a list of windows
-        and required parameters. If `window` is array_like it will be
-        used directly as the window and its length must be nperseg.
-        Defaults to a Tukey window with shape parameter of 0.25.
-    nperseg : int, optional
-        Length of each segment. Defaults to None, but if window is str or
-        tuple, is set to 256, and if window is array_like, is set to the
-        length of the window.
-    noverlap : int, optional
-        Number of points to overlap between segments. If `None`,
-        ``noverlap = nperseg // 8``. Defaults to `None`.
-    nfft : int, optional
-        Length of the FFT used, if a zero padded FFT is desired. If
-        `None`, the FFT length is `nperseg`. Defaults to `None`.
-    detrend : str or function or `False`, optional
-        Specifies how to detrend each segment. If `detrend` is a
-        string, it is passed as the `type` argument to the `detrend`
-        function. If it is a function, it takes a segment and returns a
-        detrended segment. If `detrend` is `False`, no detrending is
-        done. Defaults to 'constant'.
-    return_onesided : bool, optional
-        If `True`, return a one-sided spectrum for real data. If
-        `False` return a two-sided spectrum. Note that for complex
-        data, a two-sided spectrum is always returned.
-    scaling : { 'density', 'spectrum' }, optional
-        Selects between computing the power spectral density ('density')
-        where `Sxx` has units of V**2/Hz and computing the power
-        spectrum ('spectrum') where `Sxx` has units of V**2, if `x`
-        is measured in V and `fs` is measured in Hz. Defaults to
-        'density'.
-    axis : int, optional
-        Axis along which the spectrogram is computed; the default is over
-        the last axis (i.e. ``axis=-1``).
-    mode : str, optional
-        Defines what kind of return values are expected. Options are
-        ['psd', 'complex', 'magnitude', 'angle', 'phase']. 'complex' is
-        equivalent to the output of `stft` with no padding or boundary
-        extension. 'magnitude' returns the absolute magnitude of the
-        STFT. 'angle' and 'phase' return the complex angle of the STFT,
-        with and without unwrapping, respectively.
+    data : array_like
+        Time series of measurement values.
+    h : object
+        Additional parameter (not yet implemented).
+
     Returns
     -------
     f : ndarray
@@ -288,10 +319,11 @@ def spectrogram(data, *, h):
     t : ndarray
         Array of segment times.
     Sxx : ndarray
-        Spectrogram of x. By default, the last axis of Sxx corresponds
-        to the segment times.
+        Spectrogram of x. By default, the last axis of Sxx corresponds to the segment times.
 
-    See https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.spectrogram.html
+    Notes
+    -----
+    This function is not yet implemented. See scipy.signal.spectrogram for details.
     """
     raise NotImplementedError("plotting.spectrogram() does not exist yet!")
 
@@ -385,49 +417,48 @@ def psdplot(
 
 
 def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
-    """Plots a 2D matrix / image similar to Matlab's imagesc.
+    """
+    Plot a 2D matrix or image similar to Matlab's imagesc.
 
     Parameters
     ----------
     x : array-like, optional
-        x values (cols)
+        X values (columns).
     y : array-like, optional
-        y-values (rows)
+        Y values (rows).
     data : ndarray of shape (Nrows, Ncols)
-        matrix to visualize
-    ax : matplotlib axis, optional
-        Plot in given axis; if None creates a new figure
-    large : bool
-        If True, use ModestImage instead of mpl.AxesImage that supports
-        much larger images, but the 'extent' does not work properly yet.
-    kwargs :
-        Other keyword arguments are passed to main imagesc() call
+        Matrix to visualize.
+    ax : matplotlib.axes.Axes, optional
+        Plot in given axis; if None creates a new figure.
+    large : bool, optional
+        If True, optimize for large matrices. Default is False.
+    **kwargs : dict
+        Additional keyword arguments passed to imshow.
 
     Returns
     -------
-    ax : matplotlib axis
-        Axis object with plot data.
-    image : matplotlib image
+    im : matplotlib.image.AxesImage
+        The image object.
 
     Examples
-    -------
-    Plot a simple matrix using imagesc
+    --------
+    Plot a simple matrix using imagesc:
 
-        >>> x = np.linspace(-100, -10, 10)
-        >>> y = np.array([-8, -3.0])
-        >>> data = np.random.randn(y.size, x.size)
-        >>> imagesc(x, y, data)
+    >>> x = np.linspace(-100, -10, 10)
+    >>> y = np.array([-8, -3.0])
+    >>> data = np.random.randn(y.size, x.size)
+    >>> imagesc(x, y, data)
     or
-        >>> imagesc(data)
+    >>> imagesc(data)
 
-    Adding a colorbar
+    Adding a colorbar:
 
-        >>> ax, img = imagesc(data)
-        >>> from mpl_toolkits.axes_grid1 import make_axes_locatable
-        >>> divider = make_axes_locatable(ax)
-        >>> cax = divider.append_axes("right", size="3.5%", pad=0.1)
-        >>> cb = plt.colorbar(img, cax=cax)
-        >>> npl.utils.no_yticks(cax)
+    >>> ax, img = imagesc(data)
+    >>> from mpl_toolkits.axes_grid1 import make_axes_locatable
+    >>> divider = make_axes_locatable(ax)
+    >>> cax = divider.append_axes("right", size="3.5%", pad=0.1)
+    >>> cb = plt.colorbar(img, cax=cax)
+    >>> npl.utils.no_yticks(cax)
     """
 
     def extents(f):
@@ -482,7 +513,38 @@ def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
 
 
 def plot(obj, *args, **kwargs):
-    """Docstring goes here."""
+    """
+    Plot a nelpy object or array-like data using matplotlib.
+
+    Parameters
+    ----------
+    obj : nelpy object or array-like
+        The object or data to plot. Can be a nelpy RegularlySampledAnalogSignalArray or array-like.
+    *args : tuple
+        Additional positional arguments passed to matplotlib's plot.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's plot. Special keys:
+            ax : matplotlib.axes.Axes, optional
+                Axis to plot on. If None, uses current axis.
+            autoscale : bool, optional
+                Whether to autoscale the axis. Default is True.
+            xlabel : str, optional
+                X-axis label.
+            ylabel : str, optional
+                Y-axis label.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted data.
+
+    Examples
+    --------
+    >>> from nelpy.core import RegularlySampledAnalogSignalArray
+    >>> obj = RegularlySampledAnalogSignalArray(...)  # your data here
+    >>> plot(obj)
+    >>> plot([1, 2, 3, 4])
+    """
 
     ax = kwargs.pop("ax", None)
     autoscale = kwargs.pop("autoscale", True)
@@ -601,43 +663,44 @@ def plot_old(
     markerfacecolor=None,
     **kwargs,
 ):
-    """Plot an array-like object on an EpochArray.
+    """
+    Plot an array-like object on an EpochArray or AnalogSignal.
 
     Parameters
     ----------
-    npl_obj : nelpy.EpochArray or nelpy.AnalogSignal
-        EpochArray on which the data is defined or AnalogSignal with data
-    data : array-like
+    npl_obj : nelpy.EpochArray, nelpy.AnalogSignal, or np.ndarray
+        EpochArray on which the data is defined, AnalogSignal, or array.
+    data : array-like, optional
         Data to plot on y axis; must be of size (epocharray.n_epochs,).
-    ax : axis object, optional
-        Plot in given axis; if None creates a new figure
+    ax : matplotlib.axes.Axes, optional
+        Plot in given axis; if None creates a new figure.
     mew : float, optional
         Marker edge width, default is equal to lw.
     color : matplotlib color, optional
         Trace color.
     mec : matplotlib color, optional
         Marker edge color, default is equal to color.
-    kwargs :
-        Other keyword arguments are passed to main plot() call
+    markerfacecolor : matplotlib color, optional
+        Marker face color, default is 'w'.
+    **kwargs : dict
+        Other keyword arguments are passed to main plot() call.
 
     Returns
     -------
-    ax : matplotlib axis
+    ax : matplotlib.axes.Axes
         Axis object with plot data.
 
     Examples
     --------
     Plot a simple 5-element list on an EpochArray:
 
-        >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
-        >>> data = [3, 4, 2, 5, 2]
-        >>> npl.plot(ep, data)
+    >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
+    >>> data = [3, 4, 2, 5, 2]
+    >>> plot_old(ep, data)
 
     Hide the markers and change the linewidth:
 
-        >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
-        >>> data = [3, 4, 2, 5, 2]
-        >>> npl.plot(ep, data, ms=0, lw=3)
+    >>> plot_old(ep, data, ms=0, lw=3)
     """
 
     if ax is None:
@@ -776,7 +839,35 @@ def plot2d(
     **kwargs,
 ):
     """
-    THIS SHOULD BE UPDATED! VERY RUDIMENTARY AT THIS STAGE
+    Plot 2D data for nelpy objects or array-like input.
+
+    Parameters
+    ----------
+    npl_obj : nelpy object or array-like
+        The object or data to plot in 2D.
+    data : array-like, optional
+        Data to plot. If None, uses npl_obj's data.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    mew : float, optional
+        Marker edge width.
+    color : matplotlib color, optional
+        Trace color.
+    mec : matplotlib color, optional
+        Marker edge color.
+    markerfacecolor : matplotlib color, optional
+        Marker face color.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's plot.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted data.
+
+    Examples
+    --------
+    >>> plot2d([[0, 1], [1, 2], [2, 3]])
     """
 
     if ax is None:
@@ -825,7 +916,30 @@ def plot2d(
 
 
 def imshow(data, *, ax=None, interpolation=None, **kwargs):
-    """Docstring goes here."""
+    """
+    Display an image (matrix) using matplotlib's imshow.
+
+    Parameters
+    ----------
+    data : array-like
+        The image data to display.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    interpolation : str, optional
+        Interpolation method. Default is 'none'.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's imshow.
+
+    Returns
+    -------
+    im : matplotlib.image.AxesImage
+        The image object.
+
+    Examples
+    --------
+    >>> img = np.random.rand(10, 10)
+    >>> imshow(img)
+    """
 
     # set default interpolation mode to 'none'
     if interpolation is None:
@@ -833,7 +947,28 @@ def imshow(data, *, ax=None, interpolation=None, **kwargs):
 
 
 def matshow(data, *, ax=None, **kwargs):
-    """Docstring goes here."""
+    """
+    Display a matrix in a new figure window using matplotlib's matshow.
+
+    Parameters
+    ----------
+    data : array-like or nelpy.BinnedSpikeTrainArray
+        The matrix or nelpy object to display.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's matshow.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted matrix.
+
+    Examples
+    --------
+    >>> mat = np.random.rand(5, 5)
+    >>> matshow(mat)
+    """
 
     # Sort out default values for the parameters
     if ax is None:
@@ -857,12 +992,28 @@ def matshow(data, *, ax=None, **kwargs):
 
 
 def comboplot(*, ax=None, raster=None, analog=None, events=None):
-    """Combo plot (consider better name) showing spike / state raster
-    with additional analog signals, such as LFP or velocity, and also
-    possibly with events. Here, the benefit is to have the figure and
-    axes created automatically, in addition to prettification, as well
-    as axis-linking. I don't know if we will really call this plot often
-    though, so may be more of a gimmick?
+    """
+    Create a combo plot showing spike/state raster, analog signals, and events.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    raster : array-like, optional
+        Raster data to plot.
+    analog : array-like, optional
+        Analog signal data to plot.
+    events : array-like, optional
+        Event data to plot.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the combo plot.
+
+    Notes
+    -----
+    This function is not yet implemented.
     """
 
     # Sort out default values for the parameters
@@ -893,11 +1044,34 @@ def occupancy():
 def overviewstrip(
     epochs, *, ax=None, lw=5, solid_capstyle="butt", label=None, **kwargs
 ):
-    """Plot an epoch array similar to vscode scrollbar, to show gaps in e.g.
-    matshow plots. TODO: complete me.
+    """
+    Plot an epoch array as a strip (like a scrollbar) to show gaps in e.g. matshow plots.
 
-    This can also be nice, for example, to implement the Kloosterman 2012
-    online vs offline strips above several of the plots.
+    Parameters
+    ----------
+    epochs : nelpy.EpochArray
+        The epochs to plot as a strip.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    lw : float, optional
+        Line width for the strip. Default is 5.
+    solid_capstyle : str, optional
+        Cap style for the strip. Default is 'butt'.
+    label : str, optional
+        Label for the strip.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's plot.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the overview strip.
+
+    Examples
+    --------
+    >>> from nelpy import EpochArray
+    >>> epochs = EpochArray([[0, 1], [2, 3], [5, 6]])
+    >>> overviewstrip(epochs)
     """
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -931,6 +1105,31 @@ def overviewstrip(
 
 
 def rastercountplot(spiketrain, nbins=50, **kwargs):
+    """
+    Plot a raster plot and spike count histogram for a SpikeTrainArray.
+
+    Parameters
+    ----------
+    spiketrain : nelpy.SpikeTrainArray
+        The spike train data to plot.
+    nbins : int, optional
+        Number of bins for the histogram. Default is 50.
+    **kwargs : dict
+        Additional keyword arguments passed to rasterplot.
+
+    Returns
+    -------
+    ax1 : matplotlib.axes.Axes
+        The axis with the histogram plot.
+    ax2 : matplotlib.axes.Axes
+        The axis with the raster plot.
+
+    Examples
+    --------
+    >>> from nelpy import SpikeTrainArray
+    >>> sta = SpikeTrainArray([[1, 2, 3], [2, 4, 6]], fs=10)
+    >>> rastercountplot(sta, nbins=20)
+    """
     plt.figure(figsize=(14, 6))
     gs = gridspec.GridSpec(2, 1, hspace=0.01, height_ratios=[0.2, 0.8])
     ax1 = plt.subplot(gs[0])
@@ -976,38 +1175,43 @@ def rasterplot(
     cmap_hi=0.75,
     **kwargs,
 ):
-    """Make a raster plot from a SpikeTrainArray object.
+    """
+    Make a raster plot from a SpikeTrainArray or EventArray object.
 
     Parameters
     ----------
-    data : nelpy.SpikeTrainArray object
+    data : nelpy.SpikeTrainArray or nelpy.EventArray
+        The spike/event data to plot.
     cmap : matplotlib colormap, optional
-    color: matplotlib color, optional
-        Plot color; default is '0.25'
-    ax : axis object, optional
-        Plot in given axis. If None, plots on current axes
+        Colormap to use for the raster lines.
+    color : matplotlib color, optional
+        Plot color; default is '0.25'.
+    ax : matplotlib.axes.Axes, optional
+        Plot in given axis. If None, plots on current axes.
     lw : float, optional
-        Linewidth, default value of lw=1.5.
+        Linewidth, default is 1.5.
     lh : float, optional
-        Line height, default value of 0.95
-    vertstack : Stack units in vertically adjacent positions, optional
-        Default is to plot units in absolute positions according
-        to their unit_ids
-    labels : Labels for input data units, optional
-        If not specified, default is to use the unit_labels from the
-        SpikeTrainArray input. See SpikeTrainArray docstring for
-        default behavior of unit_labels
-    kwargs :
-        Other keyword arguments are passed to main vlines() call
+        Line height, default is 0.95.
+    vertstack : bool, optional
+        If True, stack units in vertically adjacent positions. Default is False.
+    labels : list, optional
+        Labels for input data units. If not specified, uses unit_labels from the input.
+    cmap_lo : float, optional
+        Lower bound for colormap normalization. Default is 0.25.
+    cmap_hi : float, optional
+        Upper bound for colormap normalization. Default is 0.75.
+    **kwargs : dict
+        Other keyword arguments are passed to main vlines() call.
 
     Returns
     -------
-    ax : matplotlib axis
+    ax : matplotlib.axes.Axes
         Axis object with plot data.
 
     Examples
     --------
-    Instantiate a SpikeTrainArray and create a raster plot
+    Instantiate a SpikeTrainArray and create a raster plot:
+
         >>> stdata1 = [1, 2, 4, 5, 6, 10, 20]
         >>> stdata2 = [3, 4, 4.5, 5, 5.5, 19]
         >>> stdata3 = [5, 12, 14, 15, 16, 18, 22, 23, 24]
@@ -1020,7 +1224,8 @@ def rasterplot(
 
     Instantiate another SpikeTrain Array, stack units, and specify labels.
     Note that the user-specified labels in the call to raster() will be
-    shown instead of the unit_labels associated with the input data
+    shown instead of the unit_labels associated with the input data:
+
         >>> sta3 = nelpy.SpikeTrainArray([stdata1, stdata4, stdata2+stdata3],
                                          support=ep1, fs=5, unit_ids=[10,5,12],
                                          unit_labels=['some', 'more', 'cells'])
@@ -1162,38 +1367,43 @@ def epochplot(
     **kwargs,
 ):
     """
-    Plot epochs as vertical bars on a plot.
+    Plot an EpochArray as horizontal bars (intervals) on a timeline.
 
     Parameters
     ----------
     epochs : nelpy.EpochArray
-        EpochArray object to plot
+        The epochs to plot.
     data : array-like, optional
-        Data to plot on y axis; must be of size (epocharray.n_epochs,).
-    ax : axis object, optional
-        Plot in given axis; if None creates a new figure
+        Data to plot on y axis; must be of size (epochs.n_epochs,).
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
     height : float, optional
-        Height of the bars; default is 1.0
-    fc : matplotlib color, optional
-        Face color; default is '0.5'
-    ec : matplotlib color, optional
-        Edge color; default is '0.5'
+        Height of the bars. If None, uses default.
+    fc : color, optional
+        Face color of the bars. Default is '0.5'.
+    ec : color, optional
+        Edge color of the bars. Default is '0.5'.
     alpha : float, optional
-        Transparency; default is 0.5
+        Transparency of the bars. Default is 0.5.
     hatch : str, optional
-        Hatch pattern; default is ''
+        Hatching pattern for the bars.
     label : str, optional
-        Label for the plot
-    hc : matplotlib color, optional
-        Hatch color; default is None
-    kwargs :
-        Other keyword arguments are passed to main axvspan() call
+        Label for the bars.
+    hc : color, optional
+        Highlight color for the bars.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's barh.
 
     Returns
     -------
-    ax : matplotlib axis
-        Axis object with plot data.
+    ax : matplotlib.axes.Axes
+        The axis with the epoch plot.
 
+    Examples
+    --------
+    >>> from nelpy import EpochArray
+    >>> epochs = EpochArray([[0, 1], [2, 3], [5, 6]])
+    >>> epochplot(epochs)
     """
     if ax is None:
         ax = plt.gca()

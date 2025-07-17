@@ -8,6 +8,38 @@ __all__ = ["SliceExtractor", "ItemGetterLoc", "ItemGetterIloc"]
 
 
 class SliceExtractor(object):
+    """
+    Extracts and validates slice indices for interval, series, and event dimensions.
+
+    This class is used internally by accessor classes to parse and verify slicing/indexing
+    arguments for core objects that support multi-dimensional indexing (e.g., [interval, series, event]).
+
+    Methods
+    -------
+    extract(idx)
+        Parses the input index and returns validated slices for interval and series dimensions.
+    verify_interval_slice(testslice)
+        Checks if the interval slice is of a supported type.
+    verify_series_slice(testslice)
+        Checks if the series slice is of a supported type.
+    verify_event_slice(testslice)
+        Checks if the event slice is of a supported type.
+
+    Examples
+    --------
+    >>> extractor = SliceExtractor()
+    >>> intervalslice, seriesslice = extractor.extract((slice(0, 2), [0, 1]))
+    >>> intervalslice
+    slice(0, 2, None)
+    >>> seriesslice
+    [0, 1]
+
+    Notes
+    -----
+    - Only [interval, series, events] indexing is supported.
+    - Event slice extraction is not yet implemented in the return value.
+    """
+
     def __init__(self):
         pass
 
@@ -99,18 +131,29 @@ class SliceExtractor(object):
 
 
 class ItemGetterLoc(object):
-    """.loc is primarily label based (that is, series_id based)
+    """
+    Accessor for label-based indexing, similar to pandas' `.loc`.
 
-    .loc will raise KeyError when the items are not found.
+    Allows selection of intervals and series by label (e.g., series_id) rather than integer position.
+    Raises KeyError if a label is not found.
 
-    Allowed inputs are:
-        - A single label, e.g. 5 or 'a', (note that 5 is interpreted
-            as a label of the index. This use is not an integer
-            position along the index)
-        - A list or array of labels ['a', 'b', 'c']
-        - A slice object with labels 'a':'f', (note that contrary to
-            usual python slices, both the start and the stop are
-            included!)
+    Parameters
+    ----------
+    obj : object
+        The parent object supporting label-based indexing (must have `_series_ids` and `series_ids`).
+
+    Examples
+    --------
+    >>> obj = ...  # some core object with series_ids
+    >>> loc = ItemGetterLoc(obj)
+    >>> subset = loc["seriesA"]
+    >>> subset = loc[["seriesA", "seriesB"]]
+    >>> subset = loc["seriesA":"seriesC"]
+
+    Notes
+    -----
+    - Slices with labels include both the start and stop labels (unlike standard Python slices).
+    - This accessor is typically available as the `.loc` property on core objects.
     """
 
     def __init__(self, obj):
@@ -176,17 +219,29 @@ class ItemGetterLoc(object):
 
 
 class ItemGetterIloc(object):
-    """.iloc is primarily integer/index based (from 0 to length-1
-    of the axis).
+    """
+    Accessor for integer-based indexing, similar to pandas' `.iloc`.
 
-    .iloc will raise IndexError if a requested indexer is
-    out-of-bounds, except slice indexers which allow out-of-bounds
-    indexing. (this conforms with python/numpy slice semantics).
+    Allows selection of intervals and series by integer position (from 0 to length-1).
+    Raises IndexError if an integer index is out of bounds (except for slices, which allow out-of-bounds indices).
 
-    Allowed inputs are:
-        - An integer e.g. 5
-        - A list or array of integers [4, 3, 0]
-        - A slice object with ints 1:7
+    Parameters
+    ----------
+    obj : object
+        The parent object supporting integer-based indexing.
+
+    Examples
+    --------
+    >>> obj = ...  # some core object
+    >>> iloc = ItemGetterIloc(obj)
+    >>> subset = iloc[0]
+    >>> subset = iloc[[0, 2, 4]]
+    >>> subset = iloc[1:5]
+
+    Notes
+    -----
+    - This accessor is typically available as the `.iloc` property on core objects.
+    - Follows Python/NumPy slice semantics for out-of-bounds indices.
     """
 
     def __init__(self, obj):

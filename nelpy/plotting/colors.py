@@ -1,4 +1,9 @@
-"""colors"""
+"""
+nelpy.plotting.colors
+=====================
+
+This module provides named color palettes and the ColorGroup class for use in nelpy plotting.
+"""
 
 __all__ = [
     "sweet",
@@ -25,9 +30,37 @@ def _get_hsv(hexrgb):
 
 
 class ColorGroup:
-    """An unordered, named color group."""
+    """
+    An unordered, named color group for managing and plotting color palettes.
+
+    Attributes
+    ----------
+    n_colors : int
+        Number of colors in the group.
+    color_names : list of str
+        List of color names, ordered by hue.
+    colors : list of str
+        List of color hex codes, ordered by hue.
+
+    Examples
+    --------
+    >>> cg = ColorGroup(green="#00CF97", red="#F05340")
+    >>> cg.plot()
+    """
 
     def __init__(self, *args, label=None, **kwargs):
+        """
+        Initialize a ColorGroup with named colors.
+
+        Parameters
+        ----------
+        *args : dict
+            Dictionaries of color names to hex codes.
+        label : str, optional
+            Optional label for the color group.
+        **kwargs : dict
+            Additional color names and hex codes.
+        """
         for arg in args:
             if isinstance(arg, dict):
                 for k, v in arg.items():
@@ -38,12 +71,23 @@ class ColorGroup:
                 self[k] = v
 
     def __repr__(self):
+        """
+        Return a string representation of the ColorGroup.
+        """
         self.plot(size=0.5)
         address_str = " at " + str(hex(id(self)))
         return "<ColorGroup" + address_str + " with " + str(self.n_colors) + " colors>"
 
     @property
     def n_colors(self):
+        """
+        Return the number of colors in the group.
+
+        Returns
+        -------
+        int
+            Number of colors in the group.
+        """
         return len(self._colors)
 
     def __getattr__(self, attr):
@@ -65,28 +109,62 @@ class ColorGroup:
 
     @property
     def color_names(self):
-        """return the list of color names, ordered by hue"""
+        """
+        Return the list of color names, ordered by hue.
+
+        Returns
+        -------
+        list of str
+            Color names ordered by hue.
+        """
         hue_ordered_names = [list(self.__dict__.keys())[i] for i in self._hue_order]
         return hue_ordered_names
 
     @property
     def _colors(self):
-        """return the list of unordered colors"""
+        """
+        Return the list of unordered colors.
+
+        Returns
+        -------
+        list of str
+            Unordered color hex codes.
+        """
         return list(self.__dict__.values())
 
     @property
     def colors(self):
-        """return the list of colors, ordered by hue"""
+        """
+        Return the list of colors, ordered by hue.
+
+        Returns
+        -------
+        list of str
+            Color hex codes ordered by hue.
+        """
         hue_ordered_colors = [list(self.__dict__.values())[i] for i in self._hue_order]
         return hue_ordered_colors
 
     @property
     def _hue_order(self):
+        """
+        Return the order of colors by hue.
+
+        Returns
+        -------
+        list of int
+            Indices of colors ordered by hue.
+        """
         return sorted(range(self.n_colors), key=lambda k: _get_hsv(self._colors[k]))
 
     def plot(self, size=0.5):
-        """Plot all the colors in the ColorGroup, but not necessarily
-        in a particular order.
+        """
+        Plot all the colors in the ColorGroup.
+
+        Parameters
+        ----------
+        size : float, optional
+            Size of the color swatches (default is 0.5).
         """
         _palplot(self.colors, size=size)
 

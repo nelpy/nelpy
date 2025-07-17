@@ -28,33 +28,56 @@ class AnchoredScaleBar(AnchoredOffsetbox):
         **kwargs,
     ):
         """
-        Draw a horizontal and/or vertical  bar with the size in data
-        coordinate of the give axes. A label will be drawn underneath
-        (center-aligned).
-        - transform : the coordinate frame (typically axes.transData)
-        - sizex,sizey : width of x,y bar, in data units. 0 to omit
-        - labelx,labely : labels for x,y bars; None to omit
-        - loc : (int) position in containing axes
-            'upper right'  : 1,
-            'upper left'   : 2,
-            'lower left'   : 3,
-            'lower right'  : 4, default
-            'right'        : 5,
-            'center left'  : 6,
-            'center right' : 7,
-            'lower center' : 8,
-            'upper center' : 9,
-            'center'       : 10,
-        - pad, borderpad : padding, in fraction of the legend font size
-        - sep : separation between labels and bars in points.
-        - ec : edgecolor of scalebar
-        - lw : linewidth of scalebar
-        - fontsize : font size of labels
-        - fc : font color / face color of labels
-        - capstyle : capstyle of bars ['round', 'butt', 'projecting']
-        - **kwargs : additional arguments passed to base constructor
+        Create an anchored scale bar for matplotlib axes.
 
-        adapted from https://gist.github.com/dmeliza/3251476
+        Parameters
+        ----------
+        transform : matplotlib transform
+            The coordinate frame (typically axes.transData).
+        sizex : float, optional
+            Width of the x bar, in data units. 0 to omit. Default is 0.
+        sizey : float, optional
+            Height of the y bar, in data units. 0 to omit. Default is 0.
+        labelx : str, optional
+            Label for the x bar. None to omit.
+        labely : str, optional
+            Label for the y bar. None to omit.
+        loc : int, optional
+            Location in containing axes (see matplotlib legend locations). Default is 4 (lower right).
+        pad : float, optional
+            Padding, in fraction of the legend font size. Default is 0.5.
+        borderpad : float, optional
+            Border padding, in fraction of the legend font size. Default is 0.1.
+        sep : float, optional
+            Separation between labels and bars in points. Default is 2.
+        prop : font properties, optional
+            Font properties for the labels.
+        ec : color, optional
+            Edge color of the scalebar. Default is 'k'.
+        fc : color, optional
+            Font color / face color of labels. Default is 'k'.
+        fontsize : float, optional
+            Font size of labels. If None, uses matplotlib default.
+        lw : float, optional
+            Line width of the scalebar. Default is 1.5.
+        capstyle : {'round', 'butt', 'projecting'}, optional
+            Cap style of bars. Default is 'projecting'.
+        xfirst : bool, optional
+            If True, draw x bar and label first. Default is True.
+        **kwargs : dict
+            Additional arguments passed to base constructor.
+
+        Notes
+        -----
+        Adapted from https://gist.github.com/dmeliza/3251476
+
+        Examples
+        --------
+        >>> from nelpy.plotting.scalebar import AnchoredScaleBar
+        >>> import matplotlib.pyplot as plt
+        >>> fig, ax = plt.subplots()
+        >>> scalebar = AnchoredScaleBar(ax.transData, sizex=1, labelx="1 s")
+        >>> ax.add_artist(scalebar)
         """
         import matplotlib.patches as mpatches
         from matplotlib.offsetbox import AuxTransformBox, HPacker, TextArea, VPacker
@@ -187,6 +210,34 @@ def add_simple_scalebar(
     xytext=None,
     **kwargs,
 ):
+    """
+    Add a simple horizontal or vertical scalebar with a label to an axis.
+
+    Parameters
+    ----------
+    text : str
+        The label for the scalebar.
+    ax : matplotlib.axes.Axes, optional
+        Axis to add the scalebar to. If None, uses current axis.
+    xy : tuple of float
+        Starting (x, y) position for the scalebar.
+    length : float, optional
+        Length of the scalebar. Default is 10.
+    orientation : {'v', 'h', 'vert', 'horz'}, optional
+        Orientation of the scalebar. 'v' or 'vert' for vertical, 'h' or 'horz' for horizontal. Default is 'v'.
+    rotation_text : int or str, optional
+        Rotation of the label text. Default is 0.
+    xytext : tuple of float, optional
+        Position for the label text. If None, automatically determined.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's annotate.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> fig, ax = plt.subplots()
+    >>> add_simple_scalebar("10 s", ax=ax, xy=(0, 0), length=10, orientation="h")
+    """
     if rotation_text is None:
         rotation_text = 0
     if rotation_text == "vert" or rotation_text == "v":
@@ -236,17 +287,44 @@ def add_scalebar(
     ec="k",
     **kwargs,
 ):
-    """Add scalebars to axes
-    TODO: improve documentation and standardize docstring.
-    Adds a set of scale bars to *ax*, matching the size to the ticks of
-    the plot and optionally hiding the x and y axes
-    - ax : the axis to attach ticks to
-    - matchx,matchy : if True, set size of scale bars to spacing between
-                      ticks if False, size should be set using sizex and
-                      sizey params
-    - hidex,hidey : if True, hide x-axis and y-axis of parent
-    - **kwargs : additional arguments passed to AnchoredScaleBars
-    Returns axis containing scalebar object
+    """
+    Add scalebars to axes, matching the size to the ticks of the plot and optionally hiding the x and y axes.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The axis to attach scalebars to.
+    matchx : bool, optional
+        If True, set size of x scalebar to spacing between ticks. Default is False.
+    matchy : bool, optional
+        If True, set size of y scalebar to spacing between ticks. Default is False.
+    sizex : float, optional
+        Size of x scalebar. Used if matchx is False.
+    sizey : float, optional
+        Size of y scalebar. Used if matchy is False.
+    labelx : str, optional
+        Label for x scalebar.
+    labely : str, optional
+        Label for y scalebar.
+    hidex : bool, optional
+        If True, hide x-axis of parent. Default is True.
+    hidey : bool, optional
+        If True, hide y-axis of parent. Default is True.
+    ec : color, optional
+        Edge color of the scalebar. Default is 'k'.
+    **kwargs : dict
+        Additional arguments passed to AnchoredScaleBar.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis containing the scalebar object.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> fig, ax = plt.subplots()
+    >>> add_scalebar(ax, sizex=1, labelx="1 s")
     """
 
     # determine which type op scalebar to plot:

@@ -32,31 +32,17 @@ def sosfiltfilt(
     parallel=True,
     **kwargs,
 ):
-    """Zero-phase forward backward filtering using second-order-segments.
+    """
+    Apply a zero-phase digital filter using second-order sections.
 
-    spike  600--6000
-    ripple 150--250
-    delta 1--4
-    theta 6--12
-    gamma 32--100
-
-    Delta wave - (0.1 - 3 Hz)
-    Theta wave - (4 - 7 Hz)
-    Alpha wave - (8 - 15 Hz)
-    Mu wave - (7.5 - 12.5 Hz)
-    SWR wave - (12.5 - 15.5 Hz)
-    Beta wave - (16 - 31 Hz)
-    Gamma wave - (32 - 100 Hz)
-
-    slow gamma : 10-50 Hz
-    hippocampal theta : 6-10 Hz
-    motionless but alert theta : 6-7 Hz
-    cat & rabbit theta: 4-6 Hz meow! hop!
+    This function applies a forward and backward digital filter to a signal using
+    second-order sections (SOS) representation. The result has zero phase distortion
+    and the same shape as the input.
 
     Parameters
     ----------
     timeseries : nelpy.RegularlySampledAnalogSignalArray (preferred), ndarray, or list
-        Object or data to filter.
+        Object or data to filter. Can be a NumPy array or a Nelpy AnalogSignalArray.
     fs : float, optional only if RegularlySampledAnalogSignalArray is passed
         The sampling frequency (Hz). Obtained from the input timeseries.
     fl : float, optional
@@ -82,6 +68,10 @@ def sosfiltfilt(
     overlap_len : int, optional
         How much data we add to the end of each chunk to smooth out filter
         transients.
+    inplace : bool, optional
+        If True, modifies the input in place. Default is False.
+    parallel : bool, optional
+        If True, uses multiprocessing for parallel filtering. Default is True.
     kwargs : optional
         Other keyword arguments are passed to scipy.signal's iirdesign method
 
@@ -94,6 +84,49 @@ def sosfiltfilt(
     Thus it is highly recommended to have your input data be floats before calling
     this function. If the input is an RSASA, you do not need to worry because
     the underlying data are already floats.
+
+    See Also
+    --------
+    scipy.signal.sosfilt : Apply a digital filter forward in time.
+    scipy.signal.filtfilt : Zero-phase filtering for transfer function and FIR filters.
+
+    Notes
+    -----
+    This function is similar to `scipy.signal.filtfilt`, but uses the second-order sections
+    (SOS) representation for improved numerical stability, especially for high-order filters.
+
+    Examples
+    --------
+    Filter a noisy sine wave (NumPy array):
+
+    >>> import numpy as np
+    >>> from scipy.signal import butter
+    >>> from nelpy.filtering import sosfiltfilt
+    >>> np.random.seed(0)
+    >>> t = np.linspace(0, 1, 1000, endpoint=False)
+    >>> x = np.sin(2 * np.pi * 5 * t) + 0.5 * np.random.randn(t.size)
+    >>> sos = butter(4, 10, "low", fs=1000, output="sos")
+    >>> y = sosfiltfilt(x, fs=1000, fl=None, fh=10)
+    >>> import matplotlib.pyplot as plt
+    >>> plt.plot(t, x, label="Noisy signal")
+    >>> plt.plot(t, y, label="Filtered signal")
+    >>> plt.legend()
+    >>> plt.show()
+
+    Filter a Nelpy AnalogSignalArray:
+
+    >>> from nelpy import AnalogSignalArray
+    >>> # Create a 2-channel signal
+    >>> data = np.vstack([np.sin(2 * np.pi * 5 * t), np.cos(2 * np.pi * 5 * t)])
+    >>> asa = AnalogSignalArray(data=data, abscissa_vals=t, fs=1000)
+    >>> filtered_asa = sosfiltfilt(asa, fl=None, fh=10)
+    >>> print(filtered_asa.data.shape)
+    (2, 1000)
+    >>> # Plot the first channel
+    >>> plt.plot(t, asa.data[0], label="Original")
+    >>> plt.plot(t, filtered_asa.data[0], label="Filtered")
+    >>> plt.legend()
+    >>> plt.show()
     """
 
     # make sure that fs is specified, unless AnalogSignalArray is passed in
