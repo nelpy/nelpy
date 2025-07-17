@@ -1,12 +1,24 @@
 """
 nelpy.plotting
-=====
+==============
 
-This is the nelpy plotting sub-package.
+The nelpy.plotting sub-package provides a variety of plotting functions and tools
+for visualizing data in nelpy, including raster plots, tuning curves, color utilities,
+colormaps, and more. It includes convenience wrappers for matplotlib and
+plotting functions that work directly with nelpy objects.
 
-nelpy.plotting provides many plot types that work directly on nelpy
-objects, as well as some convenience functions to make using matplotlib
-more convenient.
+Main Features
+-------------
+- Plotting functions for nelpy objects (e.g., rasterplot, epochplot, imagesc)
+- Color palettes and colormaps for scientific visualization
+- Utilities for figure management and aesthetics
+- Context and style management for publication-quality figures
+
+Examples
+--------
+>>> import nelpy.plotting as npl
+>>> npl.rasterplot(...)
+>>> npl.plot_tuning_curves1D(...)
 """
 
 from . import colors, utils
