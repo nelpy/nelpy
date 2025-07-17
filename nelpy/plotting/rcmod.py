@@ -82,27 +82,31 @@ def setup(
     font_scale=1,
     rc=None,
 ):
-    """Set aesthetic figure parameters.
+    """
+    Set aesthetic figure parameters for matplotlib plots.
 
-    Each set of parameters can be set directly or temporarily, see the
+    Each set of parameters can be set directly or temporarily. See the
     referenced functions below for more information.
 
     Parameters
     ----------
-    context : string or dict
-        Plotting context parameters, see :func:`plotting_context`
-    style : string or dict
-        Axes style parameters, see :func:`axes_style`
-    palette : string or sequence
-        Color palette, see :func:`color_palette`
-    font : string
+    context : str or dict, optional
+        Plotting context parameters, see :func:`plotting_context`.
+    style : str or dict, optional
+        Axes style parameters, see :func:`axes_style`.
+    palette : str or sequence, optional
+        Color palette, see :func:`color_palette`.
+    font : str, optional
         Font family, see matplotlib font manager.
     font_scale : float, optional
         Separate scaling factor to independently scale the size of the
         font elements.
-    rc : dict or None
+    rc : dict or None, optional
         Dictionary of rc parameter mappings to override the above.
 
+    Examples
+    --------
+    >>> setup(context="talk", style="whitegrid", palette="muted", font="Arial", font_scale=1.2)
     """
     set_context(context, font_scale)
     set_style(style, rc={"font.family": font})
@@ -112,7 +116,14 @@ def setup(
 
 
 def set_fontsize(fontsize=14):
-    """Set the fontsize for most plot elements."""
+    """
+    Set the fontsize for most plot elements.
+
+    Parameters
+    ----------
+    fontsize : int or float, optional
+        The font size to set for most plot elements (default is 14).
+    """
 
     rc = {
         "font.size": fontsize,
@@ -127,17 +138,22 @@ def set_fontsize(fontsize=14):
 
 
 def reset_defaults():
-    """Restore all RC params to default settings."""
+    """
+    Restore all matplotlib RC params to default settings.
+    """
     mpl.rcParams.update(mpl.rcParamsDefault)
 
 
 def reset_orig():
-    """Restore all RC params to original settings (respects custom rc)."""
+    """
+    Restore all matplotlib RC params to original settings (respects custom rc).
+    """
     mpl.rcParams.update(_orig_rc_params)
 
 
 def axes_style(style=None, rc=None):
-    """Return a parameter dict for the aesthetic style of the plots.
+    """
+    Return a parameter dict for the aesthetic style of the plots.
 
     This affects things like the color of the axes, whether a grid is
     enabled by default, and other aesthetic elements.
@@ -154,23 +170,25 @@ def axes_style(style=None, rc=None):
         style dictionaries. This only updates parameters that are
         considered part of the style definition.
 
+    Returns
+    -------
+    style_object : _AxesStyle
+        An object that can be used as a context manager to temporarily set style.
+
     Examples
     --------
     >>> st = axes_style("whitegrid")
-
     >>> set_style("ticks", {"xtick.major.size": 8, "ytick.major.size": 8})
-
     >>> import matplotlib.pyplot as plt
     >>> with axes_style("white"):
     ...     f, ax = plt.subplots()
-    ...     ax.plot(x, y)  # doctest: +SKIP
+    ...     ax.plot([0, 1], [0, 1])
 
     See Also
     --------
     set_style : set the matplotlib parameters for a seaborn theme
-    plotting_context : return a parameter dict to to scale plot elements
+    plotting_context : return a parameter dict to scale plot elements
     color_palette : define the color palette for a plot
-
     """
     if style is None:
         style_dict = {k: mpl.rcParams[k] for k in _style_keys}
@@ -291,7 +309,8 @@ def axes_style(style=None, rc=None):
 
 
 def set_style(style=None, rc=None):
-    """Set the aesthetic style of the plots.
+    """
+    Set the aesthetic style of the plots.
 
     This affects things like the color of the axes, whether a grid is
     enabled by default, and other aesthetic elements.
@@ -308,7 +327,6 @@ def set_style(style=None, rc=None):
     Examples
     --------
     >>> set_style("whitegrid")
-
     >>> set_style("ticks", {"xtick.major.size": 8, "ytick.major.size": 8})
 
     See Also
@@ -317,19 +335,19 @@ def set_style(style=None, rc=None):
                  to temporarily set the style.
     set_context : set parameters to scale plot elements
     set_palette : set the default color palette for figures
-
     """
     style_object = axes_style(style, rc)
     mpl.rcParams.update(style_object)
 
 
 def plotting_context(context=None, font_scale=1, rc=None):
-    """Return a parameter dict to scale elements of the figure.
+    """
+    Return a parameter dict to scale elements of the figure.
 
     This affects things like the size of the labels, lines, and other
     elements of the plot, but not the overall style. The base context
     is "notebook", and the other contexts are "paper", "talk", and "poster",
-    which are version of the notebook parameters scaled by .8, 1.3, and 1.6,
+    which are versions of the notebook parameters scaled by .8, 1.3, and 1.6,
     respectively.
 
     This function returns an object that can be used in a ``with`` statement
@@ -347,25 +365,26 @@ def plotting_context(context=None, font_scale=1, rc=None):
         context dictionaries. This only updates parameters that are
         considered part of the context definition.
 
+    Returns
+    -------
+    context_object : _PlottingContext
+        An object that can be used as a context manager to temporarily set context.
+
     Examples
     --------
     >>> c = plotting_context("poster")
-
     >>> c = plotting_context("notebook", font_scale=1.5)
-
     >>> c = plotting_context("talk", rc={"lines.linewidth": 2})
-
     >>> import matplotlib.pyplot as plt
     >>> with plotting_context("paper"):
     ...     f, ax = plt.subplots()
-    ...     ax.plot(x, y)  # doctest: +SKIP
+    ...     ax.plot([0, 1], [0, 1])
 
     See Also
     --------
     set_context : set the matplotlib parameters to scale plot elements
     axes_style : return a dict of parameters defining a figure style
     color_palette : define the color palette for a plot
-
     """
     if context is None:
         context_dict = {k: mpl.rcParams[k] for k in _context_keys}
@@ -435,12 +454,13 @@ def plotting_context(context=None, font_scale=1, rc=None):
 
 
 def set_context(context=None, font_scale=1, rc=None):
-    """Set the plotting context parameters.
+    """
+    Set the plotting context parameters.
 
     This affects things like the size of the labels, lines, and other
     elements of the plot, but not the overall style. The base context
     is "notebook", and the other contexts are "paper", "talk", and "poster",
-    which are version of the notebook parameters scaled by .8, 1.3, and 1.6,
+    which are versions of the notebook parameters scaled by .8, 1.3, and 1.6,
     respectively.
 
     Parameters
@@ -458,9 +478,7 @@ def set_context(context=None, font_scale=1, rc=None):
     Examples
     --------
     >>> set_context("paper")
-
     >>> set_context("talk", font_scale=1.4)
-
     >>> set_context("talk", rc={"lines.linewidth": 2})
 
     See Also
@@ -469,13 +487,15 @@ def set_context(context=None, font_scale=1, rc=None):
                        a ``with`` statement to temporarily set the context.
     set_style : set the default parameters for figure style
     set_palette : set the default color palette for figures
-
     """
     context_object = plotting_context(context, font_scale, rc)
     mpl.rcParams.update(context_object)
 
 
 class _RCAesthetics(dict):
+    """
+    Base class for temporarily setting matplotlib rc parameters using a context manager.
+    """
     def __enter__(self):
         rc = mpl.rcParams
         self._orig = {k: rc[k] for k in self._keys}
@@ -494,37 +514,41 @@ class _RCAesthetics(dict):
 
 
 class _AxesStyle(_RCAesthetics):
-    """Light wrapper on a dict to set style temporarily."""
-
+    """
+    Light wrapper on a dict to set style temporarily.
+    """
     _keys = _style_keys
     _set = staticmethod(set_style)
 
 
 class _PlottingContext(_RCAesthetics):
-    """Light wrapper on a dict to set context temporarily."""
-
+    """
+    Light wrapper on a dict to set context temporarily.
+    """
     _keys = _context_keys
     _set = staticmethod(set_context)
 
 
 def set_palette(palette, n_colors=None, desat=None):
-    """Set the matplotlib color cycle using a seaborn palette.
+    """
+    Set the matplotlib color cycle using a seaborn palette.
+
     Parameters
     ----------
     palette : hls | husl | matplotlib colormap | seaborn color palette
-        Palette definition. Should be something that :func:`color_palette`
-        can process.
-    n_colors : int
+        Palette definition. Should be something that :func:`color_palette` can process.
+    n_colors : int, optional
         Number of colors in the cycle. The default number of colors will depend
         on the format of ``palette``, see the :func:`color_palette`
         documentation for more information.
-    desat : float
+    desat : float, optional
         Proportion to desaturate each color by.
 
     Examples
     --------
     >>> set_palette("Reds")
     >>> set_palette("Set1", 8, 0.75)
+
     See Also
     --------
     color_palette : build a color palette or set the color cycle temporarily
