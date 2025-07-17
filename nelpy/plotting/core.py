@@ -1105,6 +1105,31 @@ def overviewstrip(
 
 
 def rastercountplot(spiketrain, nbins=50, **kwargs):
+    """
+    Plot a raster plot and spike count histogram for a SpikeTrainArray.
+
+    Parameters
+    ----------
+    spiketrain : nelpy.SpikeTrainArray
+        The spike train data to plot.
+    nbins : int, optional
+        Number of bins for the histogram. Default is 50.
+    **kwargs : dict
+        Additional keyword arguments passed to rasterplot.
+
+    Returns
+    -------
+    ax1 : matplotlib.axes.Axes
+        The axis with the histogram plot.
+    ax2 : matplotlib.axes.Axes
+        The axis with the raster plot.
+
+    Examples
+    --------
+    >>> from nelpy import SpikeTrainArray
+    >>> sta = SpikeTrainArray([[1, 2, 3], [2, 4, 6]], fs=10)
+    >>> rastercountplot(sta, nbins=20)
+    """
     plt.figure(figsize=(14, 6))
     gs = gridspec.GridSpec(2, 1, hspace=0.01, height_ratios=[0.2, 0.8])
     ax1 = plt.subplot(gs[0])
@@ -1150,38 +1175,43 @@ def rasterplot(
     cmap_hi=0.75,
     **kwargs,
 ):
-    """Make a raster plot from a SpikeTrainArray object.
+    """
+    Make a raster plot from a SpikeTrainArray or EventArray object.
 
     Parameters
     ----------
-    data : nelpy.SpikeTrainArray object
+    data : nelpy.SpikeTrainArray or nelpy.EventArray
+        The spike/event data to plot.
     cmap : matplotlib colormap, optional
-    color: matplotlib color, optional
-        Plot color; default is '0.25'
-    ax : axis object, optional
-        Plot in given axis. If None, plots on current axes
+        Colormap to use for the raster lines.
+    color : matplotlib color, optional
+        Plot color; default is '0.25'.
+    ax : matplotlib.axes.Axes, optional
+        Plot in given axis. If None, plots on current axes.
     lw : float, optional
-        Linewidth, default value of lw=1.5.
+        Linewidth, default is 1.5.
     lh : float, optional
-        Line height, default value of 0.95
-    vertstack : Stack units in vertically adjacent positions, optional
-        Default is to plot units in absolute positions according
-        to their unit_ids
-    labels : Labels for input data units, optional
-        If not specified, default is to use the unit_labels from the
-        SpikeTrainArray input. See SpikeTrainArray docstring for
-        default behavior of unit_labels
-    kwargs :
-        Other keyword arguments are passed to main vlines() call
+        Line height, default is 0.95.
+    vertstack : bool, optional
+        If True, stack units in vertically adjacent positions. Default is False.
+    labels : list, optional
+        Labels for input data units. If not specified, uses unit_labels from the input.
+    cmap_lo : float, optional
+        Lower bound for colormap normalization. Default is 0.25.
+    cmap_hi : float, optional
+        Upper bound for colormap normalization. Default is 0.75.
+    **kwargs : dict
+        Other keyword arguments are passed to main vlines() call.
 
     Returns
     -------
-    ax : matplotlib axis
+    ax : matplotlib.axes.Axes
         Axis object with plot data.
 
     Examples
     --------
-    Instantiate a SpikeTrainArray and create a raster plot
+    Instantiate a SpikeTrainArray and create a raster plot:
+
         >>> stdata1 = [1, 2, 4, 5, 6, 10, 20]
         >>> stdata2 = [3, 4, 4.5, 5, 5.5, 19]
         >>> stdata3 = [5, 12, 14, 15, 16, 18, 22, 23, 24]
@@ -1194,7 +1224,8 @@ def rasterplot(
 
     Instantiate another SpikeTrain Array, stack units, and specify labels.
     Note that the user-specified labels in the call to raster() will be
-    shown instead of the unit_labels associated with the input data
+    shown instead of the unit_labels associated with the input data:
+
         >>> sta3 = nelpy.SpikeTrainArray([stdata1, stdata4, stdata2+stdata3],
                                          support=ep1, fs=5, unit_ids=[10,5,12],
                                          unit_labels=['some', 'more', 'cells'])
@@ -1336,38 +1367,43 @@ def epochplot(
     **kwargs,
 ):
     """
-    Plot epochs as vertical bars on a plot.
+    Plot an EpochArray as horizontal bars (intervals) on a timeline.
 
     Parameters
     ----------
     epochs : nelpy.EpochArray
-        EpochArray object to plot
+        The epochs to plot.
     data : array-like, optional
-        Data to plot on y axis; must be of size (epocharray.n_epochs,).
-    ax : axis object, optional
-        Plot in given axis; if None creates a new figure
+        Data to plot on y axis; must be of size (epochs.n_epochs,).
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
     height : float, optional
-        Height of the bars; default is 1.0
-    fc : matplotlib color, optional
-        Face color; default is '0.5'
-    ec : matplotlib color, optional
-        Edge color; default is '0.5'
+        Height of the bars. If None, uses default.
+    fc : color, optional
+        Face color of the bars. Default is '0.5'.
+    ec : color, optional
+        Edge color of the bars. Default is '0.5'.
     alpha : float, optional
-        Transparency; default is 0.5
+        Transparency of the bars. Default is 0.5.
     hatch : str, optional
-        Hatch pattern; default is ''
+        Hatching pattern for the bars.
     label : str, optional
-        Label for the plot
-    hc : matplotlib color, optional
-        Hatch color; default is None
-    kwargs :
-        Other keyword arguments are passed to main axvspan() call
+        Label for the bars.
+    hc : color, optional
+        Highlight color for the bars.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's barh.
 
     Returns
     -------
-    ax : matplotlib axis
-        Axis object with plot data.
+    ax : matplotlib.axes.Axes
+        The axis with the epoch plot.
 
+    Examples
+    --------
+    >>> from nelpy import EpochArray
+    >>> epochs = EpochArray([[0, 1], [2, 3], [5, 6]])
+    >>> epochplot(epochs)
     """
     if ax is None:
         ax = plt.gca()
