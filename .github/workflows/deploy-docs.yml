@@ -19,4 +19,7 @@ jobs:
         run: mkdocs build
       - name: Deploy to gh-pages
         if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
-        run: mkdocs gh-deploy --force
+        run: |
+          mkdocs gh-deploy --force
+          # Ensure .nojekyll is copied to gh-pages branch
+          touch site/.nojekyll
