@@ -617,43 +617,42 @@ class PoissonHMM(PHMM):
         return unwrapped.T, lengths
 
     def decode(self, X, lengths=None, w=None, algorithm=None):
-        """Find most likely state sequence corresponding to ``X``.
+        """
+        Find the most likely state sequence corresponding to ``X``.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Feature matrix of individual samples.
-            OR
-            nelpy.BinnedSpikeTrainArray
-            WARNING! Each decoding window is assumed to be similar in
-            size to those used during training. If not, the tuning curves
-            have to be scaled appropriately!
-        lengths : array-like of integers, shape (n_sequences, ), optional
-            Lengths of the individual sequences in ``X``. The sum of
-            these should be ``n_samples``. This is not used when X is
-            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
-            automatically inferred.
-        algorithm : string, one of the ``DECODER_ALGORITHMS``
-            decoder algorithm to be used.
+        X : array-like of shape (n_samples, n_features) or BinnedSpikeTrainArray
+            Feature matrix of individual samples, or a nelpy.BinnedSpikeTrainArray.
+            WARNING: Each decoding window is assumed to be similar in size to those used during training.
+            If not, the tuning curves have to be scaled appropriately!
+        lengths : array-like of int, shape (n_sequences,), optional
+            Lengths of the individual sequences in ``X``. The sum of these should be ``n_samples``.
+            Not used when X is a BinnedSpikeTrainArray, in which case the lengths are automatically inferred.
+        w : int, optional
+            Window size for sliding window decoding (only used for BinnedSpikeTrainArray input).
+        algorithm : str, optional
+            Decoder algorithm to be used (see DECODER_ALGORITHMS).
 
         Returns
         -------
-        logprob : float
-            Log probability of the PRODUCED STATE SEQUENCE.
-        state_sequence : array, shape (n_samples, )
-            Labels for each sample from ``X`` obtained via a given
-            decoder ``algorithm``.
-        centers : array, shape (n_samples, )
-            time-centers of all bins contained in ``X``
+        logprob : float or list of float
+            Log probability of the produced state sequence.
+        state_sequence : np.ndarray or list of np.ndarray
+            Labels for each sample from ``X`` obtained via the given decoder algorithm.
+        centers : np.ndarray or list of np.ndarray
+            Time-centers of all bins contained in ``X``.
 
         See Also
         --------
-        score_samples : Compute the log probability under the model and
-            posteriors.
-
+        score_samples : Compute the log probability under the model and posteriors.
         score : Compute the log probability under the model.
-        """
 
+        Examples
+        --------
+        >>> logprob, state_seq, centers = hmm.decode(bst)
+        >>> logprob, state_seq, centers = hmm.decode(X, algorithm='viterbi')
+        """
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             if w is not None:
@@ -673,33 +672,29 @@ class PoissonHMM(PHMM):
             return logprobs, state_sequences, centers
 
     def _decode_from_lambda_only(self, X, lengths=None):
-        """Decode using the observation (lambda) matrix only. That is, pure
-           memoryless decoding.
-
-        >>> posteriors, state_sequences = hmm._decode_from_lambda_only(bst)
+        """
+        Decode using the observation (lambda) matrix only (i.e., pure memoryless decoding).
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Feature matrix of individual samples.
-            OR
-            nelpy.BinnedSpikeTrainArray
-            WARNING! Each decoding window is assumed to be similar in
-            size to those used during training. If not, the tuning curves
-            have to be scaled appropriately!
-        lengths : array-like of integers, shape (n_sequences, ), optional
-            Lengths of the individual sequences in ``X``. The sum of
-            these should be ``n_samples``. This is not used when X is
-            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
-            automatically inferred.
+        X : array-like of shape (n_samples, n_features) or BinnedSpikeTrainArray
+            Feature matrix of individual samples, or a nelpy.BinnedSpikeTrainArray.
+            WARNING: Each decoding window is assumed to be similar in size to those used during training.
+            If not, the tuning curves have to be scaled appropriately!
+        lengths : array-like of int, shape (n_sequences,), optional
+            Lengths of the individual sequences in ``X``. The sum of these should be ``n_samples``.
+            Not used when X is a BinnedSpikeTrainArray, in which case the lengths are automatically inferred.
 
         Returns
         -------
-        posteriors : array, shape (n_components, n_samples)
-            State-membership probabilities for each sample in ``X``;
-            one array for each sequence in X.
-        state_sequences : array, shape (n_samples, )
+        posteriors : list of np.ndarray
+            State-membership probabilities for each sample in ``X``; one array for each sequence in X.
+        state_sequences : list of np.ndarray
             Labels for each sample from ``X``; one array for each sequence in X.
+
+        Examples
+        --------
+        >>> posteriors, state_sequences = hmm._decode_from_lambda_only(bst)
         """
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
@@ -729,24 +724,33 @@ class PoissonHMM(PHMM):
             return posteriors, state_sequences
 
     def predict_proba(self, X, lengths=None, w=None, returnLengths=False):
-        """Compute the posterior probability for each state in the model.
+        """
+        Compute the posterior probability for each state in the model.
 
-        X : array-like, shape (n_samples, n_features)
-            Feature matrix of individual samples.
-            OR
-            nelpy.BinnedSpikeTrainArray
-        lengths : array-like of integers, shape (n_sequences, ), optional
-            Lengths of the individual sequences in ``X``. The sum of
-            these should be ``n_samples``. This is not used when X is
-            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
-            automatically inferred.
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features) or BinnedSpikeTrainArray
+            Feature matrix of individual samples, or a nelpy.BinnedSpikeTrainArray.
+        lengths : array-like of int, shape (n_sequences,), optional
+            Lengths of the individual sequences in ``X``. The sum of these should be ``n_samples``.
+            Not used when X is a BinnedSpikeTrainArray, in which case the lengths are automatically inferred.
+        w : int, optional
+            Window size for sliding window decoding (only used for BinnedSpikeTrainArray input).
+        returnLengths : bool, optional
+            If True, also return the lengths array.
 
         Returns
         -------
-        posteriors : array, shape (n_components, n_samples)
-            State-membership probabilities for each sample from ``X``.
-        """
+        posteriors : np.ndarray
+            Array of shape (n_components, n_samples) with state-membership probabilities for each sample from ``X``.
+        lengths : np.ndarray, optional
+            Returned if returnLengths is True; array of sequence lengths.
 
+        Examples
+        --------
+        >>> posteriors = hmm.predict_proba(bst)
+        >>> posteriors, lengths = hmm.predict_proba(bst, returnLengths=True)
+        """
         if not isinstance(X, BinnedSpikeTrainArray):
             print("we have a " + str(type(X)))
             # assume we have a feature matrix
@@ -763,59 +767,55 @@ class PoissonHMM(PHMM):
             return np.transpose(self._predict_proba(self, windowed_arr, lengths=lengths))
 
     def predict(self, X, lengths=None, w=None):
-        """Find most likely state sequence corresponding to ``X``.
+        """
+        Find the most likely state sequence corresponding to ``X``.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Feature matrix of individual samples.
-            OR
-            nelpy.BinnedSpikeTrainArray
-        lengths : array-like of integers, shape (n_sequences, ), optional
-            Lengths of the individual sequences in ``X``. The sum of
-            these should be ``n_samples``. This is not used when X is
-            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
-            automatically inferred.
+        X : array-like of shape (n_samples, n_features) or BinnedSpikeTrainArray
+            Feature matrix of individual samples, or a nelpy.BinnedSpikeTrainArray.
+        lengths : array-like of int, shape (n_sequences,), optional
+            Lengths of the individual sequences in ``X``. The sum of these should be ``n_samples``.
+            Not used when X is a BinnedSpikeTrainArray, in which case the lengths are automatically inferred.
+        w : int, optional
+            Window size for sliding window decoding (only used for BinnedSpikeTrainArray input).
 
         Returns
         -------
-        state_sequence : array, shape (n_samples, )
+        state_sequence : np.ndarray or list of np.ndarray
             Labels for each sample from ``X``.
-        """
 
+        Examples
+        --------
+        >>> state_seq = hmm.predict(bst)
+        >>> state_seq = hmm.predict(X)
+        """
         _, state_sequences, centers = self.decode(X=X, lengths=lengths, w=w)
         return state_sequences
 
     def sample(self, n_samples=1, random_state=None):
-        # TODO: here we should really use X.unit_ids, tags, etc. to
-        # return a BST object. Probably have to copy the attributes
-        # during init, but we will only have these if BST is used,
-        # instead of a feature matrix. So, if we only used a feature
-        # matrix, then we return a feature matrix? Or just a new,
-        # compatible BST?
-        """Generate random samples from the model.
-
-        DESCRIPTION GOES HERE... TODO TODO TODO TODO
+        """
+        Generate random samples from the model.
 
         Parameters
         ----------
         n_samples : int
             Number of samples to generate.
-
-        random_state: RandomState or an int seed (0 by default)
-            A random number generator instance. If ``None``, the object's
-            random_state is used.
+        random_state : RandomState or int, optional
+            A random number generator instance or seed. If None, the object's random_state is used.
 
         Returns
         -------
-        X : array, shape (n_samples, n_features)
-            Feature matrix.
-        state_sequence : array, shape (n_samples, )
+        X : np.ndarray
+            Feature matrix of shape (n_samples, n_features).
+        state_sequence : np.ndarray
             State sequence produced by the model.
+
+        Examples
+        --------
+        >>> X, states = hmm.sample(n_samples=100)
         """
         return self._sample(self, n_samples=n_samples, random_state=random_state)
-        # raise NotImplementedError(
-        #     "PoissonHMM.sample() has not been implemented yet.")
 
     def score_samples(self, X, lengths=None, w=None):
         """Compute the log probability under the model and compute posteriors.
