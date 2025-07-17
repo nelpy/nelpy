@@ -916,7 +916,30 @@ def plot2d(
 
 
 def imshow(data, *, ax=None, interpolation=None, **kwargs):
-    """Docstring goes here."""
+    """
+    Display an image (matrix) using matplotlib's imshow.
+
+    Parameters
+    ----------
+    data : array-like
+        The image data to display.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    interpolation : str, optional
+        Interpolation method. Default is 'none'.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's imshow.
+
+    Returns
+    -------
+    im : matplotlib.image.AxesImage
+        The image object.
+
+    Examples
+    --------
+    >>> img = np.random.rand(10, 10)
+    >>> imshow(img)
+    """
 
     # set default interpolation mode to 'none'
     if interpolation is None:
@@ -924,7 +947,28 @@ def imshow(data, *, ax=None, interpolation=None, **kwargs):
 
 
 def matshow(data, *, ax=None, **kwargs):
-    """Docstring goes here."""
+    """
+    Display a matrix in a new figure window using matplotlib's matshow.
+
+    Parameters
+    ----------
+    data : array-like or nelpy.BinnedSpikeTrainArray
+        The matrix or nelpy object to display.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's matshow.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted matrix.
+
+    Examples
+    --------
+    >>> mat = np.random.rand(5, 5)
+    >>> matshow(mat)
+    """
 
     # Sort out default values for the parameters
     if ax is None:
@@ -948,12 +992,28 @@ def matshow(data, *, ax=None, **kwargs):
 
 
 def comboplot(*, ax=None, raster=None, analog=None, events=None):
-    """Combo plot (consider better name) showing spike / state raster
-    with additional analog signals, such as LFP or velocity, and also
-    possibly with events. Here, the benefit is to have the figure and
-    axes created automatically, in addition to prettification, as well
-    as axis-linking. I don't know if we will really call this plot often
-    though, so may be more of a gimmick?
+    """
+    Create a combo plot showing spike/state raster, analog signals, and events.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    raster : array-like, optional
+        Raster data to plot.
+    analog : array-like, optional
+        Analog signal data to plot.
+    events : array-like, optional
+        Event data to plot.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the combo plot.
+
+    Notes
+    -----
+    This function is not yet implemented.
     """
 
     # Sort out default values for the parameters
@@ -984,11 +1044,34 @@ def occupancy():
 def overviewstrip(
     epochs, *, ax=None, lw=5, solid_capstyle="butt", label=None, **kwargs
 ):
-    """Plot an epoch array similar to vscode scrollbar, to show gaps in e.g.
-    matshow plots. TODO: complete me.
+    """
+    Plot an epoch array as a strip (like a scrollbar) to show gaps in e.g. matshow plots.
 
-    This can also be nice, for example, to implement the Kloosterman 2012
-    online vs offline strips above several of the plots.
+    Parameters
+    ----------
+    epochs : nelpy.EpochArray
+        The epochs to plot as a strip.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    lw : float, optional
+        Line width for the strip. Default is 5.
+    solid_capstyle : str, optional
+        Cap style for the strip. Default is 'butt'.
+    label : str, optional
+        Label for the strip.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's plot.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the overview strip.
+
+    Examples
+    --------
+    >>> from nelpy import EpochArray
+    >>> epochs = EpochArray([[0, 1], [2, 3], [5, 6]])
+    >>> overviewstrip(epochs)
     """
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
