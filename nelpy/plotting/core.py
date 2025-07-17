@@ -513,7 +513,38 @@ def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
 
 
 def plot(obj, *args, **kwargs):
-    """Docstring goes here."""
+    """
+    Plot a nelpy object or array-like data using matplotlib.
+
+    Parameters
+    ----------
+    obj : nelpy object or array-like
+        The object or data to plot. Can be a nelpy RegularlySampledAnalogSignalArray or array-like.
+    *args : tuple
+        Additional positional arguments passed to matplotlib's plot.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's plot. Special keys:
+            ax : matplotlib.axes.Axes, optional
+                Axis to plot on. If None, uses current axis.
+            autoscale : bool, optional
+                Whether to autoscale the axis. Default is True.
+            xlabel : str, optional
+                X-axis label.
+            ylabel : str, optional
+                Y-axis label.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted data.
+
+    Examples
+    --------
+    >>> from nelpy.core import RegularlySampledAnalogSignalArray
+    >>> obj = RegularlySampledAnalogSignalArray(...)  # your data here
+    >>> plot(obj)
+    >>> plot([1, 2, 3, 4])
+    """
 
     ax = kwargs.pop("ax", None)
     autoscale = kwargs.pop("autoscale", True)
@@ -632,43 +663,44 @@ def plot_old(
     markerfacecolor=None,
     **kwargs,
 ):
-    """Plot an array-like object on an EpochArray.
+    """
+    Plot an array-like object on an EpochArray or AnalogSignal.
 
     Parameters
     ----------
-    npl_obj : nelpy.EpochArray or nelpy.AnalogSignal
-        EpochArray on which the data is defined or AnalogSignal with data
-    data : array-like
+    npl_obj : nelpy.EpochArray, nelpy.AnalogSignal, or np.ndarray
+        EpochArray on which the data is defined, AnalogSignal, or array.
+    data : array-like, optional
         Data to plot on y axis; must be of size (epocharray.n_epochs,).
-    ax : axis object, optional
-        Plot in given axis; if None creates a new figure
+    ax : matplotlib.axes.Axes, optional
+        Plot in given axis; if None creates a new figure.
     mew : float, optional
         Marker edge width, default is equal to lw.
     color : matplotlib color, optional
         Trace color.
     mec : matplotlib color, optional
         Marker edge color, default is equal to color.
-    kwargs :
-        Other keyword arguments are passed to main plot() call
+    markerfacecolor : matplotlib color, optional
+        Marker face color, default is 'w'.
+    **kwargs : dict
+        Other keyword arguments are passed to main plot() call.
 
     Returns
     -------
-    ax : matplotlib axis
+    ax : matplotlib.axes.Axes
         Axis object with plot data.
 
     Examples
     --------
     Plot a simple 5-element list on an EpochArray:
 
-        >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
-        >>> data = [3, 4, 2, 5, 2]
-        >>> npl.plot(ep, data)
+    >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
+    >>> data = [3, 4, 2, 5, 2]
+    >>> plot_old(ep, data)
 
     Hide the markers and change the linewidth:
 
-        >>> ep = EpochArray([[3, 4], [5, 8], [10, 12], [16, 20], [22, 23]])
-        >>> data = [3, 4, 2, 5, 2]
-        >>> npl.plot(ep, data, ms=0, lw=3)
+    >>> plot_old(ep, data, ms=0, lw=3)
     """
 
     if ax is None:
@@ -807,7 +839,35 @@ def plot2d(
     **kwargs,
 ):
     """
-    THIS SHOULD BE UPDATED! VERY RUDIMENTARY AT THIS STAGE
+    Plot 2D data for nelpy objects or array-like input.
+
+    Parameters
+    ----------
+    npl_obj : nelpy object or array-like
+        The object or data to plot in 2D.
+    data : array-like, optional
+        Data to plot. If None, uses npl_obj's data.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    mew : float, optional
+        Marker edge width.
+    color : matplotlib color, optional
+        Trace color.
+    mec : matplotlib color, optional
+        Marker edge color.
+    markerfacecolor : matplotlib color, optional
+        Marker face color.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib's plot.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted data.
+
+    Examples
+    --------
+    >>> plot2d([[0, 1], [1, 2], [2, 3]])
     """
 
     if ax is None:
