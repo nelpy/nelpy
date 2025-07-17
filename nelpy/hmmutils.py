@@ -1,4 +1,4 @@
-#encoding : utf-8
+# encoding : utf-8
 """nelpy.hmmutils contains helper functions and wrappers for working
 with hmmlearn.
 """
@@ -15,16 +15,27 @@ from pandas import unique
 from matplotlib.pyplot import subplots
 import copy
 
-from . core import BinnedSpikeTrainArray # may have to be from . import core, and then core.BinnedSpikeTrainArray
-from . utils import swap_cols, swap_rows
+from .core import (
+    BinnedSpikeTrainArray,
+)  # may have to be from . import core, and then core.BinnedSpikeTrainArray
+from .utils import swap_cols, swap_rows
 from . import plotting
-from . decoding import decode1D
-from . analysis import replay
+from .decoding import decode1D
+from .analysis import replay
 
-__all__ = ['PoissonHMM',
-           'estimate_model_quality']
+__all__ = ["PoissonHMM", "estimate_model_quality"]
 
-def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_folds=5, mode='timeswap-pooled', verbose=False):
+
+def estimate_model_quality(
+    bst,
+    *,
+    hmm=None,
+    n_states=None,
+    n_shuffles=1000,
+    k_folds=5,
+    mode="timeswap-pooled",
+    verbose=False,
+):
     """
     Estimate the HMM 'model quality' associated with the set of events in bst.
 
@@ -59,7 +70,7 @@ def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_f
     >>> from nelpy.hmmutils import estimate_model_quality
     >>> quality, scores, shuffled = estimate_model_quality(bst, n_states=3, n_shuffles=100, k_folds=5)
     """
-    from . decoding import k_fold_cross_validation
+    from .decoding import k_fold_cross_validation
     from scipy.stats import zmap
 
     if hmm:
@@ -71,20 +82,20 @@ def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_f
     scores = np.zeros(bst.n_epochs)
     shuffled = np.zeros((bst.n_epochs, n_shuffles))
 
-    if mode == 'timeswap-pooled':
+    if mode == "timeswap-pooled":
         # shuffle data coherently, pooled over all events:
         shuffle_func = replay.pooled_time_swap_bst
-    elif mode == 'timeswap-within-event':
+    elif mode == "timeswap-within-event":
         # shuffle data coherently within events:
         shuffle_func = replay.time_swap_bst
-    elif mode == 'temporal-within-event':
+    elif mode == "temporal-within-event":
         shuffle_func = replay.incoherent_shuffle_bst
     else:
         raise NotImplementedError
 
     for kk, (training, validation) in enumerate(k_fold_cross_validation(X, k=k_folds)):
         if verbose:
-            print('  fold {}/{}'.format(kk+1, k_folds))
+            print("  fold {}/{}".format(kk + 1, k_folds))
 
         PBEs_train = bst[training]
         PBEs_test = bst[validation]
@@ -106,6 +117,7 @@ def estimate_model_quality(bst, *, hmm=None, n_states=None, n_shuffles=1000, k_f
     quality = zmap(scores.mean(), shuffled.mean(axis=0))
 
     return quality, scores, shuffled
+
 
 class PoissonHMM(PHMM):
     """Nelpy extension of PoissonHMM: Hidden Markov Model with
@@ -179,31 +191,36 @@ class PoissonHMM(PHMM):
 
     """
 
-    __attributes__ = ['_fs',
-                      '_ds',
-                      '_unit_ids',
-                      '_unit_labels',
-                      '_unit_tags']
+    __attributes__ = ["_fs", "_ds", "_unit_ids", "_unit_labels", "_unit_tags"]
 
-    def __init__(self, *, n_components, n_iter=None, init_params=None,
-                 params=None, random_state=None, verbose=False):
-
+    def __init__(
+        self,
+        *,
+        n_components,
+        n_iter=None,
+        init_params=None,
+        params=None,
+        random_state=None,
+        verbose=False,
+    ):
         # assign default parameter values
         if n_iter is None:
             n_iter = 50
         if init_params is None:
-            init_params = 'stm'
+            init_params = "stm"
         if params is None:
-            params = 'stm'
+            params = "stm"
 
         # TODO: I don't understand why super().__init__ does not work?
-        PHMM.__init__(self,
-                      n_components=n_components,
-                      n_iter=n_iter,
-                      init_params=init_params,
-                      params=params,
-                      random_state=random_state,
-                      verbose=verbose)
+        PHMM.__init__(
+            self,
+            n_components=n_components,
+            n_iter=n_iter,
+            init_params=init_params,
+            params=params,
+            random_state=random_state,
+            verbose=verbose,
+        )
 
         # initialize BinnedSpikeTrain attributes
         for attrib in self.__attributes__:
@@ -231,7 +248,7 @@ class PoissonHMM(PHMM):
             warn(
                 "couldn't access super().__repr__;"
                 " upgrade dependencies to resolve this issue."
-                )
+            )
             rep = "PoissonHMM"
         if self._extern_ is not None:
             fit_ext = "True"
@@ -295,13 +312,13 @@ class PoissonHMM(PHMM):
 
         new_order = [start_state]
         num_states = self.transmat_.shape[0]
-        rem_states = np.arange(0,start_state).tolist()
-        rem_states.extend(np.arange(start_state+1,num_states).tolist())
-        cs = start_state # current state
+        rem_states = np.arange(0, start_state).tolist()
+        rem_states.extend(np.arange(start_state + 1, num_states).tolist())
+        cs = start_state  # current state
 
-        for ii in np.arange(0, num_states-1):
+        for ii in np.arange(0, num_states - 1):
             # find largest transition to set of remaining states
-            nstilde = np.argmax(self.transmat_[cs,rem_states])
+            nstilde = np.argmax(self.transmat_[cs, rem_states])
             ns = rem_states[nstilde]
             # remove selected state from list of remaining states
             rem_states.remove(ns)
@@ -397,27 +414,34 @@ class PoissonHMM(PHMM):
         >>> order = hmm.get_state_order(method='mode')
         """
         if method is None:
-            method = 'transmat'
+            method = "transmat"
 
         neworder = []
 
-        if method == 'transmat':
+        if method == "transmat":
             return self._get_order_from_transmat(start_state=start_state)
-        elif method == 'mode':
+        elif method == "mode":
             if self._extern_ is not None:
                 neworder = self._extern_.argmax(axis=1).argsort()
             else:
-                raise Exception("External mapping does not exist yet."
-                                "First use PoissonHMM.fit_ext()")
-        elif method == 'mean':
+                raise Exception(
+                    "External mapping does not exist yet.First use PoissonHMM.fit_ext()"
+                )
+        elif method == "mean":
             if self._extern_ is not None:
-                (np.tile(np.arange(self._extern_.shape[1]),(self.n_components,1))*self._extern_).sum(axis=1).argsort()
+                (
+                    np.tile(np.arange(self._extern_.shape[1]), (self.n_components, 1))
+                    * self._extern_
+                ).sum(axis=1).argsort()
                 neworder = self._extern_.argmax(axis=1).argsort()
             else:
-                raise Exception("External mapping does not exist yet."
-                                "First use PoissonHMM.fit_ext()")
+                raise Exception(
+                    "External mapping does not exist yet.First use PoissonHMM.fit_ext()"
+                )
         else:
-            raise NotImplementedError("ordering method '" + str(method) + "' not supported!")
+            raise NotImplementedError(
+                "ordering method '" + str(method) + "' not supported!"
+            )
         return neworder
 
     def _reorder_units_by_ids(self, neworder):
@@ -447,8 +471,14 @@ class PoissonHMM(PHMM):
             frm = oldorder.index(ni)
             to = oi
             swap_cols(self.means_, frm, to)
-            self._unit_ids[frm], self._unit_ids[to] = self._unit_ids[to], self._unit_ids[frm]
-            self._unit_labels[frm], self._unit_labels[to] = self._unit_labels[to], self._unit_labels[frm]
+            self._unit_ids[frm], self._unit_ids[to] = (
+                self._unit_ids[to],
+                self._unit_ids[frm],
+            )
+            self._unit_labels[frm], self._unit_labels[to] = (
+                self._unit_labels[to],
+                self._unit_labels[frm],
+            )
             # TODO: re-build unit tags (tag system not yet implemented)
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
@@ -476,7 +506,10 @@ class PoissonHMM(PHMM):
             swap_rows(self.means_, frm, to)
             if self._extern_ is not None:
                 swap_rows(self._extern_, frm, to)
-            self.startprob_[frm], self.startprob_[to] = self.startprob_[to], self.startprob_[frm]
+            self.startprob_[frm], self.startprob_[to] = (
+                self.startprob_[to],
+                self.startprob_[frm],
+            )
             oldorder[frm], oldorder[to] = oldorder[to], oldorder[frm]
 
     def assume_attributes(self, binnedSpikeTrainArray):
@@ -558,12 +591,14 @@ class PoissonHMM(PHMM):
         >>> unwrapped, lengths = hmm._sliding_window_array(bst, w=3)
         """
         if w is None:
-            w=1
+            w = 1
         assert float(w).is_integer(), "w must be a positive integer!"
         assert w > 0, "w must be a positive integer!"
 
         if not isinstance(bst, BinnedSpikeTrainArray):
-            raise NotImplementedError ("support for other datatypes not yet implemented!")
+            raise NotImplementedError(
+                "support for other datatypes not yet implemented!"
+            )
 
         # potentially re-organize internal observation matrix to be
         # compatible with BinnedSpikeTrainArray
@@ -585,34 +620,38 @@ class PoissonHMM(PHMM):
         for ii, to_idx in enumerate(cumlengths):
             datalen = to_idx - prev_idx
             prev_idx = to_idx
-            lengths[ii] = np.max((1,datalen - w + 1))
+            lengths[ii] = np.max((1, datalen - w + 1))
 
         n_bins = lengths.sum()
 
         unwrapped = np.zeros((n_units, n_bins))
 
         # next, we decode each epoch separately, one bin at a time
-        cum_lengths = np.insert(np.cumsum(lengths),0,0)
+        cum_lengths = np.insert(np.cumsum(lengths), 0, 0)
 
         prev_idx = 0
         for ii, to_idx in enumerate(cumlengths):
-            data = bst.data[:,prev_idx:to_idx]
+            data = bst.data[:, prev_idx:to_idx]
             prev_idx = to_idx
-            datacum = np.cumsum(data, axis=1) # ii'th data segment, with column of zeros prepended
-            datacum = np.hstack((np.zeros((n_units,1)), datacum))
-            re = w # right edge ptr
+            datacum = np.cumsum(
+                data, axis=1
+            )  # ii'th data segment, with column of zeros prepended
+            datacum = np.hstack((np.zeros((n_units, 1)), datacum))
+            re = w  # right edge ptr
             # TODO: check if datalen < w and act appropriately
-            if lengths[ii] > 1: # more than one full window fits into data length
+            if lengths[ii] > 1:  # more than one full window fits into data length
                 for tt in range(lengths[ii]):
-                    obs = datacum[:, re] - datacum[:, re-w] # spikes in window of size w
-                    re+=1
+                    obs = (
+                        datacum[:, re] - datacum[:, re - w]
+                    )  # spikes in window of size w
+                    re += 1
                     post_idx = lengths[ii] + tt
-                    unwrapped[:,post_idx] = obs
-            else: # only one window can fit in, and perhaps only partially. We just take all the data we can get,
+                    unwrapped[:, post_idx] = obs
+            else:  # only one window can fit in, and perhaps only partially. We just take all the data we can get,
                 # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
                 post_idx = cum_lengths[ii]
-                obs = datacum[:, -1] # spikes in window of size at most w
-                unwrapped[:,post_idx] = obs
+                obs = datacum[:, -1]  # spikes in window of size at most w
+                unwrapped[:, post_idx] = obs
 
         return unwrapped.T, lengths
 
@@ -656,7 +695,9 @@ class PoissonHMM(PHMM):
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             if w is not None:
-                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+                raise NotImplementedError(
+                    "sliding window decoding for feature matrices not yet implemented!"
+                )
             return self._decode(self, X=X, lengths=lengths, algorithm=algorithm), None
         else:
             # we have a BinnedSpikeTrainArray
@@ -665,7 +706,9 @@ class PoissonHMM(PHMM):
             centers = []
             for seq in X:
                 windowed_arr, lengths = self._sliding_window_array(bst=seq, w=w)
-                logprob, state_sequence = self._decode(self, windowed_arr, lengths=lengths, algorithm=algorithm)
+                logprob, state_sequence = self._decode(
+                    self, windowed_arr, lengths=lengths, algorithm=algorithm
+                )
                 logprobs.append(logprob)
                 state_sequences.append(state_sequence)
                 centers.append(seq.centers)
@@ -698,7 +741,7 @@ class PoissonHMM(PHMM):
         """
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
-            raise NotImplementedError ("Not yet implemented!")
+            raise NotImplementedError("Not yet implemented!")
         else:
             # we have a BinnedSpikeTrainArray
             ratemap = copy.deepcopy(self.means_.T)
@@ -714,7 +757,9 @@ class PoissonHMM(PHMM):
             posteriors = []
             state_sequences = []
             for seq in X:
-                posteriors_, cumlengths, mode_pth, mean_pth = decode1D(bst=seq, ratemap=ratemap)
+                posteriors_, cumlengths, mode_pth, mean_pth = decode1D(
+                    bst=seq, ratemap=ratemap
+                )
                 # nanlocs = np.argwhere(np.isnan(mode_pth))
                 # state_sequences_ = mode_pth.astype(int)
                 state_sequences_ = mode_pth
@@ -755,16 +800,24 @@ class PoissonHMM(PHMM):
             print("we have a " + str(type(X)))
             # assume we have a feature matrix
             if w is not None:
-                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+                raise NotImplementedError(
+                    "sliding window decoding for feature matrices not yet implemented!"
+                )
             if returnLengths:
-                return np.transpose(self._predict_proba(self, X, lengths=lengths)), lengths
+                return np.transpose(
+                    self._predict_proba(self, X, lengths=lengths)
+                ), lengths
             return np.transpose(self._predict_proba(self, X, lengths=lengths))
         else:
             # we have a BinnedSpikeTrainArray
             windowed_arr, lengths = self._sliding_window_array(bst=X, w=w)
             if returnLengths:
-                return np.transpose(self._predict_proba(self, windowed_arr, lengths=lengths)), lengths
-            return np.transpose(self._predict_proba(self, windowed_arr, lengths=lengths))
+                return np.transpose(
+                    self._predict_proba(self, windowed_arr, lengths=lengths)
+                ), lengths
+            return np.transpose(
+                self._predict_proba(self, windowed_arr, lengths=lengths)
+            )
 
     def predict(self, X, lengths=None, w=None):
         """
@@ -850,16 +903,23 @@ class PoissonHMM(PHMM):
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             if w is not None:
-                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+                raise NotImplementedError(
+                    "sliding window decoding for feature matrices not yet implemented!"
+                )
             logprobs, posteriors = self._score_samples(self, X, lengths=lengths)
-            return logprobs, posteriors#.T why does this transpose affect hmm.predict_proba!!!????
+            return (
+                logprobs,
+                posteriors,
+            )  # .T why does this transpose affect hmm.predict_proba!!!????
         else:
             # we have a BinnedSpikeTrainArray
             logprobs = []
             posteriors = []
             for seq in X:
                 windowed_arr, lengths = self._sliding_window_array(bst=seq, w=w)
-                logprob, posterior = self._score_samples(self, X=windowed_arr, lengths=lengths)
+                logprob, posterior = self._score_samples(
+                    self, X=windowed_arr, lengths=lengths
+                )
                 logprobs.append(logprob)
                 posteriors.append(posterior.T)
             return logprobs, posteriors
@@ -894,7 +954,9 @@ class PoissonHMM(PHMM):
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             if w is not None:
-                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+                raise NotImplementedError(
+                    "sliding window decoding for feature matrices not yet implemented!"
+                )
             return self._score(self, X, lengths=lengths)
         else:
             # we have a BinnedSpikeTrainArray
@@ -911,7 +973,9 @@ class PoissonHMM(PHMM):
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             if w is not None:
-                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+                raise NotImplementedError(
+                    "sliding window decoding for feature matrices not yet implemented!"
+                )
             return self._score(self, X, lengths=lengths)
         else:
             # we have a BinnedSpikeTrainArray
@@ -919,8 +983,8 @@ class PoissonHMM(PHMM):
             for seq in X:
                 windowed_arr, lengths = self._sliding_window_array(bst=seq, w=w)
                 n_bins, _ = windowed_arr.shape
-                for ii in range(1, n_bins+1):
-                    logprob = self._score(self, X=windowed_arr[:ii,:])
+                for ii in range(1, n_bins + 1):
+                    logprob = self._score(self, X=windowed_arr[:ii, :])
                     logprobs.append(logprob)
         return logprobs
 
@@ -952,7 +1016,9 @@ class PoissonHMM(PHMM):
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             if w is not None:
-                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+                raise NotImplementedError(
+                    "sliding window decoding for feature matrices not yet implemented!"
+                )
             self._fit(self, X, lengths=lengths)
         else:
             # we have a BinnedSpikeTrainArray
@@ -962,8 +1028,17 @@ class PoissonHMM(PHMM):
             self.assume_attributes(X)
         return self
 
-    def fit_ext(self, X, ext, n_extern=None, lengths=None, save=True, w=None,
-                normalize=True, normalize_by_occupancy=True):
+    def fit_ext(
+        self,
+        X,
+        ext,
+        n_extern=None,
+        lengths=None,
+        save=True,
+        w=None,
+        normalize=True,
+        normalize_by_occupancy=True,
+    ):
         """Learn a mapping from the internal state space, to an external
         augmented space (e.g. position).
 
@@ -1015,7 +1090,9 @@ class PoissonHMM(PHMM):
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             if w is not None:
-                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+                raise NotImplementedError(
+                    "sliding window decoding for feature matrices not yet implemented!"
+                )
             posteriors = self.predict_proba(X=X, lengths=lengths, w=w)
         else:
             # we have a BinnedSpikeTrainArray
@@ -1028,11 +1105,11 @@ class PoissonHMM(PHMM):
 
         for ii, posterior in enumerate(posteriors):
             if not np.isnan(ext[ii]):
-                extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
+                extern[:, ext_map[int(ext[ii])]] += np.transpose(posterior)
 
         if normalize_by_occupancy:
-            occupancy, _ = np.histogram(ext, bins=n_extern, range=[0,n_extern])
-            occupancy[occupancy==0] = 1
+            occupancy, _ = np.histogram(ext, bins=n_extern, range=[0, n_extern])
+            occupancy[occupancy == 0] = 1
             occupancy = np.atleast_2d(occupancy)
         else:
             occupancy = 1
@@ -1041,9 +1118,9 @@ class PoissonHMM(PHMM):
 
         if normalize:
             # normalize extern tuning curves:
-            rowsum = np.tile(extern.sum(axis=1),(n_extern,1)).T
+            rowsum = np.tile(extern.sum(axis=1), (n_extern, 1)).T
             rowsum = np.where(np.isclose(rowsum, 0), 1, rowsum)
-            extern = extern/rowsum
+            extern = extern / rowsum
 
         if save:
             self._extern_ = extern
@@ -1097,7 +1174,9 @@ class PoissonHMM(PHMM):
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             if w is not None:
-                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+                raise NotImplementedError(
+                    "sliding window decoding for feature matrices not yet implemented!"
+                )
             posteriors = self.predict_proba(X=X, lengths=lengths, w=w)
         else:
             # we have a BinnedSpikeTrainArray
@@ -1109,12 +1188,12 @@ class PoissonHMM(PHMM):
 
         for ii, posterior in enumerate(posteriors):
             if not np.isnan(ext[ii]):
-                extern[:,ext_map[int(ext[ii])]] += np.transpose(posterior)
+                extern[:, ext_map[int(ext[ii])]] += np.transpose(posterior)
 
         # normalize extern tuning curves:
         colsum = np.tile(extern.sum(axis=0), (self.n_components, 1))
         colsum = np.where(np.isclose(colsum, 0), 1, colsum)
-        extern = extern/colsum
+        extern = extern / colsum
 
         return extern
 
@@ -1162,51 +1241,80 @@ class PoissonHMM(PHMM):
         _, n_extern = self._extern_.shape
 
         if ext_shape is None:
-            ext_shape = (n_extern)
+            ext_shape = n_extern
 
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
             raise NotImplementedError("not implemented yet.")
             if w is not None:
-                raise NotImplementedError ("sliding window decoding for feature matrices not yet implemented!")
+                raise NotImplementedError(
+                    "sliding window decoding for feature matrices not yet implemented!"
+                )
         else:
             # we have a BinnedSpikeTrainArray
             pass
         if len(ext_shape) == 1:
             # do old style decoding
             # TODO: this can be improved to be like the 2D case!
-            state_posteriors, lengths = self.predict_proba(X=X, lengths=lengths, w=w, returnLengths=True)
+            state_posteriors, lengths = self.predict_proba(
+                X=X, lengths=lengths, w=w, returnLengths=True
+            )
             # fixy = np.mean(self._extern_ * np.arange(n_extern), axis=1)
             # mean_pth = np.sum(state_posteriors.T*fixy, axis=1) # range 0 to 1
-            ext_posteriors = np.dot((self._extern_ * np.arange(n_extern)).T, state_posteriors)
+            ext_posteriors = np.dot(
+                (self._extern_ * np.arange(n_extern)).T, state_posteriors
+            )
             # normalize ext_posterior distributions:
             ext_posteriors = ext_posteriors / ext_posteriors.sum(axis=0)
-            mean_pth = (ext_posteriors.T*np.atleast_2d(np.linspace(0,1, n_extern))).sum(axis=1)
-            mode_pth = np.argmax(ext_posteriors, axis=0)/n_extern # range 0 to n_extern
+            mean_pth = (
+                ext_posteriors.T * np.atleast_2d(np.linspace(0, 1, n_extern))
+            ).sum(axis=1)
+            mode_pth = (
+                np.argmax(ext_posteriors, axis=0) / n_extern
+            )  # range 0 to n_extern
 
         elif len(ext_shape) == 2:
             ext_posteriors = np.zeros((ext_shape[0], ext_shape[1], X.n_bins))
             # get posterior distribution over states, of size (num_States, n_extern)
-            state_posteriors, lengths = self.predict_proba(X=X, lengths=lengths, w=w, returnLengths=True)
+            state_posteriors, lengths = self.predict_proba(
+                X=X, lengths=lengths, w=w, returnLengths=True
+            )
             # for each bin, compute the distribution in the external domain
             for bb in range(X.n_bins):
-                ext_posteriors[:,:,bb] = np.reshape((self._extern_*state_posteriors[:,[bb]]).sum(axis=0), ext_shape)
+                ext_posteriors[:, :, bb] = np.reshape(
+                    (self._extern_ * state_posteriors[:, [bb]]).sum(axis=0), ext_shape
+                )
             # now compute mean and mode paths
-            expected_x = np.sum((ext_posteriors.sum(axis=1)*np.atleast_2d(np.linspace(0,1, ext_shape[0])).T), axis=0)
-            expected_y = np.sum((ext_posteriors.sum(axis=0)*np.atleast_2d(np.linspace(0,1, ext_shape[1])).T), axis=0)
+            expected_x = np.sum(
+                (
+                    ext_posteriors.sum(axis=1)
+                    * np.atleast_2d(np.linspace(0, 1, ext_shape[0])).T
+                ),
+                axis=0,
+            )
+            expected_y = np.sum(
+                (
+                    ext_posteriors.sum(axis=0)
+                    * np.atleast_2d(np.linspace(0, 1, ext_shape[1])).T
+                ),
+                axis=0,
+            )
             mean_pth = np.vstack((expected_x, expected_y))
 
             mode_pth = np.zeros((2, X.n_bins))
             for tt in range(X.n_bins):
-                if np.any(np.isnan(ext_posteriors[:,:,tt])):
-                    mode_pth[0,tt] = np.nan
-                    mode_pth[0,tt] = np.nan
+                if np.any(np.isnan(ext_posteriors[:, :, tt])):
+                    mode_pth[0, tt] = np.nan
+                    mode_pth[0, tt] = np.nan
                 else:
-                    x_, y_ = np.unravel_index(np.argmax(ext_posteriors[:,:,tt]), (ext_shape[0], ext_shape[1]))
-                    mode_pth[0,tt] = x_/ext_shape[0]
-                    mode_pth[1,tt] = y_/ext_shape[1]
+                    x_, y_ = np.unravel_index(
+                        np.argmax(ext_posteriors[:, :, tt]),
+                        (ext_shape[0], ext_shape[1]),
+                    )
+                    mode_pth[0, tt] = x_ / ext_shape[0]
+                    mode_pth[1, tt] = y_ / ext_shape[1]
 
-            ext_posteriors = np.transpose(ext_posteriors, axes=[1,0,2])
+            ext_posteriors = np.transpose(ext_posteriors, axes=[1, 0, 2])
         else:
             raise TypeError("shape not currently supported!")
 
@@ -1214,9 +1322,16 @@ class PoissonHMM(PHMM):
 
         return ext_posteriors, bdries, mode_pth, mean_pth
 
-    def _plot_external(self, *, figsize=(3,5), sharey=True,
-                       labelstates=None, ec=None, fillcolor=None,
-                       lw=None):
+    def _plot_external(
+        self,
+        *,
+        figsize=(3, 5),
+        sharey=True,
+        labelstates=None,
+        ec=None,
+        fillcolor=None,
+        lw=None,
+    ):
         """plot the externally associated state<-->extern mapping
 
         WARNING! This function is not complete, and hence 'private',
@@ -1226,33 +1341,35 @@ class PoissonHMM(PHMM):
         if labelstates is None:
             labelstates = [1, self.n_components]
         if ec is None:
-            ec = 'k'
+            ec = "k"
         if fillcolor is None:
-            fillcolor = 'gray'
+            fillcolor = "gray"
         if lw is None:
             lw = 1.5
 
         fig, axes = subplots(self.n_components, 1, figsize=figsize, sharey=sharey)
 
-        xvals = np.arange(len(self._extern_.T[:,0]))
+        xvals = np.arange(len(self._extern_.T[:, 0]))
 
         for state, ax in enumerate(axes):
-            ax.fill_between(xvals, 0, self._extern_.T[:,state], color=fillcolor)
-            ax.plot(xvals, self._extern_.T[:,state], color=ec, lw=lw)
+            ax.fill_between(xvals, 0, self._extern_.T[:, state], color=fillcolor)
+            ax.plot(xvals, self._extern_.T[:, state], color=ec, lw=lw)
             if state + 1 in labelstates:
-                ax.set_ylabel(str(state+1), rotation=0, y=-0.1)
+                ax.set_ylabel(str(state + 1), rotation=0, y=-0.1)
             ax.set_xticklabels([])
             ax.set_yticklabels([])
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-            ax.spines['bottom'].set_visible(False)
-            ax.spines['left'].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.spines["top"].set_visible(False)
+            ax.spines["bottom"].set_visible(False)
+            ax.spines["left"].set_visible(False)
             plotting.utils.no_yticks(ax)
             plotting.utils.no_xticks(ax)
         # fig.suptitle('normalized place fields sorted by peak location (left) and mean location (right)', y=0.92, fontsize=14)
         # ax.set_xticklabels(['0','20', '40', '60', '80', '100'])
-        ax.set_xlabel('external variable')
-        fig.text(0.02, 0.5, 'normalized state distribution', va='center', rotation='vertical')
+        ax.set_xlabel("external variable")
+        fig.text(
+            0.02, 0.5, "normalized state distribution", va="center", rotation="vertical"
+        )
 
         return fig, ax
 
@@ -1273,13 +1390,16 @@ class PoissonHMM(PHMM):
 
         """
         n_states = self.n_components
-        quality, scores, shuffles = estimate_model_quality(bst=bst,
-                                                           n_states=n_states,
-                                                           n_shuffles=n_shuffles,
-                                                           k_folds=k_folds,
-                                                           verbose=False)
+        quality, scores, shuffles = estimate_model_quality(
+            bst=bst,
+            n_states=n_states,
+            n_shuffles=n_shuffles,
+            k_folds=k_folds,
+            verbose=False,
+        )
 
         return quality, scores, shuffles
+
 
 # def score_samples_ext(self, X, lengths=None):
 #         """Compute the log probability under the model and compute posteriors.
