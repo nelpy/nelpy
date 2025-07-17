@@ -14,13 +14,21 @@ __all__ = ["palplot", "stripplot", "veva_scatter"]
 
 
 def palplot(pal, size=1):
-    """Plot the values in a color palette as a horizontal array.
+    """
+    Plot the values in a color palette as a horizontal array.
+
     Parameters
     ----------
     pal : sequence of matplotlib colors
-        colors, i.e. as returned by nelpy.color_palette()
-    size :
-        scaling factor for size of plot
+        Colors, i.e. as returned by nelpy.color_palette().
+    size : float, optional
+        Scaling factor for size of plot. Default is 1.
+
+    Examples
+    --------
+    >>> from nelpy.plotting.miscplot import palplot
+    >>> pal = ['#FF0000', '#00FF00', '#0000FF']
+    >>> palplot(pal)
     """
     n = len(pal)
     f, ax = plt.subplots(1, 1, figsize=(n * size, size))
@@ -37,13 +45,31 @@ def palplot(pal, size=1):
 
 
 def stripplot(*eps, voffset=None, lw=None, labels=None):
-    """Plot epochs as segments on a line.
+    """
+    Plot epochs as segments on a line.
+
     Parameters
     ----------
-    *eps : EpochArrays
-    voffset : float
-    lw : float
-    labels : array-like of str
+    *eps : nelpy.EpochArray
+        One or more EpochArray objects to plot.
+    voffset : float, optional
+        Vertical offset between lines.
+    lw : float, optional
+        Line width.
+    labels : array-like of str, optional
+        Labels for each EpochArray.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the strip plot.
+
+    Examples
+    --------
+    >>> from nelpy import EpochArray
+    >>> ep1 = EpochArray([[0, 1], [2, 3]])
+    >>> ep2 = EpochArray([[4, 5], [6, 7]])
+    >>> stripplot(ep1, ep2, labels=['A', 'B'])
     """
 
     # TODO: this plot is in alpha mode; i.e., needs lots of work...
@@ -99,6 +125,37 @@ def stripplot(*eps, voffset=None, lw=None, labels=None):
 
 
 def veva_scatter(data, *, cmap=None, color=None, ax=None, lw=None, lh=None, **kwargs):
+    """
+    Scatter plot for ValueEventArray objects, colored by value.
+
+    Parameters
+    ----------
+    data : nelpy.ValueEventArray
+        The value event data to plot.
+    cmap : matplotlib colormap, optional
+        Colormap to use for the event values.
+    color : matplotlib color, optional
+        Color for the events if cmap is not specified.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    lw : float, optional
+        Line width for the event markers.
+    lh : float, optional
+        Line height for the event markers.
+    **kwargs : dict
+        Additional keyword arguments passed to vlines.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the scatter plot.
+
+    Examples
+    --------
+    >>> from nelpy.core import ValueEventArray
+    >>> vea = ValueEventArray([[1, 2, 3], [4, 5, 6]], values=[[10, 20, 30], [40, 50, 60]])
+    >>> veva_scatter(vea)
+    """
     # Sort out default values for the parameters
     if ax is None:
         ax = plt.gca()
