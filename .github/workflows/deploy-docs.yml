@@ -7,20 +7,16 @@ jobs:
     steps:
       - name: Download source
         uses: actions/checkout@v3
-      - name: Install Crystal
-        uses: oprypin/install-crystal@v1
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
-      - name: Install Python libs
-        run: pip install .[all]
-      - name: Install Crystal libs
+          python-version: '3.11'
+      - name: Install Python dependencies
         run: |
-          shards init
-          shards install
+          python -m pip install --upgrade pip
+          pip install .[docs]
       - name: Build site
         run: mkdocs build
       - name: Deploy to gh-pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         run: mkdocs gh-deploy --force
