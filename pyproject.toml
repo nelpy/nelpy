@@ -85,8 +85,10 @@ include = ["nelpy*"]
 
 [tool.ruff]
 line-length = 88
-extend-select = ["I"]
 target-version = "py310"
+
+[tool.ruff.lint]
+extend-select = ["I"]
 
 [tool.ruff.format]
 docstring-code-format = true
