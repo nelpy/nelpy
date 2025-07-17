@@ -1119,46 +1119,44 @@ class PoissonHMM(PHMM):
         return extern
 
     def decode_ext(self, X, lengths=None, w=None, ext_shape=None):
-        """Find memoryless most likely state sequence corresponding to ``X``,
+        """
+        Find memoryless most likely state sequence corresponding to ``X``,
         (that is, the symbol-by-symbol MAP sequence) and then map those
-        states to an associated external representation (e.g. position).
-
-        example 1d
-        ----------
-        posterior_pos, bdries, mode_pth, mean_pth = hmm.decode_ext(bst_no_ripple, ext_shape=(vtc.n_bins,))
-        mean_pth = vtc.bins[0] + mean_pth*(vtc.bins[-1] - vtc.bins[0])
-
-        example 2d
-        ----------
-        posterior_, bdries_, mode_pth_, mean_pth_ = hmm.decode_ext(bst, ext_shape=(ext_nx, ext_ny))
-        mean_pth_[0,:] = vtc2d.xbins[0] + mean_pth_[0,:]*(vtc2d.xbins[-1] - vtc2d.xbins[0])
-        mean_pth_[1,:] = vtc2d.ybins[0] + mean_pth_[1,:]*(vtc2d.ybins[-1] - vtc2d.ybins[0])
+        states to an associated external representation (e.g., position).
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Feature matrix of individual samples.
-            OR
-            nelpy.BinnedSpikeTrainArray
+        X : array-like, shape (n_samples, n_features) or BinnedSpikeTrainArray
+            Feature matrix of individual samples, or a nelpy.BinnedSpikeTrainArray.
         lengths : array-like of integers, shape (n_sequences, ), optional
-            Lengths of the individual sequences in ``X``. The sum of
-            these should be ``n_samples``. This is not used when X is
-            a nelpy.BinnedSpikeTrainArray, in which case the lenghts are
-            automatically inferred.
+            Lengths of the individual sequences in ``X``. The sum of these should be ``n_samples``.
+            Not used when X is a nelpy.BinnedSpikeTrainArray, in which case the lengths are automatically inferred.
+        w : int, optional
+            Window size for sliding window decoding (only used for BinnedSpikeTrainArray input).
+        ext_shape : tuple, optional
+            Shape of the external variables.
 
         Returns
         -------
-        ext_posteriors, bdries, mode_pth, mean_pth
+        ext_posteriors : np.ndarray
+            Array of shape (n_extern, n_samples) with state-membership probabilities for each sample in ``X``.
+        bdries : np.ndarray
+            Array of bin boundaries.
+        mode_pth : np.ndarray
+            Most likely external variable sequence (mode path).
+        mean_pth : np.ndarray
+            Mean external variable sequence (mean path).
 
-        ext_posteriors : array, shape (n_extern, n_samples)
-            State-membership probabilities for each sample in ``X``.
-
-        See Also
+        Examples
         --------
-        score_samples : Compute the log probability under the model and
-            posteriors.
+        For 1D external variables:
+        >>> posterior_pos, bdries, mode_pth, mean_pth = hmm.decode_ext(bst_no_ripple, ext_shape=(vtc.n_bins,))
+        >>> mean_pth = vtc.bins[0] + mean_pth * (vtc.bins[-1] - vtc.bins[0])
 
-        score : Compute the log probability under the model.
+        For 2D external variables:
+        >>> posterior_, bdries_, mode_pth_, mean_pth_ = hmm.decode_ext(bst, ext_shape=(ext_nx, ext_ny))
+        >>> mean_pth_[0, :] = vtc2d.xbins[0] + mean_pth_[0, :] * (vtc2d.xbins[-1] - vtc2d.xbins[0])
+        >>> mean_pth_[1, :] = vtc2d.ybins[0] + mean_pth_[1, :] * (vtc2d.ybins[-1] - vtc2d.ybins[0])
         """
 
         _, n_extern = self._extern_.shape
