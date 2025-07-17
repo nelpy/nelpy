@@ -1,16 +1,14 @@
-import numpy as np
-import logging
 import copy
+import logging
 
+import numpy as np
 from scipy.special import logsumexp
-
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 
-from .preprocessing import DataWindow
 from . import core
 from .plotting import _plot_ratemap
-
+from .preprocessing import DataWindow
 from .utils_.decorators import keyword_deprecation
 
 """

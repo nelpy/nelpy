@@ -1,10 +1,11 @@
 """Position class for 1D and 2D position AnalogSignalArrays"""
 
 import copy
+
 import numpy as np
 
-from ..core import _analogsignalarray, _epocharray
 from .. import utils
+from ..core import _analogsignalarray, _epocharray
 from ..utils_.decorators import keyword_deprecation
 
 

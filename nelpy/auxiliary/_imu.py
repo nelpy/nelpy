@@ -1,11 +1,11 @@
 # IMU (inertial motion unit) sensor data classes and methods
 import copy
 
+from .. import utils
 from ..core import (
     _analogsignalarray,
     _epocharray,
 )  # core._analogsignalarray import AnalogSignalArray
-from .. import utils
 
 
 class IMUSensorArray(_analogsignalarray.AnalogSignalArray):

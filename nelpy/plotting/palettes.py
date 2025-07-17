@@ -6,13 +6,14 @@ Some of these functions are Copyright (c) 2012-2016, Michael L. Waskom
 import colorsys
 from itertools import cycle
 
-from matplotlib.colors import to_rgb
-import numpy as np
 import matplotlib as mpl
+import numpy as np
+from matplotlib.colors import to_rgb
 
-
-from . import utils  # import get_color_cycle, desaturate
-from . import colors
+from . import (
+    colors,
+    utils,  # import get_color_cycle, desaturate
+)
 
 NELPY_PALETTES = dict(
     sweet=["#00CF97", "#F05340", "#56B4E9", "#D3AA65", "#B47CC7", "#C44E52"],

@@ -1,9 +1,8 @@
 __all__ = ["decode_and_plot_events1D", "plot_cum_error_dist", "plot_posteriors"]
 
-import numpy as np
-
 # import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 
 try:
     from mpl_toolkits.axes_grid1.inset_locator import inset_axes
@@ -14,9 +13,9 @@ except ImportError:
 # colors = itertools.cycle(npl.palettes.color_palette(palette="sweet", n_colors=15))
 
 from .. import decoding
+from ..utils import collapse_time, is_sorted
 from . import utils as plotutils
-from ..utils import is_sorted, collapse_time
-from .core import rasterplot, imagesc
+from .core import imagesc, rasterplot
 
 
 def plot_posteriors(bst, tuningcurve, idx=None, w=1, bin_px_size=0.08):

@@ -8,20 +8,21 @@ with hmmlearn.
 # * decode (with orderings)
 
 # see https://github.com/ckemere/hmmlearn
-from hmmlearn.hmm import PoissonHMM as PHMM
-from warnings import warn
-import numpy as np
-from pandas import unique
-from matplotlib.pyplot import subplots
 import copy
+from warnings import warn
 
+import numpy as np
+from hmmlearn.hmm import PoissonHMM as PHMM
+from matplotlib.pyplot import subplots
+from pandas import unique
+
+from . import plotting
+from .analysis import replay
 from .core import (
     BinnedSpikeTrainArray,
 )  # may have to be from . import core, and then core.BinnedSpikeTrainArray
-from .utils import swap_cols, swap_rows
-from . import plotting
 from .decoding import decode1D
-from .analysis import replay
+from .utils import swap_cols, swap_rows
 
 __all__ = ["PoissonHMM", "estimate_model_quality"]
 
@@ -72,8 +73,9 @@ def estimate_model_quality(
     ...     bst, n_states=3, n_shuffles=100, k_folds=5
     ... )
     """
-    from .decoding import k_fold_cross_validation
     from scipy.stats import zmap
+
+    from .decoding import k_fold_cross_validation
 
     if hmm:
         if not n_states:

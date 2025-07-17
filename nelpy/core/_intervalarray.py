@@ -1,17 +1,14 @@
 __all__ = ["IntervalArray", "EpochArray", "SpaceArray"]
 
-import logging
-import numpy as np
 import copy
+import logging
 import numbers
-from numba import jit
-
 from sys import float_info
 
-from .. import formatters
-from .. import utils
-from .. import version
+import numpy as np
+from numba import jit
 
+from .. import formatters, utils, version
 from ..utils_.decorators import keyword_equivalence
 
 

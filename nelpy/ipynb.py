@@ -26,9 +26,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 """
 
-import IPython.core
 import sys
 import time
+
+import IPython.core
 
 
 def clear_output(delay=0.0):

@@ -1,6 +1,7 @@
 """This file contains generic accessors to handle getting data from core objects"""
 
 import numpy as np
+
 from .. import core
 
 __all__ = ["SliceExtractor", "ItemGetterLoc", "ItemGetterIloc"]

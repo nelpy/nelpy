@@ -1,7 +1,6 @@
 # TODO: add docstring
 
 import matplotlib as mpl
-
 from matplotlib import pyplot as plt
 from matplotlib.offsetbox import AnchoredOffsetbox
 
@@ -57,9 +56,8 @@ class AnchoredScaleBar(AnchoredOffsetbox):
 
         adapted from https://gist.github.com/dmeliza/3251476
         """
-        from matplotlib.offsetbox import AuxTransformBox, VPacker
-        from matplotlib.offsetbox import HPacker, TextArea
         import matplotlib.patches as mpatches
+        from matplotlib.offsetbox import AuxTransformBox, HPacker, TextArea, VPacker
 
         if fontsize is None:
             fontsize = mpl.rcParams["font.size"]

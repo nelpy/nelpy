@@ -3,6 +3,7 @@
 # Adapted from nlxio written by Bernard Willards <https://github.com/bwillers/nlxio>
 
 import numpy as np
+
 from .. import auxiliary
 
 

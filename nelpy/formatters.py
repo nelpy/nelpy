@@ -1,9 +1,9 @@
 """This module contains string formatters for nelpy."""
 
-import numpy as np
-
 from collections import namedtuple
 from math import floor
+
+import numpy as np
 
 __all__ = [
     "BaseFormatter",

@@ -3,12 +3,12 @@
 'palplot' Copyright (c) 2012-2016, Michael L. Waskom
 """
 
-import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 
-from . import utils  # import plotting/utils
 from .. import core
+from . import utils  # import plotting/utils
 
 __all__ = ["palplot", "stripplot", "veva_scatter"]
 

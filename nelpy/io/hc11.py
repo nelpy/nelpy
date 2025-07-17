@@ -13,21 +13,19 @@ datatype = ['spikes', 'lfp', 'pos', 'waveforms', 'metadata']
 
 # __all__ = ["load_hc11_data"]
 
+import glob
 import logging
 import os.path
-import glob
-import sys
-import pandas as pd
-import numpy as np
 import re
-import natsort as ns
-
-import xmltodict
-
+import sys
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 
-from ..core._intervalarray import EpochArray
+import natsort as ns
+import numpy as np
+import pandas as pd
+import xmltodict
+
 from ..core._analogsignalarray import (
     AnalogSignalArray,
     PositionArray,
@@ -35,6 +33,7 @@ from ..core._analogsignalarray import (
 from ..core._eventarray import (
     SpikeTrainArray,
 )
+from ..core._intervalarray import EpochArray
 
 
 class DataLoader(ABC):

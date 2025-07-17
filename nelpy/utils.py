@@ -16,18 +16,18 @@ __all__ = [
     "_bst_get_bins",
 ]
 
-import numpy as np
-import logging
-from itertools import tee
-from collections import namedtuple
-from math import floor
-from scipy.signal import hilbert
-import scipy.ndimage.filters  # import gaussian_filter1d, gaussian_filter
-from numpy import log, ceil
 import copy
+import logging
+from collections import namedtuple
+from itertools import tee
+from math import floor
+
+import numpy as np
+import scipy.ndimage.filters  # import gaussian_filter1d, gaussian_filter
+from numpy import ceil, log
+from scipy.signal import hilbert
 
 from . import core  # so that core.RegularlySampledAnalogSignalArray is exposed
-
 from .utils_.decorators import keyword_deprecation
 
 try:

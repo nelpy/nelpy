@@ -56,10 +56,12 @@ st2 = exp_data['session2']['spikes']
 __all__ = ["load_hc3_data"]
 
 import os.path
-import sys
-import pandas as pd
-import numpy as np
 import re
+import sys
+
+import numpy as np
+import pandas as pd
+
 from ..core._analogsignalarray import (
     AnalogSignalArray,
 )

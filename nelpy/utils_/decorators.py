@@ -1,7 +1,7 @@
 import functools
 import inspect
-import warnings
 import logging
+import warnings
 
 __all__ = [
     "keyword_deprecation",

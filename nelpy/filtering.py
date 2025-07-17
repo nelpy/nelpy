@@ -5,14 +5,15 @@ __all__ = ["sosfiltfilt"]
 
 import ctypes
 import sys
-import numpy as np
-import scipy.signal as sig
-
-from . import core
 from copy import deepcopy
 from itertools import repeat
 from multiprocessing import Array, cpu_count
 from multiprocessing.pool import Pool
+
+import numpy as np
+import scipy.signal as sig
+
+from . import core
 
 
 def sosfiltfilt(

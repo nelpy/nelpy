@@ -9,14 +9,7 @@ This is the nelpy IO module.
 # also possibly have examples and support for Jagular
 # also add hdf5 support, especially for pandas
 
-from . import hc3
-from . import hc18
-from . import hc11
-from . import matlab
-from . import neuralynx
-from . import neo
-from . import miniscopy
-from . import brian
+from . import brian, hc3, hc11, hc18, matlab, miniscopy, neo, neuralynx
 
 # from . import jagular
 

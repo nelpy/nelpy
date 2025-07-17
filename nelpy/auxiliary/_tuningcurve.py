@@ -1,10 +1,11 @@
 __all__ = ["TuningCurve1D", "TuningCurve2D", "DirectionalTuningCurve1D"]
 
 import copy
-import numpy as np
 import numbers
-import scipy.ndimage.filters
 import warnings
+
+import numpy as np
+import scipy.ndimage.filters
 
 from .. import utils
 from ..utils_.decorators import keyword_deprecation

@@ -4,11 +4,10 @@ Description goes here.
 """
 
 import os
-import requests
-import numpy as np
-
 from collections import namedtuple
 
+import numpy as np
+import requests
 from tqdm import tqdm
 
 

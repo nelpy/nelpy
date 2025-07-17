@@ -13,10 +13,10 @@ see e.g. https://superuser.com/questions/320045/video-encode-frame-rate-change
 and https://superuser.com/questions/538829/repairing-corrupt-mp4
 """
 
-import cv2
-import numpy as np
 import sys
 
+import cv2
+import numpy as np
 from scipy.misc import imread
 
 W_MAZE = True

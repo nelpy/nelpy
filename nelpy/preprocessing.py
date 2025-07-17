@@ -1,18 +1,17 @@
 """Data preprocessing objects and functions."""
 
-import numpy as np
 import logging
-
 from copy import (
     copy as copycopy,
 )  # to avoid name clash with local copy variable in StandardScaler
 from functools import wraps
 
+import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
 
-from .utils import PrettyDuration
 from . import core
+from .utils import PrettyDuration
 
 __all__ = ["standardize_asa", "DataWindow", "StreamingDataWindow", "StandardScaler"]
 

@@ -1,16 +1,15 @@
-import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.collections import LineCollection
 import warnings
 
+import matplotlib as mpl
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.collections import LineCollection
 from scipy import signal
 
-from .helpers import RasterLabelData
+from .. import auxiliary, core
 from . import utils  # import plotting/utils
-from .. import auxiliary
-from .. import core
+from .helpers import RasterLabelData
 
 __all__ = [
     "plot",

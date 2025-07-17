@@ -1,6 +1,6 @@
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 def draw_transmat_graph(G, edge_threshold=0, lw=1, ec="0.2", node_size=15):

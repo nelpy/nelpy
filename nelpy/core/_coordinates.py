@@ -10,8 +10,7 @@ __all__ = [
 
 from numpy import inf
 
-from .. import core
-from .. import formatters
+from .. import core, formatters
 
 
 class Abscissa:

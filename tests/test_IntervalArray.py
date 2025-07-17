@@ -1,7 +1,8 @@
 """EpochArray tests"""
 
-import nelpy as nel
 import numpy as np
+
+import nelpy as nel
 
 
 class TestEpochArray:

@@ -6,9 +6,9 @@ This module contains helper functions to load example data.
 """
 
 from ._utils import (
-    load_example_dataset,
     download_example_dataset,
     get_example_data_home,
+    load_example_dataset,
 )
 
 __all__ = ["load_example_dataset", "download_example_dataset", "get_example_data_home"]
