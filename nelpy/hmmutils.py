@@ -248,7 +248,22 @@ class PoissonHMM(PHMM):
 
     @property
     def extern_(self):
-        """Mapping from states to external variables (e.g., position)"""
+        """
+        Mapping from states to external variables (e.g., position).
+
+        Returns
+        -------
+        np.ndarray or None
+            Array of shape (n_components, n_extern) containing the mapping
+            from states to external variables. Returns None if no mapping
+            has been learned yet.
+
+        Examples
+        --------
+        >>> hmm.fit_ext(bst, position_data)
+        >>> extern_map = hmm.extern_
+        >>> print(f"State 0 maps to position bin {np.argmax(extern_map[0])}")
+        """
         if self._extern_ is not None:
             return self._extern_
         else:
