@@ -2,7 +2,6 @@ from nelpy.utils import PrettyDuration
 
 
 class TestPrettyDuration:
-
     def test_1(self):
         t = PrettyDuration(180)
         assert str(t) == "3:00 minutes"

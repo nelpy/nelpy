@@ -64,7 +64,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         support=None,
         in_memory=True,
         labels=None,
-        empty=False
+        empty=False,
     ):
         """
         Initialize a PositionArray.
@@ -223,7 +223,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         # speed should be smoothed as well.
 
         # raise NotImplementedError
-    
+
         out = self.copy()
         cum_lengths = np.insert(np.cumsum(self.lengths), 0, 0)
 
@@ -253,7 +253,7 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
                         self._data[:, cum_lengths[idx] : cum_lengths[idx + 1]], axis=1
                     )
         return out
-    
+
     def direction(self):
         """
         Return the instantaneous direction estimate as an AnalogSignalArray.

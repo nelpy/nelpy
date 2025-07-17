@@ -20,7 +20,6 @@ from .core import rasterplot, imagesc
 
 
 def plot_posteriors(bst, tuningcurve, idx=None, w=1, bin_px_size=0.08):
-
     if idx is not None:
         bst = bst[idx]
     tc = tuningcurve
@@ -53,7 +52,7 @@ def plot_posteriors(bst, tuningcurve, idx=None, w=1, bin_px_size=0.08):
         *ax.get_ylim(),
         lw=1,
         linestyle=":",
-        color="0.8"
+        color="0.8",
     )
     ax.vlines(np.cumsum(lengths) - pixel_width, *ax.get_ylim(), lw=1)
 
@@ -145,7 +144,7 @@ def decode_and_plot_events1D(
         *ax.get_ylim(),
         lw=1,
         linestyle=":",
-        color="0.8"
+        color="0.8",
     )
     ax.vlines(np.cumsum(bst.lengths) - pixel_width, *ax.get_ylim(), lw=1)
 
@@ -210,7 +209,7 @@ def plot_cum_error_dist(
     inset=True,
     inset_ax=None,
     color=None,
-    **kwargs
+    **kwargs,
 ):
     """Plot (and optionally compute) the cumulative distribution of
     decoding errors, evaluated using a cross-validation procedure.
@@ -253,12 +252,12 @@ def plot_cum_error_dist(
 
     # if cumhist or bincenters are NOT provided, then compute them
     if cumhist is None or bincenters is None:
-        assert (
-            bst is not None
-        ), "if cumhist and bincenters are not given, then bst must be provided to recompute them!"
-        assert (
-            extern is not None
-        ), "if cumhist and bincenters are not given, then extern must be provided to recompute them!"
+        assert bst is not None, (
+            "if cumhist and bincenters are not given, then bst must be provided to recompute them!"
+        )
+        assert extern is not None, (
+            "if cumhist and bincenters are not given, then extern must be provided to recompute them!"
+        )
         cumhist, bincenters = decoding.cumulative_dist_decoding_error_using_xval(
             bst=bst,
             extern=extern,

@@ -121,7 +121,7 @@ class TuningCurve2D:
         unit_labels=None,
         unit_tags=None,
         label=None,
-        empty=False
+        empty=False,
     ):
         """
 
@@ -156,12 +156,12 @@ class TuningCurve2D:
         # TODO: input validation
         if not empty:
             if ratemap is None:
-                assert (
-                    bst is not None
-                ), "bst must be specified or ratemap must be specified!"
-                assert (
-                    extern is not None
-                ), "extern must be specified or ratemap must be specified!"
+                assert bst is not None, (
+                    "bst must be specified or ratemap must be specified!"
+                )
+                assert extern is not None, (
+                    "extern must be specified or ratemap must be specified!"
+                )
             else:
                 assert bst is None, "ratemap and bst cannot both be specified!"
                 assert extern is None, "ratemap and extern cannot both be specified!"
@@ -740,7 +740,6 @@ class TuningCurve2D:
         return out
 
     def _normalize_firing_rate_by_occupancy(self):
-
         # normalize spike counts by occupancy:
         denom = np.tile(self.occupancy, (self.n_units, 1, 1))
         denom[denom == 0] = 1
@@ -1101,7 +1100,7 @@ class TuningCurve1D:
         unit_tags=None,
         label=None,
         min_duration=None,
-        empty=False
+        empty=False,
     ):
         """
 
@@ -1117,12 +1116,12 @@ class TuningCurve1D:
         # TODO: input validation
         if not empty:
             if ratemap is None:
-                assert (
-                    bst is not None
-                ), "bst must be specified or ratemap must be specified!"
-                assert (
-                    extern is not None
-                ), "extern must be specified or ratemap must be specified!"
+                assert bst is not None, (
+                    "bst must be specified or ratemap must be specified!"
+                )
+                assert extern is not None, (
+                    "extern must be specified or ratemap must be specified!"
+                )
             else:
                 assert bst is None, "ratemap and bst cannot both be specified!"
                 assert extern is None, "ratemap and extern cannot both be specified!"
@@ -1414,7 +1413,6 @@ class TuningCurve1D:
         return np.atleast_1d(ext)
 
     def _compute_occupancy(self):
-
         # Make sure that self._bst_centers fall within not only the support
         # of extern, but also within the extreme sample times; otherwise,
         # interpolation will yield NaNs at the extremes. Indeed, when we have
@@ -1441,7 +1439,6 @@ class TuningCurve1D:
         return occupancy
 
     def _compute_ratemap(self, min_duration=None):
-
         if min_duration is None:
             min_duration = self._min_duration
 
@@ -1467,7 +1464,6 @@ class TuningCurve1D:
         return ratemap / self._bst.ds
 
     def normalize(self, inplace=False):
-
         if not inplace:
             out = copy.deepcopy(self)
         else:
@@ -1950,7 +1946,7 @@ class DirectionalTuningCurve1D(TuningCurve1D):
         empty=False,
         min_peakfiringrate=None,
         max_avgfiringrate=None,
-        unimodal=False
+        unimodal=False,
     ):
         """
 
@@ -2081,7 +2077,6 @@ class DirectionalTuningCurve1D(TuningCurve1D):
         self._detach()
 
     def restrict_units(self, ratemap=None):
-
         if ratemap is None:
             ratemap = self.ratemap
 

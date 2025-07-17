@@ -2,6 +2,7 @@
 """
 Description goes here.
 """
+
 import os
 import requests
 import numpy as np
@@ -50,7 +51,7 @@ def download_example_dataset(
     filenames = []
     urls = []
 
-    urlpath = "https://raw.githubusercontent.com/" "nelpy/example-data/master/{}"
+    urlpath = "https://raw.githubusercontent.com/nelpy/example-data/master/{}"
     cachepath = os.path.join(get_example_data_home(data_home), "{}")
 
     # make sure that either name or file is specified, but not both

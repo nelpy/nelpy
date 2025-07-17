@@ -82,3 +82,11 @@ include = ["nelpy*"]
 
 [tool.setuptools.package-data]
 "*" = ["*"]
+
+[tool.ruff]
+line-length = 88
+extend-select = ["I"]
+target-version = "py310"
+
+[tool.ruff.format]
+docstring-code-format = true

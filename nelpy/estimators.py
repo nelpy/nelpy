@@ -52,6 +52,7 @@ class KeywordError(Exception):
     message : str
         Explanation of the error.
     """
+
     def __init__(self, message):
         """
         Initialize the KeywordError.
@@ -204,6 +205,7 @@ class RateMap(BaseEstimator):
     _mask : np.ndarray
         Mask for valid regions.
     """
+
     def __init__(self, connectivity="continuous"):
         """
         Initialize a RateMap object.
@@ -218,6 +220,7 @@ class RateMap(BaseEstimator):
         self._slicer = UnitSlicer(self)
         self.loc = ItemGetter_loc(self)
         self.iloc = ItemGetter_iloc(self)
+
     def __repr__(self):
         """
         Return a string representation of the RateMap, including shape if fitted.
@@ -236,6 +239,7 @@ class RateMap(BaseEstimator):
                     *self.shape
                 )
         return r
+
     def fit(self, X, y, dt=1, unit_ids=None):
         """
         Fit firing rates to the provided data.
@@ -795,7 +799,6 @@ class BayesianDecoderTemp(BaseEstimator):
         return w
 
     def _check_X_dt(self, X, *, lengths=None, dt=None):
-
         if isinstance(X, core.BinnedEventArray):
             if dt is not None:
                 logging.warning(
@@ -823,7 +826,6 @@ class BayesianDecoderTemp(BaseEstimator):
         return X, dt
 
     def _check_X_y(self, X, y, *, method="score", lengths=None):
-
         if isinstance(X, core.BinnedEventArray):
             if method == "fit":
                 self._w.bin_width = X.ds
@@ -944,7 +946,7 @@ class BayesianDecoderTemp(BaseEstimator):
         dt=None,
         unit_ids=None,
         n_bins=None,
-        sample_weight=None
+        sample_weight=None,
     ):
         """Fit Gaussian Naive Bayes according to X, y
 
@@ -1023,7 +1025,6 @@ class BayesianDecoderTemp(BaseEstimator):
         return self._predict_proba_from_ratemap(X, ratemap)
 
     def score(self, X, y, *, lengths=None, unit_ids=None, dt=None):
-
         # check that unit_ids are valid
         # THEN, transform X, y into standardized form (including trimming and permutation) and continue with scoring
 
@@ -1077,6 +1078,7 @@ class FiringRateEstimator(BaseEstimator):
     tc_ : TuningCurve1D or TuningCurve2D
         The estimated tuning curve.
     """
+
     def __init__(self, mode="hist"):
         """
         Initialize a FiringRateEstimator.
@@ -1091,6 +1093,7 @@ class FiringRateEstimator(BaseEstimator):
                 "mode '{}' not supported / implemented yet!".format(mode)
             )
         self._mode = mode
+
     def _check_X_y_dt(self, X, y, lengths=None, dt=None, timestamps=None, n_bins=None):
         """
         Validate and standardize input data for fitting or prediction.
@@ -1135,8 +1138,7 @@ class FiringRateEstimator(BaseEstimator):
                 )
             if dt is not None:
                 logging.warning(
-                    "'dt' was passed in, but will be overwritten"
-                    " by 'X's 'ds' attribute"
+                    "'dt' was passed in, but will be overwritten by 'X's 'ds' attribute"
                 )
             if isinstance(y, core.RegularlySampledAnalogSignalArray):
                 y = y(T).T
@@ -1171,11 +1173,12 @@ class FiringRateEstimator(BaseEstimator):
         )
         if n_bins is not None:
             n_bins = np.atleast_1d(n_bins)
-            assert (
-                len(n_bins) == n_dims
-            ), "'n_bins' must have one entry for each dimension in 'y'!"
+            assert len(n_bins) == n_dims, (
+                "'n_bins' must have one entry for each dimension in 'y'!"
+            )
 
         return X, y, dt, n_bins
+
     def fit(
         self,
         X,

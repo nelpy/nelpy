@@ -1,6 +1,7 @@
 # See https://github.com/NeuralEnsemble/elephant/blob/master/elephant/statistics.py
 import nelpy as nel
 
+
 def drop_last_bin(bst, inplace=False):
     """Drop the last bin from a BinnedSpikeTrainArray with a single epoch."""
     if bst.isempty:
@@ -39,9 +40,9 @@ def detect_ripples(eeg):
     #  (4) 3.5 SD above the mean for 15 ms
     #  (5) full ripple defined as window back to mean
 
-    assert (
-        eeg.n_signals == 1
-    ), "only single channel ripple detection currently supported!"
+    assert eeg.n_signals == 1, (
+        "only single channel ripple detection currently supported!"
+    )
 
     # (1)
     ripple_eeg = nel.filtering.sosfiltfilt(eeg, fl=150, fh=250)

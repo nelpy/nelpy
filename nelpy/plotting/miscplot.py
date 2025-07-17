@@ -99,7 +99,6 @@ def stripplot(*eps, voffset=None, lw=None, labels=None):
 
 
 def veva_scatter(data, *, cmap=None, color=None, ax=None, lw=None, lh=None, **kwargs):
-
     # Sort out default values for the parameters
     if ax is None:
         ax = plt.gca()
@@ -114,7 +113,6 @@ def veva_scatter(data, *, cmap=None, color=None, ax=None, lw=None, lh=None, **kw
 
     # Handle different types of input data
     if isinstance(data, core.ValueEventArray):
-
         vmin = (
             np.min([np.min(x) for x in data.values]) - 1
         )  # TODO: -1 because white is invisible... fix this properly

@@ -1,6 +1,5 @@
 # encoding : utf-8
-"""This module implements filtering functionailty for core nelpy objects. 
-"""
+"""This module implements filtering functionailty for core nelpy objects."""
 
 __all__ = ["sosfiltfilt"]
 
@@ -30,7 +29,7 @@ def sosfiltfilt(
     buffer_len=None,
     overlap_len=None,
     parallel=True,
-    **kwargs
+    **kwargs,
 ):
     """Zero-phase forward backward filtering using second-order-segments.
 
@@ -334,14 +333,14 @@ def getsos(
     >>>
     >>> sos = getsos(...)
     >>> w, h = signal.sosfreqz(sos, worN=1500)
-    >>> db = 20*np.log10(np.abs(h))
-    >>> freq = w*fs/(2*np.pi)
+    >>> db = 20 * np.log10(np.abs(h))
+    >>> freq = w * fs / (2 * np.pi)
     >>> plt.subplot(2, 1, 1)
-    >>> plt.ylabel('Gain [dB]')
+    >>> plt.ylabel("Gain [dB]")
     >>> plt.plot(freq, db)
     >>> plt.subplot(2, 1, 2)
     >>> plt.plot(freq, np.angle(h))
-    >>> plt.ylabel('Phase [rad]')
+    >>> plt.ylabel("Phase [rad]")
 
     Although not currently supported, filters can be stacked as well, as follows:
     >>> sos = np.vstack((nel.filtering.getsos(fs=T2.fs, fl=150, fh=250, gstop=10, ftype='cheby2'),

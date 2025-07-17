@@ -118,7 +118,6 @@ def get_line_of_best_Davidson_score(bst, tuningcurve, w=3, n_samples=50000):
         ci = np.arange(NT)  # CONST
 
         for phi, rho in zip(phis, rhos):
-
             # parameterize line
             ri = calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid)
 
@@ -446,7 +445,6 @@ def score_Davidson_final_bst_fast(
         nanbins,
         n_nanbins,
     ):
-
         scores_outside_track = median_post[
             ((ri > NP - 1) & ~nanbins) | ((ri < 0) & ~nanbins)
         ]
@@ -487,7 +485,6 @@ def score_Davidson_final_bst_fast(
         ci = np.arange(NT)  # CONST
 
         for phi, rho in zip(phis, rhos):
-
             # parameterize line
             ri = calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid)
 
@@ -587,7 +584,6 @@ def score_Davidson_final_bst_fast(
             precond_posterior_cs = copy.deepcopy(precond_posterior)
 
             for shflidx in range(n_shuffles):
-
                 # do column cycle shuffle on each column independently
                 for col in range(NT):
                     random_offset = np.random.randint(1, NP)
@@ -664,7 +660,6 @@ def score_Davidson_final_bst(
         return ri
 
     def _score_line_ri_ci(posterior, precond_posterior, NT, NP, ri, ci):
-
         scores_outside_track = np.nanmedian(
             posterior[:, (ri > NP - 1) | (ri < 0)], axis=0
         )
@@ -702,7 +697,6 @@ def score_Davidson_final_bst(
         ci = np.arange(NT)  # CONST
 
         for phi, rho in zip(phis, rhos):
-
             # parameterize line
             ri = calc_ri(NT, NP, phi, rho, ci, ci_mid, ri_mid)
 
@@ -766,7 +760,6 @@ def score_Davidson_final_bst(
             precond_posterior_cs = copy.deepcopy(precond_posterior)
 
             for shflidx in range(n_shuffles):
-
                 for col in range(NT):
                     random_offset = np.random.randint(1, NP)
                     posterior_cs[:, col] = np.roll(posterior_cs[:, col], random_offset)

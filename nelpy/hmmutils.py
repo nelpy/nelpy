@@ -68,7 +68,9 @@ def estimate_model_quality(
     Examples
     --------
     >>> from nelpy.hmmutils import estimate_model_quality
-    >>> quality, scores, shuffled = estimate_model_quality(bst, n_states=3, n_shuffles=100, k_folds=5)
+    >>> quality, scores, shuffled = estimate_model_quality(
+    ...     bst, n_states=3, n_shuffles=100, k_folds=5
+    ... )
     """
     from .decoding import k_fold_cross_validation
     from scipy.stats import zmap
@@ -410,8 +412,8 @@ class PoissonHMM(PHMM):
 
         Examples
         --------
-        >>> order = hmm.get_state_order(method='transmat')
-        >>> order = hmm.get_state_order(method='mode')
+        >>> order = hmm.get_state_order(method="transmat")
+        >>> order = hmm.get_state_order(method="mode")
         """
         if method is None:
             method = "transmat"
@@ -690,7 +692,7 @@ class PoissonHMM(PHMM):
         Examples
         --------
         >>> logprob, state_seq, centers = hmm.decode(bst)
-        >>> logprob, state_seq, centers = hmm.decode(X, algorithm='viterbi')
+        >>> logprob, state_seq, centers = hmm.decode(X, algorithm="viterbi")
         """
         if not isinstance(X, BinnedSpikeTrainArray):
             # assume we have a feature matrix
@@ -1229,13 +1231,21 @@ class PoissonHMM(PHMM):
         Examples
         --------
         For 1D external variables:
-        >>> posterior_pos, bdries, mode_pth, mean_pth = hmm.decode_ext(bst_no_ripple, ext_shape=(vtc.n_bins,))
+        >>> posterior_pos, bdries, mode_pth, mean_pth = hmm.decode_ext(
+        ...     bst_no_ripple, ext_shape=(vtc.n_bins,)
+        ... )
         >>> mean_pth = vtc.bins[0] + mean_pth * (vtc.bins[-1] - vtc.bins[0])
 
         For 2D external variables:
-        >>> posterior_, bdries_, mode_pth_, mean_pth_ = hmm.decode_ext(bst, ext_shape=(ext_nx, ext_ny))
-        >>> mean_pth_[0, :] = vtc2d.xbins[0] + mean_pth_[0, :] * (vtc2d.xbins[-1] - vtc2d.xbins[0])
-        >>> mean_pth_[1, :] = vtc2d.ybins[0] + mean_pth_[1, :] * (vtc2d.ybins[-1] - vtc2d.ybins[0])
+        >>> posterior_, bdries_, mode_pth_, mean_pth_ = hmm.decode_ext(
+        ...     bst, ext_shape=(ext_nx, ext_ny)
+        ... )
+        >>> mean_pth_[0, :] = vtc2d.xbins[0] + mean_pth_[0, :] * (
+        ...     vtc2d.xbins[-1] - vtc2d.xbins[0]
+        ... )
+        >>> mean_pth_[1, :] = vtc2d.ybins[0] + mean_pth_[1, :] * (
+        ...     vtc2d.ybins[-1] - vtc2d.ybins[0]
+        ... )
         """
 
         _, n_extern = self._extern_.shape

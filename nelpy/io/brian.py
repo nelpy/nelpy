@@ -1,4 +1,4 @@
-#encoding : utf-8
+# encoding : utf-8
 """This module implements functionailty for converting to and from Brian objects
 (https://brian2.readthedocs.io/en/stable/)
 

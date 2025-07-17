@@ -27,7 +27,6 @@ class Session:
     def __init__(
         self, animal=None, st=None, extern=None, mua=None, label=None, empty=False
     ):
-
         # if an empty object is requested, return it:
         if empty:
             for attr in self.__attributes__:

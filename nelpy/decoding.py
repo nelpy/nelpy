@@ -327,9 +327,9 @@ def decode1D(
         nospk_prior = np.full(n_xbins, 1.0)
 
     assert nospk_prior.shape[0] == n_xbins, "prior must have length {}".format(n_xbins)
-    assert (
-        nospk_prior.size == n_xbins
-    ), "prior must be a 1D array with length {}".format(n_xbins)
+    assert nospk_prior.size == n_xbins, (
+        "prior must be a 1D array with length {}".format(n_xbins)
+    )
 
     lfx = np.log(ratemap)
 
@@ -650,7 +650,6 @@ class Cumhist(np.ndarray):
         return obj
 
     def __call__(self, *val):
-
         f = interpolate.interp1d(
             x=self, y=self._bincenters, kind="linear", fill_value=np.NaN
         )
@@ -674,7 +673,7 @@ def cumulative_dist_decoding_error_using_xval(
     extmax=100,
     sigma=3,
     n_bins=None,
-    randomize=False
+    randomize=False,
 ):
     """
     Compute the cumulative distribution of decoding errors using k-fold cross-validation.

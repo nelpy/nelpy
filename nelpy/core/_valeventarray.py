@@ -268,9 +268,8 @@ class BaseValueEventArray(ABC):
         empty=False,
         abscissa=None,
         ordinate=None,
-        **kwargs
+        **kwargs,
     ):
-
         self.__version__ = version.__version__
         self.type_name = self.__class__.__name__
         if abscissa is None:
@@ -641,9 +640,8 @@ class ValueEventArray(BaseValueEventArray):
         support=None,
         series_ids=None,
         empty=False,
-        **kwargs
+        **kwargs,
     ):
-
         self._val_init(
             events=events,
             values=values,
@@ -651,7 +649,7 @@ class ValueEventArray(BaseValueEventArray):
             support=support,
             series_ids=series_ids,
             empty=empty,
-            **kwargs
+            **kwargs,
         )
 
     def _val_init(
@@ -663,7 +661,7 @@ class ValueEventArray(BaseValueEventArray):
         support=None,
         series_ids=None,
         empty=False,
-        **kwargs
+        **kwargs,
     ):
         #############################################
         #            standardize kwargs             #
@@ -1319,7 +1317,9 @@ class StatefulValueEventArray(BaseValueEventArray):
 
     Examples
     --------
-    >>> sveva = StatefulValueEventArray(events=event_times, values=event_values, states=event_states, fs=1000)
+    >>> sveva = StatefulValueEventArray(
+    ...     events=event_times, values=event_values, states=event_states, fs=1000
+    ... )
     >>> sveva.events
     array([...])
     >>> sveva.values
@@ -1362,7 +1362,7 @@ class StatefulValueEventArray(BaseValueEventArray):
         support=None,
         series_ids=None,
         empty=False,
-        **kwargs
+        **kwargs,
     ):
         # add class-specific aliases to existing aliases:
         # self.__aliases__ = {**super().__aliases__, **self.__aliases__}
@@ -1384,7 +1384,7 @@ class StatefulValueEventArray(BaseValueEventArray):
             support=support,
             series_ids=series_ids,
             empty=empty,
-            **kwargs
+            **kwargs,
         )
 
         # print('making stateful')
@@ -1400,7 +1400,7 @@ class StatefulValueEventArray(BaseValueEventArray):
         support=None,
         series_ids=None,
         empty=False,
-        **kwargs
+        **kwargs,
     ):
         #############################################
         #            standardize kwargs             #

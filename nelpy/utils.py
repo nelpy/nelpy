@@ -91,7 +91,7 @@ def asa_indices_within_epochs(asa, intervalarray):
     -------
     indices : np.ndarray
         Array of shape (n_epochs, 2) containing [start, stop] indices
-        for each epoch, so that data can be associated with 
+        for each epoch, so that data can be associated with
         asa._data[:,start:stop] for each epoch.
 
     Examples
@@ -651,7 +651,7 @@ def argsort(seq):
     --------
     >>> argsort([3, 1, 4, 1, 5])
     [1, 3, 0, 2, 4]
-    >>> seq = ['c', 'a', 'b']
+    >>> seq = ["c", "a", "b"]
     >>> [seq[i] for i in argsort(seq)]
     ['a', 'b', 'c']
 
@@ -1090,7 +1090,7 @@ def get_contiguous_segments(
     inclusive=False,
     fs=None,
     sort=None,
-    in_memory=None
+    in_memory=None,
 ):
     """Compute contiguous segments (seperated by step) in a list.
 
@@ -1111,7 +1111,7 @@ def get_contiguous_segments(
 
     Examples
     -------
-    >>> data = [1,2,3,4,10,11,12]
+    >>> data = [1, 2, 3, 4, 10, 11, 12]
     >>> get_contiguous_segments(data)
     ([1,5], [10,13])
     >>> get_contiguous_segments(data, index=True)
@@ -1269,15 +1269,15 @@ def get_direction(asa, *, sigma=None):
     direction = direction.squeeze()
 
     l2r = get_contiguous_segments(np.argwhere(direction > 0).squeeze(), step=1)
-    l2r[
-        :, 1
-    ] -= 1  # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
+    l2r[:, 1] -= (
+        1  # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
+    )
     l2r = core.EpochArray(asa.abscissa_vals[l2r])
 
     r2l = get_contiguous_segments(np.argwhere(direction < 0).squeeze(), step=1)
-    r2l[
-        :, 1
-    ] -= 1  # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
+    r2l[:, 1] -= (
+        1  # change bounds from [inclusive, exclusive] to [inclusive, inclusive]
+    )
     r2l = core.EpochArray(asa.abscissa_vals[r2l])
 
     return l2r, r2l
@@ -1344,7 +1344,7 @@ class PrettyDuration(float):
         Returns
         -------
         namedtuple
-            Named tuple with fields: pos (bool), dd (days), hh (hours), 
+            Named tuple with fields: pos (bool), dd (days), hh (hours),
             mm (minutes), ss (seconds), ms (milliseconds).
 
         Examples
@@ -1655,7 +1655,7 @@ def get_events_boundaries(
     minLength=None,
     maxLength=None,
     ds=None,
-    mode="above"
+    mode="above",
 ):
     """get event boundaries such that event.max >= PrimaryThreshold
     and the event extent is defined by SecondaryThreshold.
@@ -1726,13 +1726,13 @@ def get_events_boundaries(
 
     # Find periods where value is > SecondaryThreshold; note that the previous periods should be within these!
     if mode == "above":
-        assert (
-            SecondaryThreshold <= PrimaryThreshold
-        ), "Secondary Threshold by definition should include more data than Primary Threshold"
+        assert SecondaryThreshold <= PrimaryThreshold, (
+            "Secondary Threshold by definition should include more data than Primary Threshold"
+        )
     elif mode == "below":
-        assert (
-            SecondaryThreshold >= PrimaryThreshold
-        ), "Secondary Threshold by definition should include more data than Primary Threshold"
+        assert SecondaryThreshold >= PrimaryThreshold, (
+            "Secondary Threshold by definition should include more data than Primary Threshold"
+        )
     else:
         raise NotImplementedError(
             "mode {} not understood for find_threshold_crossing_events".format(
@@ -1967,7 +1967,7 @@ def gaussian_filter(
     inplace=False,
     mode=None,
     cval=None,
-    within_intervals=False
+    within_intervals=False,
 ):
     """Smooths with a Gaussian kernel.
 

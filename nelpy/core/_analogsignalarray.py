@@ -38,6 +38,7 @@ class IntervalSignalSlicer(object):
     obj : object
         The parent object to slice.
     """
+
     def __init__(self, obj):
         """
         Initialize the IntervalSignalSlicer.
@@ -48,6 +49,7 @@ class IntervalSignalSlicer(object):
             The parent object to slice.
         """
         self.obj = obj
+
     def __getitem__(self, *args):
         """
         Extract intervals and signals based on the provided arguments.
@@ -98,6 +100,7 @@ class DataSlicer(object):
     parent : object
         The parent object to slice.
     """
+
     def __init__(self, parent):
         """
         Initialize the DataSlicer.
@@ -108,6 +111,7 @@ class DataSlicer(object):
             The parent object to slice.
         """
         self._parent = parent
+
     def _data_generator(self, interval_indices, signalslice):
         """
         Generator for data slices by interval and signal.
@@ -129,6 +133,7 @@ class DataSlicer(object):
                 yield self._parent._data[signalslice, start:stop]
             except StopIteration:
                 return
+
     def __getitem__(self, idx):
         intervalslice, signalslice = self._parent._intervalsignalslicer[idx]
 
@@ -177,6 +182,7 @@ class AbscissaSlicer(object):
     parent : object
         The parent object to slice.
     """
+
     def __init__(self, parent):
         """
         Initialize the AbscissaSlicer.
@@ -187,6 +193,7 @@ class AbscissaSlicer(object):
             The parent object to slice.
         """
         self._parent = parent
+
     def _abscissa_vals_generator(self, interval_indices):
         """
         Generator for abscissa values by interval.
@@ -206,6 +213,7 @@ class AbscissaSlicer(object):
                 yield self._parent._abscissa_vals[start:stop]
             except StopIteration:
                 return
+
     def __getitem__(self, idx):
         intervalslice, signalslice = self._parent._intervalsignalslicer[idx]
 
@@ -250,7 +258,6 @@ def rsasa_init_wrapper(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-
         if kwargs.get("empty", False):
             func(*args, **kwargs)
             return
@@ -504,9 +511,8 @@ class RegularlySampledAnalogSignalArray:
         labels=None,
         empty=False,
         abscissa=None,
-        ordinate=None
+        ordinate=None,
     ):
-
         self._intervalsignalslicer = IntervalSignalSlicer(self)
         self._intervaldata = DataSlicer(self)
         self._intervaltime = AbscissaSlicer(self)
@@ -572,9 +578,7 @@ class RegularlySampledAnalogSignalArray:
         # data is not sorted and user wants it to be
         # TODO: use faster is_sort from jagular
         if not utils.is_sorted(abscissa_vals):
-            logging.warning(
-                "Data is _not_ sorted! Data will be sorted " "automatically."
-            )
+            logging.warning("Data is _not_ sorted! Data will be sorted automatically.")
             ind = np.argsort(abscissa_vals)
             abscissa_vals = abscissa_vals[ind]
             data = np.take(a=data, indices=ind, axis=-1)
@@ -588,7 +592,7 @@ class RegularlySampledAnalogSignalArray:
             # label size doesn't match
             if labels.shape[0] > data.shape[0]:
                 logging.warning(
-                    "More labels than data! Labels are truncated to " "size of data"
+                    "More labels than data! Labels are truncated to size of data"
                 )
                 labels = labels[0 : data.shape[0]]
             elif labels.shape[0] < data.shape[0]:
@@ -605,7 +609,7 @@ class RegularlySampledAnalogSignalArray:
             self._restrict_to_interval_array_fast(intervalarray=support)
         else:
             logging.warning(
-                "creating support from abscissa_vals and " "sampling rate, fs!"
+                "creating support from abscissa_vals and sampling rate, fs!"
             )
             self._abscissa.support = type(self._abscissa.support)(
                 utils.get_contiguous_segments(
@@ -1195,7 +1199,7 @@ class RegularlySampledAnalogSignalArray:
         inplace=False,
         mode=None,
         cval=None,
-        within_intervals=False
+        within_intervals=False,
     ):
         """Smooths the regularly sampled RegularlySampledAnalogSignalArray with a Gaussian kernel.
 
@@ -1332,7 +1336,6 @@ class RegularlySampledAnalogSignalArray:
 
             smooth_data = []
             for ss, signal in enumerate(tmp.signals):
-
                 # signal = signal.wrap()
                 offset = (
                     float((signal._data[:, -1] - signal._data[:, 0]) // (L / 2)) * L
@@ -1950,7 +1953,7 @@ class RegularlySampledAnalogSignalArray:
         copy=True,
         bounds_error=False,
         fill_value=np.nan,
-        assume_sorted=None
+        assume_sorted=None,
     ):
         """returns a scipy interp1d object, extended to have values at all interval
         boundaries!
@@ -2034,7 +2037,7 @@ class RegularlySampledAnalogSignalArray:
         recalculate=False,
         store_interp=True,
         n_samples=None,
-        split_by_interval=False
+        split_by_interval=False,
     ):
         """returns a data_like array at requested points.
 
@@ -2076,26 +2079,26 @@ class RegularlySampledAnalogSignalArray:
             return xyarray
 
         if where is not None:
-            assert (
-                at is None and n_samples is None
-            ), "'where', 'at', and 'n_samples' cannot be used at the same time"
+            assert at is None and n_samples is None, (
+                "'where', 'at', and 'n_samples' cannot be used at the same time"
+            )
             if isinstance(where, tuple):
                 y = np.array(where[1]).squeeze()
                 x = where[0]
-                assert len(x) == len(
-                    y
-                ), "'where' condition and array must have same number of elements"
+                assert len(x) == len(y), (
+                    "'where' condition and array must have same number of elements"
+                )
                 at = y[x]
             else:
                 x = np.asanyarray(where).squeeze()
-                assert len(x) == len(
-                    self._abscissa_vals
-                ), "'where' condition must have same number of elements as self._abscissa_vals"
+                assert len(x) == len(self._abscissa_vals), (
+                    "'where' condition must have same number of elements as self._abscissa_vals"
+                )
                 at = self._abscissa_vals[x]
         elif at is not None:
-            assert (
-                n_samples is None
-            ), "'at' and 'n_samples' cannot be used at the same time"
+            assert n_samples is None, (
+                "'at' and 'n_samples' cannot be used at the same time"
+            )
         else:
             at = np.linspace(self.support.start, self.support.stop, n_samples)
 
@@ -2245,9 +2248,9 @@ class RegularlySampledAnalogSignalArray:
             raise ValueError("ds and n_samples cannot be used together")
 
         if n_samples is not None:
-            assert float(
-                n_samples
-            ).is_integer(), "n_samples must be a positive integer!"
+            assert float(n_samples).is_integer(), (
+                "n_samples must be a positive integer!"
+            )
             assert n_samples > 1, "n_samples must be a positive integer > 1"
             # determine ds from number of desired points:
             ds = self.support.length / (n_samples - 1)
@@ -2621,12 +2624,12 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
 
     >>> # Create a simple sine wave signal
     >>> time = np.linspace(0, 1, 1000)  # 1 second of data
-    >>> signal = np.sin(2*np.pi*5*time)  # 5 Hz sine wave
+    >>> signal = np.sin(2 * np.pi * 5 * time)  # 5 Hz sine wave
 
     >>> # Create AnalogSignalArray with default parameters
-    >>> asa = AnalogSignalArray(data=signal[np.newaxis,:], 
-    ...                         abscissa_vals=time,
-    ...                         fs=1000)  # 1 kHz sampling
+    >>> asa = AnalogSignalArray(
+    ...     data=signal[np.newaxis, :], abscissa_vals=time, fs=1000
+    ... )  # 1 kHz sampling
 
     >>> # Access data using different aliases
     >>> print(asa.data.shape)  # (1, 1000)
@@ -2634,19 +2637,17 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
     >>> print(asa.time.shape)  # (1000,) alias for abscissa_vals
 
     >>> # Plot the signal (requires matplotlib)
-    >>> # asa.plot()  
+    >>> # asa.plot()
 
     >>> # Create multi-channel signal with labels
-    >>> signals = np.vstack([signal, 
-    ...                     np.cos(2*np.pi*5*time)])  # add cosine wave
-    >>> asa2 = AnalogSignalArray(data=signals,
-    ...                          abscissa_vals=time,
-    ...                          fs=1000,
-    ...                          labels=['sine', 'cosine'])
+    >>> signals = np.vstack([signal, np.cos(2 * np.pi * 5 * time)])  # add cosine wave
+    >>> asa2 = AnalogSignalArray(
+    ...     data=signals, abscissa_vals=time, fs=1000, labels=["sine", "cosine"]
+    ... )
 
     >>> # Access individual channels
-    >>> sine_channel = asa2[:,0]
-    >>> cosine_channel = asa2[:,1]
+    >>> sine_channel = asa2[:, 0]
+    >>> cosine_channel = asa2[:, 1]
 
     Notes
     -----
@@ -2658,6 +2659,7 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
     --------
     RegularlySampledAnalogSignalArray : Parent class with core functionality
     """
+
     # specify class-specific aliases:
     __aliases__ = {
         "time": "abscissa_vals",
@@ -2692,9 +2694,9 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
 class PositionArray(AnalogSignalArray):
     """An array for storing position data in 1D or 2D space.
 
-    PositionArray is a specialized subclass of AnalogSignalArray designed to 
-    handle position tracking data. It provides convenient access to x and y 
-    coordinates, supports both 1D and 2D positional data, and includes 
+    PositionArray is a specialized subclass of AnalogSignalArray designed to
+    handle position tracking data. It provides convenient access to x and y
+    coordinates, supports both 1D and 2D positional data, and includes
     spatial boundary information.
 
     Parameters
@@ -2737,37 +2739,39 @@ class PositionArray(AnalogSignalArray):
     Examples
     --------
     Create a 1D position array:
-    
+
     >>> import numpy as np
     >>> import nelpy as nel
-    >>> 
     >>> # 1D position data (e.g., position on a linear track)
     >>> x_pos = np.linspace(0, 100, 1000)  # 100 cm track
     >>> timestamps = np.linspace(0, 10, 1000)  # 10 seconds
-    >>> pos_1d = nel.PositionArray(data=x_pos[np.newaxis, :], 
-    ...                            timestamps=timestamps,
-    ...                            label='Linear track position')
+    >>> pos_1d = nel.PositionArray(
+    ...     data=x_pos[np.newaxis, :],
+    ...     timestamps=timestamps,
+    ...     label="Linear track position",
+    ... )
     >>> print(f"1D position: {pos_1d.is_1d}")
     >>> print(f"X range: {pos_1d.x.min():.1f} to {pos_1d.x.max():.1f} cm")
-    
+
     Create a 2D position array:
-    
+
     >>> # 2D position data (e.g., open field behavior)
-    >>> t = np.linspace(0, 2*np.pi, 1000)
+    >>> t = np.linspace(0, 2 * np.pi, 1000)
     >>> x_pos = 50 + 30 * np.cos(t)  # circular trajectory
     >>> y_pos = 50 + 30 * np.sin(t)
     >>> pos_data = np.vstack([x_pos, y_pos])
-    >>> 
-    >>> pos_2d = nel.PositionArray(posdata=pos_data,
-    ...                            fs=100,  # 100 Hz sampling
-    ...                            xlim=(0, 100),
-    ...                            ylim=(0, 100),
-    ...                            label='Open field position')
+    >>> pos_2d = nel.PositionArray(
+    ...     posdata=pos_data,
+    ...     fs=100,  # 100 Hz sampling
+    ...     xlim=(0, 100),
+    ...     ylim=(0, 100),
+    ...     label="Open field position",
+    ... )
     >>> print(f"2D position: {pos_2d.is_2d}")
     >>> print(f"X position shape: {pos_2d.x.shape}")
     >>> print(f"Y position shape: {pos_2d.y.shape}")
     >>> print(f"Spatial bounds: x={pos_2d.xlim}, y={pos_2d.ylim}")
-    
+
     Access position data:
 
     >>> # Get position at specific time
@@ -2776,7 +2780,7 @@ class PositionArray(AnalogSignalArray):
     ...     x_at_time = pos_2d.x[time_idx]
     ...     y_at_time = pos_2d.y[time_idx]
     ...     print(f"Position at sample {time_idx}: ({x_at_time:.1f}, {y_at_time:.1f})")
-    
+
     Notes
     -----
     - For 2D position data, the first row of data should contain x-coordinates
@@ -2888,6 +2892,7 @@ class IMUSensorArray(RegularlySampledAnalogSignalArray):
     array([[0, 1, 2],
            [3, 4, 5]])
     """
+
     # specify class-specific aliases:
     __aliases__ = {}
 
@@ -2924,6 +2929,7 @@ class MinimalExampleArray(RegularlySampledAnalogSignalArray):
     >>> arr.custom_func()
     Woot! We have some special skillz!
     """
+
     # specify class-specific aliases:
     __aliases__ = {}
 

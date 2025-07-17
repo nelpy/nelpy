@@ -69,9 +69,8 @@ class IMUSensorArray(_analogsignalarray.AnalogSignalArray):
         support=None,
         in_memory=True,
         labels=None,
-        empty=False
+        empty=False,
     ):
-
         # if an empty object is requested, return it:
         if empty:
             super().__init__(empty=True)

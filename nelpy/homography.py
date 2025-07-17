@@ -1,4 +1,4 @@
-""" This file currently uses opencv to select points for homography and/
+"""This file currently uses opencv to select points for homography and/
 or rectification. Ideally, I really want to move away from opencv, and
 we can do a lot of the selection just with matplotlib or similar instead.
 However, I would have to figure out how to draw those polygons with mpl.

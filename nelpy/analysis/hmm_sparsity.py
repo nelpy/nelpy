@@ -10,7 +10,6 @@ from .ergodic import steady_state
 
 
 class HMMSurrogate:
-
     def __init__(
         self,
         *,
@@ -22,7 +21,7 @@ class HMMSurrogate:
         random_state=None,
         verbose=False,
         description="",
-        PBE_idx=None
+        PBE_idx=None,
     ):
         """
         Initialize an HMMSurrogate for generating surrogate HMM data.

@@ -1,21 +1,20 @@
+"""idea is to have abscissa and ordinate, and to use aliasing to have n_series,
+_series_subset, series_ids, (or trial_ids), and so on.
 
-""" idea is to have abscissa and ordinate, and to use aliasing to have n_series,
-    _series_subset, series_ids, (or trial_ids), and so on.
+What is the genericized class? EventArray? eventseries, eventcollection
 
-    What is the genericized class? EventArray? eventseries, eventcollection
+when event <==> spike, abscissa <==> data, eventseries <==> eventarray
+     eventseries_id <==> series_id, eventseries_type <==> series, then we have a
+     EventArray. (n_events, n_spikes)
 
-    when event <==> spike, abscissa <==> data, eventseries <==> eventarray
-         eventseries_id <==> series_id, eventseries_type <==> series, then we have a
-         EventArray. (n_events, n_spikes)
-
-    series ==> series (series, trial, DIO, ...)
+series ==> series (series, trial, DIO, ...)
 
 
-    event rate (smooth; ds, sigma)
-    series_id
-    eventarray shift
-    ISI
-    PSTH
+event rate (smooth; ds, sigma)
+series_id
+eventarray shift
+ISI
+PSTH
 """
 
 import copy
@@ -114,9 +113,8 @@ class BaseEventArray(ABC):
         empty=False,
         abscissa=None,
         ordinate=None,
-        **kwargs
+        **kwargs,
     ):
-
         self.__version__ = version.__version__
         self.type_name = self.__class__.__name__
         if abscissa is None:
@@ -443,9 +441,8 @@ class EventArray(BaseEventArray):
         label=None,
         empty=False,
         assume_sorted=None,
-        **kwargs
+        **kwargs,
     ):
-
         if assume_sorted is None:
             assume_sorted = False
 
@@ -726,13 +723,11 @@ class EventArray(BaseEventArray):
         return flattened
 
     def _restrict(self, intervalslice, seriesslice, *, subseriesslice=None):
-
         self._restrict_to_series_subset(seriesslice)
         self._restrict_to_interval(intervalslice)
         return self
 
     def _restrict_to_series_subset(self, idx):
-
         # Warning: This function can mutate data
 
         # TODO: Update tags
@@ -1103,7 +1098,6 @@ class BinnedEventArray(BaseEventArray):
     __attributes__.extend(BaseEventArray.__attributes__)
 
     def __init__(self, eventarray=None, *, ds=None, empty=False, **kwargs):
-
         super().__init__(empty=True)
 
         # if an empty object is requested, return it:
@@ -1266,7 +1260,6 @@ class BinnedEventArray(BaseEventArray):
             neweva._data = (self.data.T + other).T
             return neweva
         elif isinstance(other, type(self)):
-
             # TODO: additional checks need to be done, e.g., same series ids...
             assert self.n_series == other.n_series
             support = self._abscissa.support + other.support
@@ -1536,7 +1529,6 @@ class BinnedEventArray(BaseEventArray):
         return self
 
     def _restrict_to_series_subset(self, idx):
-
         # Warning: This function can mutate data
 
         if isinstance(idx, core.IntervalArray):
@@ -1561,7 +1553,6 @@ class BinnedEventArray(BaseEventArray):
             raise TypeError("Unsupported indexing type {}".format(type(idx)))
 
     def _restrict_to_interval(self, intervalslice):
-
         # Warning: This function can mutate data. It should only be called from
         # _restrict
 
@@ -1587,7 +1578,6 @@ class BinnedEventArray(BaseEventArray):
 
         if not self.isempty:
             for ii, interval in enumerate(newintervals.data):
-
                 a_start = interval[0]
                 a_stop = interval[1]
                 frm, to = np.searchsorted(self._bins, (a_start, a_stop))
@@ -2302,9 +2292,9 @@ class SpikeTrainArray(EventArray):
 
     Attributes
     ----------
-    Note : Read the docstring for the BaseEventArray and EventArray superclasses 
+    Note : Read the docstring for the BaseEventArray and EventArray superclasses
     for additional attributes that are defined there.
-    
+
     isempty : bool
         Whether the SpikeTrainArray is empty (no data).
     n_units : int
@@ -2313,7 +2303,7 @@ class SpikeTrainArray(EventArray):
         The number of active units. A unit is considered active if
         it fired at least one spike.
     time : array of np.array(dtype=np.float64)
-        Spike time data in seconds. Array of length n_units, each entry with 
+        Spike time data in seconds. Array of length n_units, each entry with
         shape (n_spikes,). Alias for data.
     n_spikes : np.ndarray
         The number of spikes in each unit. Alias for n_events.
@@ -2327,7 +2317,7 @@ class SpikeTrainArray(EventArray):
         Unit IDs. Alias for series_ids.
     unit_labels : list of str
         Labels corresponding to units. Alias for series_labels.
-    unit_tags : 
+    unit_tags :
         Tags corresponding to units. Alias for series_tags.
     n_epochs : int
         The number of epochs/intervals. Alias for n_intervals.
@@ -2358,7 +2348,7 @@ class SpikeTrainArray(EventArray):
     Examples
     --------
     Create a SpikeTrainArray with two units:
-    
+
     >>> import numpy as np
     >>> spike_times = [np.array([0.1, 0.3, 0.7]), np.array([0.2, 0.5, 0.8])]
     >>> sta = SpikeTrainArray(spike_times, unit_ids=[1, 2], fs=1000)
@@ -2366,16 +2356,16 @@ class SpikeTrainArray(EventArray):
     2
     >>> print(sta.n_spikes)
     [3 3]
-    
+
     Access spike times using the time alias:
-    
+
     >>> print(sta.time[0])  # First unit's spike times
     [0.1 0.3 0.7]
-    
+
     Create a binned version:
-    
+
     >>> binned = sta.bin(ds=0.1)  # 100ms bins
-    
+
     Notes
     -----
     SpikeTrainArray provides neuroscience-specific aliases for EventArray
@@ -2383,7 +2373,7 @@ class SpikeTrainArray(EventArray):
     of 'events', and 'time' instead of 'data'. This makes the API more intuitive
     for neuroscience applications while maintaining full compatibility with the
     underlying EventArray infrastructure.
-    
+
     The class automatically handles spike time sorting and provides efficient
     methods for common spike train analyses. All spike times are stored in
     seconds and should be non-negative values within the support interval.
@@ -2491,7 +2481,7 @@ class BinnedSpikeTrainArray(BinnedEventArray):
     ----------
     Note : Read the docstring for the BinnedEventArray parent class for additional
     attributes that are defined there.
-    
+
     Spike train-specific attributes (aliases):
     time : np.array
         Alias for data. Spike counts in all bins, with shape (n_units, n_bins).
@@ -2505,7 +2495,7 @@ class BinnedSpikeTrainArray(BinnedEventArray):
         Alias for series_ids. Unit IDs contained in the spike train array.
     unit_labels : list of str
         Alias for series_labels. Labels corresponding to units.
-    unit_tags : 
+    unit_tags :
         Alias for series_tags. Tags corresponding to units.
 
     Inherited attributes:
@@ -2539,7 +2529,7 @@ class BinnedSpikeTrainArray(BinnedEventArray):
     -------
     All methods from BinnedEventArray are available, plus spike train-specific
     aliases for method names:
-    
+
     reorder_units_by_ids(*args, **kwargs)
         Alias for reorder_series_by_ids. Reorder units by their IDs.
     reorder_units(*args, **kwargs)

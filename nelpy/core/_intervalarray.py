@@ -51,9 +51,8 @@ class IntervalArray:
         meta=None,
         empty=False,
         domain=None,
-        label=None
+        label=None,
     ):
-
         self.__version__ = version.__version__
 
         self.type_name = self.__class__.__name__
@@ -98,20 +97,17 @@ class IntervalArray:
                 length = length[..., np.newaxis]
 
             if data.ndim == 2 and length.ndim == 1:
-                raise ValueError(
-                    "length not allowed when using start and stop " "values"
-                )
+                raise ValueError("length not allowed when using start and stop values")
 
             if len(length) > 1:
                 if data.ndim == 1 and data.shape[0] != length.shape[0]:
-                    raise ValueError("must have same number of data and length " "data")
+                    raise ValueError("must have same number of data and length data")
             if data.ndim == 1 and length.ndim == 1:
                 stop_interval = data + length
                 data = np.hstack(
                     (data[..., np.newaxis], stop_interval[..., np.newaxis])
                 )
         else:  # length was not specified, so assume we recived intervals
-
             # Note: if we have an empty array of data with no
             # dimension, then calling len(data) will return a
             # TypeError.
@@ -133,7 +129,7 @@ class IntervalArray:
             # length and more than two values:
             if data.ndim == 1 and len(data) > 2:  # we already know length is None
                 raise TypeError(
-                    "data of size (n_intervals, ) has to be accompanied by " "a length"
+                    "data of size (n_intervals, ) has to be accompanied by a length"
                 )
 
             if data.ndim == 1:  # and length is None:
@@ -387,9 +383,9 @@ class IntervalArray:
             raise ValueError("ds and n_intervals cannot be used together")
 
         if n_intervals is not None:
-            assert float(
-                n_intervals
-            ).is_integer(), "n_intervals must be a positive integer!"
+            assert float(n_intervals).is_integer(), (
+                "n_intervals must be a positive integer!"
+            )
             assert n_intervals > 1, "n_intervals must be a positive integer > 1"
             # determine ds from number of desired points:
             ds = self.length / n_intervals
@@ -1062,6 +1058,7 @@ class EpochArray(IntervalArray):
     >>> print(f"Individual durations: {epochs.durations}")
     Individual durations: [10 10 10]
     """
+
     __aliases__ = {
         "time": "data",
         "_time": "_data",
@@ -1182,6 +1179,7 @@ class SpaceArray(IntervalArray):
     >>> print(f"Lengths: {regions.lengths}")
     Lengths: [50 50]
     """
+
     __aliases__ = {}
 
     def __init__(self, *args, **kwargs):

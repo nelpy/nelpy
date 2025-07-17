@@ -1,7 +1,9 @@
 """Class definitions and utility functions specifically related to
 experimental design and organization.
 """
+
 import pandas as pd
+
 
 class Trial:
     """
@@ -9,6 +11,7 @@ class Trial:
 
     This class is a placeholder for trial-specific metadata and methods.
     """
+
     pass
 
 

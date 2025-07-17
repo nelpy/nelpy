@@ -40,7 +40,6 @@ class Abscissa:
     """
 
     def __init__(self, support=None, is_wrapping=False, labelstring=None):
-
         # TODO: add label support
         if support is None:
             support = core.IntervalArray(empty=True)
@@ -142,7 +141,6 @@ class Ordinate:
         labelstring=None,
         _range=None,
     ):
-
         # TODO: add label support
 
         if base_unit is None:
@@ -237,7 +235,6 @@ class TemporalAbscissa(Abscissa):
     """Abscissa for time series data."""
 
     def __init__(self, *args, **kwargs):
-
         support = kwargs.get("support", core.EpochArray(empty=True))
         labelstring = kwargs.get(
             "labelstring", "time ({})"
@@ -258,7 +255,6 @@ class AnalogSignalArrayAbscissa(Abscissa):
     """Abscissa for AnalogSignalArray."""
 
     def __init__(self, *args, **kwargs):
-
         support = kwargs.get("support", core.EpochArray(empty=True))
         labelstring = kwargs.get(
             "labelstring", "time ({})"
@@ -281,7 +277,6 @@ class AnalogSignalArrayOrdinate(Ordinate):
     """
 
     def __init__(self, *args, **kwargs):
-
         base_unit = kwargs.get("base_unit", "V")
         labelstring = kwargs.get("labelstring", "voltage ({})")
 

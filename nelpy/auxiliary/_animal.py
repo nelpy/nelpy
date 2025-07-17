@@ -28,6 +28,7 @@ class Animal:
     type_ : str
         Type or strain of the animal.
     """
+
     def __init__(self, animal_id, name=None, dob=None, sex="M", type_=None):
         self._id = animal_id
         self.name = name
@@ -77,6 +78,7 @@ class Rat(Animal):
     *args, **kwargs :
         Additional arguments passed to Animal.
     """
+
     def __init__(self, animal_id, *args, name=None, type_="Long Evans", **kwargs):
         super().__init__(animal_id=animal_id, *args, name=name, **kwargs)
 

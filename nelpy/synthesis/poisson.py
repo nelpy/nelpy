@@ -33,7 +33,6 @@ def generate_spikes_from_traj(
     const_firing_rate=False,
     verbose=False,
 ):
-
     # extract running trajectories from real data:
     run_ends = np.where(np.diff(binned_runidx) - 1)[0] + 1
     # seq_lengths = np.diff(np.hstack((0, run_ends, binned_runidx.size)))
