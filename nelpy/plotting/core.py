@@ -28,7 +28,31 @@ __all__ = [
 
 
 def colorline(x, y, cmap=None, cm_range=(0, 0.7), **kwargs):
-    """Colorline plots a trajectory of (x,y) points with a colormap"""
+    """
+    Plot a trajectory of (x, y) points with a colormap along the path.
+
+    Parameters
+    ----------
+    x : array-like
+        X coordinates of the trajectory.
+    y : array-like
+        Y coordinates of the trajectory.
+    cmap : matplotlib.colors.Colormap, optional
+        Colormap to use for coloring the line. Defaults to plt.cm.Blues_r.
+    cm_range : tuple of float, optional
+        Range of the colormap to use (min, max). Defaults to (0, 0.7).
+    **kwargs : dict
+        Additional keyword arguments passed to the plot (e.g., ax, lw).
+
+    Returns
+    -------
+    lc : matplotlib.collections.LineCollection
+        The colored line collection added to the axis.
+
+    Examples
+    --------
+    >>> colorline(x, y, cmap=plt.cm.viridis)
+    """
 
     # plt.plot(x, y, '-k', zorder=1)
     # plt.scatter(x, y, s=40, c=plt.cm.RdBu(np.linspace(0,1,40)), zorder=2, edgecolor='k')
@@ -59,10 +83,33 @@ def _plot_ratemap(
     ratemap, ax=None, normalize=False, pad=None, unit_labels=None, fill=True, color=None
 ):
     """
-    WARNING! This function is not complete, and hence 'private',
-    and may be moved somewhere else later on.
+    Plot a set of ratemaps (e.g., tuning curves) for multiple units.
 
-    If pad=0 then the y-axis is assumed to be firing rate
+    Parameters
+    ----------
+    ratemap : object
+        Object with .ratemap_ attribute (2D array: n_units x n_ext) and .unit_ids.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    normalize : bool, optional
+        If True, normalize each curve to its peak value.
+    pad : float, optional
+        Vertical offset between curves. If None, uses mean of ratemap / 2.
+    unit_labels : list, optional
+        Labels for each unit. If None, uses ratemap.unit_ids.
+    fill : bool, optional
+        Whether to fill under each curve. Default is True.
+    color : color or None, optional
+        Color for all curves. If None, uses default color cycle.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted ratemaps.
+
+    Examples
+    --------
+    >>> _plot_ratemap(ratemap)
     """
     if ax is None:
         ax = plt.gca()
@@ -144,10 +191,35 @@ def plot_tuning_curves1D(
     alpha=0.3,
 ):
     """
-    WARNING! This function is not complete, and hence 'private',
-    and may be moved somewhere else later on.
+    Plot 1D tuning curves for multiple units.
 
-    If pad=0 then the y-axis is assumed to be firing rate
+    Parameters
+    ----------
+    ratemap : auxiliary.TuningCurve1D or similar
+        Object with .ratemap (2D array: n_units x n_ext), .bins, .bin_centers, and .unit_labels.
+    ax : matplotlib.axes.Axes, optional
+        Axis to plot on. If None, uses current axis.
+    normalize : bool, optional
+        If True, normalize each curve to its peak value.
+    pad : float, optional
+        Vertical offset between curves. If None, uses mean of ratemap / 2.
+    unit_labels : list, optional
+        Labels for each unit. If None, uses ratemap.unit_labels.
+    fill : bool, optional
+        Whether to fill under each curve. Default is True.
+    color : color or None, optional
+        Color for all curves. If None, uses default color cycle.
+    alpha : float, optional
+        Transparency for the fill. Default is 0.3.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis with the plotted tuning curves.
+
+    Examples
+    --------
+    >>> plot_tuning_curves1D(tc)
     """
     if ax is None:
         ax = plt.gca()
@@ -232,55 +304,14 @@ def plot_tuning_curves1D(
 def spectrogram(data, *, h):
     """
     Compute a spectrogram with consecutive Fourier transforms.
-    Spectrograms can be used as a way of visualizing the change of a
-    nonstationary signal's frequency content over time.
+
     Parameters
     ----------
-    x : array_like
-        Time series of measurement values
-    fs : float, optional
-        Sampling frequency of the `x` time series. Defaults to 1.0.
-    window : str or tuple or array_like, optional
-        Desired window to use. See `get_window` for a list of windows
-        and required parameters. If `window` is array_like it will be
-        used directly as the window and its length must be nperseg.
-        Defaults to a Tukey window with shape parameter of 0.25.
-    nperseg : int, optional
-        Length of each segment. Defaults to None, but if window is str or
-        tuple, is set to 256, and if window is array_like, is set to the
-        length of the window.
-    noverlap : int, optional
-        Number of points to overlap between segments. If `None`,
-        ``noverlap = nperseg // 8``. Defaults to `None`.
-    nfft : int, optional
-        Length of the FFT used, if a zero padded FFT is desired. If
-        `None`, the FFT length is `nperseg`. Defaults to `None`.
-    detrend : str or function or `False`, optional
-        Specifies how to detrend each segment. If `detrend` is a
-        string, it is passed as the `type` argument to the `detrend`
-        function. If it is a function, it takes a segment and returns a
-        detrended segment. If `detrend` is `False`, no detrending is
-        done. Defaults to 'constant'.
-    return_onesided : bool, optional
-        If `True`, return a one-sided spectrum for real data. If
-        `False` return a two-sided spectrum. Note that for complex
-        data, a two-sided spectrum is always returned.
-    scaling : { 'density', 'spectrum' }, optional
-        Selects between computing the power spectral density ('density')
-        where `Sxx` has units of V**2/Hz and computing the power
-        spectrum ('spectrum') where `Sxx` has units of V**2, if `x`
-        is measured in V and `fs` is measured in Hz. Defaults to
-        'density'.
-    axis : int, optional
-        Axis along which the spectrogram is computed; the default is over
-        the last axis (i.e. ``axis=-1``).
-    mode : str, optional
-        Defines what kind of return values are expected. Options are
-        ['psd', 'complex', 'magnitude', 'angle', 'phase']. 'complex' is
-        equivalent to the output of `stft` with no padding or boundary
-        extension. 'magnitude' returns the absolute magnitude of the
-        STFT. 'angle' and 'phase' return the complex angle of the STFT,
-        with and without unwrapping, respectively.
+    data : array_like
+        Time series of measurement values.
+    h : object
+        Additional parameter (not yet implemented).
+
     Returns
     -------
     f : ndarray
@@ -288,10 +319,11 @@ def spectrogram(data, *, h):
     t : ndarray
         Array of segment times.
     Sxx : ndarray
-        Spectrogram of x. By default, the last axis of Sxx corresponds
-        to the segment times.
+        Spectrogram of x. By default, the last axis of Sxx corresponds to the segment times.
 
-    See https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.spectrogram.html
+    Notes
+    -----
+    This function is not yet implemented. See scipy.signal.spectrogram for details.
     """
     raise NotImplementedError("plotting.spectrogram() does not exist yet!")
 
@@ -385,49 +417,48 @@ def psdplot(
 
 
 def imagesc(x=None, y=None, data=None, *, ax=None, large=False, **kwargs):
-    """Plots a 2D matrix / image similar to Matlab's imagesc.
+    """
+    Plot a 2D matrix or image similar to Matlab's imagesc.
 
     Parameters
     ----------
     x : array-like, optional
-        x values (cols)
+        X values (columns).
     y : array-like, optional
-        y-values (rows)
+        Y values (rows).
     data : ndarray of shape (Nrows, Ncols)
-        matrix to visualize
-    ax : matplotlib axis, optional
-        Plot in given axis; if None creates a new figure
-    large : bool
-        If True, use ModestImage instead of mpl.AxesImage that supports
-        much larger images, but the 'extent' does not work properly yet.
-    kwargs :
-        Other keyword arguments are passed to main imagesc() call
+        Matrix to visualize.
+    ax : matplotlib.axes.Axes, optional
+        Plot in given axis; if None creates a new figure.
+    large : bool, optional
+        If True, optimize for large matrices. Default is False.
+    **kwargs : dict
+        Additional keyword arguments passed to imshow.
 
     Returns
     -------
-    ax : matplotlib axis
-        Axis object with plot data.
-    image : matplotlib image
+    im : matplotlib.image.AxesImage
+        The image object.
 
     Examples
-    -------
-    Plot a simple matrix using imagesc
+    --------
+    Plot a simple matrix using imagesc:
 
-        >>> x = np.linspace(-100, -10, 10)
-        >>> y = np.array([-8, -3.0])
-        >>> data = np.random.randn(y.size, x.size)
-        >>> imagesc(x, y, data)
+    >>> x = np.linspace(-100, -10, 10)
+    >>> y = np.array([-8, -3.0])
+    >>> data = np.random.randn(y.size, x.size)
+    >>> imagesc(x, y, data)
     or
-        >>> imagesc(data)
+    >>> imagesc(data)
 
-    Adding a colorbar
+    Adding a colorbar:
 
-        >>> ax, img = imagesc(data)
-        >>> from mpl_toolkits.axes_grid1 import make_axes_locatable
-        >>> divider = make_axes_locatable(ax)
-        >>> cax = divider.append_axes("right", size="3.5%", pad=0.1)
-        >>> cb = plt.colorbar(img, cax=cax)
-        >>> npl.utils.no_yticks(cax)
+    >>> ax, img = imagesc(data)
+    >>> from mpl_toolkits.axes_grid1 import make_axes_locatable
+    >>> divider = make_axes_locatable(ax)
+    >>> cax = divider.append_axes("right", size="3.5%", pad=0.1)
+    >>> cb = plt.colorbar(img, cax=cax)
+    >>> npl.utils.no_yticks(cax)
     """
 
     def extents(f):
