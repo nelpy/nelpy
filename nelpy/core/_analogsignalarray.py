@@ -669,7 +669,25 @@ class RegularlySampledAnalogSignalArray:
         return self.asarray(at=x).yvals
 
     def center(self, inplace=False):
-        """Center data (zero mean)."""
+        """
+        Center the data to have zero mean along the sample axis.
+
+        Parameters
+        ----------
+        inplace : bool, optional
+            If True, modifies the data in place. If False (default), returns a new object.
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            The centered signal array.
+
+        Examples
+        --------
+        >>> centered = asa.center()
+        >>> centered.mean()
+        0.0
+        """
         if inplace:
             out = self
         else:
@@ -678,7 +696,25 @@ class RegularlySampledAnalogSignalArray:
         return out
 
     def normalize(self, inplace=False):
-        """Normalize data (unit standard deviation)."""
+        """
+        Normalize the data to have unit standard deviation along the sample axis.
+
+        Parameters
+        ----------
+        inplace : bool, optional
+            If True, modifies the data in place. If False (default), returns a new object.
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            The normalized signal array.
+
+        Examples
+        --------
+        >>> normalized = asa.normalize()
+        >>> normalized.std()
+        1.0
+        """
         if inplace:
             out = self
         else:
@@ -689,7 +725,25 @@ class RegularlySampledAnalogSignalArray:
         return out
 
     def standardize(self, inplace=False):
-        """Standardize data (zero mean and unit std deviation)."""
+        """
+        Standardize the data to zero mean and unit standard deviation along the sample axis.
+
+        Parameters
+        ----------
+        inplace : bool, optional
+            If True, modifies the data in place. If False (default), returns a new object.
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            The standardized signal array.
+
+        Examples
+        --------
+        >>> standardized = asa.standardize()
+        >>> standardized.mean(), standardized.std()
+        (0.0, 1.0)
+        """
         if inplace:
             out = self
         else:
@@ -730,7 +784,23 @@ class RegularlySampledAnalogSignalArray:
         return ((arr - vmin) % (vmax - vmin)) + vmin
 
     def wrap(self, inplace=False):
-        """Wrap oridnate within finite range."""
+        """
+        Wrap the ordinate values within the finite range defined by the ordinate's range.
+
+        Parameters
+        ----------
+        inplace : bool, optional
+            If True, modifies the data in place. If False (default), returns a new object.
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            The wrapped signal array.
+
+        Examples
+        --------
+        >>> wrapped = asa.wrap()
+        """
         if inplace:
             out = self
         else:
@@ -757,7 +827,23 @@ class RegularlySampledAnalogSignalArray:
         return np.atleast_2d(lin + vmin)
 
     def unwrap(self, inplace=False):
-        """Unwrap ordinate by minimizing total displacement."""
+        """
+        Unwrap the ordinate values by minimizing total displacement, useful for phase data.
+
+        Parameters
+        ----------
+        inplace : bool, optional
+            If True, modifies the data in place. If False (default), returns a new object.
+
+        Returns
+        -------
+        out : RegularlySampledAnalogSignalArray
+            The unwrapped signal array.
+
+        Examples
+        --------
+        >>> unwrapped = asa.unwrap()
+        """
         if inplace:
             out = self
         else:
@@ -940,6 +1026,10 @@ class RegularlySampledAnalogSignalArray:
         -------
         out : RegularlySampledAnalogSignalArray
             New object with z-scored data.
+
+        Examples
+        --------
+        >>> zscored = asa.zscore()
         """
         out = self.copy()
         out._data = zscore(out._data, axis=1)
@@ -1861,6 +1951,10 @@ class RegularlySampledAnalogSignalArray:
         -------
         out : RegularlySampledAnalogSignalArray
             New object with clipped data.
+
+        Examples
+        --------
+        >>> clipped = asa.clip(-1, 1)
         """
         out = self.copy()
         out._data = np.clip(self.data, min, max)
@@ -1883,6 +1977,10 @@ class RegularlySampledAnalogSignalArray:
         -------
         out : RegularlySampledAnalogSignalArray
             Trimmed signal array.
+
+        Examples
+        --------
+        >>> trimmed = asa.trim(0, 10)
         """
         logging.warning("RegularlySampledAnalogSignalArray: Trim may not work!")
         # TODO: do comprehensive input validation
@@ -2039,27 +2137,43 @@ class RegularlySampledAnalogSignalArray:
         n_samples=None,
         split_by_interval=False,
     ):
-        """returns a data_like array at requested points.
+        """
+        Return a data-like array at requested points, with optional interpolation.
 
         Parameters
         ----------
         where : array_like or tuple, optional
-            array corresponding to np where condition
-            e.g., where=(data[1,:]>5) or tuple where=(speed>5,tspeed)
+            Array corresponding to np where condition (e.g., where=(data[1,:]>5)).
         at : array_like, optional
-            Array of points to evaluate array at. If none given, use
-            self._abscissa_vals together with 'where' if applicable.
-        n_samples: int, optional
-            Number of points to interplate at. These points will be
-            distributed uniformly from self.support.start to stop.
-        split_by_interval: bool
+            Array of points to evaluate array at. If None, uses self._abscissa_vals.
+        n_samples : int, optional
+            Number of points to interpolate at, distributed uniformly from support start to stop.
+        split_by_interval : bool, optional
             If True, separate arrays by intervals and return in a list.
+        kind : str, optional
+            Interpolation method. Default is 'linear'.
+        copy : bool, optional
+            If True, returns a copy. Default is True.
+        bounds_error : bool, optional
+            If True, raises an error for out-of-bounds interpolation. Default is False.
+        fill_value : float, optional
+            Value to use for out-of-bounds points. Default is np.nan.
+        assume_sorted : bool, optional
+            If True, assumes input is sorted. Default is None.
+        recalculate : bool, optional
+            If True, recalculates the interpolation. Default is False.
+        store_interp : bool, optional
+            If True, stores the interpolation object. Default is True.
+
         Returns
         -------
-        out : (array, array)
-            namedtuple tuple (xvals, yvals) of arrays, where xvals is an
-            array of abscissa values for which (interpolated) data are returned.
-            yvals has shape (n_signals, n_samples)
+        out : namedtuple (xvals, yvals)
+            xvals: array of abscissa values for which data are returned.
+            yvals: array of shape (n_signals, n_samples) with interpolated data.
+
+        Examples
+        --------
+        >>> xvals, yvals = asa.asarray(at=[0, 1, 2])
         """
 
         # TODO: implement splitting by interval
