@@ -1,11 +1,11 @@
 """EpochArray tests"""
 
-import nelpy as nel
 import numpy as np
+
+import nelpy as nel
 
 
 class TestEpochArray:
-
     def test_partition(self):
         ep = nel.EpochArray([0, 10])
         partitioned = ep.partition(n_intervals=5)

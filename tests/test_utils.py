@@ -2,7 +2,6 @@ from nelpy.utils import linear_merge
 
 
 class TestUtils:
-
     def test_linear_merge_1(self):
         """Merge two sorted lists"""
         merged = linear_merge([1, 2, 4], [3, 5, 6])

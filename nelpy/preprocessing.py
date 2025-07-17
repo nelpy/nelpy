@@ -1,18 +1,17 @@
 """Data preprocessing objects and functions."""
 
-import numpy as np
 import logging
-
 from copy import (
     copy as copycopy,
 )  # to avoid name clash with local copy variable in StandardScaler
 from functools import wraps
 
+import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
 
-from .utils import PrettyDuration
 from . import core
+from .utils import PrettyDuration
 
 __all__ = ["standardize_asa", "DataWindow", "StreamingDataWindow", "StandardScaler"]
 
@@ -45,8 +44,8 @@ def standardize_asa(
        timestamps or abscissa_vals of the RegularlySampledAnalogSignalArray.
      - fs is replaced with the float corresponding to the sampling frequency.
 
-    Example
-    -------
+    Examples
+    --------
     @standardize_asa(asa='X', lengths='lengths', n_signals=2)
     def myfunc(*args, X=None, lengths=None):
         pass
@@ -54,9 +53,9 @@ def standardize_asa(
     """
     if n_signals is not None:
         try:
-            assert float(
-                n_signals
-            ).is_integer(), "'n_signals' must be a positive integer!"
+            assert float(n_signals).is_integer(), (
+                "'n_signals' must be a positive integer!"
+            )
             n_signals = int(n_signals)
         except ValueError:
             raise ValueError("'n_signals' must be a positive integer!")
@@ -64,13 +63,13 @@ def standardize_asa(
 
     assert isinstance(asa, str), "'asa' decorator argument must be a string!"
     if lengths is not None:
-        assert isinstance(
-            lengths, str
-        ), "'lengths' decorator argument must be a string!"
+        assert isinstance(lengths, str), (
+            "'lengths' decorator argument must be a string!"
+        )
     if timestamps is not None:
-        assert isinstance(
-            timestamps, str
-        ), "'timestamps' decorator argument must be a string!"
+        assert isinstance(timestamps, str), (
+            "'timestamps' decorator argument must be a string!"
+        )
     if fs is not None:
         assert isinstance(fs, str), "'fs' decorator argument must be a string!"
 
@@ -187,15 +186,15 @@ class DataWindow(BaseEstimator):
 
     Examples
     --------
-    >>> w = DataWindow(1,1,1,1)
+    >>> w = DataWindow(1, 1, 1, 1)
     DataWindow(bins_before=1, bins_after=1, bins_current=1, bins_stride=1, bin_width=None)
 
     # Implicit bin size of 1 second, centered window of duration 5 seconds, stride of 2 seconds:
-    >>> w = DataWindow(2,2,1,2)
+    >>> w = DataWindow(2, 2, 1, 2)
     DataWindow(bins_before=2, bins_after=2, bins_current=1, bins_stride=2)
 
     # Excplicit bin size of 1 second, centered window of duration 5 seconds, stride of 2 seconds:
-    >>> w = DataWindow(2,2,1,2,1)
+    >>> w = DataWindow(2, 2, 1, 2, 1)
     DataWindow(bins_before=2, bins_after=2, bins_current=1, bins_stride=2, bin_width=1)
             Total bin width = 5 seconds
     """
@@ -580,9 +579,9 @@ class DataWindow(BaseEstimator):
                 )
         n_samples, n_features = X.shape
         if T is not None:
-            assert (
-                len(T) == n_samples
-            ), "T must have the same number of elements as n_samples."
+            assert len(T) == n_samples, (
+                "T must have the same number of elements as n_samples."
+            )
         else:
             if self._bin_width is not None:
                 ds = self._bin_width
@@ -649,9 +648,9 @@ class DataWindow(BaseEstimator):
 
     @bins_before.setter
     def bins_before(self, val):
-        assert float(
-            val
-        ).is_integer(), "``bins_before`` must be a non-negative integer!"
+        assert float(val).is_integer(), (
+            "``bins_before`` must be a non-negative integer!"
+        )
         assert val >= 0, "``bins_before`` must be a non-negative integer!"
         self._bins_before = int(val)
 
@@ -681,9 +680,9 @@ class DataWindow(BaseEstimator):
 
     @bins_stride.setter
     def bins_stride(self, val):
-        assert float(
-            val
-        ).is_integer(), "``bins_stride`` must be a non-negative integer!"
+        assert float(val).is_integer(), (
+            "``bins_stride`` must be a non-negative integer!"
+        )
         assert val >= 0, "``bins_stride`` must be a non-negative integer!"
         self._bins_stride = int(val)
 
@@ -694,9 +693,9 @@ class DataWindow(BaseEstimator):
     @bin_width.setter
     def bin_width(self, val):
         if val is not None:
-            assert (
-                float(val) > 0
-            ), "``bin_width`` must be a non-negative number (float)!"
+            assert float(val) > 0, (
+                "``bin_width`` must be a non-negative number (float)!"
+            )
         self._bin_width = val
 
     @property
@@ -761,7 +760,6 @@ class StreamingDataWindow:
 
 
 class StandardScaler(SklearnStandardScaler):
-
     def __init__(self, copy=True, with_mean=True, with_std=True):
         super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
 

@@ -6,13 +6,14 @@ Some of these functions are Copyright (c) 2012-2016, Michael L. Waskom
 import colorsys
 from itertools import cycle
 
-from matplotlib.colors import to_rgb
-import numpy as np
 import matplotlib as mpl
+import numpy as np
+from matplotlib.colors import to_rgb
 
-
-from . import utils  # import get_color_cycle, desaturate
-from . import colors
+from . import (
+    colors,
+    utils,  # import get_color_cycle, desaturate
+)
 
 NELPY_PALETTES = dict(
     sweet=["#00CF97", "#F05340", "#56B4E9", "#D3AA65", "#B47CC7", "#C44E52"],
@@ -121,7 +122,9 @@ def color_palette(palette=None, n_colors=None, desat=None):
     .. plot::
         :context: close-figs
 
-        >>> import seaborn as sns; sns.set()
+        >>> import seaborn as sns
+        ...
+        ... sns.set()
         >>> sns.palplot(sns.color_palette("muted"))
 
     Use discrete values from one of the built-in matplotlib colormaps.
@@ -147,7 +150,7 @@ def color_palette(palette=None, n_colors=None, desat=None):
     .. plot::
         :context: close-figs
 
-        >>> sns.palplot(sns.color_palette("Set1", n_colors=8, desat=.5))
+        >>> sns.palplot(sns.color_palette("Set1", n_colors=8, desat=0.5))
 
     Use as a context manager:
 
@@ -156,7 +159,7 @@ def color_palette(palette=None, n_colors=None, desat=None):
 
         >>> import numpy as np, matplotlib.pyplot as plt
         >>> with sns.color_palette("husl", 8):
-        ...    _ = plt.plot(np.c_[np.zeros(8), np.arange(8)].T)
+        ...     _ = plt.plot(np.c_[np.zeros(8), np.arange(8)].T)
 
     """
     if palette is None:
@@ -172,7 +175,6 @@ def color_palette(palette=None, n_colors=None, desat=None):
         if n_colors is None:
             n_colors = len(palette)
     else:
-
         if n_colors is None:
             n_colors = 6
 
@@ -243,7 +245,9 @@ def mpl_palette(name, n_colors=6):
     .. plot::
         :context: close-figs
 
-        >>> import seaborn as sns; sns.set()
+        >>> import seaborn as sns
+        ...
+        ... sns.set()
         >>> sns.palplot(sns.mpl_palette("Set2", 8))
 
     Create a sequential colorbrewer palette:
@@ -301,10 +305,12 @@ def _color_to_rgb(color, input):
     elif input == "husl":
         # lazy import husl here to avoid a hard dependency
         import seaborn.external.husl as husl
+
         color = husl.husl_to_rgb(*color)
     elif input == "xkcd":
         # lazy import xkcd_rgb here to avoid a hard dependency
         import seaborn.colors.xkcd_rgb as xkcd_rgb
+
         color = xkcd_rgb[color]
     return color
 
@@ -357,7 +363,9 @@ def dark_palette(color, n_colors=6, reverse=False, as_cmap=False, input="rgb"):
     .. plot::
         :context: close-figs
 
-        >>> import seaborn as sns; sns.set()
+        >>> import seaborn as sns
+        ...
+        ... sns.set()
         >>> sns.palplot(sns.dark_palette("purple"))
 
     Generate a palette that decreases in lightness:
@@ -417,6 +425,7 @@ def set_hls_values(color, h=None, l=None, s=None):  # noqa
     rgb = colorsys.hls_to_rgb(*vals)
     return rgb
 
+
 def light_palette(color, n_colors=6, reverse=False, as_cmap=False, input="rgb"):
     """Make a sequential palette that blends from light to ``color``.
 
@@ -465,7 +474,9 @@ def light_palette(color, n_colors=6, reverse=False, as_cmap=False, input="rgb"):
     .. plot::
         :context: close-figs
 
-        >>> import seaborn as sns; sns.set()
+        >>> import seaborn as sns
+        ...
+        ... sns.set()
         >>> sns.palplot(sns.light_palette("purple"))
 
     Generate a palette that increases in lightness:
@@ -569,7 +580,9 @@ def diverging_palette(
     .. plot::
         :context: close-figs
 
-        >>> import seaborn as sns; sns.set()
+        >>> import seaborn as sns
+        ...
+        ... sns.set()
         >>> sns.palplot(sns.diverging_palette(240, 10, n=9))
 
     Generate a brighter green-white-purple palette:
@@ -584,8 +597,7 @@ def diverging_palette(
     .. plot::
         :context: close-figs
 
-        >>> sns.palplot(sns.diverging_palette(250, 15, s=75, l=40,
-        ...                                   n=9, center="dark"))
+        >>> sns.palplot(sns.diverging_palette(250, 15, s=75, l=40, n=9, center="dark"))
 
     Generate a colormap object:
 

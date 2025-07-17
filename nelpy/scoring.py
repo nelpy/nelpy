@@ -1,7 +1,8 @@
 """Temporary scoring functions. Needs a lot of work. DEPRECATED"""
 
-import numpy as np
 from itertools import groupby
+
+import numpy as np
 
 
 def scoreOrderND(hmm, state_sequences):

@@ -7,7 +7,6 @@ from matplotlib.axes import Axes
 
 
 class RasterLabelData(artist.Artist):
-
     def __init__(self):
         self.label_data = {}  # (k, v) = (unit_id, (unit_loc, unit_label))
         artist.Artist.__init__(self)
@@ -34,7 +33,6 @@ class RasterLabelData(artist.Artist):
 
 
 class NelpyAxes(Axes):
-
     def __init__(self, **kwargs):
         Axes.__init__(self, **kwargs)
 

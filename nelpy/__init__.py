@@ -7,76 +7,68 @@ and inspired by the neuralensemble.org NEO project
 (see http://neo.readthedocs.io/en/0.4.0/core.html).
 """
 
-from .core._intervalarray import IntervalArray, EpochArray, SpaceArray
-from .core._coordinates import (
-    Abscissa,
-    Ordinate,
-    AnalogSignalArrayAbscissa,
-    AnalogSignalArrayOrdinate,
-    TemporalAbscissa,
-)
-from .core._analogsignalarray import (
-    RegularlySampledAnalogSignalArray,
-    AnalogSignalArray,
-    PositionArray,
-    IMUSensorArray,
-    MinimalExampleArray,
-)
-from .core._eventarray import (
-    EventArray,
-    BinnedEventArray,
-    SpikeTrainArray,
-    BinnedSpikeTrainArray,
-)
-from .core._valeventarray import (
-    ValueEventArray,
-    MarkedSpikeTrainArray,
-    StatefulValueEventArray,
-)
-
-from .auxiliary._tuningcurve import (
-    TuningCurve1D,
-    TuningCurve2D,
-    DirectionalTuningCurve1D,
-)
-from .auxiliary._session import Session
-from .auxiliary._results import ResultsContainer, load_pkl, save_pkl
+# for legacy support
+import sys
 
 # from . import analysis
-from . import preprocessing
-from . import filtering
-from . import plotting
-from . import utils
-from . import utils_
+from . import core, filtering, plotting, preprocessing, utils, utils_
+from .auxiliary._results import ResultsContainer, load_pkl, save_pkl
+from .auxiliary._session import Session
+from .auxiliary._tuningcurve import (
+    DirectionalTuningCurve1D,
+    TuningCurve1D,
+    TuningCurve2D,
+)
+from .core._analogsignalarray import (
+    AnalogSignalArray,
+    IMUSensorArray,
+    MinimalExampleArray,
+    PositionArray,
+    RegularlySampledAnalogSignalArray,
+)
+from .core._coordinates import (
+    Abscissa,
+    AnalogSignalArrayAbscissa,
+    AnalogSignalArrayOrdinate,
+    Ordinate,
+    TemporalAbscissa,
+)
+from .core._eventarray import (
+    BinnedEventArray,
+    BinnedSpikeTrainArray,
+    EventArray,
+    SpikeTrainArray,
+)
+from .core._intervalarray import EpochArray, IntervalArray, SpaceArray
+from .core._valeventarray import (
+    MarkedSpikeTrainArray,
+    StatefulValueEventArray,
+    ValueEventArray,
+)
 from .utils_ import metrics
 
 # from . import io
-
 from .version import __version__
-
-# for legacy support
-import sys
-from . import core
 
 # sys.modules['nelpy.core'] = core
 # sys.modules['nelpy.core._analogsignalarray'] = core._analogsignalarray
-sys.modules["nelpy.core._analogsignalarray"].EpochSignalSlicer = (
-    core._analogsignalarray.IntervalSignalSlicer
-)
-sys.modules["nelpy.core._analogsignalarray"].TimestampSlicer = (
-    core._analogsignalarray.AbscissaSlicer
-)
+sys.modules[
+    "nelpy.core._analogsignalarray"
+].EpochSignalSlicer = core._analogsignalarray.IntervalSignalSlicer
+sys.modules[
+    "nelpy.core._analogsignalarray"
+].TimestampSlicer = core._analogsignalarray.AbscissaSlicer
 sys.modules["nelpy.core._epocharray"] = core._intervalarray
 sys.modules["nelpy.core._spiketrain"] = core._eventarray
-sys.modules["nelpy.core._spiketrain"].EpochUnitSlicer = (
-    core._analogsignalarray.IntervalSignalSlicer
-)
-sys.modules["nelpy.core._eventarray"].ItemGetter_loc = (
-    core._eventarray._accessors.ItemGetterLoc
-)
-sys.modules["nelpy.core._eventarray"].ItemGetter_iloc = (
-    core._eventarray._accessors.ItemGetterIloc
-)
+sys.modules[
+    "nelpy.core._spiketrain"
+].EpochUnitSlicer = core._analogsignalarray.IntervalSignalSlicer
+sys.modules[
+    "nelpy.core._eventarray"
+].ItemGetter_loc = core._eventarray._accessors.ItemGetterLoc
+sys.modules[
+    "nelpy.core._eventarray"
+].ItemGetter_iloc = core._eventarray._accessors.ItemGetterIloc
 
 __all__ = [
     "IntervalArray",

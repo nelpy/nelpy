@@ -2,8 +2,8 @@
 
 import copy
 import numpy as np
-from scipy import interpolate
-from collections import namedtuple
+# from scipy import interpolate
+# from collections import namedtuple
 
 from ..core import _analogsignalarray, _epocharray
 from ..auxiliary import _position
@@ -78,59 +78,59 @@ def linear_to_ideal(linear_asa, segments):
     return out
 
 
-def _smooth_unwrapped(self, *, fs=None, sigma=None, bw=None, inplace=False):
-    """Smooths the regularly sampled AnalogSignalArray with a Gaussian kernel.
+# def _smooth_unwrapped(self, *, fs=None, sigma=None, bw=None, inplace=False):
+#     """Smooths the regularly sampled AnalogSignalArray with a Gaussian kernel.
 
-    Smoothing is applied in time, and the same smoothing is applied to each
-    signal in the AnalogSignalArray.
+#     Smoothing is applied in time, and the same smoothing is applied to each
+#     signal in the AnalogSignalArray.
 
-    Smoothing is applied within each epoch.
+#     Smoothing is applied within each epoch.
 
-    Parameters
-    ----------
-    fs : float, optional
-        Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
-        be obtained from asa.fs
-    sigma : float, optional
-        Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
-    bw : float, optional
-        Bandwidth outside of which the filter value will be zero. Default is 4.0
-    inplace : bool
-        If True the data will be replaced with the smoothed data.
-        Default is False.
+#     Parameters
+#     ----------
+#     fs : float, optional
+#         Sampling rate (in Hz) of AnalogSignalArray. If not provided, it will
+#         be obtained from asa.fs
+#     sigma : float, optional
+#         Standard deviation of Gaussian kernel, in seconds. Default is 0.05 (50 ms)
+#     bw : float, optional
+#         Bandwidth outside of which the filter value will be zero. Default is 4.0
+#     inplace : bool
+#         If True the data will be replaced with the smoothed data.
+#         Default is False.
 
-    Returns
-    -------
-    out : AnalogSignalArray
-        An AnalogSignalArray with smoothed data is returned.
-    """
-    kwargs = {"inplace": inplace, "fs": fs, "sigma": sigma, "bw": bw}
-    out = copy.deepcopy(self)
-    out._data = np.atleast_2d(out._unwrap(out.data.squeeze()))
-    out = utils.gaussian_filter(out, **kwargs)
-    out._data = np.atleast_2d(out._wrap(out.data.squeeze()))
-    if inplace:
-        self._data = out._data
-    out.__renew__()
-    self.__renew__()
+#     Returns
+#     -------
+#     out : AnalogSignalArray
+#         An AnalogSignalArray with smoothed data is returned.
+#     """
+#     kwargs = {"inplace": inplace, "fs": fs, "sigma": sigma, "bw": bw}
+#     out = copy.deepcopy(self)
+#     out._data = np.atleast_2d(out._unwrap(out.data.squeeze()))
+#     out = utils.gaussian_filter(out, **kwargs)
+#     out._data = np.atleast_2d(out._wrap(out.data.squeeze()))
+#     if inplace:
+#         self._data = out._data
+#     out.__renew__()
+#     self.__renew__()
 
-    # kwargs = {'inplace' : inplace,
-    #         'fs' : fs,
-    #         'sigma' : sigma,
-    #         'bw' : bw}
-    # data = copy.deepcopy(self.data)
-    # self._data = np.atleast_2d(self._unwrap(self.data.squeeze()))
-    # out = utils.gaussian_filter(self, **kwargs)
-    # out._data = np.atleast_2d(self._wrap(out.data.squeeze()))
-    # out.__renew__()
+#     # kwargs = {'inplace' : inplace,
+#     #         'fs' : fs,
+#     #         'sigma' : sigma,
+#     #         'bw' : bw}
+#     # data = copy.deepcopy(self.data)
+#     # self._data = np.atleast_2d(self._unwrap(self.data.squeeze()))
+#     # out = utils.gaussian_filter(self, **kwargs)
+#     # out._data = np.atleast_2d(self._wrap(out.data.squeeze()))
+#     # out.__renew__()
 
-    # if inplace:
-    #     self._data = out._data
-    # else:
-    #     self._data =data
-    # self.__renew__()
+#     # if inplace:
+#     #     self._data = out._data
+#     # else:
+#     #     self._data =data
+#     # self.__renew__()
 
-    return out
+#     return out
 
 
 def _ideal_to_linear(points, segments, segment_assignments):
@@ -259,7 +259,7 @@ def _project_onto_segments(points, segments, segment_assignments):
         pts = points
 
     n_pts = len(pts)
-    n_segments = len(segments)
+    # n_segments = len(segments)
 
     idealized = np.zeros((n_pts, 2))
 
@@ -355,7 +355,6 @@ def excise_disk(pos, midpoint, radius, radius_pct=None):
 
 
 class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
-
     __attributes__ = ["_vertices"]  # PositionArray-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
 
@@ -370,9 +369,8 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         support=None,
         in_memory=True,
         labels=None,
-        empty=False
+        empty=False,
     ):
-
         # if an empty object is requested, return it:
         if empty:
             super().__init__(empty=True)
@@ -401,7 +399,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
             super().__init__(**kwargs)
 
         # if self._vertices does not exist, then create it:
-        if not "_vertices" in self.__dict__:
+        if "_vertices" not in self.__dict__:
             self._vertices = None
             self._segments = None
             self._segment_lengths = None
@@ -479,7 +477,6 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
 
     @vertices.setter
     def vertices(self, val):
-
         # TODO: do data integrity cheking / validation
         self._vertices = val
         self._compute_segments()
@@ -529,7 +526,6 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         raise NotImplementedError
 
     def _unwrap(self, arr):
-
         lin = copy.deepcopy(arr)
         for ii in range(1, len(lin)):
             if lin[ii] - lin[ii - 1] >= self.track_length / 2:
@@ -620,7 +616,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
 
         """
         import matplotlib.pyplot as plt
-        import matplotlib as mpl
+        # import matplotlib as mpl
 
         # todo: plot using colorline and show start, stop, and colorbar
         fig, ax = plt.subplots()
@@ -645,9 +641,9 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
         ax.set_aspect("equal")
 
         cax = fig.add_axes([0.27, 0.95, 0.5, 0.05])
-        cb1 = mpl.colorbar.ColorbarBase(
-            cax, cmap=plt.cm.Spectral_r, ticks=[0, 1], orientation="horizontal"
-        )
+        # cb1 = mpl.colorbar.ColorbarBase(
+        #     cax, cmap=plt.cm.Spectral_r, ticks=[0, 1], orientation="horizontal"
+        # )
         cax.set_xticklabels(["start", "stop"])
 
     def point_to_line_segment_dist(self, point, line_segment):
@@ -749,7 +745,7 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
             pts = points
 
         n_pts = len(pts)
-        n_segments = len(segments)
+        # n_segments = len(segments)
 
         idealized = np.zeros((n_pts, 2))
 
@@ -942,7 +938,6 @@ class OctagonalMazeTrajectory(_analogsignalarray.AnalogSignalArray):
 
 
 class RingTrajectory(_analogsignalarray.AnalogSignalArray):
-
     __attributes__ = []  # RingTrajectory-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
 
@@ -958,9 +953,8 @@ class RingTrajectory(_analogsignalarray.AnalogSignalArray):
         support=None,
         in_memory=True,
         labels=None,
-        empty=False
+        empty=False,
     ):
-
         # if an empty object is requested, return it:
         if empty:
             super().__init__(empty=True)

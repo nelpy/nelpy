@@ -1,0 +1,22 @@
+name: Docs
+on: [push, pull_request]
+jobs:
+  build:
+    name: Deploy docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download source
+        uses: actions/checkout@v3
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[docs]
+      - name: Build site
+        run: mkdocs build
+      - name: Deploy to gh-pages
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+        run: mkdocs gh-deploy --force

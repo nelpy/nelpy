@@ -10,7 +10,6 @@ from .ergodic import steady_state
 
 
 class HMMSurrogate:
-
     def __init__(
         self,
         *,
@@ -22,29 +21,35 @@ class HMMSurrogate:
         random_state=None,
         verbose=False,
         description="",
-        PBE_idx=None
+        PBE_idx=None,
     ):
         """
-
-        WARNING!!! All the shuffle methods currently operate directly on PBEs_train,
-        and PBEs_test is left unmodified. If we want to evaluate test sets, this
-        behavior needs to change!
+        Initialize an HMMSurrogate for generating surrogate HMM data.
 
         Parameters
-        ==========
-        kind: string
-            One of ['actual', 'incoherent', 'coherent', 'poisson', 'unit_id', 'spike_id']
-        st: SpikeTrainArray restricted to the PBEs
-        num_states: int, optional
+        ----------
+        kind : str
+            One of ['actual', 'incoherent', 'coherent', 'poisson', 'unit_id', 'spike_id'].
+        st : SpikeTrainArray
+            SpikeTrainArray restricted to the PBEs.
+        num_states : int, optional
             Number of states in the hidden Markov model. Default is 50.
         ds : float, optional
             Bin size for PBEs. Default is 0.02 (=20 ms).
-        test_size: float, optional
-            Proportion of data to use as test data. Default is 0.2 (=20 %)
-        random_state: int, optional
-            Random seed for numpy, default is 1
-        PBE_idx: tuple of lists , optional
+        test_size : float, optional
+            Proportion of data to use as test data. Default is 0.2 (=20%).
+        random_state : int, optional
+            Random seed for numpy, default is 1.
+        verbose : bool, optional
+            If True, print progress information. Default is False.
+        description : str, optional
+            Description of the surrogate.
+        PBE_idx : tuple of lists, optional
             (PBE_trainidx, PBE_testidx)
+
+        Notes
+        -----
+        All the shuffle methods currently operate directly on PBEs_train, and PBEs_test is left unmodified. If you want to evaluate test sets, this behavior needs to change!
         """
 
         if kind == "actual":

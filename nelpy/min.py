@@ -8,33 +8,32 @@ and inspired by the neuralensemble.org NEO project
 (see http://neo.readthedocs.io/en/0.4.0/core.html).
 """
 
-from .core._intervalarray import IntervalArray, EpochArray, SpaceArray
-from .core._coordinates import (
-    Abscissa,
-    Ordinate,
-    AnalogSignalArrayAbscissa,
-    AnalogSignalArrayOrdinate,
-    TemporalAbscissa,
-)
 from .core._analogsignalarray import (
-    RegularlySampledAnalogSignalArray,
     AnalogSignalArray,
-    PositionArray,
     IMUSensorArray,
     MinimalExampleArray,
+    PositionArray,
+    RegularlySampledAnalogSignalArray,
+)
+from .core._coordinates import (
+    Abscissa,
+    AnalogSignalArrayAbscissa,
+    AnalogSignalArrayOrdinate,
+    Ordinate,
+    TemporalAbscissa,
 )
 from .core._eventarray import (
-    EventArray,
     BinnedEventArray,
-    SpikeTrainArray,
     BinnedSpikeTrainArray,
+    EventArray,
+    SpikeTrainArray,
 )
+from .core._intervalarray import EpochArray, IntervalArray, SpaceArray
 from .core._valeventarray import (
-    ValueEventArray,
     MarkedSpikeTrainArray,
     StatefulValueEventArray,
+    ValueEventArray,
 )
-
 from .version import __version__
 
 __all__ = [

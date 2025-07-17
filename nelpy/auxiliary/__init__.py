@@ -5,10 +5,9 @@ nelpy auxiliary objects
 suite.
 """
 
-from ._tuningcurve import TuningCurve1D, TuningCurve2D, DirectionalTuningCurve1D
-from ._session import Session
 from ._results import ResultsContainer, load_pkl, save_pkl
-
+from ._session import Session
+from ._tuningcurve import DirectionalTuningCurve1D, TuningCurve1D, TuningCurve2D
 
 __all__ = [
     "TuningCurve1D",

@@ -10,34 +10,35 @@ __all__ = [
 
 from numpy import inf
 
-from .. import core
-from .. import formatters
+from .. import core, formatters
 
 
 class Abscissa:
-    """An abscissa (x-axis) object for core nelpy data containers.
+    """
+    An abscissa (x-axis) object for core nelpy data containers.
 
     Parameters
     ----------
     support : nelpy.IntervalArray, optional
-        The support associated with the absicca.
-        Default is an empty IntervalArray.
-    is_wrapping : boolean, optional
+        The support associated with the abscissa. Default is an empty IntervalArray.
+    is_wrapping : bool, optional
         Whether or not the abscissa is wrapping (continuous). Default is False.
-    labelstring : string, optional
+    labelstring : str, optional
+        String template for the abscissa label. Default is '{}'.
 
     Attributes
     ----------
-    data : np.array
-        The
-    extent : tuple
-        The extent [start, stop] of the abscissa (the domain). Default is None
-        or [-inf, inf]. This needs to be specified / populated when wrapping is
-        requested.
+    support : nelpy.IntervalArray
+        The support associated with the abscissa.
+    base_unit : str
+        The base unit of the abscissa, inherited from support.
+    is_wrapping : bool
+        Whether the abscissa is wrapping.
+    label : str
+        The formatted label for the abscissa.
     """
 
     def __init__(self, support=None, is_wrapping=False, labelstring=None):
-
         # TODO: add label support
         if support is None:
             support = core.IntervalArray(empty=True)
@@ -52,11 +53,26 @@ class Abscissa:
 
     @property
     def label(self):
-        """Abscissa label."""
+        """
+        Get the abscissa label.
+
+        Returns
+        -------
+        label : str
+            The formatted abscissa label.
+        """
         return self._labelstring.format(self.base_unit)
 
     @label.setter
     def label(self, val):
+        """
+        Set the abscissa label string template.
+
+        Parameters
+        ----------
+        val : str
+            String template for the abscissa label.
+        """
         if val is None:
             val = "{}"
         try:  # cast to str:
@@ -86,17 +102,34 @@ class Abscissa:
 
 
 class Ordinate:
-    """An ordinate (y-axis) object for core nelpy data containers.
+    """
+    An ordinate (y-axis) object for core nelpy data containers.
 
     Parameters
     ----------
-    data : np.array
-        The
+    base_unit : str, optional
+        The base unit for the ordinate. Default is ''.
+    is_linking : bool, optional
+        Whether the ordinate is linking. Default is False.
+    is_wrapping : bool, optional
+        Whether the ordinate is wrapping. Default is False.
+    labelstring : str, optional
+        String template for the ordinate label. Default is '{}'.
+    _range : nelpy.IntervalArray, optional
+        The range of the ordinate. Default is [-inf, inf].
 
     Attributes
     ----------
-    data : np.array
-        The
+    base_unit : str
+        The base unit for the ordinate.
+    is_linking : bool
+        Whether the ordinate is linking.
+    is_wrapping : bool
+        Whether the ordinate is wrapping.
+    label : str
+        The formatted label for the ordinate.
+    range : nelpy.IntervalArray
+        The range of the ordinate.
     """
 
     def __init__(
@@ -107,7 +140,6 @@ class Ordinate:
         labelstring=None,
         _range=None,
     ):
-
         # TODO: add label support
 
         if base_unit is None:
@@ -127,11 +159,26 @@ class Ordinate:
 
     @property
     def label(self):
-        """Ordinate label."""
+        """
+        Get the ordinate label.
+
+        Returns
+        -------
+        label : str
+            The formatted ordinate label.
+        """
         return self._labelstring.format(self.base_unit)
 
     @label.setter
     def label(self, val):
+        """
+        Set the ordinate label string template.
+
+        Parameters
+        ----------
+        val : str
+            String template for the ordinate label.
+        """
         if val is None:
             val = "{}"
         try:  # cast to str:
@@ -143,13 +190,28 @@ class Ordinate:
         self._labelstring = labelstring
 
     def __repr__(self):
+        """
+        Return a string representation of the Ordinate object.
+
+        Returns
+        -------
+        repr_str : str
+            String representation of the Ordinate.
+        """
         return "Ordinate(base_unit={}, is_linking={}, is_wrapping={})".format(
             self.base_unit, self.is_linking, self.is_wrapping
         )
 
     @property
     def range(self):
-        """Range (in ordinate base units) on which ordinate is defined."""
+        """
+        Get the range (in ordinate base units) on which ordinate is defined.
+
+        Returns
+        -------
+        range : nelpy.IntervalArray
+            The range of the ordinate.
+        """
         return self._range
 
     @range.setter
@@ -172,7 +234,6 @@ class TemporalAbscissa(Abscissa):
     """Abscissa for time series data."""
 
     def __init__(self, *args, **kwargs):
-
         support = kwargs.get("support", core.EpochArray(empty=True))
         labelstring = kwargs.get(
             "labelstring", "time ({})"
@@ -193,7 +254,6 @@ class AnalogSignalArrayAbscissa(Abscissa):
     """Abscissa for AnalogSignalArray."""
 
     def __init__(self, *args, **kwargs):
-
         support = kwargs.get("support", core.EpochArray(empty=True))
         labelstring = kwargs.get(
             "labelstring", "time ({})"
@@ -210,13 +270,12 @@ class AnalogSignalArrayAbscissa(Abscissa):
 class AnalogSignalArrayOrdinate(Ordinate):
     """Ordinate for AnalogSignalArray.
 
-    Example
+    Examples
     -------
-    ng.AnalogSignalArrayOrdinate(base_unit='uV')
+    nel.AnalogSignalArrayOrdinate(base_unit='uV')
     """
 
     def __init__(self, *args, **kwargs):
-
         base_unit = kwargs.get("base_unit", "V")
         labelstring = kwargs.get("labelstring", "voltage ({})")
 

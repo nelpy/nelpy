@@ -1,9 +1,9 @@
 """This module contains string formatters for nelpy."""
 
-import numpy as np
-
 from collections import namedtuple
 from math import floor
+
+import numpy as np
 
 __all__ = [
     "BaseFormatter",
@@ -16,11 +16,35 @@ __all__ = [
 
 
 class BaseFormatter:
-    """Base formatter."""
+    """
+    Base formatter for nelpy string formatting utilities.
+
+    This class provides a base for custom formatters that convert values to human-readable strings.
+
+    Parameters
+    ----------
+    val : any
+        The value to be formatted.
+
+    Attributes
+    ----------
+    base_unit : str
+        The base unit for the formatter.
+    val : any
+        The value to be formatted.
+    """
 
     base_unit = "base units"
 
     def __init__(self, val):
+        """
+        Initialize the BaseFormatter.
+
+        Parameters
+        ----------
+        val : any
+            The value to be formatted.
+        """
         self.val = val
         self.base_unit = type(self).base_unit
         raise NotImplementedError

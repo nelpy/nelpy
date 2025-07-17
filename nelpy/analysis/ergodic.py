@@ -37,7 +37,7 @@ def steady_state(P):
     percent chance of a nice day (nice, like when the witch with the monkeys
     is melting).
     >>> import numpy as np
-    >>> p=np.matrix([[.5, .25, .25],[.5,0,.5],[.25,.25,.5]])
+    >>> p = np.matrix([[0.5, 0.25, 0.25], [0.5, 0, 0.5], [0.25, 0.25, 0.5]])
     >>> steady_state(p)
     matrix([[ 0.4],
             [ 0.2],
@@ -72,13 +72,12 @@ def fmpt(P):
            elements are the expected value for the number of intervals
            required for  a chain starting in state i to first enter state j
            If i=j then this is the recurrence time.
+
     Examples
     --------
-
-
     >>> import numpy as np
-    >>> p=np.matrix([[.5, .25, .25],[.5,0,.5],[.25,.25,.5]])
-    >>> fm=fmpt(p)
+    >>> p = np.matrix([[0.5, 0.25, 0.25], [0.5, 0, 0.5], [0.25, 0.25, 0.5]])
+    >>> fm = fmpt(p)
     >>> fm
     matrix([[ 2.5       ,  4.        ,  3.33333333],
             [ 2.66666667,  5.        ,  2.66666667],
@@ -130,8 +129,8 @@ def var_fmpt(P):
     Examples
     --------
     >>> import numpy as np
-    >>> p=np.matrix([[.5, .25, .25],[.5,0,.5],[.25,.25,.5]])
-    >>> vfm=var_fmpt(p)
+    >>> p = np.matrix([[0.5, 0.25, 0.25], [0.5, 0, 0.5], [0.25, 0.25, 0.5]])
+    >>> vfm = var_fmpt(p)
     >>> vfm
     matrix([[  5.58333333,  12.        ,   6.88888889],
             [  6.22222222,  12.        ,   6.22222222],

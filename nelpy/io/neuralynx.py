@@ -3,6 +3,7 @@
 # Adapted from nlxio written by Bernard Willards <https://github.com/bwillers/nlxio>
 
 import numpy as np
+
 from .. import auxiliary
 
 
@@ -43,7 +44,6 @@ def load_nvt(filename):
         With time, x, and y as keys.
     """
     with open(filename, "rb") as f:
-
         # Neuralynx files have a 16kbyte header
         # header = f.read(2**14).strip(b"\x00")
 
@@ -109,7 +109,6 @@ def load_ntt(filename, should_d2a=True):
     """
 
     with open(filename, "rb") as f:
-
         # A tetrode spike record is as folows:
         # uint64 - timestamp                    bytes 0:8
         # uint32 - acquisition entity number    bytes 8:12

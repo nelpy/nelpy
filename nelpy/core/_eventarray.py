@@ -1,21 +1,20 @@
+"""idea is to have abscissa and ordinate, and to use aliasing to have n_series,
+_series_subset, series_ids, (or trial_ids), and so on.
 
-""" idea is to have abscissa and ordinate, and to use aliasing to have n_series,
-    _series_subset, series_ids, (or trial_ids), and so on.
+What is the genericized class? EventArray? eventseries, eventcollection
 
-    What is the genericized class? EventArray? eventseries, eventcollection
+when event <==> spike, abscissa <==> data, eventseries <==> eventarray
+     eventseries_id <==> series_id, eventseries_type <==> series, then we have a
+     EventArray. (n_events, n_spikes)
 
-    when event <==> spike, abscissa <==> data, eventseries <==> eventarray
-         eventseries_id <==> series_id, eventseries_type <==> series, then we have a
-         EventArray. (n_events, n_spikes)
-
-    series ==> series (series, trial, DIO, ...)
+series ==> series (series, trial, DIO, ...)
 
 
-    event rate (smooth; ds, sigma)
-    series_id
-    eventarray shift
-    ISI
-    PSTH
+event rate (smooth; ds, sigma)
+series_id
+eventarray shift
+ISI
+PSTH
 """
 
 import copy
@@ -114,9 +113,8 @@ class BaseEventArray(ABC):
         empty=False,
         abscissa=None,
         ordinate=None,
-        **kwargs
+        **kwargs,
     ):
-
         self.__version__ = version.__version__
         self.type_name = self.__class__.__name__
         if abscissa is None:
@@ -443,9 +441,8 @@ class EventArray(BaseEventArray):
         label=None,
         empty=False,
         assume_sorted=None,
-        **kwargs
+        **kwargs,
     ):
-
         if assume_sorted is None:
             assume_sorted = False
 
@@ -480,7 +477,7 @@ class EventArray(BaseEventArray):
             """Returns True if data represents event datas from a single series.
 
             Examples
-            ========
+            --------
             [1, 2, 3]           : True
             [[1, 2, 3]]         : True
             [[1, 2, 3], []]     : False
@@ -595,11 +592,6 @@ class EventArray(BaseEventArray):
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
-
         Parameters
         ----------
         ds : float, optional
@@ -612,6 +604,13 @@ class EventArray(BaseEventArray):
         -------
         out : BaseEventArray
             BaseEventArray that has been partitioned.
+
+        Notes
+        -----
+        Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        underlying support is propagated, and the first and last points
+        of the supports are always included, even if this would cause
+        n_points or ds to be violated.
         """
 
         out = self.copy()
@@ -724,13 +723,11 @@ class EventArray(BaseEventArray):
         return flattened
 
     def _restrict(self, intervalslice, seriesslice, *, subseriesslice=None):
-
         self._restrict_to_series_subset(seriesslice)
         self._restrict_to_interval(intervalslice)
         return self
 
     def _restrict_to_series_subset(self, idx):
-
         # Warning: This function can mutate data
 
         # TODO: Update tags
@@ -1101,7 +1098,6 @@ class BinnedEventArray(BaseEventArray):
     __attributes__.extend(BaseEventArray.__attributes__)
 
     def __init__(self, eventarray=None, *, ds=None, empty=False, **kwargs):
-
         super().__init__(empty=True)
 
         # if an empty object is requested, return it:
@@ -1264,7 +1260,6 @@ class BinnedEventArray(BaseEventArray):
             neweva._data = (self.data.T + other).T
             return neweva
         elif isinstance(other, type(self)):
-
             # TODO: additional checks need to be done, e.g., same series ids...
             assert self.n_series == other.n_series
             support = self._abscissa.support + other.support
@@ -1371,11 +1366,6 @@ class BinnedEventArray(BaseEventArray):
     def partition(self, ds=None, n_intervals=None):
         """Returns a BaseEventArray whose support has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
-
         Parameters
         ----------
         ds : float, optional
@@ -1388,6 +1378,12 @@ class BinnedEventArray(BaseEventArray):
         -------
         out : BaseEventArray
             BaseEventArray that has been partitioned.
+
+        Notes
+        -----
+        Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        of the supports are always included, even if this would cause
+        n_points or ds to be violated.
         """
 
         partitioned = type(self)(
@@ -1533,7 +1529,6 @@ class BinnedEventArray(BaseEventArray):
         return self
 
     def _restrict_to_series_subset(self, idx):
-
         # Warning: This function can mutate data
 
         if isinstance(idx, core.IntervalArray):
@@ -1558,7 +1553,6 @@ class BinnedEventArray(BaseEventArray):
             raise TypeError("Unsupported indexing type {}".format(type(idx)))
 
     def _restrict_to_interval(self, intervalslice):
-
         # Warning: This function can mutate data. It should only be called from
         # _restrict
 
@@ -1584,7 +1578,6 @@ class BinnedEventArray(BaseEventArray):
 
         if not self.isempty:
             for ii, interval in enumerate(newintervals.data):
-
                 a_start = interval[0]
                 a_stop = interval[1]
                 frm, to = np.searchsorted(self._bins, (a_start, a_stop))
@@ -1667,7 +1660,7 @@ class BinnedEventArray(BaseEventArray):
     def _midpoints(self):
         """(np.array) The centers (in index space) of all events.
 
-        Example
+        Examples
         -------
         ax, img = npl.imagesc(bst.data) # data is of shape (n_series, n_bins)
         # then _midpoints correspond to the xvals at the center of
@@ -2069,8 +2062,8 @@ class BinnedEventArray(BaseEventArray):
         bst : BinnedEventArray
         idx : list of sample (bin) numbers with shape (n_intervals, 2) INCLUSIVE
 
-        Example
-        =======
+        Examples
+        --------
         idx = [[10, 20]
             [25, 50]]
         bst_from_indices(bst, idx=idx)
@@ -2267,9 +2260,123 @@ def legacySTAkwargs(**kwargs):
 # class SpikeTrainArray
 ########################################################################
 class SpikeTrainArray(EventArray):
-    """Custom SpikeTrainArray docstring with kwarg descriptions.
+    """A multiseries spike train array with shared support.
 
-    TODO: add docstring here, using the aliases in the constructor.
+    SpikeTrainArray is a specialized EventArray for handling neural spike train data.
+    It provides unit-specific aliases and methods for analyzing spike timing data
+    across multiple recording units with a common temporal support.
+
+    Parameters
+    ----------
+    fs : float, optional
+        Sampling rate in Hz. Default is 30,000.
+    support : IntervalArray, optional
+        IntervalArray on which spike trains are defined.
+        Default is [0, last spike] inclusive.
+    unit_ids : list of int, optional
+        Unit IDs. Alias for series_ids.
+    unit_labels : list of str, optional
+        Labels corresponding to units. Default casts unit_ids to str.
+        Alias for series_labels.
+    unit_tags : optional
+        Tags corresponding to units. Alias for series_tags.
+        NOTE: Currently we do not do any input validation so these can
+        be any type. We also don't use these for anything yet.
+    label : str or None, optional
+        Information pertaining to the source of the spike train array.
+    empty : bool, optional
+        Whether an empty SpikeTrainArray should be constructed (no data).
+    **kwargs : optional
+        Additional keyword arguments forwarded to the BaseEventArray
+        constructor.
+
+    Attributes
+    ----------
+    Note : Read the docstring for the BaseEventArray and EventArray superclasses
+    for additional attributes that are defined there.
+
+    isempty : bool
+        Whether the SpikeTrainArray is empty (no data).
+    n_units : int
+        The number of units. Alias for n_series.
+    n_active : int
+        The number of active units. A unit is considered active if
+        it fired at least one spike.
+    time : array of np.array(dtype=np.float64)
+        Spike time data in seconds. Array of length n_units, each entry with
+        shape (n_spikes,). Alias for data.
+    n_spikes : np.ndarray
+        The number of spikes in each unit. Alias for n_events.
+    issorted : bool
+        Whether the spike times are sorted.
+    first_spike : float
+        The time of the very first spike, across all units.
+    last_spike : float
+        The time of the very last spike, across all units.
+    unit_ids : list of int
+        Unit IDs. Alias for series_ids.
+    unit_labels : list of str
+        Labels corresponding to units. Alias for series_labels.
+    unit_tags :
+        Tags corresponding to units. Alias for series_tags.
+    n_epochs : int
+        The number of epochs/intervals. Alias for n_intervals.
+    support : IntervalArray
+        The support of the SpikeTrainArray.
+    fs : float
+        Sampling frequency (Hz).
+    label : str or None
+        Information pertaining to the source of the spike train array.
+
+    Methods
+    -------
+    bin(ds=None)
+        Return a BinnedSpikeTrainArray.
+    get_spike_firing_order()
+        Returns unit_ids ordered by when they first fire.
+    reorder_units_by_ids(neworder, inplace=False)
+        Reorder units according to specified unit_ids.
+    flatten(unit_id=None, unit_label=None)
+        Collapse spikes across units into a single unit.
+    partition(ds=None, n_epochs=None)
+        Returns a SpikeTrainArray whose support has been partitioned.
+    copy()
+        Returns a copy of the SpikeTrainArray.
+    empty(inplace=False)
+        Remove data (but not metadata) from SpikeTrainArray.
+
+    Examples
+    --------
+    Create a SpikeTrainArray with two units:
+
+    >>> import numpy as np
+    >>> spike_times = [np.array([0.1, 0.3, 0.7]), np.array([0.2, 0.5, 0.8])]
+    >>> sta = SpikeTrainArray(spike_times, unit_ids=[1, 2], fs=1000)
+    >>> print(sta.n_units)
+    2
+    >>> print(sta.n_spikes)
+    [3 3]
+
+    Access spike times using the time alias:
+
+    >>> print(sta.time[0])  # First unit's spike times
+    [0.1 0.3 0.7]
+
+    Create a binned version:
+
+    >>> binned = sta.bin(ds=0.1)  # 100ms bins
+
+    Notes
+    -----
+    SpikeTrainArray provides neuroscience-specific aliases for EventArray
+    functionality. For example, 'units' instead of 'series', 'spikes' instead
+    of 'events', and 'time' instead of 'data'. This makes the API more intuitive
+    for neuroscience applications while maintaining full compatibility with the
+    underlying EventArray infrastructure.
+
+    The class automatically handles spike time sorting and provides efficient
+    methods for common spike train analyses. All spike times are stored in
+    seconds and should be non-negative values within the support interval.
     """
 
     # specify class-specific aliases:
@@ -2334,9 +2441,119 @@ class SpikeTrainArray(EventArray):
 # class BinnedSpikeTrainArray
 ########################################################################
 class BinnedSpikeTrainArray(BinnedEventArray):
-    """Custom SpikeTrainArray docstring with kwarg descriptions.
+    """Binned spike train array for analyzing neural spike data.
 
-    TODO: add docstring here, using the aliases in the constructor.
+    A specialized version of BinnedEventArray designed specifically for spike train
+    analysis. This class bins spike events into discrete time intervals and provides
+    spike train-specific methods and properties through aliased attribute names.
+
+    Parameters
+    ----------
+    eventarray : nelpy.EventArray or nelpy.RegularlySampledAnalogSignalArray, optional
+        Input spike train data to be binned.
+    ds : float, optional
+        The bin width, in seconds. Default is 0.0625 (62.5 ms).
+    empty : bool, optional
+        Whether an empty BinnedSpikeTrainArray should be constructed (no data).
+        Default is False.
+    fs : float, optional
+        Sampling rate in Hz. If fs is passed as a parameter, then data
+        is assumed to be in sample numbers instead of actual time values.
+    support : nelpy.IntervalArray, optional
+        The support (time intervals) over which the spike trains are defined.
+    unit_ids : list of int, optional
+        Unit IDs for each spike train. Default creates sequential IDs starting from 1.
+    unit_labels : list of str, optional
+        Labels corresponding to units. Default casts unit_ids to str.
+    unit_tags : optional
+        Tags corresponding to units. Currently accepts any type.
+    label : str, optional
+        Information pertaining to the source of the spike train data.
+        Default is None.
+    abscissa : nelpy.TemporalAbscissa, optional
+        Object for the time (x-axis) coordinate. Default creates TemporalAbscissa.
+    ordinate : nelpy.AnalogSignalArrayOrdinate, optional
+        Object for the signal (y-axis) coordinate. Default creates AnalogSignalArrayOrdinate.
+    **kwargs : optional
+        Additional keyword arguments passed to the parent BinnedEventArray constructor.
+
+    Attributes
+    ----------
+    Note : Read the docstring for the BinnedEventArray parent class for additional
+    attributes that are defined there.
+
+    Spike train-specific attributes (aliases):
+    time : np.array
+        Alias for data. Spike counts in all bins, with shape (n_units, n_bins).
+    n_epochs : int
+        Alias for n_intervals. The number of underlying time intervals.
+    n_units : int
+        Alias for n_series. The number of units (neurons).
+    n_spikes : np.ndarray
+        Alias for n_events. The number of spikes in each unit.
+    unit_ids : list of int
+        Alias for series_ids. Unit IDs contained in the spike train array.
+    unit_labels : list of str
+        Alias for series_labels. Labels corresponding to units.
+    unit_tags :
+        Alias for series_tags. Tags corresponding to units.
+
+    Inherited attributes:
+    isempty : bool
+        Whether the BinnedSpikeTrainArray is empty (no data).
+    bin_centers : np.ndarray
+        The bin centers, in seconds.
+    data : np.array, with shape (n_units, n_bins)
+        Spike counts in all bins.
+    bins : np.ndarray
+        The bin edges, in seconds.
+    binned_support : np.ndarray, with shape (n_intervals, 2)
+        The binned support of the array (in bin IDs).
+    lengths : np.ndarray
+        Lengths of contiguous segments, in number of bins.
+    eventarray : nelpy.EventArray
+        The original EventArray associated with the binned spike data.
+    n_bins : int
+        The number of bins.
+    ds : float
+        Bin width, in seconds.
+    n_active : int
+        The number of active units. A unit is considered active if
+        it fired at least one spike.
+    n_active_per_bin : np.ndarray, with shape (n_bins, )
+        Number of active units per data bin.
+    support : nelpy.IntervalArray
+        The support of the BinnedSpikeTrainArray.
+
+    Methods
+    -------
+    All methods from BinnedEventArray are available, plus spike train-specific
+    aliases for method names:
+
+    reorder_units_by_ids(*args, **kwargs)
+        Alias for reorder_series_by_ids. Reorder units by their IDs.
+    reorder_units(*args, **kwargs)
+        Alias for reorder_series. Reorder units.
+
+    Examples
+    --------
+    >>> import nelpy as nel
+    >>> # Create a BinnedSpikeTrainArray from spike times
+    >>> spike_times = [np.array([0.1, 0.3, 0.7]), np.array([0.2, 0.5, 0.8])]
+    >>> sta = SpikeTrainArray(spike_times, unit_ids=[1, 2], fs=1000)
+    >>> bst = nel.BinnedSpikeTrainArray(sta, ds=0.1)
+    >>> print(bst.n_units)
+    2
+    >>> print(bst.n_bins)
+    7
+    >>> print(bst.time.shape)  # alias for data
+    (2, 7)
+
+    See Also
+    --------
+    BinnedEventArray : Parent class for general event arrays
+    EventArray : Unbinned event array class
+    SpikeTrainArray : Unbinned spike train array class
     """
 
     # specify class-specific aliases:

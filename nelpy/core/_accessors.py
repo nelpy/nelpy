@@ -1,18 +1,17 @@
 """This file contains generic accessors to handle getting data from core objects"""
 
 import numpy as np
+
 from .. import core
 
 __all__ = ["SliceExtractor", "ItemGetterLoc", "ItemGetterIloc"]
 
 
 class SliceExtractor(object):
-
     def __init__(self):
         pass
 
     def extract(self, idx):
-
         # By default, keep all slices
         intervalslice = slice(None, None, None)
         seriesslice = slice(None, None, None)
@@ -38,7 +37,7 @@ class SliceExtractor(object):
             seriesslice = idx[1]
             eventslice = idx[2]
         elif len(idx) > 3:
-            raise ValueError("Only [interval, series, events]" " indexing is supported")
+            raise ValueError("Only [interval, series, events] indexing is supported")
         else:
             raise ValueError(
                 "Some other error occurred that we didn't handle."
@@ -58,8 +57,7 @@ class SliceExtractor(object):
             testslice, (int, list, tuple, slice, np.ndarray, core.IntervalArray)
         ):
             raise TypeError(
-                "An interval slice of type {}"
-                " is not supported".format(type(testslice))
+                "An interval slice of type {} is not supported".format(type(testslice))
             )
 
     def verify_series_slice(self, testslice):
@@ -69,11 +67,11 @@ class SliceExtractor(object):
             )
 
     def verify_event_slice(self, testslice):
-
         if not isinstance(testslice, (int, list, tuple, slice, np.ndarray)):
             raise TypeError(
-                "An event indexing slice of type {}"
-                " is not supported".format(type(testslice))
+                "An event indexing slice of type {} is not supported".format(
+                    type(testslice)
+                )
             )
 
         if isinstance(testslice, slice):
@@ -97,9 +95,7 @@ class SliceExtractor(object):
 
             if is_step_val:
                 if testslice.step <= 0:
-                    raise ValueError(
-                        "The stride for event indexing" " must be positive"
-                    )
+                    raise ValueError("The stride for event indexing must be positive")
 
 
 class ItemGetterLoc(object):

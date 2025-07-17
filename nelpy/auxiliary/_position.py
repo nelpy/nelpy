@@ -1,14 +1,55 @@
 """Position class for 1D and 2D position AnalogSignalArrays"""
 
 import copy
+
 import numpy as np
 
-from ..core import _analogsignalarray, _epocharray
 from .. import utils
+from ..core import _analogsignalarray, _epocharray
 from ..utils_.decorators import keyword_deprecation
 
 
 class PositionArray(_analogsignalarray.AnalogSignalArray):
+    """
+    PositionArray for 1D and 2D position data as regularly sampled analog signals.
+
+    This class extends AnalogSignalArray to represent position data, with support for
+    1D and 2D trajectories, smoothing, linearization, and other position-specific operations.
+
+    Parameters
+    ----------
+    data : array-like, optional
+        Position data (1D or 2D).
+    timestamps : array-like, optional
+        Timestamps for the data samples.
+    fs : float, optional
+        Sampling frequency in Hz.
+    step : float, optional
+        Step size between samples.
+    merge_sample_gap : int, optional
+        Maximum gap to merge samples.
+    support : IntervalArray, optional
+        Support intervals for the data.
+    in_memory : bool, optional
+        Whether to store data in memory. Default is True.
+    labels : list of str, optional
+        Labels for the signals.
+    empty : bool, optional
+        If True, create an empty PositionArray.
+
+    Attributes
+    ----------
+    is_1d : bool
+        True if the position data is 1D.
+    is_2d : bool
+        True if the position data is 2D.
+    x : np.ndarray
+        X-values of the position.
+    y : np.ndarray
+        Y-values of the position (if 2D).
+    path_length : float
+        Total path length along the trajectory.
+    """
 
     __attributes__ = ["_kalmanfilter"]  # PositionArray-specific attributes
     __attributes__.extend(_analogsignalarray.AnalogSignalArray.__attributes__)
@@ -24,9 +65,32 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         support=None,
         in_memory=True,
         labels=None,
-        empty=False
+        empty=False,
     ):
+        """
+        Initialize a PositionArray.
 
+        Parameters
+        ----------
+        data : array-like, optional
+            Position data (1D or 2D).
+        timestamps : array-like, optional
+            Timestamps for the data samples.
+        fs : float, optional
+            Sampling frequency in Hz.
+        step : float, optional
+            Step size between samples.
+        merge_sample_gap : int, optional
+            Maximum gap to merge samples.
+        support : IntervalArray, optional
+            Support intervals for the data.
+        in_memory : bool, optional
+            Whether to store data in memory. Default is True.
+        labels : list of str, optional
+            Labels for the signals.
+        empty : bool, optional
+            If True, create an empty PositionArray.
+        """
         # if an empty object is requested, return it:
         if empty:
             super().__init__(empty=True)
@@ -71,6 +135,14 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
     @property
     def is_2d(self):
+        """
+        Check if the position data is 2D.
+
+        Returns
+        -------
+        bool
+            True if the position data is 2D, False otherwise.
+        """
         try:
             return self.n_signals == 2
         except IndexError:
@@ -78,6 +150,14 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
     @property
     def is_1d(self):
+        """
+        Check if the position data is 1D.
+
+        Returns
+        -------
+        bool
+            True if the position data is 1D, False otherwise.
+        """
         try:
             return self.n_signals == 1
         except IndexError:
@@ -85,12 +165,31 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
     @property
     def x(self):
-        """return x-values, as numpy array."""
+        """
+        Return the x-values of the position as a numpy array.
+
+        Returns
+        -------
+        np.ndarray
+            X-values of the position.
+        """
         return self.data[0, :]
 
     @property
     def y(self):
-        """return y-values, as numpy array."""
+        """
+        Return the y-values of the position as a numpy array.
+
+        Returns
+        -------
+        np.ndarray
+            Y-values of the position (if 2D).
+
+        Raises
+        ------
+        ValueError
+            If the position data is not 2D.
+        """
         if self.is_2d:
             return self.data[1, :]
         raise ValueError(
@@ -99,19 +198,33 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
 
     @property
     def path_length(self):
-        """Return the path length along the trajectory."""
+        """
+        Return the path length along the trajectory.
+
+        Returns
+        -------
+        float
+            Total path length along the trajectory.
+        """
         # raise NotImplementedError
         lengths = np.sqrt(np.sum(np.diff(self._data_colsig, axis=0) ** 2, axis=1))
         return np.sum(lengths)
 
     def get_speed(self, sigma_pos=None, simga_spd=None):
-        """Return the speed, as an AnalogSignalArray."""
+        """
+        Return the speed, as an AnalogSignalArray.
+
+        Returns
+        -------
+        AnalogSignalArray
+            A PositionArray with smoothed data is returned.
+        """
         # Idea is to smooth the position with a good default, and then to
         # compute the speed on the smoothed position. Optionally, then, the
         # speed should be smoothed as well.
 
         # raise NotImplementedError
-    
+
         out = self.copy()
         cum_lengths = np.insert(np.cumsum(self.lengths), 0, 0)
 
@@ -141,9 +254,20 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
                         self._data[:, cum_lengths[idx] : cum_lengths[idx + 1]], axis=1
                     )
         return out
-    
+
     def direction(self):
-        """Return the instantaneous direction estimate as an AnalogSignalArray."""
+        """
+        Return the instantaneous direction estimate as an AnalogSignalArray.
+
+        Returns
+        -------
+        direction : AnalogSignalArray
+            The estimated direction at each time point. For 1D, this may be a binary or signed value; for 2D, this may be a continuous angle or vector.
+
+        Notes
+        -----
+        Not yet implemented.
+        """
         # If 1D, then left/right or up/down or fwd/reverse or whatever might
         # make sense, so this signal could be binarized.
         # When 2D, then a continuous cartesian direction vector might make sense
@@ -153,20 +277,62 @@ class PositionArray(_analogsignalarray.AnalogSignalArray):
         raise NotImplementedError
 
     def idealize(self, segments):
-        """Project the position onto idealized segments."""
+        """
+        Project the position onto idealized segments.
+
+        Parameters
+        ----------
+        segments : array-like
+            The segments onto which to project the position.
+
+        Returns
+        -------
+        idealized : PositionArray
+            The position array constrained to the desired segments.
+
+        Notes
+        -----
+        Not yet implemented.
+        """
         # plan is to return a PositionArray constrained to the desired segments.
 
         raise NotImplementedError
 
     def linearize(self):
-        """Linearize the position estimates."""
+        """
+        Linearize the position estimates.
 
+        Returns
+        -------
+        linearized : PositionArray
+            The linearized position array.
+
+        Notes
+        -----
+        Not yet implemented.
+        """
         # This is unclear how we should do it universally? Maybe have a few presets?
 
         raise NotImplementedError
 
     def bin(self, **kwargs):
-        """Bin position into grid."""
+        """
+        Bin position into a grid.
+
+        Parameters
+        ----------
+        **kwargs :
+            Additional keyword arguments for binning.
+
+        Returns
+        -------
+        binned : np.ndarray
+            The binned position indices or values.
+
+        Notes
+        -----
+        Not yet implemented.
+        """
         raise NotImplementedError
 
     @keyword_deprecation(replace_x_with_y={"bw": "truncate"})

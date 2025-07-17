@@ -8,22 +8,21 @@ nelpy.analysis provides several commonly used analyses.
 """
 
 # from .hmm_sparsity import HMMSurrogate
+from .ergodic import fmpt, steady_state
 from .replay import (
-    linregress_ting,
+    column_cycle_array,
+    get_significant_events,
     linregress_array,
     linregress_bst,
+    linregress_ting,
+    pooled_time_swap_bst,
+    score_hmm_logprob_cumulative,
+    score_hmm_time_resolved,
+    three_consecutive_bins_above_q,
     time_swap_array,
-    column_cycle_array,
     trajectory_score_array,
     trajectory_score_bst,
-    get_significant_events,
-    three_consecutive_bins_above_q,
-    score_hmm_time_resolved,
-    score_hmm_logprob_cumulative,
-    pooled_time_swap_bst,
 )
-from .ergodic import steady_state, fmpt
-
 
 __all__ = [
     "linregress_ting",

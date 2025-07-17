@@ -1,17 +1,14 @@
 __all__ = ["IntervalArray", "EpochArray", "SpaceArray"]
 
-import logging
-import numpy as np
 import copy
+import logging
 import numbers
-from numba import jit
-
 from sys import float_info
 
-from .. import formatters
-from .. import utils
-from .. import version
+import numpy as np
+from numba import jit
 
+from .. import formatters, utils, version
 from ..utils_.decorators import keyword_equivalence
 
 
@@ -51,9 +48,8 @@ class IntervalArray:
         meta=None,
         empty=False,
         domain=None,
-        label=None
+        label=None,
     ):
-
         self.__version__ = version.__version__
 
         self.type_name = self.__class__.__name__
@@ -98,20 +94,17 @@ class IntervalArray:
                 length = length[..., np.newaxis]
 
             if data.ndim == 2 and length.ndim == 1:
-                raise ValueError(
-                    "length not allowed when using start and stop " "values"
-                )
+                raise ValueError("length not allowed when using start and stop values")
 
             if len(length) > 1:
                 if data.ndim == 1 and data.shape[0] != length.shape[0]:
-                    raise ValueError("must have same number of data and length " "data")
+                    raise ValueError("must have same number of data and length data")
             if data.ndim == 1 and length.ndim == 1:
                 stop_interval = data + length
                 data = np.hstack(
                     (data[..., np.newaxis], stop_interval[..., np.newaxis])
                 )
         else:  # length was not specified, so assume we recived intervals
-
             # Note: if we have an empty array of data with no
             # dimension, then calling len(data) will return a
             # TypeError.
@@ -133,7 +126,7 @@ class IntervalArray:
             # length and more than two values:
             if data.ndim == 1 and len(data) > 2:  # we already know length is None
                 raise TypeError(
-                    "data of size (n_intervals, ) has to be accompanied by " "a length"
+                    "data of size (n_intervals, ) has to be accompanied by a length"
                 )
 
             if data.ndim == 1:  # and length is None:
@@ -359,11 +352,6 @@ class IntervalArray:
     def partition(self, *, ds=None, n_intervals=None):
         """Returns an IntervalArray that has been partitioned.
 
-        # Irrespective of whether 'ds' or 'n_intervals' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
-
         Parameters
         ----------
         ds : float, optional
@@ -376,6 +364,13 @@ class IntervalArray:
         -------
         out : IntervalArray
             IntervalArray that has been partitioned.
+
+        Notes
+        -----
+        Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        underlying support is propagated, and the first and last points
+        of the supports are always included, even if this would cause
+        n_points or ds to be violated.
         """
 
         if self.isempty:
@@ -385,9 +380,9 @@ class IntervalArray:
             raise ValueError("ds and n_intervals cannot be used together")
 
         if n_intervals is not None:
-            assert float(
-                n_intervals
-            ).is_integer(), "n_intervals must be a positive integer!"
+            assert float(n_intervals).is_integer(), (
+                "n_intervals must be a positive integer!"
+            )
             assert n_intervals > 1, "n_intervals must be a positive integer > 1"
             # determine ds from number of desired points:
             ds = self.length / n_intervals
@@ -983,10 +978,83 @@ class IntervalArray:
 
 # ----------------------------------------------------------------------#
 # ======================================================================#
-
-
 class EpochArray(IntervalArray):
-    """IntervalArray containing temporal intervals (epochs, in seconds)."""
+    """IntervalArray containing temporal intervals (epochs, in seconds).
+
+    This class extends `IntervalArray` to specifically handle time-based
+    intervals, referred to as epochs. It provides aliases for common
+    time-related attributes and uses a `PrettyDuration` formatter for
+    displaying lengths.
+
+    Parameters
+    ----------
+    data : np.array, optional
+        If shape (n_epochs, 1) or (n_epochs,), the start time for each
+        epoch (which then requires a `length` to be specified).
+        If shape (n_epochs, 2), the start and stop times for each epoch.
+        Defaults to None, creating an empty `EpochArray`.
+    length : np.array, float, or None, optional
+        The duration of the epoch (in base units, seconds). If a float,
+        the same duration is assumed for every epoch. Only used if `data`
+        is a 1D array of start times.
+    meta : dict, optional
+        Metadata associated with the epoch array.
+    empty : bool, optional
+        If True, an empty `EpochArray` is returned, ignoring `data` and `length`.
+        Defaults to False.
+    domain : IntervalArray, optional
+        The domain within which the epochs are defined. If None, it defaults
+        to an infinite domain.
+    label : str, optional
+        A descriptive label for the epoch array.
+
+    Attributes
+    ----------
+    time : np.array
+        Alias for `data`. The start and stop times for each epoch, with shape
+        (n_epochs, 2).
+    n_epochs : int
+        Alias for `n_intervals`. The number of epochs in the array.
+    duration : float
+        Alias for `length`. The total duration of the [merged] epoch array.
+    durations : np.array
+        Alias for `lengths`. The duration of each individual epoch.
+    formatter : formatters.PrettyDuration
+        The formatter used for displaying time durations.
+    base_unit : str
+        The base unit of the intervals, which is 's' (seconds) for EpochArray.
+
+    Notes
+    -----
+    This class inherits all methods and properties from `IntervalArray`.
+    Aliases are provided for convenience to make the API more intuitive
+    for temporal data.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from nelpy.core import EpochArray
+
+    >>> # Create an EpochArray from start and stop times
+    >>> epochs = EpochArray(data=np.array([[0, 10], [20, 30], [40, 50]]))
+    >>> print(epochs)
+    <EpochArray at 0x21b641f0950: 3 epochs> of length 30 seconds
+
+    >>> # Create an EpochArray from start times and a common length
+    >>> starts = np.array([0, 20, 40])
+    >>> length = 5.0
+    >>> epochs_with_length = EpochArray(data=starts, length=length)
+    >>> print(epochs_with_length)
+    <EpochArray at 0x21b631c6050: 3 epochs> of length 15 seconds
+
+    >>> # Accessing aliased attributes
+    >>> print(f"Number of epochs: {epochs.n_epochs}")
+    Number of epochs: 3
+    >>> print(f"Total duration: {epochs.duration}")
+    Total duration: 30 seconds
+    >>> print(f"Individual durations: {epochs.durations}")
+    Individual durations: [10 10 10]
+    """
 
     __aliases__ = {
         "time": "data",
@@ -1036,7 +1104,78 @@ class EpochArray(IntervalArray):
 
 
 class SpaceArray(IntervalArray):
-    """IntervalArray containing spatial intervals (in cm)."""
+    """
+    IntervalArray containing spatial intervals (in centimeters).
+
+    This class extends `IntervalArray` to specifically handle space-based
+    intervals, such as linear or 2D spatial regions. It provides a formatter
+    for displaying spatial lengths and can be used for spatial segmentation
+    in behavioral or neural data analysis.
+
+    Parameters
+    ----------
+    data : np.array, optional
+        If shape (n_intervals, 1) or (n_intervals,), the start position for each
+        interval (which then requires a `length` to be specified).
+        If shape (n_intervals, 2), the start and stop positions for each interval.
+        Defaults to None, creating an empty `SpaceArray`.
+    length : np.array, float, or None, optional
+        The length of the interval (in base units, centimeters). If a float,
+        the same length is assumed for every interval. Only used if `data`
+        is a 1D array of start positions.
+    meta : dict, optional
+        Metadata associated with the spatial intervals.
+    empty : bool, optional
+        If True, an empty `SpaceArray` is returned, ignoring `data` and `length`.
+        Defaults to False.
+    domain : IntervalArray, optional
+        The domain within which the spatial intervals are defined. If None, it defaults
+        to an infinite domain.
+    label : str, optional
+        A descriptive label for the space array.
+
+    Attributes
+    ----------
+    data : np.array
+        The start and stop positions for each interval, with shape (n_intervals, 2).
+    n_intervals : int
+        The number of spatial intervals in the array.
+    lengths : np.array
+        The length of each spatial interval (in centimeters).
+    formatter : formatters.PrettySpace
+        The formatter used for displaying spatial lengths.
+    base_unit : str
+        The base unit of the intervals, which is 'cm' for SpaceArray.
+
+    Notes
+    -----
+    This class inherits all methods and properties from `IntervalArray`.
+    It is intended for use with spatial data, such as segmenting a linear track
+    or defining regions of interest in a behavioral arena.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from nelpy.core import SpaceArray
+
+    >>> # Create a SpaceArray from start and stop positions
+    >>> regions = SpaceArray(data=np.array([[0, 50], [100, 150]]))
+    >>> print(regions)
+    <SpaceArray at 0x...: 2 intervals> of length 100 cm
+
+    >>> # Create a SpaceArray from start positions and a common length
+    >>> starts = np.array([0, 100])
+    >>> length = 25.0
+    >>> regions_with_length = SpaceArray(data=starts, length=length)
+    >>> print(regions_with_length)
+    <SpaceArray at 0x...: 2 intervals> of length 50 cm
+
+    >>> # Accessing attributes
+    >>> print(f"Number of regions: {regions.n_intervals}")
+    Number of regions: 2
+    >>> print(f"Lengths: {regions.lengths}")
+    Lengths: [50 50]
+    """
 
     __aliases__ = {}
 

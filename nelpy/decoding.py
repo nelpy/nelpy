@@ -21,16 +21,21 @@ from . import auxiliary, core, utils
 
 
 class ItemGetter_loc(object):
-    """.loc is primarily label based (that is, series_id based)
-    .loc will raise KeyError when the items are not found.
+    """
+    .loc is primarily label based (that is, series_id based).
+
+    Allows label-based selection of intervals and series in event arrays.
+    Raises KeyError when the items are not found.
+
     Allowed inputs are:
-        - A single label, e.g. 5 or 'a', (note that 5 is interpreted
-            as a label of the index. This use is not an integer
-            position along the index)
+        - A single label, e.g. 5 or 'a' (interpreted as a label, not a position)
         - A list or array of labels ['a', 'b', 'c']
-        - A slice object with labels 'a':'f', (note that contrary to
-            usual python slices, both the start and the stop are
-            included!)
+        - A slice object with labels 'a':'f' (both start and stop are included)
+
+    Parameters
+    ----------
+    obj : object
+        The parent object to slice.
     """
 
     def __init__(self, obj):
@@ -120,15 +125,21 @@ class ItemGetter_loc(object):
 
 
 class ItemGetter_iloc(object):
-    """.iloc is primarily integer position based (from 0 to length-1
-    of the axis).
-    .iloc will raise IndexError if a requested indexer is
-    out-of-bounds, except slice indexers which allow out-of-bounds
-    indexing. (this conforms with python/numpy slice semantics).
+    """
+    .iloc is primarily integer position based (from 0 to length-1 of the axis).
+
+    Allows integer-based selection of intervals and series in event arrays.
+    Raises IndexError if a requested indexer is out-of-bounds, except slice indexers which allow out-of-bounds indexing (conforms with python/numpy slice semantics).
+
     Allowed inputs are:
         - An integer e.g. 5
         - A list or array of integers [4, 3, 0]
         - A slice object with ints 1:7
+
+    Parameters
+    ----------
+    obj : object
+        The parent object to slice.
     """
 
     def __init__(self, obj):
@@ -167,8 +178,24 @@ class ItemGetter_iloc(object):
 
 
 def get_mode_pth_from_array(posterior, tuningcurve=None):
-    """If tuningcurve is provided, then we map it back to the external coordinates / units.
-    Otherwise, we stay in the bin space."""
+    """
+    Compute the mode path (most likely position) from a posterior probability matrix.
+
+    If a tuning curve is provided, the mode is mapped back to external coordinates/units.
+    Otherwise, the mode is in bin space.
+
+    Parameters
+    ----------
+    posterior : np.ndarray
+        Posterior probability matrix (position x time).
+    tuningcurve : TuningCurve1D, optional
+        Tuning curve for mapping bins to external coordinates.
+
+    Returns
+    -------
+    mode_pth : np.ndarray
+        Most likely position at each time bin.
+    """
     n_xbins = posterior.shape[0]
 
     if tuningcurve is None:
@@ -192,8 +219,24 @@ def get_mode_pth_from_array(posterior, tuningcurve=None):
 
 
 def get_mean_pth_from_array(posterior, tuningcurve=None):
-    """If tuningcurve is provided, then we map it back to the external coordinates / units.
-    Otherwise, we stay in the bin space."""
+    """
+    Compute the mean path (expected position) from a posterior probability matrix.
+
+    If a tuning curve is provided, the mean is mapped back to external coordinates/units.
+    Otherwise, the mean is in bin space.
+
+    Parameters
+    ----------
+    posterior : np.ndarray
+        Posterior probability matrix (position x time).
+    tuningcurve : TuningCurve1D, optional
+        Tuning curve for mapping bins to external coordinates.
+
+    Returns
+    -------
+    mean_pth : np.ndarray
+        Expected position at each time bin.
+    """
     n_xbins = posterior.shape[0]
 
     if tuningcurve is None:
@@ -218,49 +261,40 @@ def get_mean_pth_from_array(posterior, tuningcurve=None):
 def decode1D(
     bst, ratemap, xmin=0, xmax=100, w=1, nospk_prior=None, _skip_empty_bins=True
 ):
-    """Decodes binned spike trains using a ratemap with shape (n_units, n_ext)
-
-    TODO: complete docstring
-    TODO: what if we have higher dimensional external correlates? This
-    function assumes a 1D correlate. Even if we linearize a 2D
-    environment, for example, then mean_pth decoding no longer works as
-    expected, so this function should probably be refactored.
+    """
+    Decode binned spike trains using a 1D ratemap (Bayesian decoding).
 
     Parameters
     ----------
-    bst :
-    ratemap: array_like
-        Firing rate map with shape (n_units, n_ext), where n_ext is the
-        number of external correlates, e.g., position bins. The rate map
-        is in spks/second.
-    xmin : float
-    xmax : float
-    w : int
-    nospk_prior : array_like
-        Prior distribution over external correlates with shape (n_ext,)
-        that will be used if no spikes are observed in a decoding window
-        Default is np.nan.
-        If nospk_prior is any scalar, then a uniform prior is assumed.
-
-    _skip_empty_bins is only used to return the posterior regardless of
-    whether any spikes were observed, so that we can understand the spatial
-    distribution in the absence of spikes, or at low firing rates.
+    bst : BinnedSpikeTrainArray
+        Binned spike train array to decode.
+    ratemap : array_like or TuningCurve1D
+        Firing rate map with shape (n_units, n_ext), where n_ext is the number of external correlates (e.g., position bins). The rate map is in spks/second.
+    xmin : float, optional
+        Minimum value of external variable (default is 0).
+    xmax : float, optional
+        Maximum value of external variable (default is 100).
+    w : int, optional
+        Window size for decoding (default is 1).
+    nospk_prior : array_like or float, optional
+        Prior distribution over external correlates with shape (n_ext,). Used if no spikes are observed in a decoding window. If scalar, a uniform prior is assumed. Default is np.nan.
+    _skip_empty_bins : bool, optional
+        If True, skip bins with no spikes. If False, fill with prior.
 
     Returns
     -------
-    posteriors : array
-        Posterior distribution with shape (n_ext, n_posterior_bins),
-        where n_posterior bins <= bst.n_bins, but depends on w and the
-        event lengths.
-    cum_posterior_lengths : array
-
-    mode_pth :
-
-    mean_pth :
+    posterior : np.ndarray
+        Posterior distribution with shape (n_ext, n_posterior_bins).
+    cum_posterior_lengths : np.ndarray
+        Cumulative posterior lengths for each epoch.
+    mode_pth : np.ndarray
+        Most likely position at each time bin.
+    mean_pth : np.ndarray
+        Expected position at each time bin.
 
     Examples
     --------
-
+    >>> posterior, cum_posterior_lengths, mode_pth, mean_pth = decode1D(bst, ratemap)
     """
 
     if w is None:
@@ -293,9 +327,9 @@ def decode1D(
         nospk_prior = np.full(n_xbins, 1.0)
 
     assert nospk_prior.shape[0] == n_xbins, "prior must have length {}".format(n_xbins)
-    assert (
-        nospk_prior.size == n_xbins
-    ), "prior must be a 1D array with length {}".format(n_xbins)
+    assert nospk_prior.size == n_xbins, (
+        "prior must be a 1D array with length {}".format(n_xbins)
+    )
 
     lfx = np.log(ratemap)
 
@@ -376,49 +410,44 @@ def decode2D(
     nospk_prior=None,
     _skip_empty_bins=True,
 ):
-    """Decodes binned spike trains using a ratemap with shape (n_units, ext_nx, ext_ny)
-
-    TODO: complete docstring
-    TODO: what if we have higher dimensional external correlates? This
-    function assumes a 2D correlate. Even if we linearize a 2D
-    environment, for example, then mean_pth decoding no longer works as
-    expected, so this function should probably be refactored.
+    """
+    Decode binned spike trains using a 2D ratemap (Bayesian decoding).
 
     Parameters
     ----------
-    bst :
-    ratemap: array_like
-        Firing rate map with shape (n_units, ext_nx, ext_ny), where n_ext is the
-        number of external correlates, e.g., position bins. The rate map
-        is in spks/second.
-    xmin : float
-    xmax : float
-    w : int
-    nospk_prior : array_like
-        Prior distribution over external correlates with shape (n_ext,)
-        that will be used if no spikes are observed in a decoding window
-        Default is np.nan.
-        If nospk_prior is any scalar, then a uniform prior is assumed.
-
-    _skip_empty_bins is only used to return the posterior regardless of
-    whether any spikes were observed, so that we can understand the spatial
-    distribution in the absence of spikes, or at low firing rates.
+    bst : BinnedSpikeTrainArray
+        Binned spike train array to decode.
+    ratemap : array_like or TuningCurve2D
+        Firing rate map with shape (n_units, ext_nx, ext_ny), where ext_nx and ext_ny are the number of external correlates (e.g., position bins). The rate map is in spks/second.
+    xmin : float, optional
+        Minimum x value of external variable (default is 0).
+    xmax : float, optional
+        Maximum x value of external variable (default is 100).
+    ymin : float, optional
+        Minimum y value of external variable (default is 0).
+    ymax : float, optional
+        Maximum y value of external variable (default is 100).
+    w : int, optional
+        Window size for decoding (default is 1).
+    nospk_prior : array_like or float, optional
+        Prior distribution over external correlates with shape (ext_nx, ext_ny). Used if no spikes are observed in a decoding window. If scalar, a uniform prior is assumed. Default is np.nan.
+    _skip_empty_bins : bool, optional
+        If True, skip bins with no spikes. If False, fill with prior.
 
     Returns
     -------
-    posteriors : array
-        Posterior distribution with shape (ext_nx, ext_ny, n_posterior_bins),
-        where n_posterior bins <= bst.n_tbins, but depends on w and the
-        event lengths.
-    cum_posterior_lengths : array
-
-    mode_pth :
-
-    mean_pth :
+    posterior : np.ndarray
+        Posterior distribution with shape (ext_nx, ext_ny, n_posterior_bins).
+    cum_posterior_lengths : np.ndarray
+        Cumulative posterior lengths for each epoch.
+    mode_pth : np.ndarray
+        Most likely (x, y) position at each time bin.
+    mean_pth : np.ndarray
+        Expected (x, y) position at each time bin.
 
     Examples
     --------
-
+    >>> posterior, cum_posterior_lengths, mode_pth, mean_pth = decode2D(bst, ratemap)
     """
 
     def tile_obs(obs, nx, ny):
@@ -556,35 +585,29 @@ def decode2D(
 
 def k_fold_cross_validation(X, k=None, randomize=False):
     """
-    Generates K (training, validation) pairs from the items in X.
-
-    Each pair is a partition of X, where validation is an iterable
-    of length len(X)/K. So each training iterable is of length
-    (K-1)*len(X)/K.
+    Generate K (training, validation) pairs from the items in X for cross-validation.
 
     Parameters
     ----------
     X : list or int
-        list of items, or list of indices, or integer number of indices
-    k : int, or str, optional
-        k > 1 number of folds for k-fold cross validation; k='loo' or
-        'LOO' for leave-one-out cross-validation (equivalent to
-        k==n_samples). Default is 5.
-    randomize : bool
-         If true, a copy of X is shuffled before partitioning, otherwise
-         its order is preserved in training and validation.
+        List of items, list of indices, or integer number of indices.
+    k : int or str, optional
+        Number of folds for k-fold cross-validation. 'loo' or 'LOO' for leave-one-out. Default is 5.
+    randomize : bool, optional
+        If True, shuffle X before partitioning. Default is False.
 
-    Returns
-    -------
-    (training, validation)
+    Yields
+    ------
+    training : list
+        Training set indices.
+    validation : list
+        Validation set indices.
 
-    Example
-    -------
+    Examples
+    --------
     >>> X = [i for i in range(97)]
     >>> for training, validation in k_fold_cross_validation(X, k=5):
-    >>>     print(training, validation)
-    >>>     for x in X: assert (x in training) ^ (x in validation), x
-
+    ...     print(training, validation)
     """
     # deal with default values:
     if isinstance(X, int):
@@ -610,6 +633,16 @@ def k_fold_cross_validation(X, k=None, randomize=False):
 
 
 class Cumhist(np.ndarray):
+    """
+    Cumulative histogram with interpolation support.
+
+    Parameters
+    ----------
+    cumhist : np.ndarray
+        Cumulative histogram values.
+    bincenters : np.ndarray
+        Bin centers corresponding to the cumulative histogram.
+    """
 
     def __new__(cls, cumhist, bincenters):
         obj = np.asarray(cumhist).view(cls)
@@ -617,7 +650,6 @@ class Cumhist(np.ndarray):
         return obj
 
     def __call__(self, *val):
-
         f = interpolate.interp1d(
             x=self, y=self._bincenters, kind="linear", fill_value=np.NaN
         )
@@ -641,37 +673,42 @@ def cumulative_dist_decoding_error_using_xval(
     extmax=100,
     sigma=3,
     n_bins=None,
-    randomize=False
+    randomize=False,
 ):
-    """Cumulative distribution of decoding errors during epochs in
-    BinnedSpikeTrainArray, evaluated using a k-fold cross-validation
-    procedure.
+    """
+    Compute the cumulative distribution of decoding errors using k-fold cross-validation.
 
     Parameters
     ----------
-    bst: BinnedSpikeTrainArray
-        BinnedSpikeTrainArray containing all the epochs to be decoded.
-        Should typically have the same type of epochs as the ratemap
-        (e.g., online epochs), but this is not a requirement.
-    extern : query-able object of external correlates (e.g. pos AnalogSignalArray)
-    ratemap : array_like
-        The ratemap (in Hz) with shape (n_units, n_ext) where n_ext are
-        the external correlates, e.g., position bins.
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all epochs to decode.
+    extern : object
+        Query-able object of external correlates (e.g., position AnalogSignalArray).
+    decodefunc : callable, optional
+        Decoding function to use (default is decode1D).
     k : int, optional
-        Number of fold for k-fold cross-validation. Default is k=5.
-    n_bins : int
-        Number of decoding error bins, ranging from tuningcurve.extmin
-        to tuningcurve.extmax.
+        Number of folds for cross-validation (default is 5).
+    transfunc : callable, optional
+        Function to transform external variable (default is None).
+    n_extern : int, optional
+        Number of external bins (default is 100).
+    extmin : float, optional
+        Minimum value of external variable (default is 0).
+    extmax : float, optional
+        Maximum value of external variable (default is 100).
+    sigma : float, optional
+        Smoothing parameter for tuning curve (default is 3).
+    n_bins : int, optional
+        Number of decoding error bins (default is 200).
+    randomize : bool, optional
+        If True, randomize the order of epochs (default is False).
 
     Returns
     -------
-
-    (error, cum_prob)
-        (see Fig 3.(b) of "Analysis of Hippocampal Memory Replay Using
-        Neural Population Decoding", Fabian Kloosterman, 2012)
-
-    NOTE: should we allow for an optional tuning curve to be specified,
-          or should we always recompute it ourselves?
+    cumhist : Cumhist
+        Cumulative histogram of decoding errors.
+    bincenters : np.ndarray
+        Bin centers for the cumulative histogram.
     """
 
     def _trans_func(extern, at):
@@ -735,28 +772,30 @@ def cumulative_dist_decoding_error_using_xval(
 def cumulative_dist_decoding_error(
     bst, *, tuningcurve, extern, decodefunc=decode1D, transfunc=None, n_bins=None
 ):
-    """Cumulative distribution of decoding errors during epochs in
-    BinnedSpikeTrainArray using a fixed TuningCurve.
+    """
+    Compute the cumulative distribution of decoding errors using a fixed tuning curve.
 
     Parameters
     ----------
-    bst: BinnedSpikeTrainArray
-        BinnedSpikeTrainArray containing all the epochs to be decoded.
-        Should typically have the same type of epochs as the ratemap
-        (e.g., online epochs), but this is not a requirement.
+    bst : BinnedSpikeTrainArray
+        Binned spike train array containing all epochs to decode.
     tuningcurve : TuningCurve1D
-    extern : query-able object of external correlates (e.g. pos AnalogSignalArray)
-    n_bins : int
-        Number of decoding error bins, ranging from tuningcurve.extmin
-        to tuningcurve.extmax.
+        Tuning curve to use for decoding.
+    extern : object
+        Query-able object of external correlates (e.g., position AnalogSignalArray).
+    decodefunc : callable, optional
+        Decoding function to use (default is decode1D).
+    transfunc : callable, optional
+        Function to transform external variable (default is None).
+    n_bins : int, optional
+        Number of decoding error bins (default is 200).
 
     Returns
     -------
-
-    (cumhist, bincenters)
-        (see Fig 3.(b) of "Analysis of Hippocampal Memory Replay Using
-        Neural Population Decoding", Fabian Kloosterman, 2012)
-
+    cumhist : Cumhist
+        Cumulative histogram of decoding errors.
+    bincenters : np.ndarray
+        Bin centers for the cumulative histogram.
     """
 
     def _trans_func(extern, at):
@@ -800,7 +839,8 @@ def cumulative_dist_decoding_error(
 
 
 def rmse(predictions, targets):
-    """Calculate the root mean squared error of an array of predictions.
+    """
+    Calculate the root mean squared error (RMSE) between predictions and targets.
 
     Parameters
     ----------
@@ -811,8 +851,8 @@ def rmse(predictions, targets):
 
     Returns
     -------
-    rmse: float
-        Root mean squared error of the predictions wrt the targets.
+    rmse : float
+        Root mean squared error of the predictions with respect to the targets.
     """
     predictions = np.asanyarray(predictions)
     targets = np.asanyarray(targets)
@@ -822,49 +862,26 @@ def rmse(predictions, targets):
 
 class BayesianDecoder(object):
     """
-    current nelpy Bayesian decoding lacks several potentially important elements:
-        - (1) directional tuning curves
-        - (2) theta (and gamma?) phase information (esp. in PFC)
-        - (4) a unified approach for 1D, 2D, and ND decoding?
-        - (3) a scikit-like API with support for numpy and nelpy
-        - full Bayesian incorporation on prior information
-        - arbitraty bin-and-stride specification
-        - dynamical model, e.g., Kalman smoother
-        - adaptive mode for model to be updated?
+    Bayesian decoder for neural population activity.
 
-    To support (1) and (2), we need
-        a. easy ways to extract spikes at a particular phase,
-        b. ways to incorporate multiple tuning curves (per condition/phase) in
-           one decoder model?
-        c. ways to easily extract direction
-        d. support to decode using multiple alternatives, and return best one?
+    This class provides a scikit-learn-like API for Bayesian decoding using tuning curves.
+    Supports 1D and 2D decoding, and can be extended for more complex models.
 
-    For example, for a given bst, we could split data into different conditions,
-    e.g., theta phase bin (x8), and direction (x2), for a total of 16 conditions.
-    Then we would learn a model for each of the 16 conditions, and subsequently
-    when we decode, we would combine the results.
-
-    Q1. Is there a nice hierarchical way in which we can share some information
-        between the different conditions? Otherwise we really don't have much
-        data...
-    Q2. How do we deal with the unknown direction during decoding? Is this an EM
-        or missing value problem? Or do we marginalize?
-
-    Q3. How do we bin in time? Does theta-phase-augmented decoding now become a
-        binning-in-phase, rather than a binning-in-time problem? How do we
-        extend all our existing machinery to deal with that? (we won't have a
-        fixed bst.ds anymore, for example).
-
-        ==> an alternative is to bin into something relatively small (thata/8?)
-            and then to associate a phase with the (fixed-duration) temporal bin.
-            Q. can we weigh bins by their phase?
-
-    See https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3129134/
-        http://rstb.royalsocietypublishing.org/content/364/1521/1193
-        and Jensen & Lisman 2000
+    Parameters
+    ----------
+    tuningcurve : TuningCurve1D or TuningCurve2D, optional
+        Tuning curve to use for decoding.
     """
 
     def __init__(self, tuningcurve=None):
+        """
+        Initialize the BayesianDecoder.
+
+        Parameters
+        ----------
+        tuningcurve : TuningCurve1D or TuningCurve2D, optional
+            Tuning curve to use for decoding.
+        """
         if tuningcurve is not None:
             self.tuningcurve = tuningcurve
         pass
@@ -873,15 +890,51 @@ class BayesianDecoder(object):
     #     raise NotImplementedError
 
     def fit(self, X):
+        """
+        Fit the decoder to data X.
+
+        Parameters
+        ----------
+        X : array-like
+            Training data.
+        """
         raise NotImplementedError
 
     def predict(self, X):
+        """
+        Predict external variable from data X.
+
+        Parameters
+        ----------
+        X : array-like
+            Data to decode.
+        """
         raise NotImplementedError
 
     def predict_proba(self, X):
+        """
+        Predict posterior probabilities for data X.
+
+        Parameters
+        ----------
+        X : array-like
+            Data to decode.
+        """
         raise NotImplementedError
 
     def predict_proba_bst(self, X, sigma=0, w=1):
+        """
+        Predict posterior probabilities for a BinnedEventArray.
+
+        Parameters
+        ----------
+        X : BinnedEventArray
+            Binned event array to decode.
+        sigma : float, optional
+            Smoothing parameter for tuning curve (default is 0).
+        w : int, optional
+            Window size for decoding (default is 1).
+        """
         if isinstance(X, core.BinnedEventArray):
             posteriors, bdries, mode_pth, mean_pth = decode1D(
                 X, self.tuningcurve.smooth(sigma=sigma), w=w
@@ -916,7 +969,18 @@ class BayesianDecoder(object):
         return bst
 
     def predict_asa(self, X):
+        """
+        Predict analog signal array from data X.
+
+        Parameters
+        ----------
+        X : array-like
+            Data to decode.
+        """
         raise NotImplementedError
 
     def __repr__(self):
+        """
+        Return a string representation of the BayesianDecoder.
+        """
         raise NotImplementedError

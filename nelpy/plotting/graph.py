@@ -1,10 +1,9 @@
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 def draw_transmat_graph(G, edge_threshold=0, lw=1, ec="0.2", node_size=15):
-
     num_states = G.number_of_nodes()
 
     edgewidth = [d["weight"] for (u, v, d) in G.edges(data=True)]
@@ -33,7 +32,6 @@ def draw_transmat_graph(G, edge_threshold=0, lw=1, ec="0.2", node_size=15):
 
 
 def draw_transmat_graph_inner(G, edge_threshold=0, lw=1, ec="0.2", node_size=15):
-
     # num_states = G.number_of_nodes()
 
     edgewidth = [d["weight"] for (u, v, d) in G.edges(data=True)]
@@ -73,7 +71,6 @@ def double_circular_layout(Gi, scale=1, center=None, dim=2, direction="CCW"):
 def draw_transmat_graph_outer(
     Go, Gi, edge_threshold=0, lw=1, ec="0.2", nc="k", node_size=15
 ):
-
     # num_states = Go.number_of_nodes()
 
     edgewidth = [d["weight"] for (u, v, d) in Go.edges(data=True)]

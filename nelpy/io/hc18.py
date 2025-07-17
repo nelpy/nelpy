@@ -6,7 +6,7 @@
 """This file contains nelpy io functions for reading data from hc-18.
 
 The data set includes 5 sessions (i.e., 5 rats), each consisting of three travel
-sessions (passive, active, passive; 2×~15 laps each) interspersed with sleep
+sessions (passive, active, passive; 2~15 laps each) interspersed with sleep
 sessions (~90 min each).
 
 See https://crcns.org/data-sets/hc/hc-18/about-hc-18.
@@ -17,21 +17,19 @@ datatype = ['spikes', 'lfp', 'pos', 'waveforms', 'metadata']
 
 # __all__ = ["load_hc18_data"]
 
+import glob
 import logging
 import os.path
-import glob
-import sys
-import pandas as pd
-import numpy as np
 import re
-import natsort as ns
-
-import xmltodict
-
+import sys
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 
-from ..core._intervalarray import EpochArray
+import natsort as ns
+import numpy as np
+import pandas as pd
+import xmltodict
+
 from ..core._analogsignalarray import (
     AnalogSignalArray,
     PositionArray,
@@ -39,11 +37,11 @@ from ..core._analogsignalarray import (
 from ..core._eventarray import (
     SpikeTrainArray,
 )
+from ..core._intervalarray import EpochArray
+
 
 class DataLoader(ABC):
-
     def __init__(self, basedir=None):
-
         if basedir is None:
             basedir = os.getcwd()
 
@@ -68,7 +66,6 @@ class DataLoader(ABC):
 
 
 class DataLoaderHC18(DataLoader):
-
     def __init__(self, basedir=None):
         super().__init__(basedir=basedir)
 
@@ -149,15 +146,13 @@ class DataLoaderHC18(DataLoader):
         files = [f for f in os.listdir(path) if (os.path.isfile(os.path.join(path, f)))]
         for ff in files:
             try:
-                found = re.search("\.clu\.[0-9]+$", ff).group(0)
+                found = re.search(r"\.clu\.[0-9]+$", ff).group(0)
                 logging.info('Found {} in session at "{}"'.format(found, path))
                 num += 1
             except Exception:
                 pass
         if num == 0:
-            logging.warning(
-                'Did not find any .clu files for session "{}"'.format(path)
-            )
+            logging.warning('Did not find any .clu files for session "{}"'.format(path))
 
         return num
 
@@ -300,7 +295,6 @@ class DataLoaderHC18(DataLoader):
             self.data[session]["pos"] = pos
 
     def _load_spikes(self, include_mua=False, includeWaveforms=False):
-
         # NOTE: st_array[0] always corresponds to unsortable spikes (i.e., MUA,
         # not mechanical noise). However, when includeUnsortedSpikes==True, then
         # it gets populated with spike times; else, it just remains an empty
@@ -434,21 +428,26 @@ class DataLoaderHC18(DataLoader):
         if datatype == "events":
             self._load_events()
 
+
 def get_num_electrodes(sessiondir, verbose=False):
     numelec = 0
-    files = [f for f in os.listdir(sessiondir) if (os.path.isfile(os.path.join(sessiondir, f)))]
+    files = [
+        f
+        for f in os.listdir(sessiondir)
+        if (os.path.isfile(os.path.join(sessiondir, f)))
+    ]
     for ff in files:
         try:
-            found = re.search('\.clu\.[0-9]+$', ff).group(0)
+            found = re.search(r"\.clu\.[0-9]+$", ff).group(0)
             if verbose:
                 print(found)
-            numelec+=1
+            numelec += 1
         except ValueError:
-            found=''
+            found = ""
     if numelec > 0:
         return numelec
     else:
-        raise ValueError('number of electrodes (shanks) could not be established...')
+        raise ValueError("number of electrodes (shanks) could not be established...")
 
 
 # datatype = ['spikes', 'eeg', 'pos', '?']
@@ -469,7 +468,6 @@ def load_hc3_data(
     includeUnsortedSpikes=False,
     includeWaveforms=False,
 ):
-
     fileroot = os.path.normpath(fileroot)
     if track is None:
         anim_prefix = "{}-{}-{}".format(animal, month, day)

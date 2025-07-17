@@ -24,12 +24,7 @@ from .core import (
     rasterplot,
 )
 from .decoding import decode_and_plot_events1D, plot_cum_error_dist, plot_posteriors
-
 from .miscplot import palplot, stripplot, veva_scatter
-
-from .scalebar import add_scalebar, add_simple_scalebar
-from .utils import FigureManager, savefig, suptitle
-
 from .rcmod import (
     axes_style,
     plotting_context,
@@ -40,6 +35,8 @@ from .rcmod import (
     set_style,
     setup,
 )
+from .scalebar import add_scalebar, add_simple_scalebar
+from .utils import FigureManager, savefig, suptitle
 
 __all__ = [
     "plot",

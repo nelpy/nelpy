@@ -1,7 +1,6 @@
 # TODO: add docstring
 
 import matplotlib as mpl
-
 from matplotlib import pyplot as plt
 from matplotlib.offsetbox import AnchoredOffsetbox
 
@@ -26,7 +25,7 @@ class AnchoredScaleBar(AnchoredOffsetbox):
         lw=1.5,
         capstyle="projecting",
         xfirst=True,
-        **kwargs
+        **kwargs,
     ):
         """
         Draw a horizontal and/or vertical  bar with the size in data
@@ -57,9 +56,8 @@ class AnchoredScaleBar(AnchoredOffsetbox):
 
         adapted from https://gist.github.com/dmeliza/3251476
         """
-        from matplotlib.offsetbox import AuxTransformBox, VPacker
-        from matplotlib.offsetbox import HPacker, TextArea
         import matplotlib.patches as mpatches
+        from matplotlib.offsetbox import AuxTransformBox, HPacker, TextArea, VPacker
 
         if fontsize is None:
             fontsize = mpl.rcParams["font.size"]
@@ -175,7 +173,7 @@ class AnchoredScaleBar(AnchoredOffsetbox):
             child=bars,
             prop=prop,
             frameon=False,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -187,7 +185,7 @@ def add_simple_scalebar(
     orientation="v",
     rotation_text=None,
     xytext=None,
-    **kwargs
+    **kwargs,
 ):
     if rotation_text is None:
         rotation_text = 0
@@ -236,7 +234,7 @@ def add_scalebar(
     hidex=True,
     hidey=True,
     ec="k",
-    **kwargs
+    **kwargs,
 ):
     """Add scalebars to axes
     TODO: improve documentation and standardize docstring.

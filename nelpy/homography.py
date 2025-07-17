@@ -1,11 +1,11 @@
-""" This file currently uses opencv to select points for homography and/
+"""This file currently uses opencv to select points for homography and/
 or rectification. Ideally, I really want to move away from opencv, and
 we can do a lot of the selection just with matplotlib or similar instead.
 However, I would have to figure out how to draw those polygons with mpl.
 
 Some of this code was mofified from https://www.cs.drexel.edu/~kon/introcompvis/
 
-To fix the Trodes videos, use ffmpeg -r 60 -f h264 -i sine_camera_test_05-30-2017\(17_01_35\).h264 -c copy output.mp4
+To fix the Trodes videos, use ffmpeg -r 60 -f h264 -i sine_camera_test_05-30-2017\\(17_01_35\\).h264 -c copy output.mp4
 
 or ffmpeg -r 60 -f h264 -i sine_camera_test_05-30-2017\(17_01_35\).h264 -vcodec copy -an output.mp4
 
@@ -13,10 +13,10 @@ see e.g. https://superuser.com/questions/320045/video-encode-frame-rate-change
 and https://superuser.com/questions/538829/repairing-corrupt-mp4
 """
 
-import cv2
-import numpy as np
 import sys
 
+import cv2
+import numpy as np
 from scipy.misc import imread
 
 W_MAZE = True
@@ -143,8 +143,8 @@ def pick_corrs(images, n_pts_to_pick=4):
 
 if __name__ == "__main__":
     """
-    Example:
-    ========
+    Examples
+    -------
     >>> python homography.py ../examples/homography1.jpg
     """
 

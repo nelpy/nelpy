@@ -163,7 +163,7 @@ def axes_style(style=None, rc=None):
     >>> import matplotlib.pyplot as plt
     >>> with axes_style("white"):
     ...     f, ax = plt.subplots()
-    ...     ax.plot(x, y)               # doctest: +SKIP
+    ...     ax.plot(x, y)  # doctest: +SKIP
 
     See Also
     --------
@@ -358,7 +358,7 @@ def plotting_context(context=None, font_scale=1, rc=None):
     >>> import matplotlib.pyplot as plt
     >>> with plotting_context("paper"):
     ...     f, ax = plt.subplots()
-    ...     ax.plot(x, y)                 # doctest: +SKIP
+    ...     ax.plot(x, y)  # doctest: +SKIP
 
     See Also
     --------
@@ -524,7 +524,7 @@ def set_palette(palette, n_colors=None, desat=None):
     Examples
     --------
     >>> set_palette("Reds")
-    >>> set_palette("Set1", 8, .75)
+    >>> set_palette("Set1", 8, 0.75)
     See Also
     --------
     color_palette : build a color palette or set the color cycle temporarily

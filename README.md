@@ -1,15 +1,6 @@
-.. class:: no-web
+![nelpy-logo](https://raw.githubusercontent.com/nelpy/nelpy/master/nelpy-title.png)
 
-    .. image:: https://raw.githubusercontent.com/nelpy/nelpy/master/nelpy-title.png
-        :target: https://github.com/nelpy/nelpy
-        :alt: nelpy-logo
-        :width: 10%
-        :align: right
-
-| 
-
-.. image:: https://zenodo.org/badge/77548623.svg
-   :target: https://zenodo.org/badge/latestdoi/77548623
+[![DOI](https://zenodo.org/badge/77548623.svg)](https://zenodo.org/badge/latestdoi/77548623)
 
 Neuroelectrophysiology object model, data exploration, and analysis in Python.
 
@@ -17,7 +8,7 @@ Neuroelectrophysiology object model, data exploration, and analysis in Python.
 
 Overview
 ========
-Nelpy (**N**\ euro\ **el**\ ectro\ **p**\ hysiolog\ **y**) is an open source package for analysis of neuroelectrophysiology data. Nelpy defines a number of data objects to make it easier to work with electrophysiology (ephys) data, and although it was originally designed for use with extracellular recorded data, it can be used much more broadly. Nelpy is intended to make interactive data analysis and exploration of these ephys data easy, by providing several convenience functions and common visualizations that operate directly on the nelpy objects.
+Nelpy (**N**euro**el**ectro**p**hysiolog**y**) is an open source package for analysis of neuroelectrophysiology data. Nelpy defines a number of data objects to make it easier to work with electrophysiology (ephys) data, and although it was originally designed for use with extracellular recorded data, it can be used much more broadly. Nelpy is intended to make interactive data analysis and exploration of these ephys data easy, by providing several convenience functions and common visualizations that operate directly on the nelpy objects.
 
 More specifically, the functionality of this package includes:
 
@@ -36,16 +27,16 @@ Quick examples
 
 Let's give it a try. Create a ``SpikeTrainArray``:
 
-.. code-block:: python
+```python
 
     import nelpy as nel  # main nelpy imports
     import nelpy.plotting as npl  # optional plotting imports
     spike_times = np.array([1, 2, 4, 5, 10])
     st = nel.SpikeTrainArray(spike_times)
-
+```
 Do something:
 
-.. code-block:: python
+```python
 
     >>> print(st.n_spikes) # print out how many spikes there are in st
     5
@@ -54,7 +45,7 @@ Do something:
     <EpochArray at 0x1d4812c7550: 1 epoch> of duration 9 seconds
 
     >>> npl.raster(st) # plots the spike raster
-
+```
 
 As a more representative example of what nelpy can be used for, consider the estimation of
 place fields (spatial tuning curves) of CA1 units while an animal runs on a linear track.
@@ -72,22 +63,18 @@ Estimating the place fields can be a complicated affair, and roughly involves th
 9. visualize the estimated tuning curves, and evaluate how well the tuning curves can be used to decode the animal's position
 10. ...
 
-.. class:: no-web
+![nelpy-logo](https://raw.githubusercontent.com/nelpy/nelpy/master/.placefields.png)
 
-    .. image:: https://raw.githubusercontent.com/nelpy/nelpy/master/.placefields.png
-        :alt: nelpy-promo-pic
-        :width: 100%
-        :align: center
 
 Nelpy makes it easy to do all of the above, to interact with the ephys data, and to visualize the results.
 
-To see the full code that was used to generate the figures above, take a look at the `linear track example analysis <https://github.com/nelpy/example-analyses/blob/master/LinearTrackDemo.ipynb>`_.
+To see the full code that was used to generate the figures above, take a look at the [linear track example analysis](https://github.com/nelpy/example-analyses/blob/master/LinearTrackDemo.ipynb).
 
 Getting started
 ===============
 The best way to get started with using ``nelpy`` is probably to take a look at
-the `tutorials <https://github.com/nelpy/tutorials>`_ (a work-in-progress) and
-`example analyses <https://github.com/nelpy/example-analyses>`_.
+the [tutorials](https://github.com/nelpy/tutorials) (a work-in-progress) and
+[example analyses](https://github.com/nelpy/example-analyses).
 
 The tutorials are still pretty bare-bones, but will hopefully be expanded soon!
 
@@ -96,25 +83,23 @@ Installation
 
 The easiest way to install nelpy is to use ``pip``. From the terminal, run:
 
-.. code-block:: bash
-
+```bash
     $ pip install nelpy
-
+```
 Alternatively, you can install the latest version of nelpy by running the following commands:
 
-.. code-block:: bash
-
+```bash
     $ git clone https://github.com/nelpy/nelpy.git
     $ cd nelpy
     $ pip install .
-
+```
 If you would like to modify the code, then replace the last command with
 
-.. code-block:: bash
-
+```bash
     $ pip install -e .
+```
 
-A weak prerequisite for installing nelpy is a modified version of `hmmlearn <https://github.com/eackermann/hmmlearn/tree/master/hmmlearn>`_. This requirement is weak, in the sense that installation will complete successfully without it, and most of nelpy can also be used without any problems. However, as soon as any of the hidden Markov model (HMM) functions are used, you will get an error if the correct version of ``hmmlearn`` is not installed. To make things easier, there is a handy 64-bit Windows wheel in the `hmmlearn directory <https://github.com/nelpy/nelpy/blob/master/hmmlearn/>`_ of this repository. Installation on Linux/Unix should be almost trivial.
+A weak prerequisite for installing nelpy is a modified version of [hmmlearn](https://github.com/eackermann/hmmlearn/tree/master/hmmlearn). This requirement is weak, in the sense that installation will complete successfully without it, and most of nelpy can also be used without any problems. However, as soon as any of the hidden Markov model (HMM) functions are used, you will get an error if the correct version of ``hmmlearn`` is not installed. To make things easier, there is a handy 64-bit Windows wheel in the [hmmlearn directory](https://github.com/nelpy/nelpy/blob/master/hmmlearn/) of this repository. Installation on Linux/Unix should be almost trivial.
 
 Related work and inspiration
 ============================
@@ -151,7 +136,7 @@ Where
  download             https://pypi.python.org/pypi/nelpy
  tutorials            https://github.com/nelpy/tutorials
  example analyses     https://github.com/nelpy/example-analyses
- docs                 coming soon! summer 2018
+ docs                 nelpy.github.io/nelpy/
  code                 https://github.com/nelpy/nelpy
 ===================   ========================================================
 
@@ -160,16 +145,16 @@ Cite
 
 If you use nelpy in your research, please cite it:
 
-.. code-block::
-
+```
     @misc{nelpy17,
       author =   {Etienne Ackermann},
       title =    {Nelpy: Neuroelectrophysiology object model, data exploration, and analysis in Python},
       howpublished = {\url{https://github.com/nelpy/nelpy/}},
       year = {2017--2018}
     }
+```
 
 License
 =======
 
-Nelpy is distributed under the MIT license. See the `LICENSE <https://github.com/nelpy/nelpy/blob/master/LICENSE>`_ file for details.
+Nelpy is distributed under the MIT license. See the [LICENSE](https://github.com/nelpy/nelpy/blob/master/LICENSE) file for details.

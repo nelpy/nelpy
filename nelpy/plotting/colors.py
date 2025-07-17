@@ -28,7 +28,6 @@ class ColorGroup:
     """An unordered, named color group."""
 
     def __init__(self, *args, label=None, **kwargs):
-
         for arg in args:
             if isinstance(arg, dict):
                 for k, v in arg.items():
