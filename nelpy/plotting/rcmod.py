@@ -106,7 +106,13 @@ def setup(
 
     Examples
     --------
-    >>> setup(context="talk", style="whitegrid", palette="muted", font="Arial", font_scale=1.2)
+    >>> setup(
+    ...     context="talk",
+    ...     style="whitegrid",
+    ...     palette="muted",
+    ...     font="Arial",
+    ...     font_scale=1.2,
+    ... )
     """
     set_context(context, font_scale)
     set_style(style, rc={"font.family": font})
@@ -496,6 +502,7 @@ class _RCAesthetics(dict):
     """
     Base class for temporarily setting matplotlib rc parameters using a context manager.
     """
+
     def __enter__(self):
         rc = mpl.rcParams
         self._orig = {k: rc[k] for k in self._keys}
@@ -517,6 +524,7 @@ class _AxesStyle(_RCAesthetics):
     """
     Light wrapper on a dict to set style temporarily.
     """
+
     _keys = _style_keys
     _set = staticmethod(set_style)
 
@@ -525,6 +533,7 @@ class _PlottingContext(_RCAesthetics):
     """
     Light wrapper on a dict to set context temporarily.
     """
+
     _keys = _context_keys
     _set = staticmethod(set_context)
 

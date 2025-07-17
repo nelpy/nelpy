@@ -17,6 +17,7 @@ class RasterLabelData(artist.Artist):
     yrange : list
         List representing the y-range for the raster labels.
     """
+
     def __init__(self):
         """
         Initialize a RasterLabelData object.
@@ -84,6 +85,7 @@ class NelpyAxes(Axes):
     """
     Custom Axes class for nelpy plotting extensions.
     """
+
     def __init__(self, **kwargs):
         """
         Initialize a NelpyAxes object.

@@ -147,11 +147,11 @@ class FigureManager(object):
     --------
     >>> with FigureManager(filename="myfig", save=True, show=False) as (fig, ax):
     ...     ax.plot([1, 2, 3], [4, 5, 6])
-    ...
     """
 
     class Break(Exception):
         """Exception to break out of the context manager block."""
+
         pass
 
     def __init__(
@@ -347,7 +347,7 @@ def annotate(text, ax=None, xy=None, rotation=None, va=None, **kwargs):
     --------
     >>> import matplotlib.pyplot as plt
     >>> fig, ax = plt.subplots()
-    >>> annotate('Hello', ax=ax, xy=(0.2, 0.8), rotation=45)
+    >>> annotate("Hello", ax=ax, xy=(0.2, 0.8), rotation=45)
     >>> plt.show()
     """
 
@@ -451,7 +451,7 @@ def savefig(name, fig=None, formats=None, dpi=None, verbose=True, overwrite=Fals
     >>> import matplotlib.pyplot as plt
     >>> fig, ax = plt.subplots()
     >>> ax.plot([1, 2, 3], [4, 5, 6])
-    >>> savefig('myplot', fig=fig, formats=['png'], overwrite=True)
+    >>> savefig("myplot", fig=fig, formats=["png"], overwrite=True)
     """
     # Check inputs
     # if not 0 <= prop <= 1:
@@ -541,7 +541,7 @@ class FixedOrderFormatter(ScalarFormatter):
 
     Make the x-axis ticks formatted to 0 decimal places:
     >>> from matplotlib.ticker import FormatStrFormatter
-    >>> ax.xaxis.set_major_formatter(FormatStrFormatter('%0.0f'))
+    >>> ax.xaxis.set_major_formatter(FormatStrFormatter("%0.0f"))
 
     Turn off offset on x-axis:
     >>> ax.xaxis.get_major_formatter().set_useOffset(False)

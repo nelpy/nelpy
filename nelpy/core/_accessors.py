@@ -39,6 +39,7 @@ class SliceExtractor(object):
     - Only [interval, series, events] indexing is supported.
     - Event slice extraction is not yet implemented in the return value.
     """
+
     def __init__(self):
         pass
 
@@ -145,15 +146,16 @@ class ItemGetterLoc(object):
     --------
     >>> obj = ...  # some core object with series_ids
     >>> loc = ItemGetterLoc(obj)
-    >>> subset = loc['seriesA']
-    >>> subset = loc[['seriesA', 'seriesB']]
-    >>> subset = loc['seriesA':'seriesC']
+    >>> subset = loc["seriesA"]
+    >>> subset = loc[["seriesA", "seriesB"]]
+    >>> subset = loc["seriesA":"seriesC"]
 
     Notes
     -----
     - Slices with labels include both the start and stop labels (unlike standard Python slices).
     - This accessor is typically available as the `.loc` property on core objects.
     """
+
     def __init__(self, obj):
         self.obj = obj
         self.slice_extractor = SliceExtractor()
@@ -241,6 +243,7 @@ class ItemGetterIloc(object):
     - This accessor is typically available as the `.iloc` property on core objects.
     - Follows Python/NumPy slice semantics for out-of-bounds indices.
     """
+
     def __init__(self, obj):
         self.obj = obj
         self.slice_extractor = SliceExtractor()

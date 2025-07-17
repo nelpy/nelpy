@@ -27,7 +27,7 @@ def palplot(pal, size=1):
     Examples
     --------
     >>> from nelpy.plotting.miscplot import palplot
-    >>> pal = ['#FF0000', '#00FF00', '#0000FF']
+    >>> pal = ["#FF0000", "#00FF00", "#0000FF"]
     >>> palplot(pal)
     """
     n = len(pal)
@@ -69,7 +69,7 @@ def stripplot(*eps, voffset=None, lw=None, labels=None):
     >>> from nelpy import EpochArray
     >>> ep1 = EpochArray([[0, 1], [2, 3]])
     >>> ep2 = EpochArray([[4, 5], [6, 7]])
-    >>> stripplot(ep1, ep2, labels=['A', 'B'])
+    >>> stripplot(ep1, ep2, labels=["A", "B"])
     """
 
     # TODO: this plot is in alpha mode; i.e., needs lots of work...
@@ -153,7 +153,9 @@ def veva_scatter(data, *, cmap=None, color=None, ax=None, lw=None, lh=None, **kw
     Examples
     --------
     >>> from nelpy.core import ValueEventArray
-    >>> vea = ValueEventArray([[1, 2, 3], [4, 5, 6]], values=[[10, 20, 30], [40, 50, 60]])
+    >>> vea = ValueEventArray(
+    ...     [[1, 2, 3], [4, 5, 6]], values=[[10, 20, 30], [40, 50, 60]]
+    ... )
     >>> veva_scatter(vea)
     """
     # Sort out default values for the parameters

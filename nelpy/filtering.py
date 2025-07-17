@@ -105,11 +105,11 @@ def sosfiltfilt(
     >>> np.random.seed(0)
     >>> t = np.linspace(0, 1, 1000, endpoint=False)
     >>> x = np.sin(2 * np.pi * 5 * t) + 0.5 * np.random.randn(t.size)
-    >>> sos = butter(4, 10, 'low', fs=1000, output='sos')
+    >>> sos = butter(4, 10, "low", fs=1000, output="sos")
     >>> y = sosfiltfilt(x, fs=1000, fl=None, fh=10)
     >>> import matplotlib.pyplot as plt
-    >>> plt.plot(t, x, label='Noisy signal')
-    >>> plt.plot(t, y, label='Filtered signal')
+    >>> plt.plot(t, x, label="Noisy signal")
+    >>> plt.plot(t, y, label="Filtered signal")
     >>> plt.legend()
     >>> plt.show()
 
@@ -123,8 +123,8 @@ def sosfiltfilt(
     >>> print(filtered_asa.data.shape)
     (2, 1000)
     >>> # Plot the first channel
-    >>> plt.plot(t, asa.data[0], label='Original')
-    >>> plt.plot(t, filtered_asa.data[0], label='Filtered')
+    >>> plt.plot(t, asa.data[0], label="Original")
+    >>> plt.plot(t, filtered_asa.data[0], label="Filtered")
     >>> plt.legend()
     >>> plt.show()
     """

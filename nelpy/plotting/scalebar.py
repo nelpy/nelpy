@@ -76,7 +76,7 @@ class AnchoredScaleBar(AnchoredOffsetbox):
         >>> from nelpy.plotting.scalebar import AnchoredScaleBar
         >>> import matplotlib.pyplot as plt
         >>> fig, ax = plt.subplots()
-        >>> scalebar = AnchoredScaleBar(ax.transData, sizex=1, labelx='1 s')
+        >>> scalebar = AnchoredScaleBar(ax.transData, sizex=1, labelx="1 s")
         >>> ax.add_artist(scalebar)
         """
         import matplotlib.patches as mpatches
@@ -236,7 +236,7 @@ def add_simple_scalebar(
     --------
     >>> import matplotlib.pyplot as plt
     >>> fig, ax = plt.subplots()
-    >>> add_simple_scalebar('10 s', ax=ax, xy=(0, 0), length=10, orientation='h')
+    >>> add_simple_scalebar("10 s", ax=ax, xy=(0, 0), length=10, orientation="h")
     """
     if rotation_text is None:
         rotation_text = 0
@@ -324,7 +324,7 @@ def add_scalebar(
     --------
     >>> import matplotlib.pyplot as plt
     >>> fig, ax = plt.subplots()
-    >>> add_scalebar(ax, sizex=1, labelx='1 s')
+    >>> add_scalebar(ax, sizex=1, labelx="1 s")
     """
 
     # determine which type op scalebar to plot:
