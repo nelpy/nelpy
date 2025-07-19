@@ -180,12 +180,8 @@ class BaseEventArray(ABC):
     @abstractmethod
     @keyword_equivalence(this_or_that={"n_intervals": "n_epochs"})
     def partition(self, ds=None, n_intervals=None):
-        """Returns a BaseEventArray whose support has been partitioned.
-
-        # Regardless of whether 'ds' or 'n_intervals' are used, the exact
-        # underlying support is propagated, and the first and last points
-        # of the supports are always included, even if this would cause
-        # n_points or ds to be violated.
+        """
+        Returns a BaseEventArray whose support has been partitioned.
 
         Parameters
         ----------
@@ -199,6 +195,13 @@ class BaseEventArray(ABC):
         -------
         out : BaseEventArray
             BaseEventArray that has been partitioned.
+
+        Notes
+        -----
+        Irrespective of whether 'ds' or 'n_intervals' are used, the exact
+        underlying support is propagated, and the first and last points
+        of the supports are always included, even if this would cause
+        n_points or ds to be violated.
         """
         return
 
