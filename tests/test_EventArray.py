@@ -31,6 +31,34 @@ class TestEventArray:
         for series in range(ea.n_series):
             assert np.all(ea.data[series] == copied_ea.data[series])
 
+    def test_flatten(self):
+        abscissa_vals = np.array(
+            [
+                [1, 3, 5],
+                [2, 4, 6],
+                [0, 7, 8],
+            ]
+        )
+        fs = 10
+        series_labels = ["a", "b", "c"]
+        ea = nel.EventArray(
+            abscissa_vals=abscissa_vals, fs=fs, series_labels=series_labels
+        )
+        flat = ea.flatten(series_id=42, series_label="all")
+        # Should have a single series
+        assert flat.n_series == 1
+        # All events from all series, sorted
+        expected = np.sort(np.concatenate(abscissa_vals))
+        np.testing.assert_array_equal(flat.data[0], expected)
+        # Series id and label
+        assert flat.series_ids == [42]
+        assert flat.series_labels == ["all"]
+        # Flattening an already single-series EventArray returns equivalent object
+        single = nel.EventArray(abscissa_vals=[[1, 2, 3]], fs=fs)
+        single_flat = single.flatten()
+        assert single_flat.n_series == 1
+        np.testing.assert_array_equal(single_flat.data[0], [1, 2, 3])
+
 
 class TestBinnedEventArray:
     def test_copy(self):
