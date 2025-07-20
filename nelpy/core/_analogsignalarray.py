@@ -2686,20 +2686,6 @@ class RegularlySampledAnalogSignalArray:
         # return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
 
-    def __eq__(self, other):
-        if not isinstance(other, RegularlySampledAnalogSignalArray):
-            return False
-        # Compare data, abscissa_vals, fs, and support
-        if not np.allclose(self.data, other.data):
-            return False
-        if not np.allclose(self.abscissa_vals, other.abscissa_vals):
-            return False
-        if self.fs != other.fs:
-            return False
-        if self.support != other.support:
-            return False
-        return True
-
 
 def legacyASAkwargs(**kwargs):
     """Provide support for legacy AnalogSignalArray kwargs.
