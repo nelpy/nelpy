@@ -1004,7 +1004,6 @@ class ValueEventArray(BaseValueEventArray):
         intervalarray : IntervalArray or EpochArray
         data : list or array-like, each element of size (n_events, n_values).
         """
-        # print('_restrict base')
         if intervalarray.isempty:
             n_series = len(data)
             data = np.zeros((n_series, 0))
@@ -1018,16 +1017,38 @@ class ValueEventArray(BaseValueEventArray):
 
         # NOTE: this used to assume multiple series for the enumeration to work
         for series, evt_data in enumerate(data):
-            # Ensure evt_data is at least 2D and not a 1-element object array
-            if isinstance(evt_data, np.ndarray) and evt_data.dtype == object and evt_data.shape[0] == 1:
-                evt_data = evt_data[0]
-            evt_data = np.atleast_2d(evt_data)
+            evt_data = ValueEventArray._to_2d_array(evt_data)
+            if evt_data.size == 0 or evt_data.shape[1] < 1:
+                if singleseries:
+                    data = np.array([[]])
+                else:
+                    data_ = data.tolist()
+                    data_[series] = np.array([])
+                    data = utils.ragged_array(data_)
+                continue
             indices = []
             for epdata in intervalarray.data:
                 t_start = epdata[0]
                 t_stop = epdata[1]
-                frm, to = np.searchsorted(evt_data[:, 0], (t_start, t_stop))
-                indices.append((frm, to))
+                # Ensure we have a proper 1D array of event times
+                if evt_data.ndim > 1:
+                    event_times = evt_data[:, 0].flatten()
+                else:
+                    event_times = evt_data.flatten()
+                # Ensure event_times is a proper 1D array and not an object array
+                if event_times.dtype == object:
+                    # Handle object array by extracting the actual values
+                    event_times = np.array([float(t) if hasattr(t, '__float__') else t for t in event_times])
+                # Ensure event_times is a proper 1D array
+                if event_times.size == 0:
+                    indices.append((0, 0))
+                else:
+                    try:
+                        frm, to = np.searchsorted(event_times, (t_start, t_stop))
+                        indices.append((frm, to))
+                    except (ValueError, TypeError):
+                        # Fallback: handle case where searchsorted fails
+                        indices.append((0, 0))
             indices = np.array(indices, ndmin=2)
             if np.diff(indices).sum() < len(evt_data):
                 logging.info("ignoring events outside of eventarray support")
@@ -1163,6 +1184,29 @@ class ValueEventArray(BaseValueEventArray):
 
     def make_stateful(self):
         raise NotImplementedError
+
+    @staticmethod
+    def _to_2d_array(arr):
+        """Convert array to 2D numpy array, handling object arrays properly."""
+        if isinstance(arr, np.ndarray) and arr.dtype == object:
+            # Handle object arrays by extracting the actual data
+            if arr.size == 1:
+                # Single element object array
+                return np.atleast_2d(arr[0])
+            else:
+                # Multiple element object array - concatenate
+                flattened = []
+                for item in arr:
+                    if isinstance(item, np.ndarray):
+                        flattened.append(item)
+                    else:
+                        flattened.append(np.array(item))
+                if flattened:
+                    return np.vstack(flattened)
+                else:
+                    return np.array([]).reshape(0, 0)
+        else:
+            return np.atleast_2d(arr)
 
 
 # ----------------------------------------------------------------------#
@@ -1754,12 +1798,30 @@ class StatefulValueEventArray(BaseValueEventArray):
 
         # NOTE: this used to assume multiple series for the enumeration to work
         for series, evt_data in enumerate(data):
+            evt_data = ValueEventArray._to_2d_array(evt_data)
+            if evt_data.size == 0 or evt_data.shape[1] < 1:
+                if singleseries:
+                    data = np.array([[]])
+                else:
+                    data_ = data.tolist()
+                    data_[series] = np.array([])
+                    data = utils.ragged_array(data_)
+                continue
             indices = []
             for epdata in intervalarray.data:
                 t_start = epdata[0]
                 t_stop = epdata[1]
-                frm, to = np.searchsorted(evt_data[:, 0], (t_start, t_stop))
-                indices.append((frm, to))
+                # Ensure evt_data[:, 0] is a 1D array for searchsorted
+                if evt_data.ndim > 1:
+                    event_times = evt_data[:, 0].flatten()
+                else:
+                    event_times = evt_data.flatten()
+                # Ensure event_times is a proper 1D array
+                if event_times.size == 0:
+                    indices.append((0, 0))
+                else:
+                    frm, to = np.searchsorted(event_times, (t_start, t_stop))
+                    indices.append((frm, to))
             indices = np.array(indices, ndmin=2)
             if np.diff(indices).sum() < len(evt_data):
                 logging.info("ignoring events outside of eventarray support")
@@ -2178,33 +2240,32 @@ class BinnedValueEventArray(BaseValueEventArray):
         all_binned = []
         all_bins = []
         all_bin_centers = []
-        for start, stop in intervals:
-            # Create bins for this interval
-            bins = np.arange(start, stop + self.ds * 0.5, self.ds)
-            if len(bins) < 2:
-                continue  # skip intervals too short for a single bin
-            bin_centers = bins[:-1] + self.ds / 2
-            n_bins = len(bins) - 1
-            binned = np.full((n_series, n_bins, n_values), np.nan)
-            # Choose aggregation function
-            if isinstance(self.method, str):
-                if self.method == "sum":
-                    aggfunc = np.sum
-                elif self.method == "mean":
-                    aggfunc = np.mean
-                elif self.method == "median":
-                    aggfunc = np.median
-                elif self.method == "min":
-                    aggfunc = np.min
-                elif self.method == "max":
-                    aggfunc = np.max
-                else:
-                    raise ValueError(f"Unsupported aggregation method: {self.method}")
-            elif callable(self.method):
-                aggfunc = self.method
+        
+        # Choose aggregation function
+        if isinstance(self.method, str):
+            if self.method == "sum":
+                aggfunc = np.sum
+            elif self.method == "mean":
+                aggfunc = np.mean
+            elif self.method == "median":
+                aggfunc = np.median
+            elif self.method == "min":
+                aggfunc = np.min
+            elif self.method == "max":
+                aggfunc = np.max
             else:
-                raise ValueError("method must be a string or callable")
-            # Bin each series for this interval
+                raise ValueError(f"Unsupported aggregation method: {self.method}")
+        elif callable(self.method):
+            aggfunc = self.method
+        else:
+            raise ValueError("method must be a string or callable")
+        
+        for start, stop in intervals:
+            # Bin each series independently for this interval
+            series_binned = []
+            series_bins = []
+            series_bin_centers = []
+            
             for i, (ev, val) in enumerate(zip(self.vea.events, self.vea.values)):
                 ev = np.asarray(ev)
                 val = np.asarray(val)
@@ -2212,20 +2273,67 @@ class BinnedValueEventArray(BaseValueEventArray):
                 mask_interval = (ev >= start) & (ev < stop)
                 ev_in = ev[mask_interval]
                 val_in = val[mask_interval]
+                
                 if ev_in.size == 0:
+                    # No events in this interval for this series
+                    series_binned.append(np.full((0, n_values), np.nan))
+                    series_bins.append(np.array([]))
+                    series_bin_centers.append(np.array([]))
                     continue
-                inds = np.digitize(ev_in, bins, right=True) - 1  # left-exclusive, right-inclusive bins
+                
+                # Create bins for this series starting from its minimum event time
+                bin_start = np.min(ev_in)
+                bins = np.arange(bin_start, stop + self.ds, self.ds)
+                if len(bins) < 2:
+                    # No valid bins for this series
+                    series_binned.append(np.full((0, n_values), np.nan))
+                    series_bins.append(np.array([]))
+                    series_bin_centers.append(np.array([]))
+                    continue
+                    
+                bin_centers = bins[:-1] + self.ds / 2
+                n_bins = len(bins) - 1
+                binned = np.full((n_bins, n_values), np.nan)
+                
+                # Use digitize with right=False for left-inclusive, right-exclusive bins
+                inds = np.digitize(ev_in, bins, right=False) - 1
+                # Ensure indices are within valid range
+                valid_mask = (inds >= 0) & (inds < n_bins)
+                inds = inds[valid_mask]
+                val_in_valid = val_in[valid_mask]
+                
                 for b in range(n_bins):
                     mask = inds == b
                     if np.any(mask):
-                        vals_in_bin = val_in[mask]
+                        vals_in_bin = val_in_valid[mask]
                         if vals_in_bin.ndim == 1:
                             vals_in_bin = vals_in_bin[:, None]
-                        for v in range(vals_in_bin.shape[1]):
-                            binned[i, b, v] = aggfunc(vals_in_bin[:, v])
-            all_binned.append(binned)
-            all_bins.append(bins)
-            all_bin_centers.append(bin_centers)
+                        for v in range(min(vals_in_bin.shape[1], n_values)):
+                            binned[b, v] = aggfunc(vals_in_bin[:, v])
+                
+                series_binned.append(binned)
+                series_bins.append(bins)
+                series_bin_centers.append(bin_centers)
+            
+            # Combine results from all series for this interval
+            if series_binned:
+                # Find the maximum number of bins across all series
+                max_bins = max(len(binned) for binned in series_binned if binned.size > 0)
+                if max_bins > 0:
+                    # Pad all series to have the same number of bins
+                    padded_binned = np.full((n_series, max_bins, n_values), np.nan)
+                    for i, binned in enumerate(series_binned):
+                        if binned.size > 0:
+                            padded_binned[i, :len(binned), :] = binned
+                    all_binned.append(padded_binned)
+                    
+                    # Use the bins from the first series that has bins
+                    for bins in series_bins:
+                        if len(bins) > 0:
+                            all_bins.append(bins)
+                            all_bin_centers.append(series_bin_centers[series_bins.index(bins)])
+                            break
+        
         # Concatenate results from all intervals
         if all_binned:
             self._data = np.concatenate(all_binned, axis=1)
@@ -2322,3 +2430,26 @@ class BinnedValueEventArray(BaseValueEventArray):
         out._abscissa = abscissa
         out.__renew__()
         return out
+
+    @staticmethod
+    def _to_2d_array(arr):
+        """Convert array to 2D numpy array, handling object arrays properly."""
+        if isinstance(arr, np.ndarray) and arr.dtype == object:
+            # Handle object arrays by extracting the actual data
+            if arr.size == 1:
+                # Single element object array
+                return np.atleast_2d(arr[0])
+            else:
+                # Multiple element object array - concatenate
+                flattened = []
+                for item in arr:
+                    if isinstance(item, np.ndarray):
+                        flattened.append(item)
+                    else:
+                        flattened.append(np.array(item))
+                if flattened:
+                    return np.vstack(flattened)
+                else:
+                    return np.array([]).reshape(0, 0)
+        else:
+            return np.atleast_2d(arr)
