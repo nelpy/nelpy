@@ -1,10 +1,9 @@
 from math import pi
 
 import numpy as np
+import pytest
 
 import nelpy as nel
-
-import pytest
 
 
 class TestRegularlySampledAnalogSignalArray:
