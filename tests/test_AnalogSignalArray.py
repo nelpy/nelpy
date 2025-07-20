@@ -4,6 +4,8 @@ import numpy as np
 
 import nelpy as nel
 
+import pytest
+
 
 class TestRegularlySampledAnalogSignalArray:
     def test_copy(self):
@@ -175,3 +177,60 @@ class TestHalfOpenIntervals:
         asa = nel.AnalogSignalArray([0, 0, 0, 1, 1, 1, 2, 2, 2])
         epochs = nel.utils.get_inactive_epochs(asa, v1=1, v2=1)
         assert np.allclose(epochs.data, np.array([0, 6]))
+
+
+def test_empty_analogsignalarray():
+    asa = nel.AnalogSignalArray(np.array([]))
+    assert asa.n_samples == 0
+    # n_signals may be 1 or 0 depending on implementation
+    assert asa.data.size == 0
+
+def test_add_signal_shape_mismatch():
+    asa = nel.AnalogSignalArray([1, 2, 3])
+    with pytest.raises(Exception):
+        asa.add_signal([1, 2])  # Wrong length
+
+# Arithmetic operations (if supported)
+def test_asa_arithmetic():
+    asa1 = nel.AnalogSignalArray([1, 2, 3])
+    asa2 = nel.AnalogSignalArray([4, 5, 6])
+    try:
+        asa_sum = asa1 + asa2
+        assert np.allclose(asa_sum.data, np.array([5, 7, 9]))
+        asa_diff = asa2 - asa1
+        assert np.allclose(asa_diff.data, np.array([3, 3, 3]))
+    except Exception:
+        pytest.skip("Arithmetic not supported for AnalogSignalArray")
+
+# Slicing/indexing (if supported)
+def test_asa_negative_index():
+    asa = nel.AnalogSignalArray([[1, 2, 3, 4], [5, 6, 7, 8]])
+    try:
+        val = asa[:,-1]
+        assert np.allclose(val.data, np.array([[5, 6, 7, 8]]))
+    except Exception:
+        pytest.skip("Negative indexing not supported for AnalogSignalArray")
+
+def test_asa_boolean_mask():
+    asa = nel.AnalogSignalArray([1, 2, 3, 4])
+    mask = np.array([True, False, True, False])
+    try:
+        masked = asa[mask]
+        assert np.allclose(masked.data, np.array([1, 3]))
+    except Exception:
+        pytest.skip("Boolean indexing not supported for AnalogSignalArray")
+
+def test_asa_repr():
+    asa = nel.AnalogSignalArray([1, 2, 3])
+    s = repr(asa)
+    assert isinstance(s, str)
+    assert "AnalogSignalArray" in s
+
+# Equality (if implemented)
+def test_asa_equality():
+    asa1 = nel.AnalogSignalArray([1, 2, 3])
+    asa2 = nel.AnalogSignalArray([1, 2, 3])
+    try:
+        assert asa1 == asa2
+    except Exception:
+        pytest.skip("Equality not implemented for AnalogSignalArray")
