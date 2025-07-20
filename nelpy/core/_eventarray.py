@@ -712,16 +712,14 @@ class EventArray(BaseEventArray):
             series_label = "flattened"
 
         flattened = self._copy_without_data()
-
         flattened._series_ids = [series_id]
         flattened._series_labels = [series_label]
         flattened._series_tags = None
 
-        alldatas = self.data[0]
-        for series in range(1, self.n_series):
-            alldatas = utils.linear_merge(alldatas, self.data[series])
-
-        flattened._data = np.array(list(alldatas), ndmin=2)
+        # Efficient: concatenate all events, sort once
+        all_events = np.concatenate(self.data)
+        all_events.sort()
+        flattened._data = np.array([all_events], ndmin=2)
         flattened.__renew__()
         return flattened
 
