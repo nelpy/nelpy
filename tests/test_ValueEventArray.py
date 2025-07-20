@@ -63,11 +63,11 @@ def test_binnedvalueeventarray_sum():
     values = [[1, 2, 3], [4, 5, 6]]
     veva = nel.ValueEventArray(events=events, values=values, fs=10)
     bvea = nel.BinnedValueEventArray(veva, ds=0.5, method="sum")
-    # Should have 2 bins: [0.1,0.5) and [0.5,1.0) for first interval
+    # Should have 2 bins: [0.1,0.6), [0.6,1.1) for first interval
     assert bvea.data.shape[1] >= 2
-    # Check sum for first series, first bin
-    assert np.isclose(bvea.data[0, 0, 0], 1 + 2)  # events at 0.1 and 0.5
-    # Check sum for second series, first bin
+    # Check sum for first series, first bin (events at 0.1 and 0.5)
+    assert np.isclose(bvea.data[0, 0, 0], 1 + 2)
+    # Check sum for second series, first bin (events at 0.2 and 0.6)
     assert np.isclose(bvea.data[1, 0, 0], 4 + 5)
 
 def test_binnedvalueeventarray_mean():
@@ -75,9 +75,9 @@ def test_binnedvalueeventarray_mean():
     values = [[1, 2, 3], [4, 5, 6]]
     veva = nel.ValueEventArray(events=events, values=values, fs=10)
     bvea = nel.BinnedValueEventArray(veva, ds=0.5, method="mean")
-    # Check mean for first series, first bin
+    # Check mean for first series, first bin (events at 0.1 and 0.5)
     assert np.isclose(bvea.data[0, 0, 0], (1 + 2) / 2)
-    # Check mean for second series, first bin
+    # Check mean for second series, first bin (events at 0.2 and 0.6)
     assert np.isclose(bvea.data[1, 0, 0], (4 + 5) / 2)
 
 def test_binnedvalueeventarray_custom_func():
@@ -85,8 +85,9 @@ def test_binnedvalueeventarray_custom_func():
     values = [[1, 2, 3], [4, 5, 6]]
     veva = nel.ValueEventArray(events=events, values=values, fs=10)
     bvea = nel.BinnedValueEventArray(veva, ds=0.5, method=lambda x: np.max(x) - np.min(x))
-    # Check custom aggregation (range)
+    # Check custom aggregation (range) for first bin (events at 0.1 and 0.5)
     assert np.isclose(bvea.data[0, 0, 0], 2 - 1)
+    # Check custom aggregation (range) for second series, first bin (events at 0.2 and 0.6)
     assert np.isclose(bvea.data[1, 0, 0], 5 - 4)
 
 def test_binnedvalueeventarray_multiple_intervals():
