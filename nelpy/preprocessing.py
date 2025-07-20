@@ -410,7 +410,7 @@ class DataWindow(BaseEstimator):
             return Z, T
 
         Z = np.empty([n_zamples, bins_before + bins_after + bins_current, n_features])
-        Z[:] = np.NaN
+        Z[:] = np.nan
 
         frm_idx = 0
         curr_idx = bins_before
