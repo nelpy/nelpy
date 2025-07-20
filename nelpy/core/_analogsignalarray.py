@@ -1071,9 +1071,6 @@ class RegularlySampledAnalogSignalArray:
         out._data = zscore(out._data, axis=1)
         return out
 
-    def __rmul__(self, other):
-        return self.__mul__(other)
-
     def __truediv__(self, other):
         """overloaded / operator."""
         if isinstance(other, numbers.Number):
@@ -2688,6 +2685,20 @@ class RegularlySampledAnalogSignalArray:
         name = self.__aliases__.get(name, name)
         # return getattr(self, name) #Causes infinite recursion on non-existent attribute
         return object.__getattribute__(self, name)
+
+    def __eq__(self, other):
+        if not isinstance(other, RegularlySampledAnalogSignalArray):
+            return False
+        # Compare data, abscissa_vals, fs, and support
+        if not np.allclose(self.data, other.data):
+            return False
+        if not np.allclose(self.abscissa_vals, other.abscissa_vals):
+            return False
+        if self.fs != other.fs:
+            return False
+        if self.support != other.support:
+            return False
+        return True
 
 
 def legacyASAkwargs(**kwargs):
