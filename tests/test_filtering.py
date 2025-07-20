@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
+
 import nelpy as nel
+
 
 def test_sosfiltfilt_numpy_lowpass():
     t = np.linspace(0, 1, 1000, endpoint=False)
