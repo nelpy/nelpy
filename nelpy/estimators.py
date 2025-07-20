@@ -7,7 +7,7 @@ from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 
 from . import core
-from .plotting import _plot_ratemap
+from .plotting.core import _plot_ratemap
 from .preprocessing import DataWindow
 from .utils_.decorators import keyword_deprecation
 
@@ -695,16 +695,16 @@ class RateMap(BaseEstimator):
     def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
 
-        mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+        mode : {‘reflect’, 'constant', ‘nearest’, ‘mirror’, ‘wrap’}, optional
             The mode parameter determines how the array borders are handled,
-            where cval is the value when mode is equal to ‘constant’. Default is
+            where cval is the value when mode is equal to 'constant'. Default is
             ‘reflect’
         truncate : float
             Truncate the filter at this many standard deviations. Default is 4.0.
         truncate : float, deprecated
             Truncate the filter at this many standard deviations. Default is 4.0.
         cval : scalar, optional
-            Value to fill past edges of input if mode is ‘constant’. Default is 0.0
+            Value to fill past edges of input if mode is 'constant'. Default is 0.0
         """
 
         if sigma is None:
@@ -1856,17 +1856,19 @@ class NDRateMap(BaseEstimator):
     def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
         """Smooths the tuning curve with a Gaussian kernel.
 
-        mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+        mode : {'reflect', 'constant', 'nearest', 'mirror', 'wrap'}, optional
             The mode parameter determines how the array borders are handled,
-            where cval is the value when mode is equal to ‘constant’. Default is
-            ‘reflect’
+            where cval is the value when mode is equal to 'constant'. Default is
+            'reflect'
         truncate : float
             Truncate the filter at this many standard deviations. Default is 4.0.
         truncate : float, deprecated
             Truncate the filter at this many standard deviations. Default is 4.0.
         cval : scalar, optional
-            Value to fill past edges of input if mode is ‘constant’. Default is 0.0
+            Value to fill past edges of input if mode is 'constant'. Default is 0.0
         """
+
+        raise NotImplementedError
 
         if sigma is None:
             sigma = 0.1  # in units of extern
@@ -1876,5 +1878,3 @@ class NDRateMap(BaseEstimator):
             mode = "reflect"
         if cval is None:
             cval = 0.0
-
-        raise NotImplementedError
