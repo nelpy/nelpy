@@ -41,6 +41,7 @@ from .core._eventarray import (
 )
 from .core._intervalarray import EpochArray, IntervalArray, SpaceArray
 from .core._valeventarray import (
+    BinnedValueEventArray,
     MarkedSpikeTrainArray,
     StatefulValueEventArray,
     ValueEventArray,
@@ -89,6 +90,7 @@ __all__ = [
     "SpikeTrainArray",
     "BinnedSpikeTrainArray",
     "ValueEventArray",
+    "BinnedValueEventArray",
     "MarkedSpikeTrainArray",
     "StatefulValueEventArray",
     "TuningCurve1D",

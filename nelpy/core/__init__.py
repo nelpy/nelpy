@@ -41,6 +41,7 @@ from ._eventarray import (
 )
 from ._intervalarray import EpochArray, IntervalArray, SpaceArray
 from ._valeventarray import (
+    BinnedValueEventArray,
     MarkedSpikeTrainArray,
     StatefulValueEventArray,
     ValueEventArray,
@@ -65,6 +66,7 @@ __all__ = [
     "SpikeTrainArray",
     "BinnedSpikeTrainArray",
     "ValueEventArray",
+    "BinnedValueEventArray",
     "MarkedSpikeTrainArray",
     "StatefulValueEventArray",
 ]
