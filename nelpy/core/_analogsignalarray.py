@@ -977,6 +977,18 @@ class RegularlySampledAnalogSignalArray:
             newasa = self.copy()
             newasa._data = (self.data.T * other).T
             return newasa
+        elif isinstance(other, RegularlySampledAnalogSignalArray):
+            if (
+                self.data.shape != other.data.shape
+                or not np.allclose(self.abscissa_vals, other.abscissa_vals)
+                or self.fs != other.fs
+            ):
+                raise ValueError(
+                    "AnalogSignalArrays must have the same shape, abscissa_vals, and fs to multiply."
+                )
+            newasa = self.copy()
+            newasa._data = self.data * other.data
+            return newasa
         else:
             raise TypeError(
                 "unsupported operand type(s) for *: 'RegularlySampledAnalogSignalArray' and '{}'".format(
@@ -994,6 +1006,18 @@ class RegularlySampledAnalogSignalArray:
             newasa = self.copy()
             newasa._data = (self.data.T + other).T
             return newasa
+        elif isinstance(other, RegularlySampledAnalogSignalArray):
+            if (
+                self.data.shape != other.data.shape
+                or not np.allclose(self.abscissa_vals, other.abscissa_vals)
+                or self.fs != other.fs
+            ):
+                raise ValueError(
+                    "AnalogSignalArrays must have the same shape, abscissa_vals, and fs to add."
+                )
+            newasa = self.copy()
+            newasa._data = self.data + other.data
+            return newasa
         else:
             raise TypeError(
                 "unsupported operand type(s) for +: 'RegularlySampledAnalogSignalArray' and '{}'".format(
@@ -1010,6 +1034,18 @@ class RegularlySampledAnalogSignalArray:
         elif isinstance(other, np.ndarray):
             newasa = self.copy()
             newasa._data = (self.data.T - other).T
+            return newasa
+        elif isinstance(other, RegularlySampledAnalogSignalArray):
+            if (
+                self.data.shape != other.data.shape
+                or not np.allclose(self.abscissa_vals, other.abscissa_vals)
+                or self.fs != other.fs
+            ):
+                raise ValueError(
+                    "AnalogSignalArrays must have the same shape, abscissa_vals, and fs to subtract."
+                )
+            newasa = self.copy()
+            newasa._data = self.data - other.data
             return newasa
         else:
             raise TypeError(
@@ -1048,12 +1084,27 @@ class RegularlySampledAnalogSignalArray:
             newasa = self.copy()
             newasa._data = (self.data.T / other).T
             return newasa
+        elif isinstance(other, RegularlySampledAnalogSignalArray):
+            if (
+                self.data.shape != other.data.shape
+                or not np.allclose(self.abscissa_vals, other.abscissa_vals)
+                or self.fs != other.fs
+            ):
+                raise ValueError(
+                    "AnalogSignalArrays must have the same shape, abscissa_vals, and fs to divide."
+                )
+            newasa = self.copy()
+            newasa._data = self.data / other.data
+            return newasa
         else:
             raise TypeError(
                 "unsupported operand type(s) for /: 'RegularlySampledAnalogSignalArray' and '{}'".format(
                     str(type(other))
                 )
             )
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
     def __lshift__(self, val):
         """shift abscissa and support to left (<<)"""
