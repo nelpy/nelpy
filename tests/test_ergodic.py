@@ -311,7 +311,7 @@ class TestErgodicEdgeCases:
         # Non-square matrix
         P = np.array([[0.5, 0.25], [0.5, 0.0], [0.25, 0.25]])
 
-        with pytest.raises(ValueError):
+        with pytest.raises(np.linalg.LinAlgError):
             ergodic.steady_state(P)
 
         with pytest.raises(ValueError):
@@ -324,7 +324,7 @@ class TestErgodicEdgeCases:
         """Test functions with empty matrix"""
         P = np.array([])
 
-        with pytest.raises(ValueError):
+        with pytest.raises(np.linalg.LinAlgError):
             ergodic.steady_state(P)
 
         with pytest.raises(ValueError):
