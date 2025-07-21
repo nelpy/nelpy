@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import nelpy as nel
 
@@ -51,3 +52,66 @@ def test_decode1D_invalid_input():
         pass
     else:
         assert False, "Expected an exception for shape mismatch"
+
+
+def test_decode2D_simple():
+    from nelpy.auxiliary._tuningcurve import TuningCurve2D
+
+    # Create a simple ratemap and bins
+    n_units, ext_nx, ext_ny = 1, 2, 2
+    ratemap = np.ones((n_units, ext_ny, ext_nx))
+    tc2d = TuningCurve2D(
+        ratemap=ratemap,
+        ext_xmin=0,
+        ext_xmax=2,
+        ext_ymin=0,
+        ext_ymax=2,
+        ext_nx=ext_nx,
+        ext_ny=ext_ny,
+    )
+    ea = nel.EventArray([[0.2, 0.8, 1.2, 1.8]], fs=1)
+    bst = nel.BinnedSpikeTrainArray(ea, ds=1)
+    posterior, cum_posterior_lengths, mode_pth, mean_pth = nel.decoding.decode2D(
+        bst, tc2d
+    )
+    assert posterior.shape[0] == ext_nx and posterior.shape[1] == ext_ny
+    assert mode_pth.shape[1] == posterior.shape[2]
+    assert mean_pth.shape[1] == posterior.shape[2]
+
+
+def test_get_mean_pth_from_array():
+    posterior = np.array([[0.1, 0.8, 0.1], [0.7, 0.1, 0.2]])
+    mean = nel.decoding.get_mean_pth_from_array(posterior, tuningcurve=None)
+    assert mean.shape == (3,)
+    assert np.all((mean >= 0) & (mean <= 1))
+
+
+def test_decode_bayesian_memoryless_nd():
+    pytest.skip("decode_bayesian_memoryless_nd is not public or not available")
+
+
+def test_k_fold_cross_validation_runs():
+    # Use a list of indices and k
+    X = list(range(10))
+    folds = list(nel.decoding.k_fold_cross_validation(X, k=2))
+    assert len(folds) == 2
+    for train, val in folds:
+        assert set(train + val) == set(X)
+        assert len(set(train).intersection(val)) == 0
+
+
+def test_cumulative_dist_decoding_error():
+    # Use a real TuningCurve1D and BinnedSpikeTrainArray
+    from nelpy.auxiliary._tuningcurve import TuningCurve1D
+
+    ea = nel.EventArray([[0.2, 0.8, 1.2, 1.8]], fs=1)
+    bst = nel.BinnedSpikeTrainArray(ea, ds=1)
+    extern = nel.AnalogSignalArray(
+        data=np.linspace(0, 1, 4)[np.newaxis, :], abscissa_vals=np.arange(4)
+    )
+    tc = TuningCurve1D(ratemap=np.ones((1, 4)))
+    cumhist, bincenters = nel.decoding.cumulative_dist_decoding_error(
+        bst=bst, tuningcurve=tc, extern=extern
+    )
+    assert cumhist.shape == bincenters.shape
+    assert np.all(np.diff(cumhist) >= 0)
