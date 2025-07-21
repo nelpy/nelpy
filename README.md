@@ -1,6 +1,5 @@
 ![nelpy-logo](https://raw.githubusercontent.com/nelpy/nelpy/master/nelpy-title.png)
 
-[![codecov](https://codecov.io/gh/nelpy/nelpy/branch/master/graph/badge.svg)](https://codecov.io/gh/nelpy/nelpy)
 [![DOI](https://zenodo.org/badge/77548623.svg)](https://zenodo.org/badge/latestdoi/77548623)
 
 
