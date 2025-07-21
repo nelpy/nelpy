@@ -39,7 +39,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install setuptools setuptools-scm
           pip install .
-          pip install pytest 
+          pip install pytest pytest-cov
 
       - name: Install ruff for linting
         run: |
@@ -49,6 +49,16 @@ jobs:
         run: |
           ruff check .
           
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
-          pytest
+          pytest --cov=nelpy --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

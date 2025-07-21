@@ -410,7 +410,7 @@ class DataWindow(BaseEstimator):
             return Z, T
 
         Z = np.empty([n_zamples, bins_before + bins_after + bins_current, n_features])
-        Z[:] = np.NaN
+        Z[:] = np.nan
 
         frm_idx = 0
         curr_idx = bins_before
@@ -781,7 +781,7 @@ class StandardScaler(SklearnStandardScaler):
 
         return super().fit(X, y)
 
-    def partial_fit(self, X, y=None):
+    def partial_fit(self, X, y=None, sample_weight=None):
         """Online computation of mean and std on X for later scaling.
         All of X is processed as a single batch. This is intended for cases
         when `fit` is not feasible due to very large number of `n_samples`
@@ -797,6 +797,8 @@ class StandardScaler(SklearnStandardScaler):
             used for later scaling along the features axis.
         y
             Ignored
+        sample_weight : array-like of shape (n_samples,), default=None
+            Individual weights for each sample.
         """
 
         if isinstance(
@@ -804,7 +806,7 @@ class StandardScaler(SklearnStandardScaler):
         ):
             X = X.data.T
 
-        return super().partial_fit(X, y)
+        return super().partial_fit(X, y, sample_weight)
 
     def transform(self, X, copy=None):
         """Perform standardization by centering and scaling

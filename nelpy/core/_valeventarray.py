@@ -423,17 +423,38 @@ class BaseValueEventArray(ABC):
 
     @series_ids.setter
     def series_ids(self, val):
+        if val is None:
+            self._series_ids = None
+            return
+
         if len(val) != self.n_series:
             raise TypeError("series_ids must be of length n_series")
-        elif len(set(val)) < len(val):
-            raise TypeError("duplicate series_ids are not allowed")
-        else:
-            try:
-                # cast to int:
-                series_ids = [int(id) for id in val]
-            except TypeError:
-                raise TypeError("series_ids must be int-like")
-        self._series_ids = series_ids
+
+        # Convert to list of integers, handling various input types
+        try:
+            series_ids = []
+            for item in val:
+                if hasattr(item, "item") and item.size == 1:
+                    # Handle numpy scalars
+                    series_ids.append(int(item.item()))
+                elif hasattr(item, "__int__") and not hasattr(item, "__len__"):
+                    # Handle other numeric types (but not arrays)
+                    series_ids.append(int(item))
+                elif hasattr(item, "__len__") and len(item) == 1:
+                    # Handle single-element arrays/lists
+                    series_ids.append(int(item[0]))
+                else:
+                    raise TypeError(
+                        f"Cannot convert {type(item)} with shape {getattr(item, 'shape', 'unknown')} to int"
+                    )
+
+            # Check for duplicates
+            if len(set(series_ids)) < len(series_ids):
+                raise TypeError("duplicate series_ids are not allowed")
+
+            self._series_ids = series_ids
+        except (TypeError, ValueError) as e:
+            raise TypeError(f"series_ids must be int-like: {e}")
 
     @property
     def support(self):
@@ -1004,7 +1025,6 @@ class ValueEventArray(BaseValueEventArray):
         intervalarray : IntervalArray or EpochArray
         data : list or array-like, each element of size (n_events, n_values).
         """
-        # print('_restrict base')
         if intervalarray.isempty:
             n_series = len(data)
             data = np.zeros((n_series, 0))
@@ -1018,12 +1038,43 @@ class ValueEventArray(BaseValueEventArray):
 
         # NOTE: this used to assume multiple series for the enumeration to work
         for series, evt_data in enumerate(data):
+            evt_data = ValueEventArray._to_2d_array(evt_data)
+            if evt_data.size == 0 or evt_data.shape[1] < 1:
+                if singleseries:
+                    data = np.array([[]])
+                else:
+                    data_ = data.tolist()
+                    data_[series] = np.array([])
+                    data = utils.ragged_array(data_)
+                continue
             indices = []
             for epdata in intervalarray.data:
                 t_start = epdata[0]
                 t_stop = epdata[1]
-                frm, to = np.searchsorted(evt_data[:, 0], (t_start, t_stop))
-                indices.append((frm, to))
+                # Ensure we have a proper 1D array of event times
+                if evt_data.ndim > 1:
+                    event_times = evt_data[:, 0].flatten()
+                else:
+                    event_times = evt_data.flatten()
+                # Ensure event_times is a proper 1D array and not an object array
+                if event_times.dtype == object:
+                    # Handle object array by extracting the actual values
+                    event_times = np.array(
+                        [
+                            float(t) if hasattr(t, "__float__") else t
+                            for t in event_times
+                        ]
+                    )
+                # Ensure event_times is a proper 1D array
+                if event_times.size == 0:
+                    indices.append((0, 0))
+                else:
+                    try:
+                        frm, to = np.searchsorted(event_times, (t_start, t_stop))
+                        indices.append((frm, to))
+                    except (ValueError, TypeError):
+                        # Fallback: handle case where searchsorted fails
+                        indices.append((0, 0))
             indices = np.array(indices, ndmin=2)
             if np.diff(indices).sum() < len(evt_data):
                 logging.info("ignoring events outside of eventarray support")
@@ -1061,13 +1112,13 @@ class ValueEventArray(BaseValueEventArray):
         logging.disable(0)
         return "<%s%s:%s%s>%s" % (self.type_name, address_str, numstr, epstr, fsstr)
 
-    def bin(self, *, ds=None, method="sum"):
-        """Return a binned eventarray.
+    def bin(self, *, ds=None, method="mean", **kwargs):
+        """Return a binned value event array.
 
-        method in [sum, mean, median, min, max]
+        method in [sum, mean, median, min, max] or a custom function.
+        Additional keyword arguments are passed to BinnedValueEventArray.
         """
-        raise NotImplementedError
-        return BinnedValueEventArray(self, ds=ds, method=method)  # noqa: F821
+        return BinnedValueEventArray(self, ds=ds, method=method, **kwargs)
 
     @property
     def n_events(self):
@@ -1159,6 +1210,29 @@ class ValueEventArray(BaseValueEventArray):
 
     def make_stateful(self):
         raise NotImplementedError
+
+    @staticmethod
+    def _to_2d_array(arr):
+        """Convert array to 2D numpy array, handling object arrays properly."""
+        if isinstance(arr, np.ndarray) and arr.dtype == object:
+            # Handle object arrays by extracting the actual data
+            if arr.size == 1:
+                # Single element object array
+                return np.atleast_2d(arr[0])
+            else:
+                # Multiple element object array - concatenate
+                flattened = []
+                for item in arr:
+                    if isinstance(item, np.ndarray):
+                        flattened.append(item)
+                    else:
+                        flattened.append(np.array(item))
+                if flattened:
+                    return np.vstack(flattened)
+                else:
+                    return np.array([]).reshape(0, 0)
+        else:
+            return np.atleast_2d(arr)
 
 
 # ----------------------------------------------------------------------#
@@ -1750,12 +1824,30 @@ class StatefulValueEventArray(BaseValueEventArray):
 
         # NOTE: this used to assume multiple series for the enumeration to work
         for series, evt_data in enumerate(data):
+            evt_data = ValueEventArray._to_2d_array(evt_data)
+            if evt_data.size == 0 or evt_data.shape[1] < 1:
+                if singleseries:
+                    data = np.array([[]])
+                else:
+                    data_ = data.tolist()
+                    data_[series] = np.array([])
+                    data = utils.ragged_array(data_)
+                continue
             indices = []
             for epdata in intervalarray.data:
                 t_start = epdata[0]
                 t_stop = epdata[1]
-                frm, to = np.searchsorted(evt_data[:, 0], (t_start, t_stop))
-                indices.append((frm, to))
+                # Ensure evt_data[:, 0] is a 1D array for searchsorted
+                if evt_data.ndim > 1:
+                    event_times = evt_data[:, 0].flatten()
+                else:
+                    event_times = evt_data.flatten()
+                # Ensure event_times is a proper 1D array
+                if event_times.size == 0:
+                    indices.append((0, 0))
+                else:
+                    frm, to = np.searchsorted(event_times, (t_start, t_stop))
+                    indices.append((frm, to))
             indices = np.array(indices, ndmin=2)
             if np.diff(indices).sum() < len(evt_data):
                 logging.info("ignoring events outside of eventarray support")
@@ -1923,7 +2015,6 @@ class StatefulValueEventArray(BaseValueEventArray):
     def bin(self, *, ds=None):
         """Return a BinnedValueEventArray."""
         raise NotImplementedError
-        return BinnedValueEventArray(self, ds=ds)  # noqa: F821
 
     def __call__(self, *args):
         """StatefulValueEventArray callable method; by default returns state values"""
@@ -2118,3 +2209,360 @@ class StatefulValueEventArray(BaseValueEventArray):
 
 # ----------------------------------------------------------------------#
 # ======================================================================#
+
+
+class BinnedValueEventArray(BaseValueEventArray):
+    """A binned representation of ValueEventArray data.
+
+    This class creates a time-binned version of a ValueEventArray by aggregating
+    event values within specified time bins. Each series is binned independently,
+    starting from its own minimum event time, ensuring proper temporal alignment.
+
+    Parameters
+    ----------
+    vea : ValueEventArray
+        The source ValueEventArray to be binned.
+    ds : float
+        Bin size in seconds. Bins are created with left-inclusive, right-exclusive
+        boundaries (e.g., [t, t+ds)).
+    method : str or callable, default="mean"
+        Aggregation method for combining values within each bin:
+        - "sum": Sum all values in the bin
+        - "mean": Average of all values in the bin
+        - "median": Median of all values in the bin
+        - "min": Minimum value in the bin
+        - "max": Maximum value in the bin
+        - callable: Custom aggregation function that takes an array and returns a scalar
+
+    Attributes
+    ----------
+    vea : ValueEventArray
+        The original ValueEventArray used to create this binned version.
+    ds : float
+        The bin size in seconds.
+    method : str or callable
+        The aggregation method used for binning.
+    data : np.ndarray
+        Binned data array of shape (n_series, n_bins, n_values) where:
+        - n_series: Number of event series
+        - n_bins: Total number of bins across all intervals
+        - n_values: Number of values per event
+    bins : np.ndarray
+        Array of bin edges used for binning.
+    bin_centers : np.ndarray
+        Array of bin center times.
+    n_series : int
+        Number of event series.
+    n_bins : int
+        Total number of bins.
+    n_values : int
+        Number of values per event.
+    fs : float or None
+        Sampling frequency (inherited from source ValueEventArray).
+    support : IntervalArray
+        Support intervals (inherited from source ValueEventArray).
+
+    Notes
+    -----
+    - Binning is performed per-series, with each series having its own bin
+      boundaries starting from its minimum event time within each interval.
+    - Bins use left-inclusive, right-exclusive boundaries [t, t+ds).
+    - Events outside the support intervals are ignored.
+    - Empty bins are filled with NaN values.
+    - The resulting data maintains the same number of series and values as
+      the original ValueEventArray.
+
+    Examples
+    --------
+    >>> import nelpy as nel
+    >>> events = [[0.1, 0.5, 1.0], [0.2, 0.6, 1.2]]
+    >>> values = [[1, 2, 3], [4, 5, 6]]
+    >>> vea = nel.ValueEventArray(events=events, values=values, fs=10)
+    >>> bvea = nel.BinnedValueEventArray(vea, ds=0.5, method="sum")
+    >>> print(bvea.data.shape)  # (2, n_bins, 1)
+    >>> print(bvea.bin_centers)  # Array of bin center times
+    """
+
+    def __init__(self, vea, ds, method="mean"):
+        # Set _data to a placeholder with the correct number of series and values
+        n_series = vea.n_series
+        n_values = (
+            max(vea.n_values)
+            if hasattr(vea, "n_values") and len(vea.n_values) > 0
+            else 1
+        )
+        self._data = np.empty((n_series, 0, n_values))
+        # Call base class constructor with metadata from vea, but don't copy series_ids
+        super().__init__(
+            fs=getattr(vea, "fs", None),
+            series_ids=None,  # Let the base class handle default series_ids
+            abscissa=getattr(vea, "_abscissa", None),
+            ordinate=getattr(vea, "_ordinate", None),
+            empty=False,
+        )
+        self.vea = vea
+        self.ds = ds
+        self.method = method
+        self._bin()
+
+    def _bin(self):
+        """Perform binning operation on the ValueEventArray data.
+
+        This method implements per-series binning where each series is binned
+        independently within each support interval. Bins start from the minimum
+        event time in each series within each interval.
+        """
+        # Get support intervals from the source ValueEventArray
+        support = getattr(self.vea, "support", None)
+        if support is None:
+            # Fallback: use all events if no support is defined
+            all_events = np.concatenate([np.asarray(ev) for ev in self.vea.events])
+            if all_events.size == 0:
+                # Handle empty event arrays
+                self._data = np.zeros((self.vea.n_series, 0, self.vea.n_values[0]))
+                self._bins = np.array([])
+                self._bin_centers = np.array([])
+                return
+            tmin = np.min(all_events)
+            tmax = np.max(all_events)
+            intervals = [(tmin, tmax)]
+        else:
+            # Extract interval boundaries from support
+            intervals = list(zip(support.starts, support.stops))
+
+        # Get dimensions for output array
+        n_series = self.vea.n_series
+        n_values = max(self.vea.n_values)
+        all_binned = []  # Store binned data from all intervals
+        all_bins = []  # Store bin edges from all intervals
+        all_bin_centers = []  # Store bin centers from all intervals
+
+        # Set up aggregation function based on method parameter
+        if isinstance(self.method, str):
+            if self.method == "sum":
+                aggfunc = np.sum
+            elif self.method == "mean":
+                aggfunc = np.mean
+            elif self.method == "median":
+                aggfunc = np.median
+            elif self.method == "min":
+                aggfunc = np.min
+            elif self.method == "max":
+                aggfunc = np.max
+            else:
+                raise ValueError(f"Unsupported aggregation method: {self.method}")
+        elif callable(self.method):
+            aggfunc = self.method
+        else:
+            raise ValueError("method must be a string or callable")
+
+        # Process each support interval separately
+        for start, stop in intervals:
+            # Bin each series independently for this interval
+            series_binned = []  # Binned data for each series in this interval
+            series_bins = []  # Bin edges for each series in this interval
+            series_bin_centers = []  # Bin centers for each series in this interval
+
+            # Process each series within the current interval
+            for i, (ev, val) in enumerate(zip(self.vea.events, self.vea.values)):
+                ev = np.asarray(ev)
+                val = np.asarray(val)
+
+                # Restrict events and values to the current interval
+                mask_interval = (ev >= start) & (ev < stop)
+                ev_in = ev[mask_interval]
+                val_in = val[mask_interval]
+
+                if ev_in.size == 0:
+                    # No events in this interval for this series
+                    series_binned.append(np.full((0, n_values), np.nan))
+                    series_bins.append(np.array([]))
+                    series_bin_centers.append(np.array([]))
+                    continue
+
+                # Create bins for this series starting from its minimum event time
+                # This ensures proper temporal alignment for each series
+                bin_start = np.min(ev_in)
+                bins = np.arange(bin_start, stop + self.ds, self.ds)
+                if len(bins) < 2:
+                    # Skip intervals too short for a single bin
+                    series_binned.append(np.full((0, n_values), np.nan))
+                    series_bins.append(np.array([]))
+                    series_bin_centers.append(np.array([]))
+                    continue
+
+                # Calculate bin centers and number of bins
+                bin_centers = bins[:-1] + self.ds / 2
+                n_bins = len(bins) - 1
+                binned = np.full((n_bins, n_values), np.nan)  # Initialize with NaN
+
+                # Assign events to bins using digitize (left-inclusive, right-exclusive)
+                inds = np.digitize(ev_in, bins, right=False) - 1
+                # Ensure indices are within valid range
+                valid_mask = (inds >= 0) & (inds < n_bins)
+                inds = inds[valid_mask]
+                val_in_valid = val_in[valid_mask]
+
+                # Aggregate values within each bin
+                for b in range(n_bins):
+                    mask = inds == b
+                    if np.any(mask):
+                        vals_in_bin = val_in_valid[mask]
+                        if vals_in_bin.ndim == 1:
+                            vals_in_bin = vals_in_bin[:, None]
+                        # Apply aggregation function to each value dimension
+                        for v in range(min(vals_in_bin.shape[1], n_values)):
+                            binned[b, v] = aggfunc(vals_in_bin[:, v])
+
+                # Store results for this series
+                series_binned.append(binned)
+                series_bins.append(bins)
+                series_bin_centers.append(bin_centers)
+
+            # Combine results from all series for this interval
+            if series_binned:
+                # Find the maximum number of bins across all series
+                max_bins = max(
+                    len(binned) for binned in series_binned if binned.size > 0
+                )
+                if max_bins > 0:
+                    # Pad all series to have the same number of bins
+                    # This ensures consistent array shapes across series
+                    padded_binned = np.full((n_series, max_bins, n_values), np.nan)
+                    for i, binned in enumerate(series_binned):
+                        if binned.size > 0:
+                            padded_binned[i, : len(binned), :] = binned
+                    all_binned.append(padded_binned)
+
+                    # Use the bins from the first series that has bins
+                    # (all series should have similar bin structure)
+                    for bins in series_bins:
+                        if len(bins) > 0:
+                            all_bins.append(bins)
+                            all_bin_centers.append(
+                                series_bin_centers[series_bins.index(bins)]
+                            )
+                            break
+
+        # Concatenate results from all intervals into final arrays
+        if all_binned:
+            # Combine binned data from all intervals along the bin dimension
+            self._data = np.concatenate(all_binned, axis=1)
+            # Combine bin edges and centers from all intervals
+            self._bins = np.concatenate(
+                [b[:-1] for b in all_bins] + [all_bins[-1][-1:]]
+            )
+            self._bin_centers = np.concatenate(all_bin_centers)
+        else:
+            # Handle case where no valid bins were created
+            self._data = np.zeros((n_series, 0, n_values))
+            self._bins = np.array([])
+            self._bin_centers = np.array([])
+
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def bins(self):
+        return self._bins
+
+    @property
+    def bin_centers(self):
+        return self._bin_centers
+
+    def __repr__(self):
+        return f"<BinnedValueEventArray: {self.n_series} series, {self.n_bins} bins, {self.n_values} values, ds={self.ds}>"
+
+    def __getitem__(self, idx):
+        # Slicing by IntervalArray/EpochArray
+        if hasattr(idx, "starts") and hasattr(idx, "stops"):
+            mask = np.zeros_like(self.bin_centers, dtype=bool)
+            for start, stop in zip(idx.starts, idx.stops):
+                mask |= (self.bin_centers >= start) & (self.bin_centers < stop)
+            new_obj = copy.copy(self)
+            new_obj._data = self.data[:, mask, :]
+            # Adjust bins and bin_centers
+            # bins: keep edges that bracket the selected bin_centers
+            bin_indices = np.where(mask)[0]
+            if len(bin_indices) == 0:
+                new_obj._bins = np.array([])
+                new_obj._bin_centers = np.array([])
+            else:
+                new_obj._bins = self.bins[bin_indices[0] : bin_indices[-1] + 2]
+                new_obj._bin_centers = self.bin_centers[mask]
+            return new_obj
+        else:
+            raise NotImplementedError(
+                "Only slicing by IntervalArray/EpochArray is supported."
+            )
+
+    @property
+    def n_series(self):
+        return self.data.shape[0]
+
+    @property
+    def n_bins(self):
+        return self.data.shape[1]
+
+    @property
+    def n_values(self):
+        return self.data.shape[2]
+
+    @property
+    def fs(self):
+        return getattr(self, "_fs", None)
+
+    @fs.setter
+    def fs(self, value):
+        self._fs = value
+
+    @property
+    def support(self):
+        return getattr(self.vea, "support", None)
+
+    def partition(self, ds=None, n_intervals=None):
+        """Returns a BinnedValueEventArray whose support has been partitioned.
+
+        Parameters
+        ----------
+        ds : float, optional
+            Maximum duration (in seconds), for each interval.
+        n_intervals : int, optional
+            Number of intervals. If ds is None and n_intervals is None, then
+            default is to use n_intervals = 100
+
+        Returns
+        -------
+        out : BinnedValueEventArray
+            BinnedValueEventArray that has been partitioned.
+        """
+        out = self.copy()
+        abscissa = copy.deepcopy(out._abscissa)
+        abscissa.support = abscissa.support.partition(ds=ds, n_intervals=n_intervals)
+        out._abscissa = abscissa
+        out.__renew__()
+        return out
+
+    @staticmethod
+    def _to_2d_array(arr):
+        """Convert array to 2D numpy array, handling object arrays properly."""
+        if isinstance(arr, np.ndarray) and arr.dtype == object:
+            # Handle object arrays by extracting the actual data
+            if arr.size == 1:
+                # Single element object array
+                return np.atleast_2d(arr[0])
+            else:
+                # Multiple element object array - concatenate
+                flattened = []
+                for item in arr:
+                    if isinstance(item, np.ndarray):
+                        flattened.append(item)
+                    else:
+                        flattened.append(np.array(item))
+                if flattened:
+                    return np.vstack(flattened)
+                else:
+                    return np.array([]).reshape(0, 0)
+        else:
+            return np.atleast_2d(arr)

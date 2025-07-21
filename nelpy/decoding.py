@@ -17,7 +17,7 @@ import numpy as np
 from scipy import interpolate
 from scipy.special import logsumexp
 
-from . import auxiliary, core, utils
+from . import auxiliary
 
 
 class ItemGetter_loc(object):
@@ -882,105 +882,129 @@ class BayesianDecoder(object):
         tuningcurve : TuningCurve1D or TuningCurve2D, optional
             Tuning curve to use for decoding.
         """
-        if tuningcurve is not None:
-            self.tuningcurve = tuningcurve
-        pass
+        self.tuningcurve = tuningcurve
 
-    # def __new__(cls, *args):
-    #     raise NotImplementedError
-
-    def fit(self, X):
+    def fit(self, X, y=None):
         """
-        Fit the decoder to data X.
+        Fit the decoder to data X. (Stores the tuning curve if provided.)
 
         Parameters
         ----------
-        X : array-like
-            Training data.
+        X : array-like or TuningCurve1D/2D
+            Training data or tuning curve.
+        y : Ignored
         """
-        raise NotImplementedError
+        # If X is a tuning curve, store it
+        self.tuningcurve = X
+        return self
 
-    def predict(self, X):
-        """
-        Predict external variable from data X.
-
-        Parameters
-        ----------
-        X : array-like
-            Data to decode.
-        """
-        raise NotImplementedError
-
-    def predict_proba(self, X):
+    def predict_proba(self, X, **kwargs):
         """
         Predict posterior probabilities for data X.
 
         Parameters
         ----------
-        X : array-like
+        X : array-like or BinnedEventArray
             Data to decode.
+        Returns
+        -------
+        posterior : np.ndarray
+            Posterior probability matrix.
         """
-        raise NotImplementedError
-
-    def predict_proba_bst(self, X, sigma=0, w=1):
-        """
-        Predict posterior probabilities for a BinnedEventArray.
-
-        Parameters
-        ----------
-        X : BinnedEventArray
-            Binned event array to decode.
-        sigma : float, optional
-            Smoothing parameter for tuning curve (default is 0).
-        w : int, optional
-            Window size for decoding (default is 1).
-        """
-        if isinstance(X, core.BinnedEventArray):
-            posteriors, bdries, mode_pth, mean_pth = decode1D(
-                X, self.tuningcurve.smooth(sigma=sigma), w=w
+        if self.tuningcurve is None:
+            raise ValueError(
+                "No tuning curve set. Call fit() or provide tuningcurve in constructor."
             )
-
-            m, n = posteriors.shape
-
-            bins, bin_centers, binned_support, support = utils._bst_get_bins(
-                X.support, ds=X.ds, w=w
-            )
-            bst = core.BinnedSpikeTrainArray(empty=True)
-            bst._binned_support = binned_support
-            bst._bins = bins
-            bst._data = posteriors
-            # selfs die support mag dalk verander het, maar dit is altyd KLEINER as die oorspronkilke
-            bst._abscissa.support = support
-            bst._bin_centers = bin_centers
-            bst.loc = ItemGetter_loc(bst)
-            bst.iloc = ItemGetter_iloc(bst)
-            bst._ds = X.ds  # funksie van bst.ds en w ?
-            bst.series_ids = np.array(list(range(1, m + 1)), ndmin=1)
-            bst.series_labels = np.array(list(range(1, m + 1)), ndmin=1)
-            bst._series_tags = None
-
-            # asa = nel.PositionArray(data=mean_pth, timestamps=bst.bin_centers, support=bst.support, fs=1/bst.ds)
-            # asa._ordinate.label = 'position ({})'
-            # asa._ordinate.base_unit = 'cm'
-
+        # Use decode1D or decode2D depending on tuning curve
+        if hasattr(self.tuningcurve, "ratemap") and hasattr(self.tuningcurve, "bins"):
+            # TuningCurve1D or TuningCurve2D object
+            ratemap = self.tuningcurve.ratemap
         else:
-            raise NotImplementedError
+            ratemap = self.tuningcurve
+        # Try to infer 1D vs 2D
+        if ratemap.ndim == 2:
+            posterior, _, _, _ = decode1D(X, ratemap, **kwargs)
+        elif ratemap.ndim == 3:
+            posterior, _, _, _ = decode2D(X, ratemap, **kwargs)
+        else:
+            raise ValueError("Tuning curve must be 2D or 3D array.")
+        return posterior
 
-        return bst
-
-    def predict_asa(self, X):
+    def predict(self, X, **kwargs):
         """
-        Predict analog signal array from data X.
+        Predict external variable from data X (returns mode path).
 
         Parameters
         ----------
-        X : array-like
+        X : array-like or BinnedEventArray
             Data to decode.
+        Returns
+        -------
+        mode_pth : np.ndarray
+            Most likely position at each time bin.
         """
-        raise NotImplementedError
+        if self.tuningcurve is None:
+            raise ValueError(
+                "No tuning curve set. Call fit() or provide tuningcurve in constructor."
+            )
+        if hasattr(self.tuningcurve, "ratemap") and hasattr(self.tuningcurve, "bins"):
+            ratemap = self.tuningcurve.ratemap
+        else:
+            ratemap = self.tuningcurve
+        if ratemap.ndim == 2:
+            _, _, mode_pth, _ = decode1D(X, ratemap, **kwargs)
+        elif ratemap.ndim == 3:
+            _, _, mode_pth, _ = decode2D(X, ratemap, **kwargs)
+        else:
+            raise ValueError("Tuning curve must be 2D or 3D array.")
+        return mode_pth
+
+    def predict_asa(self, X, **kwargs):
+        """
+        Predict analog signal array (mean path) from data X.
+
+        Parameters
+        ----------
+        X : array-like or BinnedEventArray
+            Data to decode.
+        Returns
+        -------
+        asa : AnalogSignalArray or np.ndarray
+            Mean path as AnalogSignalArray if possible, else array.
+        """
+        if self.tuningcurve is None:
+            raise ValueError(
+                "No tuning curve set. Call fit() or provide tuningcurve in constructor."
+            )
+        if hasattr(self.tuningcurve, "ratemap") and hasattr(self.tuningcurve, "bins"):
+            ratemap = self.tuningcurve.ratemap
+        else:
+            ratemap = self.tuningcurve
+        if ratemap.ndim == 2:
+            _, _, _, mean_pth = decode1D(X, ratemap, **kwargs)
+        elif ratemap.ndim == 3:
+            _, _, _, mean_pth = decode2D(X, ratemap, **kwargs)
+        else:
+            raise ValueError("Tuning curve must be 2D or 3D array.")
+        # Try to return as AnalogSignalArray if possible, with timestamps if available
+        try:
+            from .core import AnalogSignalArray
+
+            abscissa_vals = None
+            # Try to get bin centers from X if possible
+            if hasattr(X, "bin_centers"):
+                abscissa_vals = X.bin_centers
+            elif hasattr(X, "abscissa_vals"):
+                abscissa_vals = X.abscissa_vals
+            return AnalogSignalArray(data=mean_pth, abscissa_vals=abscissa_vals)
+        except Exception:
+            return mean_pth
 
     def __repr__(self):
-        """
-        Return a string representation of the BayesianDecoder.
-        """
-        raise NotImplementedError
+        s = "<BayesianDecoder: "
+        if self.tuningcurve is not None:
+            s += f"tuningcurve shape={getattr(self.tuningcurve, 'ratemap', self.tuningcurve).shape}"
+        else:
+            s += "no tuningcurve"
+        s += ">"
+        return s
