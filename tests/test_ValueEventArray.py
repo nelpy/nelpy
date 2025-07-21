@@ -133,3 +133,45 @@ def test_binnedvalueeventarray_epocharray_slicing():
         (bvea2.bin_centers >= 0) & (bvea2.bin_centers < 1.5)
         | (bvea2.bin_centers >= 2) & (bvea2.bin_centers < 2.5)
     )
+
+
+def test_valueeventarray_multiseries_different_event_counts():
+    """Test ValueEventArray with multi-series where each series has a different number of events."""
+    events = [[0.1, 0.5, 1.0], [0.2, 0.6, 1.2, 2.0]]
+    values = [[1, 2, 3], [4, 5, 6, 7]]
+    veva = nel.ValueEventArray(events=events, values=values, fs=10)
+    assert veva.n_series == 2
+    assert veva.n_events[0] == 3
+    assert veva.n_events[1] == 4
+    assert veva.data.shape[0] == 2
+    # Check that the events and values are preserved correctly
+    np.testing.assert_array_equal(veva.events[0], np.array([0.1, 0.5, 1.0]))
+    np.testing.assert_array_equal(veva.events[1], np.array([0.2, 0.6, 1.2, 2.0]))
+    np.testing.assert_array_equal(veva.values[0], np.array([1, 2, 3]))
+    np.testing.assert_array_equal(veva.values[1], np.array([4, 5, 6, 7]))
+
+
+def test_binnedvalueeventarray_ragged():
+    # Series 0: 3 events, Series 1: 5 events
+    events = [[0.1, 0.5, 1.0], [0.2, 0.6, 1.2, 2.0, 2.5]]
+    values = [[1, 2, 3], [4, 5, 6, 7, 8]]
+    veva = nel.ValueEventArray(events=events, values=values, fs=10)
+    # Bin size 1.0, method sum
+    bvea = nel.BinnedValueEventArray(veva, ds=1.0, method="sum")
+    # Bins should be [0,1), [1,2), [2,3) for both series
+    assert bvea.data.shape[0] == 2  # 2 series
+    assert bvea.data.shape[1] == 3  # 3 bins
+    # Series 0: events at 0.1, 0.5, 1.0 (values 1,2,3)
+    # Bin 0: [0,1): events at 0.1, 0.5 (values 1+2=3)
+    # Bin 1: [1,2): event at 1.0 (value 3)
+    # Bin 2: [2,3): no events (should be 0)
+    assert np.isclose(bvea.data[0, 0, 0], 1 + 2)
+    assert np.isclose(bvea.data[0, 1, 0], 3)
+    assert np.isclose(bvea.data[0, 2, 0], 0)
+    # Series 1: events at 0.2, 0.6, 1.2, 2.0, 2.5 (values 4,5,6,7,8)
+    # Bin 0: [0,1): events at 0.2, 0.6 (values 4+5=9)
+    # Bin 1: [1,2): event at 1.2 (value 6)
+    # Bin 2: [2,3): events at 2.0, 2.5 (values 7+8=15)
+    assert np.isclose(bvea.data[1, 0, 0], 4 + 5)
+    assert np.isclose(bvea.data[1, 1, 0], 6)
+    assert np.isclose(bvea.data[1, 2, 0], 7 + 8)
