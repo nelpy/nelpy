@@ -314,10 +314,10 @@ class TestErgodicEdgeCases:
         with pytest.raises(np.linalg.LinAlgError):
             ergodic.steady_state(P)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(np.linalg.LinAlgError):
             ergodic.fmpt(P)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(np.linalg.LinAlgError):
             ergodic.var_fmpt(P)
 
     def test_empty_matrix(self):
@@ -327,10 +327,10 @@ class TestErgodicEdgeCases:
         with pytest.raises(np.linalg.LinAlgError):
             ergodic.steady_state(P)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(np.linalg.LinAlgError):
             ergodic.fmpt(P)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(np.linalg.LinAlgError):
             ergodic.var_fmpt(P)
 
     def test_1x1_matrix(self):
