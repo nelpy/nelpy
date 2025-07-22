@@ -66,8 +66,8 @@ import copy
 import logging
 from abc import ABC, abstractmethod
 
-import numpy as np
 import numba
+import numpy as np
 from numba.typed import List as NumbaList
 
 from .. import core, utils, version
@@ -1409,7 +1409,9 @@ class StatefulValueEventArray(BaseValueEventArray):
     >>> events = [[0.1, 0.5, 1.0], [0.2, 0.6, 1.2]]
     >>> values = [[1, 2, 3], [4, 5, 6]]
     >>> states = [[10, 20, 30], [40, 50, 60]]
-    >>> sveva = nel.StatefulValueEventArray(events=events, values=values, states=states, fs=10)
+    >>> sveva = nel.StatefulValueEventArray(
+    ...     events=events, values=values, states=states, fs=10
+    ... )
     >>> sveva.n_series
     2
     >>> sveva.n_events
@@ -2225,8 +2227,9 @@ class BinnedValueEventArray(BaseValueEventArray):
     """A binned representation of ValueEventArray data.
 
     This class creates a time-binned version of a ValueEventArray by aggregating
-    event values within specified time bins. Each series is binned independently,
-    starting from its own minimum event time, ensuring proper temporal alignment.
+    event values within specified time bins. For each support interval, bins are
+    defined globally (not per-series) using np.linspace as in BinnedEventArray.
+    All series use the same bins for a given interval.
 
     Parameters
     ----------
@@ -2377,7 +2380,9 @@ class BinnedValueEventArray(BaseValueEventArray):
                     # Fallback to regular list if numba.typed.List is not available
                     events_list = [np.asarray(ev) for ev in self.vea.events]
                     values_list = [np.asarray(val) for val in self.vea.values]
-                binned_agg = _bin_ragged_agg_numba(events_list, values_list, bins, method_str)
+                binned_agg = _bin_ragged_agg_numba(
+                    events_list, values_list, bins, method_str
+                )
                 binned[:, :, 0] = binned_agg
             else:
                 for i, (ev, val) in enumerate(zip(self.vea.events, self.vea.values)):
@@ -2417,18 +2422,14 @@ class BinnedValueEventArray(BaseValueEventArray):
 
         if all_binned:
             self._data = np.concatenate(all_binned, axis=1)
-            self._bins = np.concatenate([b[:-1] for b in all_bins] + [all_bins[-1][-1:]])
+            self._bins = np.concatenate(
+                [b[:-1] for b in all_bins] + [all_bins[-1][-1:]]
+            )
             self._bin_centers = np.concatenate(all_bin_centers)
         else:
             self._data = np.zeros((n_series, 0, n_values))
             self._bins = np.array([])
             self._bin_centers = np.array([])
-
-    # Update docstring to clarify bin alignment
-    __doc__ = __doc__.replace(
-        "Each series is binned independently, starting from its own minimum event time, ensuring proper temporal alignment.",
-        "For each support interval, bins are defined globally (not per-series) using np.linspace as in BinnedEventArray. All series use the same bins for a given interval."
-    )
 
     @property
     def data(self):
@@ -2538,18 +2539,21 @@ class BinnedValueEventArray(BaseValueEventArray):
         else:
             return np.atleast_2d(arr)
 
+
 @numba.njit(cache=True)
-def _bin_ragged_agg_numba(events_list, values_list, bins, method, max_events_per_bin=128):
+def _bin_ragged_agg_numba(
+    events_list, values_list, bins, method, max_events_per_bin=128
+):
     n_series = len(events_list)
     n_bins = len(bins) - 1
     out = np.full((n_series, n_bins), np.nan)
-    if method == 'sum' or method == 'mean':
+    if method == "sum" or method == "mean":
         counts = np.zeros((n_series, n_bins), dtype=np.int64)
         for i in range(n_series):
             ev = events_list[i]
             val = values_list[i]
             for j in range(len(ev)):
-                idx = np.searchsorted(bins, ev[j], side='right') - 1
+                idx = np.searchsorted(bins, ev[j], side="right") - 1
                 if 0 <= idx < n_bins:
                     if np.isnan(val[j]):
                         continue
@@ -2557,20 +2561,20 @@ def _bin_ragged_agg_numba(events_list, values_list, bins, method, max_events_per
                         out[i, idx] = 0.0
                     out[i, idx] += val[j]
                     counts[i, idx] += 1
-        if method == 'mean':
+        if method == "mean":
             for i in range(n_series):
                 for b in range(n_bins):
                     if counts[i, b] > 0:
                         out[i, b] /= counts[i, b]
                     else:
                         out[i, b] = np.nan
-        elif method == 'sum':
+        elif method == "sum":
             for i in range(n_series):
                 for b in range(n_bins):
                     if np.isnan(out[i, b]):
                         out[i, b] = 0.0
         return out
-    elif method == 'min' or method == 'max' or method == 'median':
+    elif method == "min" or method == "max" or method == "median":
         # Use a fixed-size buffer for each bin
         buffer = np.full((n_series, n_bins, max_events_per_bin), np.nan)
         counts = np.zeros((n_series, n_bins), dtype=np.int64)
@@ -2578,7 +2582,7 @@ def _bin_ragged_agg_numba(events_list, values_list, bins, method, max_events_per
             ev = events_list[i]
             val = values_list[i]
             for j in range(len(ev)):
-                idx = np.searchsorted(bins, ev[j], side='right') - 1
+                idx = np.searchsorted(bins, ev[j], side="right") - 1
                 if 0 <= idx < n_bins:
                     c = counts[i, idx]
                     if c < max_events_per_bin:
@@ -2591,11 +2595,11 @@ def _bin_ragged_agg_numba(events_list, values_list, bins, method, max_events_per
                     out[i, b] = np.nan
                 else:
                     vals = buffer[i, b, :n]
-                    if method == 'min':
+                    if method == "min":
                         out[i, b] = np.nanmin(vals)
-                    elif method == 'max':
+                    elif method == "max":
                         out[i, b] = np.nanmax(vals)
-                    elif method == 'median':
+                    elif method == "median":
                         out[i, b] = np.nanmedian(vals)
         return out
     else:
