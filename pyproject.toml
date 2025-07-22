@@ -92,3 +92,23 @@ extend-select = ["I"]
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.coverage.run]
+branch = true
+cover_pylib = false
+omit = [
+    '**/__init__.py',
+    '**/nelpy/_version.py',
+    '**/nelpy/all.py',
+    '**/nelpy/min.py',
+    '**/nelpy/temp.py',
+    '**/nelpy/homography.py',
+    '**/nelpy/ipynb.py',
+    '**/nelpy/synthesis/*',
+    '**/tests/**',
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    'if __name__ == .__main__.:',
+]
