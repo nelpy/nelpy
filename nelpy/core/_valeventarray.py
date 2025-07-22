@@ -772,9 +772,7 @@ class ValueEventArray(BaseValueEventArray):
                 except Exception:
                     pass
             if is_ragged:
-                return utils.ragged_array(
-                    [np.array(st, ndmin=1, copy=False) for st in data]
-                )
+                return utils.ragged_array([np.array(st, ndmin=1) for st in data])
             # Only here, if not ragged, use np.array/np.squeeze
             return np.array(np.squeeze(data), ndmin=2)
 
@@ -1577,9 +1575,7 @@ class StatefulValueEventArray(BaseValueEventArray):
                 except Exception:
                     pass
             if is_ragged:
-                return utils.ragged_array(
-                    [np.array(st, ndmin=1, copy=False) for st in data]
-                )
+                return utils.ragged_array([np.array(st, ndmin=1) for st in data])
             # Only here, if not ragged, use np.array/np.squeeze
             return np.array(np.squeeze(data), ndmin=2)
 
