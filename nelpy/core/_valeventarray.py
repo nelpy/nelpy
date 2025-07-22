@@ -67,6 +67,8 @@ import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
+import numba
+from numba.typed import List as NumbaList
 
 from .. import core, utils, version
 from ..utils_.decorators import keyword_equivalence
@@ -2342,20 +2344,14 @@ class BinnedValueEventArray(BaseValueEventArray):
         all_bin_centers = []
 
         if isinstance(self.method, str):
-            if self.method == "sum":
-                aggfunc = np.sum
-            elif self.method == "mean":
-                aggfunc = np.mean
-            elif self.method == "median":
-                aggfunc = np.median
-            elif self.method == "min":
-                aggfunc = np.min
-            elif self.method == "max":
-                aggfunc = np.max
+            method_str = self.method
+            if method_str in ("sum", "mean", "min", "max", "median"):
+                use_numba = True
             else:
-                raise ValueError(f"Unsupported aggregation method: {self.method}")
+                use_numba = False
         elif callable(self.method):
-            aggfunc = self.method
+            method_str = None
+            use_numba = False
         else:
             raise ValueError("method must be a string or callable")
 
@@ -2368,28 +2364,53 @@ class BinnedValueEventArray(BaseValueEventArray):
             bin_centers = bins[:-1] + (self.ds / 2)
             binned = np.full((n_series, n_bins, n_values), np.nan)
 
-            for i, (ev, val) in enumerate(zip(self.vea.events, self.vea.values)):
-                ev = np.asarray(ev)
-                val = np.asarray(val)
-                mask_interval = (ev >= start) & (ev < stop)
-                ev_in = ev[mask_interval]
-                val_in = val[mask_interval]
-                if ev_in.size == 0:
-                    continue
-                for v in range(n_values):
-                    if val_in.ndim == 1:
-                        vals = val_in
-                    else:
-                        vals = val_in[:, v]
-                    if self.method == "sum":
-                        hist, _ = np.histogram(ev_in, bins=bins, weights=vals)
-                        binned[i, :, v] = hist
-                    else:
-                        inds = np.digitize(ev_in, bins, right=False) - 1
-                        for b in range(n_bins):
-                            vals_in_bin = vals[inds == b]
-                            if vals_in_bin.size > 0:
-                                binned[i, b, v] = aggfunc(vals_in_bin)
+            if use_numba and n_values == 1:
+                # Convert to numba.typed.List to avoid reflected list warning
+                try:
+                    events_list = NumbaList()
+                    for ev in self.vea.events:
+                        events_list.append(np.asarray(ev))
+                    values_list = NumbaList()
+                    for val in self.vea.values:
+                        values_list.append(np.asarray(val))
+                except Exception:
+                    # Fallback to regular list if numba.typed.List is not available
+                    events_list = [np.asarray(ev) for ev in self.vea.events]
+                    values_list = [np.asarray(val) for val in self.vea.values]
+                binned_agg = _bin_ragged_agg_numba(events_list, values_list, bins, method_str)
+                binned[:, :, 0] = binned_agg
+            else:
+                for i, (ev, val) in enumerate(zip(self.vea.events, self.vea.values)):
+                    ev = np.asarray(ev)
+                    val = np.asarray(val)
+                    mask_interval = (ev >= start) & (ev < stop)
+                    ev_in = ev[mask_interval]
+                    val_in = val[mask_interval]
+                    if ev_in.size == 0:
+                        continue
+                    for v in range(n_values):
+                        if val_in.ndim == 1:
+                            vals = val_in
+                        else:
+                            vals = val_in[:, v]
+                        if method_str == "sum":
+                            hist, _ = np.histogram(ev_in, bins=bins, weights=vals)
+                            binned[i, :, v] = hist
+                        else:
+                            inds = np.digitize(ev_in, bins, right=False) - 1
+                            for b in range(n_bins):
+                                vals_in_bin = vals[inds == b]
+                                if vals_in_bin.size > 0:
+                                    if method_str == "mean":
+                                        binned[i, b, v] = np.mean(vals_in_bin)
+                                    elif method_str == "min":
+                                        binned[i, b, v] = np.min(vals_in_bin)
+                                    elif method_str == "max":
+                                        binned[i, b, v] = np.max(vals_in_bin)
+                                    elif method_str == "median":
+                                        binned[i, b, v] = np.median(vals_in_bin)
+                                    else:
+                                        binned[i, b, v] = self.method(vals_in_bin)
             all_binned.append(binned)
             all_bins.append(bins)
             all_bin_centers.append(bin_centers)
@@ -2516,3 +2537,67 @@ class BinnedValueEventArray(BaseValueEventArray):
                     return np.array([]).reshape(0, 0)
         else:
             return np.atleast_2d(arr)
+
+@numba.njit(cache=True)
+def _bin_ragged_agg_numba(events_list, values_list, bins, method, max_events_per_bin=128):
+    n_series = len(events_list)
+    n_bins = len(bins) - 1
+    out = np.full((n_series, n_bins), np.nan)
+    if method == 'sum' or method == 'mean':
+        counts = np.zeros((n_series, n_bins), dtype=np.int64)
+        for i in range(n_series):
+            ev = events_list[i]
+            val = values_list[i]
+            for j in range(len(ev)):
+                idx = np.searchsorted(bins, ev[j], side='right') - 1
+                if 0 <= idx < n_bins:
+                    if np.isnan(val[j]):
+                        continue
+                    if np.isnan(out[i, idx]):
+                        out[i, idx] = 0.0
+                    out[i, idx] += val[j]
+                    counts[i, idx] += 1
+        if method == 'mean':
+            for i in range(n_series):
+                for b in range(n_bins):
+                    if counts[i, b] > 0:
+                        out[i, b] /= counts[i, b]
+                    else:
+                        out[i, b] = np.nan
+        elif method == 'sum':
+            for i in range(n_series):
+                for b in range(n_bins):
+                    if np.isnan(out[i, b]):
+                        out[i, b] = 0.0
+        return out
+    elif method == 'min' or method == 'max' or method == 'median':
+        # Use a fixed-size buffer for each bin
+        buffer = np.full((n_series, n_bins, max_events_per_bin), np.nan)
+        counts = np.zeros((n_series, n_bins), dtype=np.int64)
+        for i in range(n_series):
+            ev = events_list[i]
+            val = values_list[i]
+            for j in range(len(ev)):
+                idx = np.searchsorted(bins, ev[j], side='right') - 1
+                if 0 <= idx < n_bins:
+                    c = counts[i, idx]
+                    if c < max_events_per_bin:
+                        buffer[i, idx, c] = val[j]
+                        counts[i, idx] += 1
+        for i in range(n_series):
+            for b in range(n_bins):
+                n = counts[i, b]
+                if n == 0:
+                    out[i, b] = np.nan
+                else:
+                    vals = buffer[i, b, :n]
+                    if method == 'min':
+                        out[i, b] = np.nanmin(vals)
+                    elif method == 'max':
+                        out[i, b] = np.nanmax(vals)
+                    elif method == 'median':
+                        out[i, b] = np.nanmedian(vals)
+        return out
+    else:
+        # Not supported
+        return out
