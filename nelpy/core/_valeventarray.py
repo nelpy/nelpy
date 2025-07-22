@@ -758,40 +758,17 @@ class ValueEventArray(BaseValueEventArray):
             # If data is already a ragged list (list of lists/arrays of different lengths),
             # do not attempt to squeeze or convert to ndarray directly.
             if isinstance(data, (list, tuple)):
-                # Check if jagged: at least one element has a different length
                 try:
                     lengths = [len(np.atleast_1d(x)) for x in data]
                     if len(set(lengths)) > 1:
-                        # Jagged: return as ragged array
+                        # Ragged: return as ragged array
                         return utils.ragged_array(
                             [np.array(st, ndmin=1, copy=False) for st in data]
                         )
                 except Exception:
                     pass
-            # If not jagged, proceed as before
-            if is_single_series(data):
-                return np.array(np.squeeze(data), ndmin=2)
-            if is_singletons(data):
-                data = np.squeeze(data)
-                n = np.max(data.shape)
-                if len(data.shape) == 1:
-                    m = 1
-                else:
-                    m = np.min(data.shape)
-                data = np.reshape(data, (n, m))
-            else:
-                data = np.squeeze(data)
-                if data.dtype == np.dtype("O"):
-                    jagged = True
-                else:
-                    jagged = False
-                if jagged:  # jagged array
-                    data = utils.ragged_array(
-                        [np.array(st, ndmin=1, copy=False) for st in data]
-                    )
-                else:
-                    data = np.array(data, ndmin=2)
-            return data
+            # Only here, if not ragged, use np.array/np.squeeze
+            return np.array(np.squeeze(data), ndmin=2)
 
         def standardize_values_to_2d(data):
             data = standardize_to_2d(data)
@@ -1575,31 +1552,20 @@ class StatefulValueEventArray(BaseValueEventArray):
             return True
 
         def standardize_to_2d(data):
-            if is_single_series(data):
-                return np.array(np.squeeze(data), ndmin=2)
-            if is_singletons(data):
-                data = np.squeeze(data)
-                n = np.max(data.shape)
-                if len(data.shape) == 1:
-                    m = 1
-                else:
-                    m = np.min(data.shape)
-                data = np.reshape(data, (n, m))
-            else:
-                data = np.squeeze(data)
-                if data.dtype == np.dtype("O"):
-                    jagged = True
-                else:
-                    jagged = False
-                if jagged:  # jagged array
-                    # standardize input so that a list of lists is converted
-                    # to an array of arrays:
-                    data = utils.ragged_array(
-                        [np.array(st, ndmin=1, copy=False) for st in data]
-                    )
-                else:
-                    data = np.array(data, ndmin=2)
-            return data
+            # If data is already a ragged list (list of lists/arrays of different lengths),
+            # do not attempt to squeeze or convert to ndarray directly.
+            if isinstance(data, (list, tuple)):
+                try:
+                    lengths = [len(np.atleast_1d(x)) for x in data]
+                    if len(set(lengths)) > 1:
+                        # Ragged: return as ragged array
+                        return utils.ragged_array(
+                            [np.array(st, ndmin=1, copy=False) for st in data]
+                        )
+                except Exception:
+                    pass
+            # Only here, if not ragged, use np.array/np.squeeze
+            return np.array(np.squeeze(data), ndmin=2)
 
         def standardize_values_to_2d(data):
             data = standardize_to_2d(data)
