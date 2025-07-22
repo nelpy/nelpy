@@ -755,18 +755,26 @@ class ValueEventArray(BaseValueEventArray):
             return True
 
         def standardize_to_2d(data):
-            # If data is already a ragged list (list of lists/arrays of different lengths),
-            # do not attempt to squeeze or convert to ndarray directly.
+            # Handle ragged input: list/tuple or np.ndarray of dtype=object
+            is_ragged = False
             if isinstance(data, (list, tuple)):
                 try:
                     lengths = [len(np.atleast_1d(x)) for x in data]
                     if len(set(lengths)) > 1:
-                        # Ragged: return as ragged array
-                        return utils.ragged_array(
-                            [np.array(st, ndmin=1, copy=False) for st in data]
-                        )
+                        is_ragged = True
                 except Exception:
                     pass
+            elif isinstance(data, np.ndarray) and data.dtype == object:
+                try:
+                    lengths = [len(np.atleast_1d(x)) for x in data]
+                    if len(set(lengths)) > 1:
+                        is_ragged = True
+                except Exception:
+                    pass
+            if is_ragged:
+                return utils.ragged_array([
+                    np.array(st, ndmin=1, copy=False) for st in data
+                ])
             # Only here, if not ragged, use np.array/np.squeeze
             return np.array(np.squeeze(data), ndmin=2)
 
@@ -1552,18 +1560,26 @@ class StatefulValueEventArray(BaseValueEventArray):
             return True
 
         def standardize_to_2d(data):
-            # If data is already a ragged list (list of lists/arrays of different lengths),
-            # do not attempt to squeeze or convert to ndarray directly.
+            # Handle ragged input: list/tuple or np.ndarray of dtype=object
+            is_ragged = False
             if isinstance(data, (list, tuple)):
                 try:
                     lengths = [len(np.atleast_1d(x)) for x in data]
                     if len(set(lengths)) > 1:
-                        # Ragged: return as ragged array
-                        return utils.ragged_array(
-                            [np.array(st, ndmin=1, copy=False) for st in data]
-                        )
+                        is_ragged = True
                 except Exception:
                     pass
+            elif isinstance(data, np.ndarray) and data.dtype == object:
+                try:
+                    lengths = [len(np.atleast_1d(x)) for x in data]
+                    if len(set(lengths)) > 1:
+                        is_ragged = True
+                except Exception:
+                    pass
+            if is_ragged:
+                return utils.ragged_array([
+                    np.array(st, ndmin=1, copy=False) for st in data
+                ])
             # Only here, if not ragged, use np.array/np.squeeze
             return np.array(np.squeeze(data), ndmin=2)
 
