@@ -2376,18 +2376,15 @@ class BinnedValueEventArray(BaseValueEventArray):
                 val_in = val[mask_interval]
                 if ev_in.size == 0:
                     continue
-                # For each value column, bin using np.histogram
                 for v in range(n_values):
                     if val_in.ndim == 1:
                         vals = val_in
                     else:
                         vals = val_in[:, v]
-                    # Use np.histogram to aggregate values in bins
                     if self.method == "sum":
                         hist, _ = np.histogram(ev_in, bins=bins, weights=vals)
                         binned[i, :, v] = hist
                     else:
-                        # For mean, median, min, max, or custom, need to collect values per bin
                         inds = np.digitize(ev_in, bins, right=False) - 1
                         for b in range(n_bins):
                             vals_in_bin = vals[inds == b]
