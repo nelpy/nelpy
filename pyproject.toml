@@ -98,13 +98,17 @@ branch = true
 cover_pylib = false
 omit = [
     '**/__init__.py',
-    '**/nelpy/_version.py',
+    '**/nelpy/version.py',
     '**/nelpy/all.py',
     '**/nelpy/min.py',
     '**/nelpy/temp.py',
     '**/nelpy/homography.py',
     '**/nelpy/ipynb.py',
     '**/nelpy/synthesis/*',
+    '**/nelpy/contrib/*',
+    '**/nelpy/examples/*',
+    '**/nelpy/io/*',
+    '**/nelpy/utils_/temp.py*',
     '**/tests/**',
 ]
 
