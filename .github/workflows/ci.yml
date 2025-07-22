@@ -51,9 +51,9 @@ jobs:
           
       - name: Run tests with coverage
         run: |
-          pytest --cov=nelpy --cov-report=xml
-
+          pytest nelpy --cov=nelpy --cov-report=xml --cov-config=pyproject.toml
       - name: Upload coverage to Codecov
+        if: ${{ matrix.python-version == 3.11 }}
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
