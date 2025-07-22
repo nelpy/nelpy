@@ -89,6 +89,24 @@ class TestBinnedEventArray:
         assert np.all(bea._binned_support == copied_bea._binned_support)
         assert bea._eventarray == bea._eventarray
 
+    def test_repr_label_summarization(self):
+        # Small number of labels: all should be shown
+        abscissa_vals = np.array([[1, 2], [3, 4], [5, 6]])
+        series_labels = ["a", "b", "c"]
+        ea = nel.EventArray(abscissa_vals=abscissa_vals, series_labels=series_labels)
+        bea = nel.BinnedEventArray(ea, ds=1)
+        r = repr(bea)
+        assert "['a', 'b', 'c']" in r
+        # Large number of labels: should be summarized
+        n = 10
+        abscissa_vals = np.array([np.arange(2) + i * 10 for i in range(n)])
+        series_labels = [str(i) for i in range(n)]
+        ea = nel.EventArray(abscissa_vals=abscissa_vals, series_labels=series_labels)
+        bea = nel.BinnedEventArray(ea, ds=1)
+        r = repr(bea)
+        # Should show first 3 and last 2 labels, with ...
+        assert "[0, 1, 2, ..., 8, 9]" in r or "['0', '1', '2', ..., '8', '9']" in r
+
 
 class TestSpikeTrainArray:
     def test_construct(self):
