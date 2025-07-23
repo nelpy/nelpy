@@ -1424,31 +1424,26 @@ class BinnedEventArray(BaseEventArray):
         address_str = " at " + str(hex(id(self)))
         if self.isempty:
             return "<empty " + self.type_name + address_str + ">"
-        ustr = " {} {}".format(self.n_series, self._series_labels)
+        # Summarize labels if too many
+        max_display = 5
+        labels = self._series_labels
+        n = len(labels)
+        if n <= max_display:
+            label_str = str(labels)
+        else:
+            label_str = f"[{', '.join(map(str, labels[:3]))}, ..., {', '.join(map(str, labels[-2:]))}]"
+        ustr = f" {self.n_series} {label_str}"
         if self._abscissa.support.n_intervals > 1:
-            epstr = " ({} segments) in".format(self._abscissa.support.n_intervals)
+            epstr = f" ({self._abscissa.support.n_intervals} segments) in"
         else:
             epstr = " in"
         if self.n_bins == 1:
-            bstr = " {} bin of width {}".format(
-                self.n_bins, utils.PrettyDuration(self.ds)
-            )
+            bstr = f" {self.n_bins} bin of width {utils.PrettyDuration(self.ds)}"
             dstr = ""
         else:
-            bstr = " {} bins of width {}".format(
-                self.n_bins, utils.PrettyDuration(self.ds)
-            )
-            dstr = " for a total of {}".format(
-                utils.PrettyDuration(self.n_bins * self.ds)
-            )
-        return "<%s%s:%s%s%s>%s" % (
-            self.type_name,
-            address_str,
-            ustr,
-            epstr,
-            bstr,
-            dstr,
-        )
+            bstr = f" {self.n_bins} bins of width {utils.PrettyDuration(self.ds)}"
+            dstr = f" for a total of {utils.PrettyDuration(self.n_bins * self.ds)}"
+        return f"<{self.type_name}{address_str}:{ustr}{epstr}{bstr}>{dstr}"
 
     def __iter__(self):
         """BinnedEventArray iterator initialization."""
