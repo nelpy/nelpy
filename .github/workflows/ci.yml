@@ -51,14 +51,13 @@ jobs:
           
       - name: Run tests with coverage
         run: |
-          pytest --cov=nelpy --cov-report=xml
-
+          pytest tests --cov=nelpy --cov-report=xml --cov-config=pyproject.toml
       - name: Upload coverage to Codecov
+        if: ${{ matrix.python-version == 3.9 }}
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
