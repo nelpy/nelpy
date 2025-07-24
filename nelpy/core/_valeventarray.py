@@ -2517,6 +2517,50 @@ class BinnedValueEventArray(BaseValueEventArray):
         else:
             return np.atleast_2d(arr)
 
+    def smooth(self, *, sigma=None, inplace=False, truncate=None, within_intervals=False):
+        """Smooth BinnedValueEventArray by convolving with a Gaussian kernel.
+
+        Smoothing is applied in data, and the same smoothing is applied
+        to each series in a BinnedValueEventArray.
+
+        Smoothing is applied within each interval by default.
+
+        Parameters
+        ----------
+        sigma : float, optional
+            Standard deviation of Gaussian kernel, in seconds. Default is 0.01 (10 ms)
+        truncate : float, optional
+            Bandwidth outside of which the filter value will be zero. Default is 4.0
+        inplace : bool, optional
+            If True the data will be replaced with the smoothed data. Default is False.
+        within_intervals : bool, optional
+            If True, smooth within each interval. If False, smooth across intervals. Default is False.
+
+        Returns
+        -------
+        out : BinnedValueEventArray
+            New BinnedValueEventArray with smoothed data.
+        """
+        from .. import utils  # local import to avoid circular import
+        if truncate is None:
+            truncate = 4
+        if sigma is None:
+            sigma = 0.01  # 10 ms default
+        fs = 1 / self.ds if self.ds else None
+        return utils.gaussian_filter(
+            self,
+            fs=fs,
+            sigma=sigma,
+            truncate=truncate,
+            inplace=inplace,
+            within_intervals=within_intervals,
+        )
+
+    @property
+    def _abscissa_vals(self):
+        """(np.array) The bin centers (in seconds)."""
+        return self._bin_centers
+
 
 @numba.njit(cache=True)
 def _bin_ragged_agg_numba(
