@@ -184,3 +184,20 @@ def test_binnedvalueeventarray_ragged():
     # Bin 1: [1.1,2.1): events at 1.2, 2.0 (values 6+7=13)
     assert np.isclose(bvea.data[1, 0, 0], 4 + 5)
     assert np.isclose(bvea.data[1, 1, 0], 6 + 7)
+
+
+def test_binnedvalueeventarray_smooth():
+    """Test smoothing of BinnedValueEventArray with a Gaussian kernel."""
+    events = [[0.1, 0.5, 1.0], [0.2, 0.6, 1.2]]
+    values = [[1, 2, 3], [4, 5, 6]]
+    veva = nel.ValueEventArray(events=events, values=values, fs=10)
+    bvea = nel.BinnedValueEventArray(veva, ds=0.5, method="sum")
+    # Smooth with a small sigma so the effect is visible but not too broad
+    smoothed = bvea.smooth(sigma=1)
+    # Shape should be preserved
+    assert smoothed.data.shape == bvea.data.shape
+    # Smoothed data should differ from original (except possibly at edges)
+    assert np.max(np.abs(smoothed.data - bvea.data)) > 1e-3
+    # Smoothing with sigma=0 should return the same data (identity)
+    smoothed_identity = bvea.smooth(sigma=0)
+    np.testing.assert_allclose(smoothed_identity.data, bvea.data)
