@@ -2217,7 +2217,9 @@ def gaussian_filter(
                     for v in range(out.data.shape[2]):
                         out._data[:, cum_lengths[idx] : cum_lengths[idx + 1], v] = (
                             scipy.ndimage.filters.gaussian_filter(
-                                out._data[:, cum_lengths[idx] : cum_lengths[idx + 1], v],
+                                out._data[
+                                    :, cum_lengths[idx] : cum_lengths[idx + 1], v
+                                ],
                                 sigma=(0, sigma),
                                 truncate=truncate,
                             )

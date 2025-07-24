@@ -65,7 +65,9 @@ def test_binnedvalueeventarray_sum():
     values = [[1, 2, 3], [4, 5, 6]]
     veva = nel.ValueEventArray(events=events, values=values, fs=10)
     bvea = nel.BinnedValueEventArray(veva, ds=0.5, method="sum")
-    bea = nel.BinnedEventArray(nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5)
+    bea = nel.BinnedEventArray(
+        nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5
+    )
     np.testing.assert_allclose(bvea.bins, bea.bins)
     # Should have 2 bins: [0.1,0.6), [0.6,1.1) for first interval
     assert bvea.data.shape[1] >= 2
@@ -82,7 +84,9 @@ def test_binnedvalueeventarray_mean():
     values = [[1, 2, 3], [4, 5, 6]]
     veva = nel.ValueEventArray(events=events, values=values, fs=10)
     bvea = nel.BinnedValueEventArray(veva, ds=0.5, method="mean")
-    bea = nel.BinnedEventArray(nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5)
+    bea = nel.BinnedEventArray(
+        nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5
+    )
     np.testing.assert_allclose(bvea.bins, bea.bins)
     # Check mean for first series, first bin (events at 0.1 and 0.5)
     assert np.isclose(bvea.data[0, 0, 0], (1 + 2) / 2)
@@ -99,7 +103,9 @@ def test_binnedvalueeventarray_custom_func():
     bvea = nel.BinnedValueEventArray(
         veva, ds=0.5, method=lambda x: np.max(x) - np.min(x)
     )
-    bea = nel.BinnedEventArray(nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5)
+    bea = nel.BinnedEventArray(
+        nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5
+    )
     np.testing.assert_allclose(bvea.bins, bea.bins)
     # Check custom aggregation (range) for first bin (events at 0.1 and 0.5)
     assert np.isclose(bvea.data[0, 0, 0], 2 - 1)

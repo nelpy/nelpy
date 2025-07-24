@@ -2517,7 +2517,9 @@ class BinnedValueEventArray(BaseValueEventArray):
         else:
             return np.atleast_2d(arr)
 
-    def smooth(self, *, sigma=None, inplace=False, truncate=None, within_intervals=False):
+    def smooth(
+        self, *, sigma=None, inplace=False, truncate=None, within_intervals=False
+    ):
         """Smooth BinnedValueEventArray by convolving with a Gaussian kernel.
 
         Smoothing is applied in data, and the same smoothing is applied
@@ -2542,6 +2544,7 @@ class BinnedValueEventArray(BaseValueEventArray):
             New BinnedValueEventArray with smoothed data.
         """
         from .. import utils  # local import to avoid circular import
+
         if truncate is None:
             truncate = 4
         if sigma is None:
@@ -2564,7 +2567,11 @@ class BinnedValueEventArray(BaseValueEventArray):
     @property
     def lengths(self):
         """Lengths of contiguous segments, in number of bins."""
-        if self.n_bins == 0 or self.support is None or getattr(self.support, 'isempty', False):
+        if (
+            self.n_bins == 0
+            or self.support is None
+            or getattr(self.support, "isempty", False)
+        ):
             return 0
         # Each interval: count how many bin_centers fall within it
         lengths = []
