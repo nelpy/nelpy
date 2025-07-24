@@ -2210,6 +2210,28 @@ def gaussian_filter(
                     )
                 )
                 # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
+        elif isinstance(out, core._valeventarray.BinnedValueEventArray):
+            # now smooth each interval separately for each value type
+            if out.data.ndim == 3:
+                for idx in range(out.n_intervals):
+                    for v in range(out.data.shape[2]):
+                        out._data[:, cum_lengths[idx] : cum_lengths[idx + 1], v] = (
+                            scipy.ndimage.filters.gaussian_filter(
+                                out._data[:, cum_lengths[idx] : cum_lengths[idx + 1], v],
+                                sigma=(0, sigma),
+                                truncate=truncate,
+                            )
+                        )
+            else:
+                # fallback to 2D smoothing (shouldn't happen for BinnedValueEventArray, but for safety)
+                for idx in range(out.n_intervals):
+                    out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = (
+                        scipy.ndimage.filters.gaussian_filter(
+                            out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]],
+                            sigma=(0, sigma),
+                            truncate=truncate,
+                        )
+                    )
 
     return out
 

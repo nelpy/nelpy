@@ -201,3 +201,22 @@ def test_binnedvalueeventarray_smooth():
     # Smoothing with sigma=0 should return the same data (identity)
     smoothed_identity = bvea.smooth(sigma=0)
     np.testing.assert_allclose(smoothed_identity.data, bvea.data)
+
+
+def test_binnedvalueeventarray_within_intervals_smooth():
+    """Test within_intervals smoothing for BinnedValueEventArray."""
+    events = [[0.1, 0.5, 1.0, 2.1], [0.2, 0.6, 1.2, 2.2]]
+    values = [[1, 2, 3, 4], [4, 5, 6, 7]]
+    veva = nel.ValueEventArray(events=events, values=values, fs=10)
+    # Restrict to two intervals: [0,1.5), [2,2.5)
+    epochs = nel.EpochArray([[0, 1.5], [2, 2.5]])
+    veva2 = veva[epochs]
+    bvea = nel.BinnedValueEventArray(veva2, ds=0.5, method="sum")
+    # Smooth across all intervals
+    smoothed_across = bvea.smooth(sigma=1.0, within_intervals=False)
+    # Smooth within each interval
+    smoothed_within = bvea.smooth(sigma=1.0, within_intervals=True)
+    # Shape should be preserved
+    assert smoothed_within.data.shape == bvea.data.shape
+    # The results should differ (except in trivial cases)
+    assert not np.allclose(smoothed_across.data, smoothed_within.data)
