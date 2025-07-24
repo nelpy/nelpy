@@ -2561,6 +2561,18 @@ class BinnedValueEventArray(BaseValueEventArray):
         """(np.array) The bin centers (in seconds)."""
         return self._bin_centers
 
+    @property
+    def lengths(self):
+        """Lengths of contiguous segments, in number of bins."""
+        if self.n_bins == 0 or self.support is None or getattr(self.support, 'isempty', False):
+            return 0
+        # Each interval: count how many bin_centers fall within it
+        lengths = []
+        for start, stop in zip(self.support.starts, self.support.stops):
+            mask = (self.bin_centers >= start) & (self.bin_centers < stop)
+            lengths.append(np.sum(mask))
+        return np.array(lengths)
+
 
 @numba.njit(cache=True)
 def _bin_ragged_agg_numba(
