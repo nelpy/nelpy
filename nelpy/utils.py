@@ -35,6 +35,7 @@ try:
 except ImportError:
     from scipy.fftpack import next_fast_len  # scipy 0.*
 
+
 # def sub2ind(array_shape, rows, cols):
 #     ind = rows*array_shape[1] + cols
 #     ind[ind < 0] = -1
@@ -1990,12 +1991,12 @@ def gaussian_filter(
     inplace : bool
         If True the data will be replaced with the smoothed data.
         Default is False.
-    mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+    mode : {'reflect', 'constant', 'nearest', 'mirror', 'wrap'}, optional
         The mode parameter determines how the array borders are handled,
-        where cval is the value when mode is equal to ‘constant’. Default is
-        ‘reflect’.
+        where cval is the value when mode is equal to 'constant'. Default is
+        'reflect'.
     cval : scalar, optional
-        Value to fill past edges of input if mode is ‘constant’. Default is 0.0.
+        Value to fill past edges of input if mode is 'constant'. Default is 0.0.
     within_intervals : boolean, optional
         If True, then smooth within each epoch. Otherwise smooth across epochs.
         Default is False.
@@ -2033,7 +2034,9 @@ def gaussian_filter(
                     out.type_name
                 )
             )
-    elif isinstance(out, core.BinnedEventArray):
+    elif isinstance(out, core.BinnedEventArray) or isinstance(
+        out, core._valeventarray.BinnedValueEventArray
+    ):
         bst = out
         if fs is None:
             fs = 1 / bst.ds
@@ -2064,6 +2067,7 @@ def gaussian_filter(
                 core.RegularlySampledAnalogSignalArray,
                 core.BinnedEventArray,
                 core._analogsignalarray.PositionArray,
+                core._valeventarray.BinnedValueEventArray,
             ),
         ):
             support = out._abscissa.support.merge()
@@ -2087,30 +2091,94 @@ def gaussian_filter(
             ):
                 n_signals = out.n_signals
                 n_samples = out.n_samples
-            elif isinstance(out, core.BinnedEventArray):
+                V = np.zeros((n_signals, n_samples + len(missing_abscissa_vals)))
+                W = np.ones(V.shape)
+                all_abscissa_vals = np.sort(
+                    np.append(out._abscissa_vals, missing_abscissa_vals)
+                )
+                data_idx = np.searchsorted(all_abscissa_vals, out._abscissa_vals)
+                missing_idx = np.searchsorted(all_abscissa_vals, missing_abscissa_vals)
+                V[:, data_idx] = out.data
+                W[:, missing_idx] = 0
+
+                VV = scipy.ndimage.gaussian_filter(
+                    V, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
+                )
+                WW = scipy.ndimage.gaussian_filter(
+                    W, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
+                )
+
+                Z = VV[:, data_idx] / WW[:, data_idx]
+                out._data = Z
+            elif isinstance(
+                out, (core.BinnedEventArray, core._valeventarray.BinnedValueEventArray)
+            ):
                 n_signals = out.n_series
                 n_samples = out.n_bins
+                if out.data.ndim == 2:
+                    # (n_series, n_bins) - legacy BinnedEventArray
+                    V = np.zeros((n_signals, n_samples + len(missing_abscissa_vals)))
+                    W = np.ones(V.shape)
+                    all_abscissa_vals = np.sort(
+                        np.append(out._abscissa_vals, missing_abscissa_vals)
+                    )
+                    data_idx = np.searchsorted(all_abscissa_vals, out._abscissa_vals)
+                    missing_idx = np.searchsorted(
+                        all_abscissa_vals, missing_abscissa_vals
+                    )
+                    V[:, data_idx] = out.data
+                    W[:, missing_idx] = 0
 
-            V = np.zeros((n_signals, n_samples + len(missing_abscissa_vals)))
-            W = np.ones(V.shape)
-            all_abscissa_vals = np.sort(
-                np.append(out._abscissa_vals, missing_abscissa_vals)
-            )
-            data_idx = np.searchsorted(all_abscissa_vals, out._abscissa_vals)
-            missing_idx = np.searchsorted(all_abscissa_vals, missing_abscissa_vals)
-            V[:, data_idx] = out.data
-            W[:, missing_idx] = 0
+                    VV = scipy.ndimage.gaussian_filter(
+                        V, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
+                    )
+                    WW = scipy.ndimage.gaussian_filter(
+                        W, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
+                    )
 
-            VV = scipy.ndimage.gaussian_filter(
-                V, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
-            )
-            WW = scipy.ndimage.gaussian_filter(
-                W, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
-            )
-
-            Z = VV[:, data_idx] / WW[:, data_idx]
-
-            out._data = Z
+                    Z = VV[:, data_idx] / WW[:, data_idx]
+                    out._data = Z
+                elif out.data.ndim == 3:
+                    # (n_series, n_bins, n_values) - BinnedValueEventArray
+                    n_values = out.data.shape[2]
+                    V = np.zeros(
+                        (n_signals, n_samples + len(missing_abscissa_vals), n_values)
+                    )
+                    W = np.ones(V.shape)
+                    all_abscissa_vals = np.sort(
+                        np.append(out._abscissa_vals, missing_abscissa_vals)
+                    )
+                    data_idx = np.searchsorted(all_abscissa_vals, out._abscissa_vals)
+                    missing_idx = np.searchsorted(
+                        all_abscissa_vals, missing_abscissa_vals
+                    )
+                    V[:, data_idx, :] = out.data
+                    W[:, missing_idx, :] = 0
+                    VV = np.empty_like(V)
+                    WW = np.empty_like(W)
+                    for v in range(n_values):
+                        VV[..., v] = scipy.ndimage.gaussian_filter(
+                            V[..., v],
+                            sigma=(0, sigma),
+                            truncate=truncate,
+                            mode=mode,
+                            cval=cval,
+                        )
+                        WW[..., v] = scipy.ndimage.gaussian_filter(
+                            W[..., v],
+                            sigma=(0, sigma),
+                            truncate=truncate,
+                            mode=mode,
+                            cval=cval,
+                        )
+                    Z = VV[:, data_idx, :] / WW[:, data_idx, :]
+                    out._data = Z
+                else:
+                    raise ValueError(
+                        "Unsupported data shape for BinnedValueEventArray: {}".format(
+                            out.data.shape
+                        )
+                    )
         else:
             raise NotImplementedError(
                 "gaussian_filter across intervals for {} is not yet supported!".format(
@@ -2142,6 +2210,30 @@ def gaussian_filter(
                     )
                 )
                 # out._data[:,cum_lengths[idx]:cum_lengths[idx+1]] = self._smooth_array(out._data[:,cum_lengths[idx]:cum_lengths[idx+1]], w=w)
+        elif isinstance(out, core._valeventarray.BinnedValueEventArray):
+            # now smooth each interval separately for each value type
+            if out.data.ndim == 3:
+                for idx in range(out.n_intervals):
+                    for v in range(out.data.shape[2]):
+                        out._data[:, cum_lengths[idx] : cum_lengths[idx + 1], v] = (
+                            scipy.ndimage.filters.gaussian_filter(
+                                out._data[
+                                    :, cum_lengths[idx] : cum_lengths[idx + 1], v
+                                ],
+                                sigma=(0, sigma),
+                                truncate=truncate,
+                            )
+                        )
+            else:
+                # fallback to 2D smoothing (shouldn't happen for BinnedValueEventArray, but for safety)
+                for idx in range(out.n_intervals):
+                    out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = (
+                        scipy.ndimage.filters.gaussian_filter(
+                            out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]],
+                            sigma=(0, sigma),
+                            truncate=truncate,
+                        )
+                    )
 
     return out
 

@@ -65,7 +65,9 @@ def test_binnedvalueeventarray_sum():
     values = [[1, 2, 3], [4, 5, 6]]
     veva = nel.ValueEventArray(events=events, values=values, fs=10)
     bvea = nel.BinnedValueEventArray(veva, ds=0.5, method="sum")
-    bea = nel.BinnedEventArray(nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5)
+    bea = nel.BinnedEventArray(
+        nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5
+    )
     np.testing.assert_allclose(bvea.bins, bea.bins)
     # Should have 2 bins: [0.1,0.6), [0.6,1.1) for first interval
     assert bvea.data.shape[1] >= 2
@@ -82,7 +84,9 @@ def test_binnedvalueeventarray_mean():
     values = [[1, 2, 3], [4, 5, 6]]
     veva = nel.ValueEventArray(events=events, values=values, fs=10)
     bvea = nel.BinnedValueEventArray(veva, ds=0.5, method="mean")
-    bea = nel.BinnedEventArray(nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5)
+    bea = nel.BinnedEventArray(
+        nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5
+    )
     np.testing.assert_allclose(bvea.bins, bea.bins)
     # Check mean for first series, first bin (events at 0.1 and 0.5)
     assert np.isclose(bvea.data[0, 0, 0], (1 + 2) / 2)
@@ -99,7 +103,9 @@ def test_binnedvalueeventarray_custom_func():
     bvea = nel.BinnedValueEventArray(
         veva, ds=0.5, method=lambda x: np.max(x) - np.min(x)
     )
-    bea = nel.BinnedEventArray(nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5)
+    bea = nel.BinnedEventArray(
+        nel.EventArray(np.array(events, dtype=float), fs=10), ds=0.5
+    )
     np.testing.assert_allclose(bvea.bins, bea.bins)
     # Check custom aggregation (range) for first bin (events at 0.1 and 0.5)
     assert np.isclose(bvea.data[0, 0, 0], 2 - 1)
@@ -184,3 +190,39 @@ def test_binnedvalueeventarray_ragged():
     # Bin 1: [1.1,2.1): events at 1.2, 2.0 (values 6+7=13)
     assert np.isclose(bvea.data[1, 0, 0], 4 + 5)
     assert np.isclose(bvea.data[1, 1, 0], 6 + 7)
+
+
+def test_binnedvalueeventarray_smooth():
+    """Test smoothing of BinnedValueEventArray with a Gaussian kernel."""
+    events = [[0.1, 0.5, 1.0], [0.2, 0.6, 1.2]]
+    values = [[1, 2, 3], [4, 5, 6]]
+    veva = nel.ValueEventArray(events=events, values=values, fs=10)
+    bvea = nel.BinnedValueEventArray(veva, ds=0.5, method="sum")
+    # Smooth with a small sigma so the effect is visible but not too broad
+    smoothed = bvea.smooth(sigma=1)
+    # Shape should be preserved
+    assert smoothed.data.shape == bvea.data.shape
+    # Smoothed data should differ from original (except possibly at edges)
+    assert np.max(np.abs(smoothed.data - bvea.data)) > 1e-3
+    # Smoothing with sigma=0 should return the same data (identity)
+    smoothed_identity = bvea.smooth(sigma=0)
+    np.testing.assert_allclose(smoothed_identity.data, bvea.data)
+
+
+def test_binnedvalueeventarray_within_intervals_smooth():
+    """Test within_intervals smoothing for BinnedValueEventArray."""
+    events = [[0.1, 0.5, 1.0, 2.1], [0.2, 0.6, 1.2, 2.2]]
+    values = [[1, 2, 3, 4], [4, 5, 6, 7]]
+    veva = nel.ValueEventArray(events=events, values=values, fs=10)
+    # Restrict to two intervals: [0,1.5), [2,2.5)
+    epochs = nel.EpochArray([[0, 1.5], [2, 2.5]])
+    veva2 = veva[epochs]
+    bvea = nel.BinnedValueEventArray(veva2, ds=0.5, method="sum")
+    # Smooth across all intervals
+    smoothed_across = bvea.smooth(sigma=1.0, within_intervals=False)
+    # Smooth within each interval
+    smoothed_within = bvea.smooth(sigma=1.0, within_intervals=True)
+    # Shape should be preserved
+    assert smoothed_within.data.shape == bvea.data.shape
+    # The results should differ (except in trivial cases)
+    assert not np.allclose(smoothed_across.data, smoothed_within.data)
