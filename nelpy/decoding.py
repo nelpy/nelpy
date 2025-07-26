@@ -651,7 +651,7 @@ class Cumhist(np.ndarray):
 
     def __call__(self, *val):
         f = interpolate.interp1d(
-            x=self, y=self._bincenters, kind="linear", fill_value=np.NaN
+            x=self, y=self._bincenters, kind="linear", fill_value=np.nan
         )
         try:
             vals = f(*val).item()
