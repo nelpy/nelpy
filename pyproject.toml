@@ -97,19 +97,18 @@ docstring-code-format = true
 branch = true
 cover_pylib = false
 omit = [
-    '**/__init__.py',
-    '**/nelpy/version.py',
-    '**/nelpy/all.py',
-    '**/nelpy/min.py',
-    '**/nelpy/temp.py',
-    '**/nelpy/homography.py',
-    '**/nelpy/ipynb.py',
-    '**/nelpy/synthesis/*',
-    '**/nelpy/contrib/*',
-    '**/nelpy/examples/*',
-    '**/nelpy/io/*',
-    '**/nelpy/utils_/temp.py*',
-    '**/tests/**',
+    '**/tests/**', # Omit the entire tests directory, which is correct
+    'nelpy/version.py', # Relative to the nelpy package
+    'nelpy/all.py',
+    'nelpy/min.py',
+    'nelpy/temp.py',
+    'nelpy/homography.py',
+    'nelpy/ipynb.py',
+    'nelpy/synthesis/*',
+    'nelpy/contrib/*',
+    'nelpy/examples/*',
+    'nelpy/io/*',
+    'nelpy/utils_/temp.py*',
 ]
 
 [tool.coverage.report]
