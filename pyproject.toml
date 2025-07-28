@@ -92,3 +92,29 @@ extend-select = ["I"]
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.coverage.run]
+branch = true
+cover_pylib = false
+source = ["nelpy"]
+omit = [
+    '**/tests/**', # Omit the entire tests directory, which is correct
+    'nelpy/version.py', # Relative to the nelpy package
+    'nelpy/all.py',
+    'nelpy/min.py',
+    'nelpy/temp.py',
+    'nelpy/homography.py',
+    'nelpy/ipynb.py',
+    'nelpy/scoring.py',
+    'nelpy/hmmutils.py',
+    'nelpy/synthesis/*',
+    'nelpy/contrib/*',
+    'nelpy/examples/*',
+    'nelpy/io/*',
+    'nelpy/utils_/temp.py*',
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    'if __name__ == .__main__.:',
+]
