@@ -96,6 +96,7 @@ docstring-code-format = true
 [tool.coverage.run]
 branch = true
 cover_pylib = false
+source = ["nelpy"]
 omit = [
     '**/tests/**', # Omit the entire tests directory, which is correct
     'nelpy/version.py', # Relative to the nelpy package
