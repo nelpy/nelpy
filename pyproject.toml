@@ -105,6 +105,8 @@ omit = [
     'nelpy/temp.py',
     'nelpy/homography.py',
     'nelpy/ipynb.py',
+    'nelpy/scoring.py',
+    'nelpy/hmmutils.py',
     'nelpy/synthesis/*',
     'nelpy/contrib/*',
     'nelpy/examples/*',
