@@ -1,4 +1,9 @@
-__all__ = ["TuningCurve1D", "TuningCurve2D", "DirectionalTuningCurve1D"]
+__all__ = [
+    "TuningCurve1D",
+    "TuningCurve2D",
+    "TuningCurveND",
+    "DirectionalTuningCurve1D",
+]
 
 import copy
 import numbers
@@ -2115,3 +2120,853 @@ class DirectionalTuningCurve1D(TuningCurve1D):
     @property
     def unit_ids_r2l(self):
         return self._unit_ids_r2l
+
+
+########################################################################
+# class TuningCurveND
+########################################################################
+class TuningCurveND:
+    """
+    Tuning curves (N-dimensional) of multiple units.
+
+    Parameters
+    ----------
+    bst : BinnedSpikeTrainArray, optional
+        Binned spike train array for tuning curve estimation.
+    extern : array-like, optional
+        External correlates (e.g., position).
+    ratemap : np.ndarray, optional
+        Precomputed rate map.
+    sigma : float or array-like, optional
+        Standard deviation for Gaussian smoothing. If float, applied to all
+        dimensions. If array-like, must have length equal to n_dimensions.
+    truncate : float, optional
+        Truncation parameter for smoothing.
+    n_bins : array-like, optional
+        Number of bins for each dimension.
+    transform_func : callable, optional
+        Function to transform external correlates.
+    minbgrate : float, optional
+        Minimum background firing rate.
+    ext_min, ext_max : array-like, optional
+        Extent of the external correlates for each dimension.
+    extlabels : list, optional
+        Labels for external correlates.
+    min_duration : float, optional
+        Minimum duration for occupancy.
+    unit_ids : list, optional
+        Unit IDs.
+    unit_labels : list, optional
+        Unit labels.
+    unit_tags : list, optional
+        Unit tags.
+    label : str, optional
+        Label for the tuning curve.
+    empty : bool, optional
+        If True, create an empty TuningCurveND.
+
+    Attributes
+    ----------
+    ratemap : np.ndarray
+        The N-D rate map with shape (n_units, *n_bins).
+    occupancy : np.ndarray
+        Occupancy map.
+    unit_ids : list
+        Unit IDs.
+    unit_labels : list
+        Unit labels.
+    unit_tags : list
+        Unit tags.
+    label : str
+        Label for the tuning curve.
+    mask : np.ndarray
+        Mask for valid regions.
+    n_dimensions : int
+        Number of dimensions.
+    """
+
+    __attributes__ = [
+        "_ratemap",
+        "_occupancy",
+        "_unit_ids",
+        "_unit_labels",
+        "_unit_tags",
+        "_label",
+        "_mask",
+        "_n_dimensions",
+        "_bins_list",
+        "_extlabels",
+    ]
+
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+    def __init__(
+        self,
+        *,
+        bst=None,
+        extern=None,
+        ratemap=None,
+        sigma=None,
+        truncate=None,
+        n_bins=None,
+        transform_func=None,
+        minbgrate=None,
+        ext_min=None,
+        ext_max=None,
+        extlabels=None,
+        min_duration=None,
+        unit_ids=None,
+        unit_labels=None,
+        unit_tags=None,
+        label=None,
+        empty=False,
+    ):
+        """
+        Initialize TuningCurveND object.
+
+        NOTE: tuning curves in ND have shapes (n_units, *n_bins) so that
+        the first dimension is always n_units, followed by the spatial dimensions.
+
+        If sigma is nonzero, then smoothing is applied.
+
+        We always require bst and extern, and then some combination of
+            (1) n_bins, ext_min, ext_max, transform_func*
+            (2) bin edges, transform_func*
+
+            transform_func operates on extern and returns a 2D array of shape
+            (n_dimensions, n_timepoints). If no transform is specified, the
+            identity operator is assumed.
+        """
+        # TODO: input validation
+        if not empty:
+            if ratemap is None:
+                assert bst is not None, (
+                    "bst must be specified or ratemap must be specified!"
+                )
+                assert extern is not None, (
+                    "extern must be specified or ratemap must be specified!"
+                )
+            else:
+                assert bst is None, "ratemap and bst cannot both be specified!"
+                assert extern is None, "ratemap and extern cannot both be specified!"
+
+        # if an empty object is requested, return it:
+        if empty:
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            return
+
+        if ratemap is not None:
+            for attr in self.__attributes__:
+                exec("self." + attr + " = None")
+            self._init_from_ratemap(
+                ratemap=ratemap,
+                ext_min=ext_min,
+                ext_max=ext_max,
+                extlabels=extlabels,
+                unit_ids=unit_ids,
+                unit_labels=unit_labels,
+                unit_tags=unit_tags,
+                label=label,
+            )
+            return
+
+        self._mask = None  # TODO: change this when we can learn a mask in __init__!
+        self._bst = bst
+        self._extern = extern
+
+        if minbgrate is None:
+            minbgrate = 0.01  # Hz minimum background firing rate
+
+        # Handle n_bins parameter
+        if n_bins is not None:
+            n_bins = np.asarray(n_bins, dtype=int)
+            if n_bins.ndim == 0:
+                raise ValueError("n_bins must be array-like for ND tuning curves")
+            self._n_dimensions = len(n_bins)
+
+            # Set default ext_min and ext_max if not provided
+            if ext_min is None:
+                ext_min = np.zeros(self._n_dimensions)
+            if ext_max is None:
+                ext_max = np.ones(self._n_dimensions)
+
+            ext_min = np.asarray(ext_min)
+            ext_max = np.asarray(ext_max)
+
+            if len(ext_min) != self._n_dimensions or len(ext_max) != self._n_dimensions:
+                raise ValueError(
+                    "ext_min and ext_max must have length equal to n_dimensions"
+                )
+
+            # Create bin edges for each dimension
+            self._bins_list = []
+            for i in range(self._n_dimensions):
+                bins = np.linspace(ext_min[i], ext_max[i], n_bins[i] + 1)
+                self._bins_list.append(bins)
+        else:
+            raise NotImplementedError("Must specify n_bins for TuningCurveND")
+
+        if min_duration is None:
+            min_duration = 0
+
+        self._min_duration = min_duration
+        self._unit_ids = bst.unit_ids
+        self._unit_labels = bst.unit_labels
+        self._unit_tags = bst.unit_tags  # no input validation yet
+        self.label = label
+
+        # Set extlabels
+        if extlabels is None:
+            self._extlabels = [f"dim_{i}" for i in range(self._n_dimensions)]
+        else:
+            if len(extlabels) != self._n_dimensions:
+                raise ValueError("extlabels must have length equal to n_dimensions")
+            self._extlabels = extlabels
+
+        if transform_func is None:
+            self.trans_func = self._trans_func
+        else:
+            self.trans_func = transform_func
+
+        # compute occupancy
+        self._occupancy = self._compute_occupancy()
+        # compute ratemap (in Hz)
+        self._ratemap = self._compute_ratemap()
+        # normalize firing rate by occupancy
+        self._ratemap = self._normalize_firing_rate_by_occupancy()
+        # enforce minimum background firing rate
+        self._ratemap[self._ratemap < minbgrate] = (
+            minbgrate  # background firing rate of 0.01 Hz
+        )
+
+        if sigma is not None:
+            if np.any(np.asarray(sigma) > 0):
+                self.smooth(sigma=sigma, truncate=truncate, inplace=True)
+
+        # optionally detach _bst and _extern to save space when pickling, for example
+        self._detach()
+
+    def spatial_information(self):
+        """Compute the spatial information and firing sparsity..."""
+        return utils.spatial_information(ratemap=self.ratemap, Pi=self.occupancy)
+
+    def information_rate(self):
+        """Compute the information rate..."""
+        return utils.information_rate(ratemap=self.ratemap, Pi=self.occupancy)
+
+    def spatial_selectivity(self):
+        """Compute the spatial selectivity..."""
+        return utils.spatial_selectivity(ratemap=self.ratemap, Pi=self.occupancy)
+
+    def spatial_sparsity(self):
+        """Compute the spatial information and firing sparsity..."""
+        return utils.spatial_sparsity(ratemap=self.ratemap, Pi=self.occupancy)
+
+    def __add__(self, other):
+        out = copy.copy(self)
+
+        if isinstance(other, numbers.Number):
+            out._ratemap = out.ratemap + other
+        elif isinstance(other, TuningCurveND):
+            # TODO: this should merge two TuningCurveND objects
+            raise NotImplementedError
+        else:
+            raise TypeError(
+                "unsupported operand type(s) for +: 'TuningCurveND' and '{}'".format(
+                    str(type(other))
+                )
+            )
+        return out
+
+    def __sub__(self, other):
+        out = copy.copy(self)
+        out._ratemap = out.ratemap - other
+        return out
+
+    def __mul__(self, other):
+        """overloaded * operator."""
+        out = copy.copy(self)
+        out._ratemap = out.ratemap * other
+        return out
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __truediv__(self, other):
+        """overloaded / operator."""
+        out = copy.copy(self)
+        out._ratemap = out.ratemap / other
+        return out
+
+    def _init_from_ratemap(
+        self,
+        ratemap,
+        occupancy=None,
+        ext_min=None,
+        ext_max=None,
+        extlabels=None,
+        unit_ids=None,
+        unit_labels=None,
+        unit_tags=None,
+        label=None,
+    ):
+        """Initialize a TuningCurveND object from a ratemap.
+
+        Parameters
+        ----------
+        ratemap : array
+            Array of shape (n_units, *n_bins)
+        """
+        self._n_dimensions = ratemap.ndim - 1  # subtract 1 for units dimension
+        n_units = ratemap.shape[0]
+        bin_shape = ratemap.shape[1:]
+
+        if occupancy is None:
+            # assume uniform occupancy
+            self._occupancy = np.ones(bin_shape)
+
+        if ext_min is None:
+            ext_min = np.zeros(self._n_dimensions)
+        if ext_max is None:
+            ext_max = np.ones(self._n_dimensions)
+
+        ext_min = np.asarray(ext_min)
+        ext_max = np.asarray(ext_max)
+
+        self._bins_list = []
+        for i in range(self._n_dimensions):
+            bins = np.linspace(ext_min[i], ext_max[i], bin_shape[i] + 1)
+            self._bins_list.append(bins)
+
+        self._ratemap = ratemap
+
+        # inherit unit IDs if available, otherwise initialize to default
+        if unit_ids is None:
+            unit_ids = list(range(1, n_units + 1))
+
+        unit_ids = np.array(unit_ids, ndmin=1)  # standardize unit_ids
+
+        # if unit_labels is empty, default to unit_ids
+        if unit_labels is None:
+            unit_labels = unit_ids
+
+        unit_labels = np.array(unit_labels, ndmin=1)  # standardize
+
+        self._unit_ids = unit_ids
+        self._unit_labels = unit_labels
+        self._unit_tags = unit_tags  # no input validation yet
+
+        # Set extlabels
+        if extlabels is None:
+            self._extlabels = [f"dim_{i}" for i in range(self._n_dimensions)]
+        else:
+            if len(extlabels) != self._n_dimensions:
+                raise ValueError("extlabels must have length equal to n_dimensions")
+            self._extlabels = extlabels
+
+        if label is not None:
+            self.label = label
+
+        return self
+
+    def max(self, *, axis=None):
+        """Returns the max of firing rate (in Hz)."""
+        if axis is None or axis == 0:
+            maxes = np.max(self.ratemap, axis=axis)
+        elif axis == 1:
+            # Flatten all spatial dimensions for per-unit calculation
+            maxes = [
+                self.ratemap[unit_i].max() for unit_i in range(self.ratemap.shape[0])
+            ]
+        else:
+            maxes = np.max(self.ratemap, axis=axis)
+
+        return maxes
+
+    def min(self, *, axis=None):
+        """Returns the min of firing rate (in Hz)."""
+        if axis is None or axis == 0:
+            mins = np.min(self.ratemap, axis=axis)
+        elif axis == 1:
+            # Flatten all spatial dimensions for per-unit calculation
+            mins = [
+                self.ratemap[unit_i].min() for unit_i in range(self.ratemap.shape[0])
+            ]
+        else:
+            mins = np.min(self.ratemap, axis=axis)
+
+        return mins
+
+    def mean(self, *, axis=None):
+        """Returns the mean of firing rate (in Hz)."""
+        if axis is None or axis == 0:
+            means = np.mean(self.ratemap, axis=axis)
+        elif axis == 1:
+            # Flatten all spatial dimensions for per-unit calculation
+            means = [
+                self.ratemap[unit_i].mean() for unit_i in range(self.ratemap.shape[0])
+            ]
+        else:
+            means = np.mean(self.ratemap, axis=axis)
+
+        return means
+
+    def std(self, *, axis=None):
+        """Returns the std of firing rate (in Hz)."""
+        if axis is None or axis == 0:
+            stds = np.std(self.ratemap, axis=axis)
+        elif axis == 1:
+            # Flatten all spatial dimensions for per-unit calculation
+            stds = [
+                self.ratemap[unit_i].std() for unit_i in range(self.ratemap.shape[0])
+            ]
+        else:
+            stds = np.std(self.ratemap, axis=axis)
+
+        return stds
+
+    def _detach(self):
+        """Detach bst and extern from tuning curve."""
+        self._bst = None
+        self._extern = None
+
+    @property
+    def mask(self):
+        """Mask for tuning curve."""
+        return self._mask
+
+    @property
+    def n_bins(self):
+        """Total number of bins (product of bins in all dimensions)."""
+        return np.prod([len(bins) - 1 for bins in self._bins_list])
+
+    @property
+    def n_bins_per_dim(self):
+        """Number of bins for each dimension."""
+        return [len(bins) - 1 for bins in self._bins_list]
+
+    @property
+    def bins(self):
+        """List of bin edges for each dimension."""
+        return self._bins_list
+
+    @property
+    def bin_centers(self):
+        """List of bin centers for each dimension."""
+        centers = []
+        for bins in self._bins_list:
+            center = (bins + (bins[1] - bins[0]) / 2)[:-1]
+            centers.append(center)
+        return centers
+
+    @property
+    def n_dimensions(self):
+        """Number of dimensions."""
+        return self._n_dimensions
+
+    @property
+    def extlabels(self):
+        """Labels for external correlates."""
+        return self._extlabels
+
+    # Backwards compatibility properties for 1D and 2D cases
+    @property
+    def xbins(self):
+        """X-dimension bins (for backwards compatibility when n_dimensions >= 1)."""
+        if self._n_dimensions >= 1:
+            return self._bins_list[0]
+        else:
+            raise AttributeError("xbins not available for 0-dimensional tuning curves")
+
+    @property
+    def ybins(self):
+        """Y-dimension bins (for backwards compatibility when n_dimensions >= 2)."""
+        if self._n_dimensions >= 2:
+            return self._bins_list[1]
+        else:
+            raise AttributeError(
+                "ybins not available for tuning curves with < 2 dimensions"
+            )
+
+    @property
+    def n_xbins(self):
+        """Number of X-dimension bins (for backwards compatibility)."""
+        if self._n_dimensions >= 1:
+            return len(self._bins_list[0]) - 1
+        else:
+            raise AttributeError(
+                "n_xbins not available for 0-dimensional tuning curves"
+            )
+
+    @property
+    def n_ybins(self):
+        """Number of Y-dimension bins (for backwards compatibility)."""
+        if self._n_dimensions >= 2:
+            return len(self._bins_list[1]) - 1
+        else:
+            raise AttributeError(
+                "n_ybins not available for tuning curves with < 2 dimensions"
+            )
+
+    @property
+    def xbin_centers(self):
+        """X-dimension bin centers (for backwards compatibility)."""
+        if self._n_dimensions >= 1:
+            bins = self._bins_list[0]
+            return (bins + (bins[1] - bins[0]) / 2)[:-1]
+        else:
+            raise AttributeError(
+                "xbin_centers not available for 0-dimensional tuning curves"
+            )
+
+    @property
+    def ybin_centers(self):
+        """Y-dimension bin centers (for backwards compatibility)."""
+        if self._n_dimensions >= 2:
+            bins = self._bins_list[1]
+            return (bins + (bins[1] - bins[0]) / 2)[:-1]
+        else:
+            raise AttributeError(
+                "ybin_centers not available for tuning curves with < 2 dimensions"
+            )
+
+    @property
+    def is2d(self):
+        """Check if this is a 2D tuning curve."""
+        return self._n_dimensions == 2
+
+    def _trans_func(self, extern, at):
+        """Default transform function to map extern into numerical bins.
+
+        Returns
+        -------
+        coords : np.ndarray
+            Array of shape (n_dimensions, n_timepoints)
+        """
+        _, ext = extern.asarray(at=at)
+
+        # If extern has shape (n_signals, n_timepoints), use first n_dimensions signals
+        if ext.ndim == 2 and ext.shape[0] >= self._n_dimensions:
+            coords = ext[: self._n_dimensions, :]
+        # If extern is 1D and we need 1 dimension, reshape appropriately
+        elif ext.ndim == 1 and self._n_dimensions == 1:
+            coords = ext.reshape(1, -1)
+        else:
+            raise ValueError(
+                f"extern shape {ext.shape} incompatible with {self._n_dimensions} dimensions"
+            )
+
+        return coords
+
+    def __getitem__(self, *idx):
+        """TuningCurveND index access. Accepts integers, slices, and lists"""
+        idx = [ii for ii in idx]
+        if len(idx) == 1 and not isinstance(idx[0], int):
+            idx = idx[0]
+        if isinstance(idx, tuple):
+            idx = [ii for ii in idx]
+
+        if self.isempty:
+            return self
+        try:
+            out = copy.copy(self)
+            out._ratemap = self.ratemap[idx]
+            out._unit_ids = (np.asanyarray(out._unit_ids)[idx]).tolist()
+            out._unit_labels = (np.asanyarray(out._unit_labels)[idx]).tolist()
+            return out
+        except Exception:
+            raise TypeError("unsupported subscripting type {}".format(type(idx)))
+
+    def _compute_occupancy(self):
+        """Compute occupancy using np.histogramdd."""
+        # Make sure that self._bst_centers fall within not only the support
+        # of extern, but also within the extreme sample times
+        if self._bst._bin_centers[0] < self._extern.time[0]:
+            self._extern = copy.copy(self._extern)
+            self._extern.time[0] = self._bst._bin_centers[0]
+            self._extern._interp = None
+
+        if self._bst._bin_centers[-1] > self._extern.time[-1]:
+            self._extern = copy.copy(self._extern)
+            self._extern.time[-1] = self._bst._bin_centers[-1]
+            self._extern._interp = None
+
+        coords = self.trans_func(self._extern, at=self._bst.bin_centers)
+
+        # coords should be shape (n_dimensions, n_timepoints)
+        # transpose to (n_timepoints, n_dimensions) for histogramdd
+        coords_transposed = coords.T
+
+        # Create ranges for histogramdd
+        ranges = []
+        for bins in self._bins_list:
+            ranges.append([bins[0], bins[-1]])
+
+        occupancy, _ = np.histogramdd(
+            coords_transposed, bins=self._bins_list, range=ranges
+        )
+
+        return occupancy
+
+    def _compute_ratemap(self, min_duration=None):
+        """Compute ratemap using N-dimensional binning."""
+        if min_duration is None:
+            min_duration = self._min_duration
+
+        coords = self.trans_func(self._extern, at=self._bst.bin_centers)
+
+        # Get bin indices for each dimension
+        bin_indices = []
+        for i, bins in enumerate(self._bins_list):
+            indices = np.digitize(coords[i, :], bins, right=True)
+            bin_indices.append(indices)
+
+        # Check bounds for all dimensions
+        for i, (indices, bins) in enumerate(zip(bin_indices, self._bins_list)):
+            n_bins_dim = len(bins) - 1
+            if indices.max() > n_bins_dim:
+                raise ValueError(f"ext values greater than 'ext_max' in dimension {i}")
+            if indices.min() == 0:
+                raise ValueError(f"ext values less than 'ext_min' in dimension {i}")
+
+        # Initialize ratemap
+        ratemap_shape = (self.n_units,) + tuple(self.n_bins_per_dim)
+        ratemap = np.zeros(ratemap_shape)
+
+        # Accumulate spikes in appropriate bins
+        for tt in range(len(self._bst.bin_centers)):
+            # Get bin coordinates for this time point
+            bin_coords = tuple(
+                idx[tt] - 1 for idx in bin_indices
+            )  # subtract 1 for 0-indexing
+
+            # Check if all coordinates are valid (within bounds)
+            if all(
+                0 <= coord < dim_size
+                for coord, dim_size in zip(bin_coords, self.n_bins_per_dim)
+            ):
+                # Use advanced indexing to add spike counts for all units
+                for unit_idx in range(self.n_units):
+                    ratemap[(unit_idx,) + bin_coords] += self._bst.data[unit_idx, tt]
+
+        # Apply minimum observation duration
+        for uu in range(self.n_units):
+            ratemap[uu][self.occupancy * self._bst.ds < min_duration] = 0
+
+        return ratemap / self._bst.ds
+
+    def _normalize_firing_rate_by_occupancy(self):
+        """Normalize spike counts by occupancy."""
+        # Tile occupancy to match ratemap shape
+        occupancy_tiled = np.tile(
+            self.occupancy, (self.n_units,) + (1,) * self._n_dimensions
+        )
+        occupancy_tiled[occupancy_tiled == 0] = 1
+        ratemap = self.ratemap / occupancy_tiled
+        return ratemap
+
+    @property
+    def occupancy(self):
+        return self._occupancy
+
+    @property
+    def n_units(self):
+        """(int) The number of units."""
+        try:
+            return len(self._unit_ids)
+        except TypeError:  # when unit_ids is an integer
+            return 1
+        except AttributeError:
+            return 0
+
+    @property
+    def shape(self):
+        """(tuple) The shape of the TuningCurveND ratemap."""
+        if self.isempty:
+            return (self.n_units,) + (0,) * self._n_dimensions
+        return self.ratemap.shape
+
+    def __repr__(self):
+        address_str = " at " + str(hex(id(self)))
+        if self.isempty:
+            return f"<empty TuningCurveND{address_str}>"
+        shapestr = " with shape " + str(self.shape)
+        return f"<TuningCurveND({self._n_dimensions}D){address_str}>{shapestr}"
+
+    @property
+    def isempty(self):
+        """(bool) True if TuningCurveND is empty"""
+        try:
+            return len(self.ratemap) == 0
+        except TypeError:  # TypeError should happen if ratemap = []
+            return True
+
+    @property
+    def ratemap(self):
+        return self._ratemap
+
+    def __len__(self):
+        return self.n_units
+
+    def __iter__(self):
+        """TuningCurveND iterator initialization"""
+        # initialize the internal index to zero when used as iterator
+        self._index = 0
+        return self
+
+    def __next__(self):
+        """TuningCurveND iterator advancer."""
+        index = self._index
+        if index > self.n_units - 1:
+            raise StopIteration
+        out = copy.copy(self)
+        out._ratemap = self.ratemap[index][np.newaxis, ...]  # Keep unit dimension
+        out._unit_ids = [self.unit_ids[index]]
+        out._unit_labels = [self.unit_labels[index]]
+        self._index += 1
+        return out
+
+    @keyword_deprecation(replace_x_with_y={"bw": "truncate"})
+    def smooth(self, *, sigma=None, truncate=None, inplace=False, mode=None, cval=None):
+        """Smooths the tuning curve with a Gaussian kernel.
+
+        Parameters
+        ----------
+        sigma : float or array-like, optional
+            Standard deviation for Gaussian smoothing. If float, applied to all
+            dimensions. If array-like, must have length equal to n_dimensions.
+        """
+        if sigma is None:
+            sigma = 0.1  # in units of extern
+        if truncate is None:
+            truncate = 4
+        if mode is None:
+            mode = "reflect"
+        if cval is None:
+            cval = 0.0
+
+        # Handle sigma parameter
+        sigma_array = np.asarray(sigma)
+        if sigma_array.ndim == 0:
+            # Single sigma value - apply to all dimensions
+            sigma_values = np.full(self._n_dimensions, float(sigma_array))
+        else:
+            # Array of sigma values
+            if len(sigma_array) != self._n_dimensions:
+                raise ValueError(
+                    f"sigma array length {len(sigma_array)} must equal n_dimensions {self._n_dimensions}"
+                )
+            sigma_values = sigma_array
+
+        # Convert sigma from extern units to pixel units for each dimension
+        sigma_pixels = []
+        for i, (bins, sigma_val) in enumerate(zip(self._bins_list, sigma_values)):
+            ds = (bins[-1] - bins[0]) / (len(bins) - 1)
+            sigma_pixels.append(sigma_val / ds)
+
+        # Create full sigma tuple: (0, sigma_dim0, sigma_dim1, ...)
+        full_sigma = (0,) + tuple(sigma_pixels)
+
+        if not inplace:
+            out = copy.deepcopy(self)
+        else:
+            out = self
+
+        if self.mask is None:
+            # Simple case without mask
+            out._ratemap = scipy.ndimage.gaussian_filter(
+                self.ratemap,
+                sigma=full_sigma,
+                truncate=truncate,
+                mode=mode,
+                cval=cval,
+            )
+        else:
+            # Complex case with mask - handle NaNs properly
+            masked_ratemap = self.ratemap.copy() * self.mask
+            V = masked_ratemap.copy()
+            V[masked_ratemap != masked_ratemap] = 0
+            W = 0 * masked_ratemap.copy() + 1
+            W[masked_ratemap != masked_ratemap] = 0
+
+            VV = scipy.ndimage.filters.gaussian_filter(
+                V,
+                sigma=full_sigma,
+                truncate=truncate,
+                mode=mode,
+                cval=cval,
+            )
+            WW = scipy.ndimage.filters.gaussian_filter(
+                W,
+                sigma=full_sigma,
+                truncate=truncate,
+                mode=mode,
+                cval=cval,
+            )
+            Z = VV / WW
+            out._ratemap = Z * self.mask
+
+        return out
+
+    @property
+    def unit_ids(self):
+        """Unit IDs contained in the SpikeTrain."""
+        return list(self._unit_ids)
+
+    @unit_ids.setter
+    def unit_ids(self, val):
+        if len(val) != self.n_units:
+            raise TypeError("unit_ids must be of length n_units")
+        elif len(set(val)) < len(val):
+            raise TypeError("duplicate unit_ids are not allowed")
+        else:
+            try:
+                # cast to int:
+                unit_ids = [int(id) for id in val]
+            except TypeError:
+                raise TypeError("unit_ids must be int-like")
+        self._unit_ids = unit_ids
+
+    @property
+    def unit_labels(self):
+        """Labels corresponding to units contained in the SpikeTrain."""
+        if self._unit_labels is None:
+            warnings.warn("unit labels have not yet been specified")
+        return self._unit_labels
+
+    @unit_labels.setter
+    def unit_labels(self, val):
+        if len(val) != self.n_units:
+            raise TypeError("labels must be of length n_units")
+        else:
+            try:
+                # cast to str:
+                labels = [str(label) for label in val]
+            except TypeError:
+                raise TypeError("labels must be string-like")
+        self._unit_labels = labels
+
+    @property
+    def unit_tags(self):
+        """Tags corresponding to units contained in the SpikeTrain"""
+        if self._unit_tags is None:
+            warnings.warn("unit tags have not yet been specified")
+        return self._unit_tags
+
+    @property
+    def label(self):
+        """Label pertaining to the source of the spike train."""
+        if self._label is None:
+            warnings.warn("label has not yet been specified")
+        return self._label
+
+    @label.setter
+    def label(self, val):
+        if val is not None:
+            try:  # cast to str:
+                label = str(val)
+            except TypeError:
+                raise TypeError("cannot convert label to string")
+        else:
+            label = val
+        self._label = label

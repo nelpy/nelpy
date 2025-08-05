@@ -7,12 +7,18 @@ suite.
 
 from ._results import ResultsContainer, load_pkl, save_pkl
 from ._session import Session
-from ._tuningcurve import DirectionalTuningCurve1D, TuningCurve1D, TuningCurve2D
+from ._tuningcurve import (
+    DirectionalTuningCurve1D,
+    TuningCurve1D,
+    TuningCurve2D,
+    TuningCurveND,
+)
 
 __all__ = [
     "TuningCurve1D",
     "TuningCurve2D",
     "DirectionalTuningCurve1D",
+    "TuningCurveND",
     "Session",
     "ResultsContainer",
     "load_pkl",
