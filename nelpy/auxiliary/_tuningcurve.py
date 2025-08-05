@@ -2183,6 +2183,27 @@ class TuningCurveND:
         Mask for valid regions.
     n_dimensions : int
         Number of dimensions.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import nelpy as nel
+    >>> n_units = 5  # Number of units
+    >>> spike_times = np.sort(np.random.rand(n_units, 1000))
+    >>> # Create SpikeTrainArray and bin it
+    >>> sta = nel.SpikeTrainArray(
+    ...     spike_times,
+    ...     fs=1000,
+    ... )
+    >>> # Bin the spike train array
+    >>> bst = sta.bin(ds=0.1)  # 100ms bins
+    >>> # Create an external AnalogSignalArray
+    >>> # For example, a random signal with 4 channels and 1000 samples at 10 Hz
+    >>> extern = nel.AnalogSignalArray(data=np.random.rand(4, 1000), fs=10.0)
+    >>> # Create a 4D tuning curve
+    >>> tuning_curve = nel.TuningCurveND(bst=bst, extern=extern, n_bins=[2, 5, 4, 3])
+    >>> tuning_curve.ratemap.shape
+    (5, 2, 5, 4, 3)  # 5 units, with bins in each of the 4 dimensions
     """
 
     __attributes__ = [
