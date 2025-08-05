@@ -8,6 +8,7 @@ from nelpy.utils import (
     find_nearest_idx,
     find_nearest_indices,
     frange,
+    information_rate,
     is_odd,
     is_sorted,
     linear_merge,
@@ -15,12 +16,11 @@ from nelpy.utils import (
     nextpower,
     pairwise,
     ragged_array,
-    swap_cols,
-    swap_rows,
     spatial_information,
-    information_rate,
     spatial_selectivity,
     spatial_sparsity,
+    swap_cols,
+    swap_rows,
 )
 
 
