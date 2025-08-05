@@ -195,18 +195,32 @@ def spatial_information(ratemap, Pi=1):
     # otherwise the spatial information might return NaNs:
     ratemap[np.isnan(ratemap) | (ratemap == 0)] = np.finfo(float).eps
 
-    if len(ratemap.shape) == 3:
-        # we have 2D tuning curve, (n_units, n_x, n_y)
-        R = (ratemap * Pi).sum(axis=1).sum(axis=1)
-        Ri = np.transpose(ratemap, (2, 1, 0))
-        si = np.sum(np.sum((Pi * ((Ri / R) * np.log2(Ri / R)).T), axis=1), axis=1)
-    elif len(ratemap.shape) == 2:
-        # we have 1D tuning curve, (n_units, n_x)
-        R = (ratemap * Pi).sum(axis=1)  # mean firing rate
-        Ri = ratemap.T
-        si = np.sum((Pi * ((Ri / R) * np.log2(Ri / R)).T), axis=1)
-    else:
-        raise TypeError("rate map shape not supported / understood!")
+    # Handle N-dimensional ratemaps (n_units, *spatial_dims)
+    if len(ratemap.shape) < 2:
+        raise TypeError(
+            "rate map must have at least 2 dimensions (n_units, *spatial_dims)!"
+        )
+
+    # Sum over all spatial dimensions to get mean firing rate for each unit
+    spatial_axes = tuple(range(1, len(ratemap.shape)))
+    R = (ratemap * Pi).sum(axis=spatial_axes)  # mean firing rate for each unit
+
+    # Compute spatial information for each unit
+    # We need to compute sum over spatial bins of: Pi * (Ri/R) * log2(Ri/R)
+    # where Ri is the firing rate in each spatial bin
+
+    si = np.zeros(ratemap.shape[0])  # one value per unit
+
+    for unit_idx in range(ratemap.shape[0]):
+        unit_ratemap = ratemap[unit_idx]  # spatial dimensions only
+        unit_mean_rate = R[unit_idx]
+
+        # Compute (Ri / R) * log2(Ri / R) for each spatial bin
+        rate_ratio = unit_ratemap / unit_mean_rate
+        log_term = rate_ratio * np.log2(rate_ratio)
+
+        # Weight by occupancy probability and sum over all spatial dimensions
+        si[unit_idx] = np.sum(Pi * log_term)
 
     return si
 
@@ -234,13 +248,15 @@ def information_rate(ratemap, Pi=1):
     Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
     Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
 
-    if len(ratemap.shape) == 3:
-        # we have 2D tuning curve, (n_units, n_x, n_y)
-        R = (ratemap * Pi).sum(axis=1).sum(axis=1)
-    elif len(ratemap.shape) == 2:
-        R = (ratemap * Pi).sum(axis=1)
-    else:
-        raise TypeError("rate map shape not supported / understood!")
+    # Handle N-dimensional ratemaps (n_units, *spatial_dims)
+    if len(ratemap.shape) < 2:
+        raise TypeError(
+            "rate map must have at least 2 dimensions (n_units, *spatial_dims)!"
+        )
+
+    # Sum over all spatial dimensions to get mean firing rate for each unit
+    spatial_axes = tuple(range(1, len(ratemap.shape)))
+    R = (ratemap * Pi).sum(axis=spatial_axes)
     return spatial_information(ratemap, Pi) * R
 
 
@@ -267,15 +283,18 @@ def spatial_selectivity(ratemap, Pi=1):
     Pi[np.isnan(Pi) | (Pi == 0)] = np.finfo(float).eps
     Pi = Pi / (np.sum(Pi) + np.finfo(float).eps)
 
-    if len(ratemap.shape) == 3:
-        # we have 2D tuning curve, (n_units, n_x, n_y)
-        R = (ratemap * Pi).sum(axis=1).sum(axis=1)
-        max_rate = np.max(ratemap, axis=1).max(axis=1)
-    elif len(ratemap.shape) == 2:
-        R = (ratemap * Pi).sum(axis=1)
-        max_rate = np.max(ratemap, axis=1)
-    else:
-        raise TypeError("rate map shape not supported / understood!")
+    # Handle N-dimensional ratemaps (n_units, *spatial_dims)
+    if len(ratemap.shape) < 2:
+        raise TypeError(
+            "rate map must have at least 2 dimensions (n_units, *spatial_dims)!"
+        )
+
+    # Sum over all spatial dimensions to get mean firing rate for each unit
+    spatial_axes = tuple(range(1, len(ratemap.shape)))
+    R = (ratemap * Pi).sum(axis=spatial_axes)
+
+    # Get maximum rate over all spatial dimensions for each unit
+    max_rate = np.max(ratemap, axis=spatial_axes)
     return max_rate / R
 
 
@@ -325,16 +344,18 @@ def spatial_sparsity(ratemap, Pi=1):
     # otherwise the spatial information might return NaNs:
     ratemap[np.isnan(ratemap) | (ratemap == 0)] = np.finfo(float).eps
 
-    if len(ratemap.shape) == 3:
-        # we have 2D tuning curve, (n_units, n_x, n_y)
-        R = (ratemap * Pi).sum(axis=1).sum(axis=1)
-        avg_sqr_rate = np.sum(ratemap**2 * Pi, axis=1).sum(axis=1)
+    # Handle N-dimensional ratemaps (n_units, *spatial_dims)
+    if len(ratemap.shape) < 2:
+        raise TypeError(
+            "rate map must have at least 2 dimensions (n_units, *spatial_dims)!"
+        )
 
-    elif len(ratemap.shape) == 2:
-        R = (ratemap * Pi).sum(axis=1)
-        avg_sqr_rate = np.sum(ratemap**2 * Pi, axis=1)
-    else:
-        raise TypeError("rate map shape not supported / understood!")
+    # Sum over all spatial dimensions to get mean firing rate for each unit
+    spatial_axes = tuple(range(1, len(ratemap.shape)))
+    R = (ratemap * Pi).sum(axis=spatial_axes)
+
+    # Compute average squared rate over all spatial dimensions
+    avg_sqr_rate = np.sum(ratemap**2 * Pi, axis=spatial_axes)
 
     return R**2 / avg_sqr_rate
 

@@ -17,6 +17,10 @@ from nelpy.utils import (
     ragged_array,
     swap_cols,
     swap_rows,
+    spatial_information,
+    information_rate,
+    spatial_selectivity,
+    spatial_sparsity,
 )
 
 
@@ -467,3 +471,210 @@ class TestPrettyClasses:
         """Test PrettyBytes with large numbers"""
         pb = PrettyBytes(1024**3)  # 1 GB
         assert "gigabytes" in str(pb)
+
+
+class TestSpatialAnalysisFunctions:
+    """Test spatial analysis functions for N-dimensional ratemaps."""
+
+    def test_spatial_information_1d(self):
+        """Test spatial_information with 1D ratemap (n_units, n_bins)"""
+        # Create a simple 1D ratemap with 2 units and 5 spatial bins
+        ratemap = np.array(
+            [
+                [0.5, 1.0, 2.0, 1.0, 0.5],  # unit 1: gaussian-like profile
+                [0.1, 0.1, 0.1, 0.1, 0.1],  # unit 2: uniform low firing
+            ]
+        )
+        Pi = np.ones(5) / 5  # uniform occupancy
+
+        si = spatial_information(ratemap, Pi)
+
+        # Unit 1 should have higher spatial information than unit 2
+        assert si[0] > si[1]
+        assert len(si) == 2
+        assert np.all(si >= 0)  # spatial information should be non-negative
+
+    def test_spatial_information_2d(self):
+        """Test spatial_information with 2D ratemap (n_units, n_x, n_y)"""
+        # Create a simple 2D ratemap with 2 units and 3x3 spatial bins
+        ratemap = np.zeros((2, 3, 3))
+        ratemap[0, 1, 1] = 5.0  # unit 1: place field in center
+        ratemap[0] += 0.1  # add baseline
+        ratemap[1] = 1.0  # unit 2: uniform firing
+
+        Pi = np.ones((3, 3)) / 9  # uniform occupancy
+
+        si = spatial_information(ratemap, Pi)
+
+        # Unit 1 should have higher spatial information than unit 2
+        assert si[0] > si[1]
+        assert len(si) == 2
+        assert np.all(si >= 0)
+
+    def test_spatial_information_3d(self):
+        """Test spatial_information with 3D ratemap (n_units, n_x, n_y, n_z)"""
+        # Create a simple 3D ratemap with 1 unit and 2x2x2 spatial bins
+        ratemap = np.zeros((1, 2, 2, 2))
+        ratemap[0, 1, 1, 1] = 8.0  # single highly active voxel
+        ratemap[0] += 0.1  # add baseline
+
+        Pi = np.ones((2, 2, 2)) / 8  # uniform occupancy
+
+        si = spatial_information(ratemap, Pi)
+
+        assert len(si) == 1
+        assert si[0] > 0  # should have positive spatial information
+
+    def test_spatial_information_4d(self):
+        """Test spatial_information with 4D ratemap (n_units, n_w, n_x, n_y, n_z)"""
+        # Create a simple 4D ratemap with 1 unit and 2x2x2x2 spatial bins
+        ratemap = np.zeros((1, 2, 2, 2, 2))
+        ratemap[0, 0, 1, 1, 0] = 16.0  # single highly active hypervoxel
+        ratemap[0] += 0.1  # add baseline
+
+        Pi = np.ones((2, 2, 2, 2)) / 16  # uniform occupancy
+
+        si = spatial_information(ratemap, Pi)
+
+        assert len(si) == 1
+        assert si[0] > 0  # should have positive spatial information
+
+    def test_information_rate_1d(self):
+        """Test information_rate with 1D ratemap"""
+        ratemap = np.array(
+            [
+                [0.5, 1.0, 2.0, 1.0, 0.5],  # unit 1
+                [1.0, 1.0, 1.0, 1.0, 1.0],  # unit 2: uniform
+            ]
+        )
+        Pi = np.ones(5) / 5
+
+        ir = information_rate(ratemap, Pi)
+
+        assert len(ir) == 2
+        assert np.all(ir >= 0)
+        # Information rate should be spatial_information * mean_firing_rate
+        si = spatial_information(ratemap, Pi)
+        mean_rates = (ratemap * Pi).sum(axis=1)
+        expected_ir = si * mean_rates
+        np.testing.assert_array_almost_equal(ir, expected_ir)
+
+    def test_information_rate_3d(self):
+        """Test information_rate with 3D ratemap"""
+        ratemap = np.ones((2, 2, 2, 2)) * 0.5  # 2 units, 2x2x2 spatial
+        ratemap[0, 1, 1, 1] = 4.0  # add place field to unit 1
+
+        Pi = np.ones((2, 2, 2)) / 8
+
+        ir = information_rate(ratemap, Pi)
+
+        assert len(ir) == 2
+        assert ir[0] > ir[1]  # unit with place field should have higher info rate
+
+    def test_spatial_selectivity_1d(self):
+        """Test spatial_selectivity with 1D ratemap"""
+        ratemap = np.array(
+            [
+                [0.1, 0.1, 5.0, 0.1, 0.1],  # highly selective unit
+                [1.0, 1.0, 1.0, 1.0, 1.0],  # non-selective unit
+            ]
+        )
+        Pi = np.ones(5) / 5
+
+        selectivity = spatial_selectivity(ratemap, Pi)
+
+        assert len(selectivity) == 2
+        assert selectivity[0] > selectivity[1]  # first unit should be more selective
+        assert selectivity[1] == pytest.approx(1.0)  # uniform unit has selectivity of 1
+
+    def test_spatial_selectivity_3d(self):
+        """Test spatial_selectivity with 3D ratemap"""
+        ratemap = np.ones((2, 2, 2, 2)) * 0.5  # baseline firing
+        ratemap[0, 0, 0, 0] = 8.0  # add peak to unit 1
+
+        Pi = np.ones((2, 2, 2)) / 8
+
+        selectivity = spatial_selectivity(ratemap, Pi)
+
+        assert len(selectivity) == 2
+        assert selectivity[0] > selectivity[1]
+
+    def test_spatial_sparsity_1d(self):
+        """Test spatial_sparsity with 1D ratemap"""
+        ratemap = np.array(
+            [
+                [0.1, 0.1, 10.0, 0.1, 0.1],  # sparse unit
+                [2.0, 2.0, 2.0, 2.0, 2.0],  # non-sparse unit
+            ]
+        )
+        Pi = np.ones(5) / 5
+
+        sparsity = spatial_sparsity(ratemap, Pi)
+
+        assert len(sparsity) == 2
+        assert sparsity[0] < sparsity[1]  # sparse unit should have lower sparsity value
+        assert np.all(sparsity > 0)
+
+    def test_spatial_sparsity_3d(self):
+        """Test spatial_sparsity with 3D ratemap"""
+        ratemap = np.ones((2, 2, 2, 2)) * 0.1  # low baseline
+        ratemap[0, 1, 1, 1] = 10.0  # single high-firing voxel for unit 1
+
+        Pi = np.ones((2, 2, 2)) / 8
+
+        sparsity = spatial_sparsity(ratemap, Pi)
+
+        assert len(sparsity) == 2
+        assert sparsity[0] < sparsity[1]  # unit with place field should be more sparse
+
+    def test_all_functions_with_multidimensional_pi(self):
+        """Test all functions work with multi-dimensional Pi arrays"""
+        # 3D ratemap with 3D Pi
+        ratemap = np.random.rand(2, 3, 3, 3) + 0.1
+        Pi = np.random.rand(3, 3, 3)
+        Pi = Pi / Pi.sum()  # normalize
+
+        # All functions should work without errors
+        si = spatial_information(ratemap, Pi)
+        ir = information_rate(ratemap, Pi)
+        sel = spatial_selectivity(ratemap, Pi)
+        spa = spatial_sparsity(ratemap, Pi)
+
+        assert len(si) == len(ir) == len(sel) == len(spa) == 2
+        assert np.all(si >= 0)
+        assert np.all(ir >= 0)
+        assert np.all(sel >= 0)
+        assert np.all(spa > 0)
+
+    def test_error_on_invalid_ratemap_shape(self):
+        """Test that functions raise appropriate errors for invalid shapes"""
+        # 1D array (missing unit dimension)
+        ratemap_1d = np.array([1, 2, 3])
+        Pi = np.array([0.3, 0.3, 0.4])
+
+        with pytest.raises(TypeError):
+            spatial_information(ratemap_1d, Pi)
+
+        with pytest.raises(TypeError):
+            information_rate(ratemap_1d, Pi)
+
+        with pytest.raises(TypeError):
+            spatial_selectivity(ratemap_1d, Pi)
+
+        with pytest.raises(TypeError):
+            spatial_sparsity(ratemap_1d, Pi)
+
+    def test_consistency_across_dimensions(self):
+        """Test that results are consistent when reshaping compatible arrays"""
+        # Create a 1D case and equivalent 2D case
+        ratemap_1d = np.array([[1.0, 2.0, 3.0, 2.0, 1.0]])  # 1 unit, 5 bins
+        Pi_1d = np.ones(5) / 5
+
+        # Reshape to 2D: 5x1 spatial bins
+        ratemap_2d = ratemap_1d.reshape(1, 5, 1)
+        Pi_2d = Pi_1d.reshape(5, 1)
+
+        si_1d = spatial_information(ratemap_1d, Pi_1d)
+        si_2d = spatial_information(ratemap_2d, Pi_2d)
+
+        np.testing.assert_array_almost_equal(si_1d, si_2d, decimal=10)
