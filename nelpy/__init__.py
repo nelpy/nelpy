@@ -18,6 +18,7 @@ from .auxiliary._tuningcurve import (
     DirectionalTuningCurve1D,
     TuningCurve1D,
     TuningCurve2D,
+    TuningCurveND,
 )
 from .core._analogsignalarray import (
     AnalogSignalArray,
@@ -95,6 +96,7 @@ __all__ = [
     "StatefulValueEventArray",
     "TuningCurve1D",
     "TuningCurve2D",
+    "TuningCurveND",
     "DirectionalTuningCurve1D",
     "Session",
     "ResultsContainer",
