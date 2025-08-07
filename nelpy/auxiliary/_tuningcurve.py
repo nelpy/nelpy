@@ -10,7 +10,7 @@ import numbers
 import warnings
 
 import numpy as np
-import scipy.ndimage.filters
+from scipy.ndimage import gaussian_filter
 
 from .. import utils
 from ..utils_.decorators import keyword_deprecation
@@ -843,10 +843,24 @@ class TuningCurve2D:
         if cval is None:
             cval = 0.0
 
+        # Handle sigma parameter - support both scalar and array
+        sigma_array = np.asarray(sigma)
+        if sigma_array.ndim == 0:
+            # Single sigma value - apply to both dimensions
+            sigma_x_val = sigma_y_val = float(sigma_array)
+        else:
+            # Array of sigma values
+            if len(sigma_array) != 2:
+                raise ValueError(
+                    f"sigma array length {len(sigma_array)} must equal 2 for TuningCurve2D"
+                )
+            sigma_x_val = sigma_array[0]
+            sigma_y_val = sigma_array[1]
+
         ds_x = (self.xbins[-1] - self.xbins[0]) / self.n_xbins
         ds_y = (self.ybins[-1] - self.ybins[0]) / self.n_ybins
-        sigma_x = sigma / ds_x
-        sigma_y = sigma / ds_y
+        sigma_x = sigma_x_val / ds_x
+        sigma_y = sigma_y_val / ds_y
 
         if not inplace:
             out = copy.deepcopy(self)
@@ -855,7 +869,7 @@ class TuningCurve2D:
 
         if self.mask is None:
             if (self.n_units > 1) | (self.ratemap.shape[0] > 1):
-                out._ratemap = scipy.ndimage.filters.gaussian_filter(
+                out._ratemap = gaussian_filter(
                     self.ratemap,
                     sigma=(0, sigma_x, sigma_y),
                     truncate=truncate,
@@ -863,7 +877,7 @@ class TuningCurve2D:
                     cval=cval,
                 )
             elif self.ratemap.shape[0] == 1:
-                out._ratemap[0, :, :] = scipy.ndimage.filters.gaussian_filter(
+                out._ratemap[0, :, :] = gaussian_filter(
                     self.ratemap[0, :, :],
                     sigma=(sigma_x, sigma_y),
                     truncate=truncate,
@@ -883,14 +897,14 @@ class TuningCurve2D:
             W[masked_ratemap != masked_ratemap] = 0
 
             if (self.n_units > 1) | (self.ratemap.shape[0] > 1):
-                VV = scipy.ndimage.filters.gaussian_filter(
+                VV = gaussian_filter(
                     V,
                     sigma=(0, sigma_x, sigma_y),
                     truncate=truncate,
                     mode=mode,
                     cval=cval,
                 )
-                WW = scipy.ndimage.filters.gaussian_filter(
+                WW = gaussian_filter(
                     W,
                     sigma=(0, sigma_x, sigma_y),
                     truncate=truncate,
@@ -900,10 +914,10 @@ class TuningCurve2D:
                 Z = VV / WW
                 out._ratemap = Z * self.mask
             else:
-                VV = scipy.ndimage.filters.gaussian_filter(
+                VV = gaussian_filter(
                     V, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval
                 )
-                WW = scipy.ndimage.filters.gaussian_filter(
+                WW = gaussian_filter(
                     W, sigma=(sigma_x, sigma_y), truncate=truncate, mode=mode, cval=cval
                 )
                 Z = VV / WW
@@ -1613,8 +1627,21 @@ class TuningCurve1D:
         if cval is None:
             cval = 0.0
 
+        # Handle sigma parameter - support both scalar and array
+        sigma_array = np.asarray(sigma)
+        if sigma_array.ndim == 0:
+            # Single sigma value
+            sigma_val = float(sigma_array)
+        else:
+            # Array of sigma values - for 1D should have length 1
+            if len(sigma_array) != 1:
+                raise ValueError(
+                    f"sigma array length {len(sigma_array)} must equal 1 for TuningCurve1D"
+                )
+            sigma_val = sigma_array[0]
+
         ds = (self.bins[-1] - self.bins[0]) / self.n_bins
-        sigma = sigma / ds
+        sigma = sigma_val / ds
 
         if not inplace:
             out = copy.deepcopy(self)
@@ -1622,11 +1649,11 @@ class TuningCurve1D:
             out = self
 
         if self.n_units > 1:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(
+            out._ratemap = gaussian_filter(
                 self.ratemap, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
             )
         else:
-            out._ratemap = scipy.ndimage.filters.gaussian_filter(
+            out._ratemap = gaussian_filter(
                 self.ratemap, sigma=sigma, truncate=truncate, mode=mode, cval=cval
             )
 
@@ -2895,7 +2922,7 @@ class TuningCurveND:
 
         if self.mask is None:
             # Simple case without mask
-            out._ratemap = scipy.ndimage.gaussian_filter(
+            out._ratemap = gaussian_filter(
                 self.ratemap,
                 sigma=full_sigma,
                 truncate=truncate,
@@ -2910,14 +2937,14 @@ class TuningCurveND:
             W = 0 * masked_ratemap.copy() + 1
             W[masked_ratemap != masked_ratemap] = 0
 
-            VV = scipy.ndimage.filters.gaussian_filter(
+            VV = gaussian_filter(
                 V,
                 sigma=full_sigma,
                 truncate=truncate,
                 mode=mode,
                 cval=cval,
             )
-            WW = scipy.ndimage.filters.gaussian_filter(
+            WW = gaussian_filter(
                 W,
                 sigma=full_sigma,
                 truncate=truncate,
