@@ -7,6 +7,7 @@ from nelpy.utils import (
     PrettyInt,
     find_nearest_idx,
     find_nearest_indices,
+    find_threshold_crossing_events,
     frange,
     information_rate,
     is_odd,
@@ -16,6 +17,7 @@ from nelpy.utils import (
     nextpower,
     pairwise,
     ragged_array,
+    shrinkMatColsTo,
     spatial_information,
     spatial_selectivity,
     spatial_sparsity,
@@ -678,3 +680,206 @@ class TestSpatialAnalysisFunctions:
         si_2d = spatial_information(ratemap_2d, Pi_2d)
 
         np.testing.assert_array_almost_equal(si_1d, si_2d, decimal=10)
+
+
+class TestShrinkMatColsTo:
+    """Test shrinkMatColsTo function."""
+
+    def test_shrink_basic(self):
+        """Test basic matrix column shrinking."""
+        mat = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
+        result = shrinkMatColsTo(mat, 2)
+
+        assert result.shape == (2, 2)
+        # The function uses linear interpolation which samples at different points
+        # than simple averaging, so let's just test that it's reasonable
+        assert result[0, 0] >= 1.0 and result[0, 0] <= 2.0
+        assert result[0, 1] >= 3.0 and result[0, 1] <= 4.0
+        assert result[1, 0] >= 5.0 and result[1, 0] <= 6.0
+        assert result[1, 1] >= 7.0 and result[1, 1] <= 8.0
+
+    def test_shrink_single_row(self):
+        """Test shrinking with single row."""
+        mat = np.array([[1, 2, 3, 4, 5, 6]])
+        result = shrinkMatColsTo(mat, 3)
+
+        assert result.shape == (1, 3)
+        # Should interpolate 6 columns down to 3
+
+    def test_shrink_to_one_column(self):
+        """Test shrinking to single column."""
+        mat = np.array([[1, 2, 3], [4, 5, 6]])
+        result = shrinkMatColsTo(mat, 1)
+
+        assert result.shape == (2, 1)
+
+    def test_shrink_no_change(self):
+        """Test when target columns equals source columns."""
+        mat = np.array([[1, 2, 3], [4, 5, 6]])
+        result = shrinkMatColsTo(mat, 3)
+
+        assert result.shape == (2, 3)
+        # Should be very close to original
+        np.testing.assert_allclose(result, mat, rtol=1e-10)
+
+
+class TestFindThresholdCrossingEvents:
+    """Test find_threshold_crossing_events function."""
+
+    def test_threshold_crossing_above(self):
+        """Test finding events above threshold."""
+        x = np.array([0, 1, 2, 3, 2, 1, 0, 0, 3, 4, 3, 2])
+        threshold = 2.5
+
+        eventlist, eventmax = find_threshold_crossing_events(x, threshold, mode="above")
+
+        # Should find events where x >= 2.5
+        assert len(eventlist) == 2  # Two separate events
+        assert len(eventmax) == 2
+
+        # First event: index 3 (value 3)
+        # Second event: indices 8, 9, 10 (values 3, 4, 3)
+        assert eventlist[0][0] == 3 and eventlist[0][1] == 3
+        assert eventlist[1][0] == 8 and eventlist[1][1] == 10
+        assert eventmax[0] == 3
+        assert eventmax[1] == 4
+
+    def test_threshold_crossing_below(self):
+        """Test finding events below threshold."""
+        x = np.array([3, 2, 1, 0, 1, 2, 3, 3, 0, 1, 2, 3])
+        threshold = 1.5
+
+        eventlist, eventmax = find_threshold_crossing_events(x, threshold, mode="below")
+
+        # Should find events where x <= 1.5
+        assert len(eventlist) >= 1  # At least one event
+        assert len(eventmax) >= 1
+
+    def test_threshold_crossing_no_events(self):
+        """Test when no events cross threshold."""
+        x = np.array([0, 0.5, 1, 1.5, 1, 0.5, 0])
+        threshold = 2
+
+        eventlist, eventmax = find_threshold_crossing_events(x, threshold, mode="above")
+
+        assert len(eventlist) == 0
+        assert len(eventmax) == 0
+
+    def test_threshold_crossing_invalid_mode(self):
+        """Test invalid mode parameter."""
+        x = np.array([0, 1, 2, 3])
+        threshold = 1.5
+
+        with pytest.raises(NotImplementedError):
+            find_threshold_crossing_events(x, threshold, mode="invalid")
+
+    def test_threshold_crossing_continuous_event(self):
+        """Test with continuous event spanning multiple indices."""
+        x = np.array([0, 1, 3, 3, 3, 2, 1, 0])
+        threshold = 2.5
+
+        eventlist, eventmax = find_threshold_crossing_events(x, threshold, mode="above")
+
+        # Should be one continuous event from index 2 to 4
+        assert len(eventlist) == 1
+        assert eventlist[0][0] == 2
+        assert eventlist[0][1] == 4
+        assert eventmax[0] == 3
+
+
+class TestShrinkMatColsToEdgeCases:
+    """Test shrinkMatColsTo with edge cases for additional coverage."""
+
+    def test_shrink_mat_single_column_input(self):
+        """Test shrinkMatColsTo with single column input."""
+        mat = np.array([[1], [2], [3]])
+        result = shrinkMatColsTo(mat, 1)
+        assert result.shape == (3, 1)
+        np.testing.assert_array_equal(result, mat)
+
+    def test_shrink_mat_large_shrinkage_ratio(self):
+        """Test shrinkMatColsTo with large shrinkage ratio."""
+        mat = np.array([[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]])
+        result = shrinkMatColsTo(mat, 2)
+        assert result.shape == (1, 2)
+
+    def test_shrink_mat_no_shrinkage_needed(self):
+        """Test shrinkMatColsTo when no shrinkage is needed."""
+        mat = np.array([[1, 2], [3, 4]])
+        result = shrinkMatColsTo(mat, 2)
+        assert result.shape == (2, 2)
+        np.testing.assert_array_equal(result, mat)
+
+    def test_shrink_mat_small_matrix(self):
+        """Test shrinkMatColsTo with very small matrix."""
+        mat = np.array([[5]])
+        result = shrinkMatColsTo(mat, 1)
+        assert result.shape == (1, 1)
+        assert result[0, 0] == 5
+
+
+class TestFindThresholdCrossingEdgeCases:
+    """Test find_threshold_crossing_events with edge cases for additional coverage."""
+
+    def test_threshold_crossing_all_above(self):
+        """Test find_threshold_crossing_events with all values above threshold."""
+        x = np.array([5, 6, 7, 8, 9])
+        threshold = 3
+        eventlist, eventmax = find_threshold_crossing_events(x, threshold, mode="above")
+        assert len(eventlist) == 1
+        assert eventlist[0][0] == 0 and eventlist[0][1] == 4
+        assert eventmax[0] == 9
+
+    def test_threshold_crossing_all_below(self):
+        """Test find_threshold_crossing_events with all values below threshold."""
+        x = np.array([1, 2, 1, 2, 1])
+        threshold = 3
+        eventlist, eventmax = find_threshold_crossing_events(x, threshold, mode="above")
+        assert len(eventlist) == 0
+        assert len(eventmax) == 0
+
+    def test_threshold_crossing_single_value_crossing(self):
+        """Test find_threshold_crossing_events with single value crossing."""
+        x = np.array([1, 2, 5, 2, 1])
+        threshold = 4
+        eventlist, eventmax = find_threshold_crossing_events(x, threshold, mode="above")
+        assert len(eventlist) == 1
+        assert eventlist[0][0] == 2 and eventlist[0][1] == 2
+        assert eventmax[0] == 5
+
+    def test_threshold_crossing_alternating_pattern(self):
+        """Test find_threshold_crossing_events with alternating pattern."""
+        x = np.array([1, 5, 1, 5, 1])
+        threshold = 3
+        eventlist, eventmax = find_threshold_crossing_events(x, threshold, mode="above")
+        # Should have two separate single-point events
+        assert len(eventlist) == 2
+        assert eventlist[0][0] == 1 and eventlist[0][1] == 1
+        assert eventlist[1][0] == 3 and eventlist[1][1] == 3
+
+    def test_threshold_crossing_edge_values(self):
+        """Test find_threshold_crossing_events with edge values."""
+        x = np.array([3, 1, 2, 1, 3])  # Starts and ends at threshold
+        threshold = 3
+        eventlist, eventmax = find_threshold_crossing_events(x, threshold, mode="above")
+        # Should have two events at the edges
+        assert len(eventlist) == 2
+        assert eventlist[0][0] == 0 and eventlist[0][1] == 0
+        assert eventlist[1][0] == 4 and eventlist[1][1] == 4
+
+
+class TestGaussianFilterAdditionalCoverage:
+    """Test gaussian_filter function edge cases for additional coverage."""
+
+    def test_gaussian_filter_across_epochs(self):
+        """Test gaussian_filter smoothing across epochs (not within)."""
+        import nelpy as nel
+
+        data = np.random.randn(1, 150)
+        support = nel.EpochArray([[0, 0.5], [1.0, 2.0]])
+        asa = nel.AnalogSignalArray(data, fs=100, support=support)
+
+        # Test smoothing across epochs (default behavior)
+        filtered = nel.utils.gaussian_filter(asa, sigma=0.02, within_intervals=False)
+        assert isinstance(filtered, nel.AnalogSignalArray)
+        assert filtered.data.shape[0] == 1
