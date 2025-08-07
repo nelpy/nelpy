@@ -2123,10 +2123,10 @@ def gaussian_filter(
                 V[:, data_idx] = out.data
                 W[:, missing_idx] = 0
 
-                VV = scipy.ndimage.gaussian_filter(
+                VV = scipy_gaussian_filter(
                     V, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
                 )
-                WW = scipy.ndimage.gaussian_filter(
+                WW = scipy_gaussian_filter(
                     W, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
                 )
 
@@ -2151,10 +2151,10 @@ def gaussian_filter(
                     V[:, data_idx] = out.data
                     W[:, missing_idx] = 0
 
-                    VV = scipy.ndimage.gaussian_filter(
+                    VV = scipy_gaussian_filter(
                         V, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
                     )
-                    WW = scipy.ndimage.gaussian_filter(
+                    WW = scipy_gaussian_filter(
                         W, sigma=(0, sigma), truncate=truncate, mode=mode, cval=cval
                     )
 
@@ -2179,14 +2179,14 @@ def gaussian_filter(
                     VV = np.empty_like(V)
                     WW = np.empty_like(W)
                     for v in range(n_values):
-                        VV[..., v] = scipy.ndimage.gaussian_filter(
+                        VV[..., v] = scipy_gaussian_filter(
                             V[..., v],
                             sigma=(0, sigma),
                             truncate=truncate,
                             mode=mode,
                             cval=cval,
                         )
-                        WW[..., v] = scipy.ndimage.gaussian_filter(
+                        WW[..., v] = scipy_gaussian_filter(
                             W[..., v],
                             sigma=(0, sigma),
                             truncate=truncate,
