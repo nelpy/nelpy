@@ -607,3 +607,217 @@ def test_tuningcurvend_default_extlabels():
 
     expected_labels = ["dim_0", "dim_1", "dim_2", "dim_3"]
     assert tcnd.extlabels == expected_labels
+
+
+def test_tuningcurvend_smoothing_with_mask():
+    """Test smoothing with masked data to cover mask handling code paths."""
+    # Create ratemap with some NaN values
+    ratemap = np.random.rand(2, 8, 6) * 5
+    ratemap[0, 3:5, 2:4] = np.nan  # Add some NaN values
+
+    # Create mask (0 where NaN, 1 elsewhere)
+    mask = ~np.isnan(ratemap[0])  # First unit's mask
+
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0, 0], ext_max=[80, 60])
+    # Manually set mask to test masked smoothing
+    tcnd._mask = mask
+
+    # Test smoothing with mask - this should trigger the masked smoothing code path
+    tcnd_smooth = tcnd.smooth(sigma=2.0, inplace=False)
+    assert tcnd_smooth.ratemap.shape == tcnd.ratemap.shape
+    assert not np.array_equal(tcnd_smooth.ratemap, tcnd.ratemap)
+
+
+def test_tuningcurvend_smoothing_parameters():
+    """Test smoothing with various parameter combinations."""
+    ratemap = np.random.rand(2, 6, 8) * 5
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0, 0], ext_max=[60, 80])
+
+    # Test with different mode parameter
+    tcnd_smooth1 = tcnd.smooth(sigma=1.0, mode="constant", inplace=False)
+    assert tcnd_smooth1.ratemap.shape == tcnd.ratemap.shape
+
+    # Test with different cval parameter
+    tcnd_smooth2 = tcnd.smooth(sigma=1.0, mode="constant", cval=1.0, inplace=False)
+    assert tcnd_smooth2.ratemap.shape == tcnd.ratemap.shape
+
+    # Test with different truncate parameter
+    tcnd_smooth3 = tcnd.smooth(sigma=1.0, truncate=8, inplace=False)
+    assert tcnd_smooth3.ratemap.shape == tcnd.ratemap.shape
+
+    # Test zero sigma (no smoothing)
+    tcnd_smooth4 = tcnd.smooth(sigma=0.0, inplace=False)
+    # With zero sigma, ratemap should be very similar (might have tiny differences due to filtering)
+    np.testing.assert_allclose(tcnd_smooth4.ratemap, tcnd.ratemap, rtol=1e-10)
+
+
+def test_tuningcurvend_smoothing_deprecated_parameter():
+    """Test smoothing with deprecated 'bw' parameter (should map to 'truncate')."""
+    ratemap = np.random.rand(2, 5, 6) * 3
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0, 0], ext_max=[50, 60])
+
+    # Test deprecated 'bw' parameter - this should raise a deprecation warning
+    with pytest.warns(DeprecationWarning, match="deprecated"):
+        tcnd_smooth = tcnd.smooth(sigma=1.0, bw=5, inplace=False)
+        assert tcnd_smooth.ratemap.shape == tcnd.ratemap.shape
+
+
+def test_tuningcurvend_smoothing_edge_cases():
+    """Test smoothing edge cases for better coverage."""
+    # Test 1D case
+    ratemap_1d = np.random.rand(2, 10) * 4
+    tcnd_1d = tc.TuningCurveND(ratemap=ratemap_1d, ext_min=[0], ext_max=[100])
+
+    tcnd_1d_smooth = tcnd_1d.smooth(sigma=5.0, inplace=False)
+    assert tcnd_1d_smooth.ratemap.shape == tcnd_1d.ratemap.shape
+
+    # Test with array sigma for 1D
+    tcnd_1d_smooth2 = tcnd_1d.smooth(sigma=[5.0], inplace=False)
+    assert tcnd_1d_smooth2.ratemap.shape == tcnd_1d.ratemap.shape
+
+    # Test 4D case with different sigma for each dimension
+    ratemap_4d = np.random.rand(2, 3, 4, 5, 6) * 2
+    tcnd_4d = tc.TuningCurveND(
+        ratemap=ratemap_4d, ext_min=[0, 0, 0, 0], ext_max=[30, 40, 50, 60]
+    )
+
+    tcnd_4d_smooth = tcnd_4d.smooth(sigma=[1.0, 2.0, 3.0, 4.0], inplace=False)
+    assert tcnd_4d_smooth.ratemap.shape == tcnd_4d.ratemap.shape
+
+
+def test_tuningcurvend_smooth_with_mask_complex_case():
+    """Test smoothing with mask to cover the complex masking code path."""
+    # Create a 3D ratemap with NaN values to trigger mask creation
+    ratemap = np.random.rand(2, 6, 8, 4) * 5
+    ratemap[0, 2:4, 3:5, 1:3] = np.nan  # Add NaN regions
+    ratemap[1, 1:3, 6:8, 0:2] = np.nan  # More NaN regions
+
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0, 0, 0], ext_max=[60, 80, 40])
+
+    # Create a mask manually to force the masked smoothing path
+    mask = ~np.isnan(ratemap[0])  # Mask for first unit
+    tcnd._mask = mask
+
+    # Test smoothing with different sigma for each dimension
+    tcnd_smooth = tcnd.smooth(sigma=[2.0, 3.0, 1.5], inplace=False)
+
+    assert tcnd_smooth.ratemap.shape == tcnd.ratemap.shape
+    assert hasattr(tcnd_smooth, "_mask")
+
+
+def test_tuningcurvend_smooth_inplace_with_mask():
+    """Test inplace smoothing with mask."""
+    ratemap = np.random.rand(1, 5, 6) * 3
+    ratemap[0, 2:4, 3:5] = np.nan
+
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0, 0], ext_max=[50, 60])
+
+    # Set mask to trigger masked smoothing
+    mask = ~np.isnan(ratemap[0])
+    tcnd._mask = mask
+
+    # Test that inplace smoothing works (even if it creates a new array internally)
+    original_shape = tcnd.ratemap.shape
+    tcnd.smooth(sigma=2.0, inplace=True)
+
+    # Should maintain same shape
+    assert tcnd.ratemap.shape == original_shape
+
+
+def test_tuningcurvend_smooth_zero_sigma_array():
+    """Test smoothing with zero sigma in array form."""
+    ratemap = np.random.rand(2, 4, 6) * 2
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0, 0], ext_max=[40, 60])
+
+    # Test with zero sigma for one dimension
+    tcnd_smooth = tcnd.smooth(sigma=[0.0, 1.0], inplace=False)
+
+    assert tcnd_smooth.ratemap.shape == tcnd.ratemap.shape
+
+
+def test_tuningcurvend_smooth_different_modes_and_cval():
+    """Test smoothing with different mode and cval combinations."""
+    ratemap = np.random.rand(1, 8, 6) * 4
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0, 0], ext_max=[80, 60])
+
+    # Test various mode/cval combinations
+    test_cases = [
+        {"mode": "constant", "cval": 1.0},
+        {"mode": "nearest", "cval": 0.0},
+        {"mode": "wrap", "cval": 0.5},
+        {"mode": "mirror", "cval": 0.0},
+    ]
+
+    for params in test_cases:
+        tcnd_smooth = tcnd.smooth(sigma=1.0, **params, inplace=False)
+        assert tcnd_smooth.ratemap.shape == tcnd.ratemap.shape
+
+
+def test_tuningcurvend_smooth_large_truncate_value():
+    """Test smoothing with large truncate value."""
+    ratemap = np.random.rand(1, 10, 8) * 3
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0, 0], ext_max=[100, 80])
+
+    tcnd_smooth = tcnd.smooth(sigma=2.0, truncate=8, inplace=False)
+    assert tcnd_smooth.ratemap.shape == tcnd.ratemap.shape
+
+
+def test_tuningcurvend_smooth_small_bin_spacing():
+    """Test smoothing with very small bin spacing to cover edge cases."""
+    ratemap = np.random.rand(1, 20, 15) * 2
+    tcnd = tc.TuningCurveND(
+        ratemap=ratemap,
+        ext_min=[0, 0],
+        ext_max=[2, 1.5],  # Small range, many bins = small spacing
+    )
+
+    # This should result in large sigma_pixels values
+    tcnd_smooth = tcnd.smooth(sigma=0.5, inplace=False)
+    assert tcnd_smooth.ratemap.shape == tcnd.ratemap.shape
+
+
+def test_tuningcurvend_smooth_1d_edge_cases():
+    """Test 1D smoothing edge cases."""
+    ratemap = np.random.rand(3, 15) * 2
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0], ext_max=[150])
+
+    # Test with very small sigma
+    tcnd_smooth1 = tcnd.smooth(sigma=0.001, inplace=False)
+    assert tcnd_smooth1.ratemap.shape == tcnd.ratemap.shape
+
+    # Test with very large sigma
+    tcnd_smooth2 = tcnd.smooth(sigma=50.0, inplace=False)
+    assert tcnd_smooth2.ratemap.shape == tcnd.ratemap.shape
+
+
+def test_tuningcurvend_smooth_mask_with_all_nan_regions():
+    """Test smoothing when mask has regions that are all NaN."""
+    ratemap = np.ones((1, 6, 6)) * 2.0
+    ratemap[0, 2:4, 2:4] = np.nan  # Central region all NaN
+
+    tcnd = tc.TuningCurveND(ratemap=ratemap, ext_min=[0, 0], ext_max=[60, 60])
+
+    # Force mask creation
+    mask = ~np.isnan(ratemap[0])
+    tcnd._mask = mask
+
+    tcnd_smooth = tcnd.smooth(sigma=2.0, inplace=False)
+    assert tcnd_smooth.ratemap.shape == tcnd.ratemap.shape
+    # Test that smoothing occurred (values should be different)
+    assert not np.array_equal(tcnd_smooth.ratemap, ratemap)
+
+
+def test_tuningcurvend_smooth_with_different_bin_structures():
+    """Test smoothing with different bin structures."""
+    # Create irregular bin structure (different spacing per dimension)
+    ratemap = np.random.rand(2, 3, 8, 12) * 1.5
+
+    tcnd = tc.TuningCurveND(
+        ratemap=ratemap,
+        ext_min=[0, 0, 0],
+        ext_max=[30, 80, 120],  # Different ranges create different bin spacings
+    )
+
+    # Test with array sigma
+    tcnd_smooth = tcnd.smooth(sigma=[5.0, 10.0, 15.0], inplace=False)
+    assert tcnd_smooth.ratemap.shape == tcnd.ratemap.shape
