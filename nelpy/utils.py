@@ -1607,17 +1607,15 @@ def shrinkMatColsTo(mat, numCols):
 
     Notes
     -----
-    Uses scipy.ndimage.interpolation.zoom with order=1 (linear interpolation).
+    Uses scipy.ndimage.zoom with order=1 (linear interpolation).
     """
-    import scipy.ndimage
+    from scipy.ndimage import zoom
 
     numCells = mat.shape[0]
     numColsMat = mat.shape[1]
     a = np.zeros((numCells, numCols))
     for row in np.arange(numCells):
-        niurou = scipy.ndimage.interpolation.zoom(
-            input=mat[row, :], zoom=(numCols / numColsMat), order=1
-        )
+        niurou = zoom(input=mat[row, :], zoom=(numCols / numColsMat), order=1)
         a[row, :] = niurou
     return a
 
