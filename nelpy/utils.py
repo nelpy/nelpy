@@ -23,8 +23,9 @@ from itertools import tee
 from math import floor
 
 import numpy as np
-import scipy.ndimage.filters  # import gaussian_filter1d, gaussian_filter
 from numpy import ceil, log
+from scipy.ndimage import gaussian_filter as scipy_gaussian_filter
+from scipy.ndimage import gaussian_filter1d
 from scipy.signal import hilbert
 
 from . import core  # so that core.RegularlySampledAnalogSignalArray is exposed
@@ -1892,7 +1893,7 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
         if sigma:
             # Smooth envelope with a gaussian (sigma = 4 ms default)
             EnvelopeSmoothingSD = sigma * fs
-            smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(
+            smoothed_envelope = gaussian_filter1d(
                 envelope, EnvelopeSmoothingSD, mode="constant", axis=-1
             )
             envelope = smoothed_envelope
@@ -1923,7 +1924,7 @@ def signal_envelope_1d(data, *, sigma=None, fs=None):
             if sigma:
                 # Smooth envelope with a gaussian (sigma = 4 ms default)
                 EnvelopeSmoothingSD = sigma * fs
-                smoothed_envelope = scipy.ndimage.filters.gaussian_filter1d(
+                smoothed_envelope = gaussian_filter1d(
                     envelope, EnvelopeSmoothingSD, mode="constant", axis=-1
                 )
                 envelope = smoothed_envelope
@@ -2214,7 +2215,7 @@ def gaussian_filter(
             # now smooth each interval separately
             for idx in range(out.n_intervals):
                 out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = (
-                    scipy.ndimage.filters.gaussian_filter(
+                    scipy_gaussian_filter(
                         out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]],
                         sigma=(0, sigma),
                         truncate=truncate,
@@ -2224,7 +2225,7 @@ def gaussian_filter(
             # now smooth each interval separately
             for idx in range(out.n_epochs):
                 out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = (
-                    scipy.ndimage.filters.gaussian_filter(
+                    scipy_gaussian_filter(
                         out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]],
                         sigma=(0, sigma),
                         truncate=truncate,
@@ -2237,7 +2238,7 @@ def gaussian_filter(
                 for idx in range(out.n_intervals):
                     for v in range(out.data.shape[2]):
                         out._data[:, cum_lengths[idx] : cum_lengths[idx + 1], v] = (
-                            scipy.ndimage.filters.gaussian_filter(
+                            scipy_gaussian_filter(
                                 out._data[
                                     :, cum_lengths[idx] : cum_lengths[idx + 1], v
                                 ],
@@ -2249,7 +2250,7 @@ def gaussian_filter(
                 # fallback to 2D smoothing (shouldn't happen for BinnedValueEventArray, but for safety)
                 for idx in range(out.n_intervals):
                     out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]] = (
-                        scipy.ndimage.filters.gaussian_filter(
+                        scipy_gaussian_filter(
                             out._data[:, cum_lengths[idx] : cum_lengths[idx + 1]],
                             sigma=(0, sigma),
                             truncate=truncate,
