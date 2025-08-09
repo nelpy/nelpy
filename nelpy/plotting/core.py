@@ -554,6 +554,11 @@ def plot(obj, *args, **kwargs):
     if ax is None:
         ax = plt.gca()
 
+    # Patch: If obj is an EpochArray, delegate to plot_old
+    if isinstance(obj, core.EpochArray):
+        return plot_old(obj, *args, **kwargs)
+
+    # ...existing code...
     if isinstance(obj, core.RegularlySampledAnalogSignalArray):
         if obj.n_signals == 1:
             label = kwargs.pop("label", None)
