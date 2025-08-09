@@ -558,7 +558,6 @@ def plot(obj, *args, **kwargs):
     if isinstance(obj, core.EpochArray):
         return plot_old(obj, *args, **kwargs)
 
-    # ...existing code...
     if isinstance(obj, core.RegularlySampledAnalogSignalArray):
         if obj.n_signals == 1:
             label = kwargs.pop("label", None)
