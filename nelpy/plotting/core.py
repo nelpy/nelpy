@@ -554,6 +554,10 @@ def plot(obj, *args, **kwargs):
     if ax is None:
         ax = plt.gca()
 
+    # Patch: If obj is an EpochArray, delegate to plot_old
+    if isinstance(obj, core.EpochArray):
+        return plot_old(obj, *args, **kwargs)
+
     if isinstance(obj, core.RegularlySampledAnalogSignalArray):
         if obj.n_signals == 1:
             label = kwargs.pop("label", None)
@@ -982,7 +986,7 @@ def matshow(data, *, ax=None, **kwargs):
         ax.matshow(data.data, **kwargs)
         ax.set_xlabel("time")
         ax.set_ylabel("unit")
-        warnings.warn("Automatic x-axis formatting not yet implemented")
+        # warnings.warn("Automatic x-axis formatting not yet implemented")
     else:
         raise NotImplementedError(
             "matshow({}) not yet supported".format(str(type(data)))
