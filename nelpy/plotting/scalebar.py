@@ -144,7 +144,6 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                         bars,
                         TextArea(
                             labelx,
-                            minimumdescent=False,
                             textprops=dict(color=fc, size=fontsize),
                         ),
                     ],
@@ -179,7 +178,6 @@ class AnchoredScaleBar(AnchoredOffsetbox):
                         bars,
                         TextArea(
                             labelx,
-                            minimumdescent=False,
                             textprops=dict(color=fc, size=fontsize),
                         ),
                     ],
