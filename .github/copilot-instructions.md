@@ -136,7 +136,7 @@ Do not bypass the setter by writing directly to `self._fs` from outside the clas
 
 ## Testing
 
-- Tests live in `nelpy/tests/`.
+- Tests live in the top-level `tests/` directory.
 - Every bug fix should include a regression test that fails before the fix and passes after.
 - Run the full suite with `pytest` before submitting.
 - If `pytest` fails during startup due to unrelated third-party plugin imports in your local environment, disable plugin autoload for that run: `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest ...` (PowerShell: `$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD=1; pytest ...`).
