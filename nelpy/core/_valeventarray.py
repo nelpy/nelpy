@@ -1057,11 +1057,14 @@ class ValueEventArray(BaseValueEventArray):
             if evt_data.ndim > 2:
                 evt_data = np.atleast_2d(np.squeeze(evt_data, axis=0))
             if evt_data.size == 0 or evt_data.shape[1] < 1:
+                n_cols = evt_data.shape[1] if evt_data.ndim > 1 else 1
+                if n_cols < 1:
+                    n_cols = 1
                 if singleseries:
-                    data = np.array([[]])
+                    data = utils.ragged_array([np.empty((0, n_cols))])
                 else:
                     data_ = data.tolist()
-                    data_[series] = np.empty((0, evt_data.shape[1]))
+                    data_[series] = np.empty((0, n_cols))
                     data = utils.ragged_array(data_)
                 continue
             indices = []
