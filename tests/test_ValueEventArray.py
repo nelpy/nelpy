@@ -122,6 +122,11 @@ def test_binnedvalueeventarray_multiple_intervals():
     # Restrict to two intervals: [0,1.5), [2,2.5)
     epochs = nel.EpochArray([[0, 1.5], [2, 2.5]])
     veva2 = veva[epochs]
+    assert veva2.n_series == 2
+    np.testing.assert_array_equal(veva2.events[0], np.array([0.1, 0.5, 1.0, 2.1]))
+    np.testing.assert_array_equal(veva2.events[1], np.array([0.2, 0.6, 1.2, 2.2]))
+    np.testing.assert_array_equal(veva2.values[0], np.array([1, 2, 3, 4]))
+    np.testing.assert_array_equal(veva2.values[1], np.array([4, 5, 6, 7]))
     bvea = nel.BinnedValueEventArray(veva2, ds=0.5, method="sum")
     # Should only have bins within [0,1.5) and [2,2.5)
     assert np.all(
