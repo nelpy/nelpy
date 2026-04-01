@@ -59,6 +59,34 @@ def test_valueeventarray_indexing():
     assert sub.n_series == 1
 
 
+def test_valueeventarray_epoch_slicing_single_series_preserves_data():
+    """Single-series epoch slicing should preserve event/value rows."""
+    events = [[0.1, 0.5, 1.0, 2.1]]
+    values = [[1, 2, 3, 4]]
+    veva = nel.ValueEventArray(events=events, values=values, fs=10)
+    epochs = nel.EpochArray([[0, 1.5], [2, 2.5]])
+    veva2 = veva[epochs]
+
+    assert veva2.n_series == 1
+    np.testing.assert_array_equal(veva2.events[0], np.array([0.1, 0.5, 1.0, 2.1]))
+    np.testing.assert_array_equal(veva2.values[0], np.array([1, 2, 3, 4]))
+
+
+def test_valueeventarray_epoch_slicing_keeps_empty_series():
+    """Epoch slicing should preserve empty series rather than collapsing structure."""
+    events = [[5.0, 5.5], [0.2, 0.6, 1.2, 2.2]]
+    values = [[10, 11], [4, 5, 6, 7]]
+    veva = nel.ValueEventArray(events=events, values=values, fs=10)
+    epochs = nel.EpochArray([[0, 1.5], [2, 2.5]])
+    veva2 = veva[epochs]
+
+    assert veva2.n_series == 2
+    assert len(veva2.events[0]) == 0
+    assert len(veva2.values[0]) == 0
+    np.testing.assert_array_equal(veva2.events[1], np.array([0.2, 0.6, 1.2, 2.2]))
+    np.testing.assert_array_equal(veva2.values[1], np.array([4, 5, 6, 7]))
+
+
 # --- BinnedValueEventArray tests ---
 def test_binnedvalueeventarray_sum():
     events = [[0.1, 0.5, 1.0], [0.2, 0.6, 1.2]]
