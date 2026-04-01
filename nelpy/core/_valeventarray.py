@@ -1050,19 +1050,27 @@ class ValueEventArray(BaseValueEventArray):
                 evt_data = np.atleast_2d(evt_data.item())
             else:
                 evt_data = np.atleast_2d(evt_data)
+                if evt_data.dtype == object and evt_data.size == 1:
+                    inner = evt_data.flat[0]
+                    if isinstance(inner, np.ndarray):
+                        evt_data = np.atleast_2d(inner)
+            if evt_data.ndim > 2:
+                evt_data = np.atleast_2d(np.squeeze(evt_data, axis=0))
             if evt_data.size == 0 or evt_data.shape[1] < 1:
                 if singleseries:
                     data = np.array([[]])
                 else:
                     data_ = data.tolist()
-                    data_[series] = np.array([])
+                    data_[series] = np.empty((0, evt_data.shape[1]))
                     data = utils.ragged_array(data_)
                 continue
             indices = []
             for epdata in intervalarray.data:
                 t_start = epdata[0]
                 t_stop = epdata[1]
-                frm, to = np.searchsorted(evt_data[:, 0].astype(float), (t_start, t_stop))
+                frm, to = np.searchsorted(
+                    evt_data[:, 0].astype(float), (t_start, t_stop)
+                )
                 indices.append((frm, to))
             indices = np.array(indices, ndmin=2)
             if np.diff(indices).sum() < len(evt_data):
@@ -1071,7 +1079,12 @@ class ValueEventArray(BaseValueEventArray):
                 data_list = []
                 for start, stop in indices:
                     data_list.extend(evt_data[start:stop])
-                data = np.array([data_list])
+                series_data = np.asarray(data_list)
+                if series_data.size == 0:
+                    series_data = np.empty((0, evt_data.shape[1]))
+                else:
+                    series_data = np.atleast_2d(series_data)
+                data = utils.ragged_array([series_data])
             else:
                 # here we have to do some annoying conversion between
                 # arrays and lists to fully support jagged array
@@ -1079,8 +1092,13 @@ class ValueEventArray(BaseValueEventArray):
                 data_list = []
                 for start, stop in indices:
                     data_list.extend(evt_data[start:stop])
+                series_data = np.asarray(data_list)
+                if series_data.size == 0:
+                    series_data = np.empty((0, evt_data.shape[1]))
+                else:
+                    series_data = np.atleast_2d(series_data)
                 data_ = data.tolist()
-                data_[series] = np.array(data_list)
+                data_[series] = series_data
                 data = utils.ragged_array(data_)
         return data
 
