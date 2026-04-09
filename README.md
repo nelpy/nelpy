@@ -102,6 +102,35 @@ If you would like to modify the code, then replace the last command with
 
 A weak prerequisite for installing nelpy is a modified version of [hmmlearn](https://github.com/eackermann/hmmlearn/tree/master/hmmlearn). This requirement is weak, in the sense that installation will complete successfully without it, and most of nelpy can also be used without any problems. However, as soon as any of the hidden Markov model (HMM) functions are used, you will get an error if the correct version of ``hmmlearn`` is not installed. To make things easier, there is a handy 64-bit Windows wheel in the [hmmlearn directory](https://github.com/nelpy/nelpy/blob/master/hmmlearn/) of this repository. Installation on Linux/Unix should be almost trivial.
 
+Controlling log verbosity
+=========================
+
+When restricting objects to support/epochs, nelpy may emit informational log
+messages such as "ignoring signal outside of support".
+
+By default, Python logging usually shows ``WARNING`` and above, so ``INFO``
+messages are hidden unless explicitly enabled.
+
+To reduce nelpy-only log noise without muting other libraries, set the ``nelpy``
+logger to ``ERROR`` (or ``WARNING``):
+
+```python
+import logging
+
+logging.basicConfig()
+logging.getLogger("nelpy").setLevel(logging.ERROR)
+```
+
+To inspect routine nelpy diagnostics while debugging, enable ``INFO`` for the
+``nelpy`` logger:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("nelpy").setLevel(logging.INFO)
+```
+
 Related work and inspiration
 ============================
 Nelpy drew heavy inspiration from the ``python-vdmlab`` package (renamed to ``nept``)
