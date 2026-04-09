@@ -28,6 +28,8 @@ from .. import core, utils, version
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 from . import _accessors
 
+logger = logging.getLogger(__name__)
+
 __all__ = ["EventArray", "BinnedEventArray", "SpikeTrainArray", "BinnedSpikeTrainArray"]
 
 
@@ -828,7 +830,7 @@ class EventArray(BaseEventArray):
                     data = utils.ragged_array(data_)
             self._data = data
             if issue_warning:
-                logging.warning("ignoring events outside of eventarray support")
+                logger.info("ignoring events outside of eventarray support")
 
         self._abscissa.support = newintervals
         return self

@@ -28,6 +28,8 @@ from scipy.stats import zscore
 from .. import core, filtering, utils, version
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 
+logger = logging.getLogger(__name__)
+
 
 class IntervalSignalSlicer(object):
     """
@@ -1246,7 +1248,7 @@ class RegularlySampledAnalogSignalArray:
             indices.append((frm, to))
         indices = np.array(indices, ndmin=2)
         if np.diff(indices).sum() < len(self._abscissa_vals):
-            logging.warning("ignoring signal outside of support")
+            logger.info("ignoring signal outside of support")
         # check if only one interval and interval is already bounds of data
         # if so, we don't need to do anything
         if len(indices) == 1:
@@ -1317,7 +1319,7 @@ class RegularlySampledAnalogSignalArray:
             )
         indices = np.any(np.column_stack(indices), axis=1)
         if np.count_nonzero(indices) < len(self._abscissa_vals):
-            logging.warning("ignoring signal outside of support")
+            logger.info("ignoring signal outside of support")
         try:
             self._data = self.data[:, indices]
         except IndexError:
