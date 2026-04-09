@@ -89,7 +89,20 @@ def test_asa_init_does_not_emit_fs_deprecated_message(caplog):
     assert "'fs' has been deprecated; use 'step' instead" not in messages
 
 
-def test_get_contiguous_segments_fs_and_step_messages_are_info(caplog):
+def test_asa_init_support_creation_message_is_info(caplog):
+    with caplog.at_level(logging.INFO, logger="nelpy"):
+        _ = nel.AnalogSignalArray(data=[0, 1, 2, 3], abscissa_vals=[0, 0.25, 0.5, 0.75], fs=4)
+
+    records = [
+        rec
+        for rec in caplog.records
+        if rec.getMessage() == "creating support from abscissa_vals and step (inferred when not provided)."
+    ]
+    assert records
+    assert all(rec.levelno == logging.INFO for rec in records)
+
+
+def test_get_contiguous_segments_fs_deprecation_warns_and_step_message_is_info(caplog):
     with caplog.at_level(logging.INFO, logger="nelpy"):
         _ = utils.get_contiguous_segments([0.0, 0.2, 0.4], fs=5)
         _ = utils.get_contiguous_segments([0.0, 0.2, 0.4], step=0.5)
@@ -105,4 +118,5 @@ def test_get_contiguous_segments_fs_and_step_messages_are_info(caplog):
 
     assert fs_deprecated
     assert step_small
-    assert all(rec.levelno == logging.INFO for rec in fs_deprecated + step_small)
+    assert all(rec.levelno == logging.WARNING for rec in fs_deprecated)
+    assert all(rec.levelno == logging.INFO for rec in step_small)

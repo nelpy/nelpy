@@ -611,7 +611,7 @@ class RegularlySampledAnalogSignalArray:
             self._restrict_to_interval_array_fast(intervalarray=support)
         else:
             logger.info(
-                "creating support from abscissa_vals and sampling rate, fs!"
+                "creating support from abscissa_vals and step (inferred when not provided)."
             )
             self._abscissa.support = type(self._abscissa.support)(
                 utils.get_contiguous_segments(

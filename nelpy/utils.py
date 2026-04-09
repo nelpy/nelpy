@@ -1188,7 +1188,7 @@ def get_contiguous_segments(
         logging.warning("'sort' has been deprecated; use 'assume_sorted' instead")
     if fs:
         step = 1 / fs
-        logger.info("'fs' has been deprecated; use 'step' instead")
+        logger.warning("'fs' has been deprecated; use 'step' instead")
 
     if inclusive:
         assert index, "option 'inclusive' can only be used with 'index=True'"
