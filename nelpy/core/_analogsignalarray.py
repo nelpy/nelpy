@@ -342,11 +342,11 @@ def rsasa_init_wrapper(func):
             abscissa_vals = abscissa_vals[:-1]
         else:
             if re_estimate_fs:
-                logging.warning(
+                logger.info(
                     "fs was not specified, so we try to estimate it from the data..."
                 )
                 fs = 1.0 / np.median(np.diff(abscissa_vals))
-                logging.warning("fs was estimated to be {} Hz".format(fs))
+                logger.info("fs was estimated to be {} Hz".format(fs))
             else:
                 if no_fs:
                     logging.warning(
@@ -610,12 +610,12 @@ class RegularlySampledAnalogSignalArray:
         if support is not None:
             self._restrict_to_interval_array_fast(intervalarray=support)
         else:
-            logging.warning(
+            logger.info(
                 "creating support from abscissa_vals and sampling rate, fs!"
             )
             self._abscissa.support = type(self._abscissa.support)(
                 utils.get_contiguous_segments(
-                    self._abscissa_vals, step=self._step, fs=fs, in_core=in_core
+                    self._abscissa_vals, step=self._step, in_core=in_core
                 )
             )
             if merge_sample_gap > 0:

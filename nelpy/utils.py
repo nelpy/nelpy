@@ -31,6 +31,8 @@ from scipy.signal import hilbert
 from . import core  # so that core.RegularlySampledAnalogSignalArray is exposed
 from .utils_.decorators import keyword_deprecation
 
+logger = logging.getLogger(__name__)
+
 try:
     from scipy.fft import next_fast_len  # scipy 1.*
 except ImportError:
@@ -1186,7 +1188,7 @@ def get_contiguous_segments(
         logging.warning("'sort' has been deprecated; use 'assume_sorted' instead")
     if fs:
         step = 1 / fs
-        logging.warning("'fs' has been deprecated; use 'step' instead")
+        logger.info("'fs' has been deprecated; use 'step' instead")
 
     if inclusive:
         assert index, "option 'inclusive' can only be used with 'index=True'"
@@ -1205,7 +1207,7 @@ def get_contiguous_segments(
         # that t1 = t and t2 = t + 2/fs, i.e. a difference of 2 steps.
 
         if np.any(np.diff(data) < step):
-            logging.warning(
+            logger.info(
                 "some steps in the data are smaller than the requested step size."
             )
 
