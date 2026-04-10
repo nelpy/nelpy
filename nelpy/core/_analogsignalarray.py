@@ -28,6 +28,8 @@ from scipy.stats import zscore
 from .. import core, filtering, utils, version
 from ..utils_.decorators import keyword_deprecation, keyword_equivalence
 
+logger = logging.getLogger(__name__)
+
 
 class IntervalSignalSlicer(object):
     """
@@ -340,11 +342,11 @@ def rsasa_init_wrapper(func):
             abscissa_vals = abscissa_vals[:-1]
         else:
             if re_estimate_fs:
-                logging.warning(
+                logger.info(
                     "fs was not specified, so we try to estimate it from the data..."
                 )
                 fs = 1.0 / np.median(np.diff(abscissa_vals))
-                logging.warning("fs was estimated to be {} Hz".format(fs))
+                logger.info("fs was estimated to be {} Hz".format(fs))
             else:
                 if no_fs:
                     logging.warning(
@@ -608,12 +610,12 @@ class RegularlySampledAnalogSignalArray:
         if support is not None:
             self._restrict_to_interval_array_fast(intervalarray=support)
         else:
-            logging.warning(
-                "creating support from abscissa_vals and sampling rate, fs!"
+            logger.info(
+                "creating support from abscissa_vals and step (inferred when not provided)."
             )
             self._abscissa.support = type(self._abscissa.support)(
                 utils.get_contiguous_segments(
-                    self._abscissa_vals, step=self._step, fs=fs, in_core=in_core
+                    self._abscissa_vals, step=self._step, in_core=in_core
                 )
             )
             if merge_sample_gap > 0:
@@ -1246,7 +1248,7 @@ class RegularlySampledAnalogSignalArray:
             indices.append((frm, to))
         indices = np.array(indices, ndmin=2)
         if np.diff(indices).sum() < len(self._abscissa_vals):
-            logging.warning("ignoring signal outside of support")
+            logger.info("ignoring signal outside of support")
         # check if only one interval and interval is already bounds of data
         # if so, we don't need to do anything
         if len(indices) == 1:
@@ -1317,7 +1319,7 @@ class RegularlySampledAnalogSignalArray:
             )
         indices = np.any(np.column_stack(indices), axis=1)
         if np.count_nonzero(indices) < len(self._abscissa_vals):
-            logging.warning("ignoring signal outside of support")
+            logger.info("ignoring signal outside of support")
         try:
             self._data = self.data[:, indices]
         except IndexError:
