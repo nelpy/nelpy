@@ -308,6 +308,22 @@ def test_rsasa_mean_std_min_max():
     assert np.allclose(asa.data.max(axis=1), asa.max())
 
 
+def test_rsasa_stats_are_nan_aware():
+    data = np.array(
+        [
+            [1.0, np.nan, 3.0, 4.0],
+            [np.nan, 5.0, 6.0, np.nan],
+        ]
+    )
+    abscissa = np.linspace(0, 1, data.shape[1])
+    asa = RegularlySampledAnalogSignalArray(data=data, abscissa_vals=abscissa)
+
+    assert np.allclose(np.nanmean(data, axis=1), asa.mean())
+    assert np.allclose(np.nanstd(data, axis=1), asa.std())
+    assert np.allclose(np.nanmin(data, axis=1), asa.min())
+    assert np.allclose(np.nanmax(data, axis=1), asa.max())
+
+
 def test_rsasa_isempty_edge():
     # Robustly handle empty array construction
     try:

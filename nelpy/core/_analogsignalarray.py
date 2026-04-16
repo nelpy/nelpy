@@ -1953,7 +1953,7 @@ class RegularlySampledAnalogSignalArray:
             Maximum values along the specified axis.
         """
         try:
-            maxes = np.amax(self.data, axis=axis).squeeze()
+            maxes = np.nanmax(self.data, axis=axis).squeeze()
             if maxes.size == 1:
                 return maxes.item()
             return maxes
@@ -1977,7 +1977,7 @@ class RegularlySampledAnalogSignalArray:
             Minimum values along the specified axis.
         """
         try:
-            mins = np.amin(self.data, axis=axis).squeeze()
+            mins = np.nanmin(self.data, axis=axis).squeeze()
             if mins.size == 1:
                 return mins.item()
             return mins
