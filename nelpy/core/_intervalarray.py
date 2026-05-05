@@ -170,6 +170,26 @@ class IntervalArray:
         dstr = "of length {}".format(self.formatter(self.length))
         return "<%s%s: %s> %s" % (self.type_name, address_str, nstr, dstr)
 
+    def __setstate__(self, state):
+        """Restore pickled interval arrays with modern display metadata."""
+        self.__dict__.update(state)
+        self.__dict__.setdefault("__version__", version.__version__)
+        self.__dict__.setdefault("type_name", self.__class__.__name__)
+        if isinstance(self, EpochArray):
+            interval_label = "epoch"
+            formatter = formatters.PrettyDuration
+        elif isinstance(self, SpaceArray):
+            interval_label = "interval"
+            formatter = formatters.PrettySpace
+        else:
+            interval_label = "interval"
+            formatter = formatters.ArbitraryFormatter
+        self.__dict__.setdefault("_interval_label", interval_label)
+        self.__dict__.setdefault("formatter", formatter)
+        self.__dict__.setdefault("base_unit", self.formatter.base_unit)
+        for attr in IntervalArray.__attributes__:
+            self.__dict__.setdefault(attr, None)
+
     def __setattr__(self, name, value):
         # https://stackoverflow.com/questions/4017572/how-can-i-make-an-alias-to-a-non-function-member-attribute-in-a-python-class
         name = self.__aliases__.get(name, name)
