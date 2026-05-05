@@ -1,6 +1,8 @@
 import dill as pickle
+import pytest
 
 import nelpy as nel
+from nelpy import formatters
 
 
 def _roundtrip_without_attrs(obj, attrs):
@@ -58,3 +60,31 @@ def test_stale_valueeventarray_pickle_reattaches_indexers():
     assert loaded.loc.obj is loaded
     assert loaded.iloc.obj is loaded
     assert loaded.iloc[:, 1].n_series == 1
+
+
+@pytest.mark.parametrize(
+    "obj, formatter, base_unit, interval_label",
+    [
+        (
+            nel.IntervalArray([[0, 1]]),
+            formatters.ArbitraryFormatter,
+            "a.u.",
+            "interval",
+        ),
+        (nel.EpochArray([[0, 1]]), formatters.PrettyDuration, "s", "epoch"),
+        (nel.SpaceArray([[0, 1]]), formatters.PrettySpace, "cm", "interval"),
+    ],
+)
+def test_stale_intervalarray_pickle_restores_display_metadata(
+    obj, formatter, base_unit, interval_label
+):
+    loaded = _roundtrip_without_attrs(
+        obj,
+        ["__version__", "type_name", "_interval_label", "formatter", "base_unit"],
+    )
+
+    assert loaded.__version__ == nel.__version__
+    assert loaded.type_name == loaded.__class__.__name__
+    assert loaded._interval_label == interval_label
+    assert loaded.formatter is formatter
+    assert loaded.base_unit == base_unit
