@@ -175,6 +175,16 @@ class BaseEventArray(ABC):
         self.loc = _accessors.ItemGetterLoc(self)
         self.iloc = _accessors.ItemGetterIloc(self)
 
+    def __setstate__(self, state):
+        """Restore pickled objects and reattach runtime-only helpers."""
+        self.__dict__.update(state)
+        self.__dict__.setdefault("__version__", version.__version__)
+        self.__dict__.setdefault("type_name", self.__class__.__name__)
+        self.__dict__.setdefault("_series_label", "series")
+        for attr in BaseEventArray.__attributes__:
+            self.__dict__.setdefault(attr, None)
+        self.__renew__()
+
     def __repr__(self):
         address_str = " at " + str(hex(id(self)))
         return "<BaseEventArray" + address_str + ">"

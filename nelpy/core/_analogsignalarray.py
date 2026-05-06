@@ -651,6 +651,15 @@ class RegularlySampledAnalogSignalArray:
         self._interp = None
         self.__bake__()
 
+    def __setstate__(self, state):
+        """Restore pickled objects and reattach runtime-only helpers."""
+        self.__dict__.update(state)
+        self.__dict__.setdefault("__version__", version.__version__)
+        self.__dict__.setdefault("type_name", self.__class__.__name__)
+        for attr in RegularlySampledAnalogSignalArray.__attributes__:
+            self.__dict__.setdefault(attr, None)
+        self.__renew__()
+
     def __call__(self, x):
         """RegularlySampledAnalogSignalArray callable method. Returns
         interpolated data at requested points. Note that points falling
