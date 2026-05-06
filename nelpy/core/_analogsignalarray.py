@@ -338,8 +338,12 @@ def rsasa_init_wrapper(func):
         else:
             abscissa_vals = kwargs.get("abscissa_vals", None)
         if abscissa_vals is None:
-            abscissa_vals = np.linspace(0, data.shape[1] / fs, data.shape[1] + 1)
-            abscissa_vals = abscissa_vals[:-1]
+            if kwargs.get("step", None) is not None:
+                raise ValueError(
+                    "step cannot be used without abscissa_vals; use fs=1/step "
+                    "to infer regular abscissa values."
+                )
+            abscissa_vals = np.arange(data.shape[1]) / fs
         else:
             if re_estimate_fs:
                 logger.info(
@@ -390,13 +394,11 @@ class RegularlySampledAnalogSignalArray:
         abscissa_vals in seconds, fs in Hz).
         Default is 1 Hz.
     step : float, optional
-        The sampling interval of the data, in seconds.
-        Default is None.
-        specifies step size of samples passed as tdata if fs is given,
-        default is None. If not passed it is inferred by the minimum
-        difference in between samples of tdata passed in (based on if FS
-        is passed). e.g. decimated data would have sample numbers every
-        ten samples so step=10
+        Expected interval between neighboring abscissa values when creating
+        contiguous support from explicitly provided abscissa_vals or tdata.
+        If omitted, the interval is inferred from the provided abscissa values.
+        step is not used to infer default abscissa values; use fs for that
+        purpose.
     merge_sample_gap : float, optional
         Optional merging of gaps between support intervals. If intervals are within
         a certain amount of time, gap, they will be merged as one interval. Example
@@ -2763,7 +2765,11 @@ class AnalogSignalArray(RegularlySampledAnalogSignalArray):
     fs : float, optional
         Sampling frequency in Hz. Default is None.
     step : float, optional
-        Sampling interval in seconds. Default is None.
+        Expected interval between neighboring abscissa values when creating
+        contiguous support from explicitly provided abscissa_vals, time, or
+        timestamps. If omitted, the interval is inferred from the provided
+        abscissa values. step is not used to infer default abscissa values;
+        use fs for that purpose.
     merge_sample_gap : float, optional
         Maximum gap between samples to merge intervals (seconds).
         Default is 0.
