@@ -1,18 +1,23 @@
-import dill as pickle
+import pickle as stdlib_pickle
+
+import dill
 import pytest
 
 import nelpy as nel
 from nelpy import formatters
 
+SERIALIZERS = [stdlib_pickle, dill]
 
-def _roundtrip_without_attrs(obj, attrs):
+
+def _roundtrip_without_attrs(obj, attrs, serializer):
     for attr in attrs:
         obj.__dict__.pop(attr, None)
 
-    return pickle.loads(pickle.dumps(obj))
+    return serializer.loads(serializer.dumps(obj))
 
 
-def test_stale_spiketrainarray_pickle_reattaches_indexers():
+@pytest.mark.parametrize("serializer", SERIALIZERS)
+def test_stale_spiketrainarray_pickle_reattaches_indexers(serializer):
     sta = nel.SpikeTrainArray(
         [[1, 2, 3, 4], [2, 3, 5]],
         support=nel.EpochArray([[0, 4], [4, 6]]),
@@ -20,7 +25,7 @@ def test_stale_spiketrainarray_pickle_reattaches_indexers():
         series_ids=[10, 20],
     )
 
-    loaded = _roundtrip_without_attrs(sta, ["loc", "iloc"])
+    loaded = _roundtrip_without_attrs(sta, ["loc", "iloc"], serializer)
 
     assert loaded.loc.obj is loaded
     assert loaded.iloc.obj is loaded
@@ -28,7 +33,8 @@ def test_stale_spiketrainarray_pickle_reattaches_indexers():
     assert loaded.iloc[:, 0].n_series == 1
 
 
-def test_stale_analogsignalarray_pickle_reattaches_slicers():
+@pytest.mark.parametrize("serializer", SERIALIZERS)
+def test_stale_analogsignalarray_pickle_reattaches_slicers(serializer):
     asa = nel.AnalogSignalArray(
         [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]],
         fs=1,
@@ -38,6 +44,7 @@ def test_stale_analogsignalarray_pickle_reattaches_slicers():
     loaded = _roundtrip_without_attrs(
         asa,
         ["_intervalsignalslicer", "_intervaldata", "_intervaltime"],
+        serializer,
     )
 
     assert loaded._intervalsignalslicer.obj is loaded
@@ -47,7 +54,8 @@ def test_stale_analogsignalarray_pickle_reattaches_slicers():
     assert loaded[:, 1].n_signals == 1
 
 
-def test_stale_valueeventarray_pickle_reattaches_indexers():
+@pytest.mark.parametrize("serializer", SERIALIZERS)
+def test_stale_valueeventarray_pickle_reattaches_indexers(serializer):
     veva = nel.ValueEventArray(
         events=[[0.1, 0.5], [0.2, 0.6]],
         values=[[1, 2], [3, 4]],
@@ -55,7 +63,7 @@ def test_stale_valueeventarray_pickle_reattaches_indexers():
         series_ids=[3, 4],
     )
 
-    loaded = _roundtrip_without_attrs(veva, ["loc", "iloc"])
+    loaded = _roundtrip_without_attrs(veva, ["loc", "iloc"], serializer)
 
     assert loaded.loc.obj is loaded
     assert loaded.iloc.obj is loaded
@@ -71,16 +79,28 @@ def test_stale_valueeventarray_pickle_reattaches_indexers():
             "a.u.",
             "interval",
         ),
-        (nel.EpochArray([[0, 1]]), formatters.PrettyDuration, "s", "epoch"),
-        (nel.SpaceArray([[0, 1]]), formatters.PrettySpace, "cm", "interval"),
+        (
+            nel.EpochArray([[0, 1]]),
+            formatters.PrettyDuration,
+            "s",
+            "epoch",
+        ),
+        (
+            nel.SpaceArray([[0, 1]]),
+            formatters.PrettySpace,
+            "cm",
+            "interval",
+        ),
     ],
 )
+@pytest.mark.parametrize("serializer", SERIALIZERS)
 def test_stale_intervalarray_pickle_restores_display_metadata(
-    obj, formatter, base_unit, interval_label
+    obj, formatter, base_unit, interval_label, serializer
 ):
     loaded = _roundtrip_without_attrs(
         obj,
         ["__version__", "type_name", "_interval_label", "formatter", "base_unit"],
+        serializer,
     )
 
     assert loaded.__version__ == nel.__version__
