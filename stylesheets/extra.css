@@ -1,0 +1,69 @@
+@import url('https://rsms.me/inter/inter.css');
+* {
+    font-family: 'Inter', sans-serif;
+}
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700 !important;
+}
+pre * { font-family: monospace; }
+
+p {
+    text-align: justify;
+}
+
+.md-nav__link--active {
+  background-color: var(--md-code-bg-color);
+  border-radius: 0.2em;
+  padding: 0.2em;
+}
+
+:root {
+  --md-code-font: "Roboto Mono";
+  --md-default-fg-color: #111;
+  --md-default-fg-color--light: #000000d0;
+  --md-default-fg-color--lighter: #00000052;
+  --md-default-fg-color--lightest: #00000012;
+  --md-accent-fg-color: #38195A;
+  --md-accent-fg-color--hover: #E4AF68;
+  --md-accent-fg-color--transparent: #38195a1a;
+
+  --md-default-bg-color: #fff;
+  --md-default-bg-color--light: #ffffffb3;
+  --md-default-bg-color--lighter: #ffffff4d;
+  --md-default-bg-color--lightest: #ffffff1f;
+  --md-accent-bg-color: #fff;
+  --md-accent-bg-color--light: #ffffffb3;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 210;
+}
+
+/* Indentation for API Reference. */
+.md-content div.doc-contents:not(.first) {
+  padding-left: 25px;
+  border-left: .05rem solid var(--md-typeset-table-color);
+}
+
+/* Gradient banner */
+.md-header {
+  background: linear-gradient(145deg, #2c0082fd 3%, #3d0182ff 31%, #870a82ff 51%, #bd1082ff 79%, #e31482ff 94%, #f91782f9 100%);
+}
+
+.md-tabs {
+  background: none;
+}
+
+[data-md-toggle="search"]:not(:checked) ~ .md-header .md-search__form::after {
+  position: absolute;
+  top: .3rem;
+  right: .3rem;
+  display: block;
+  padding: .1rem .4rem;
+  color: inherit;
+  font-weight: bold;
+  font-size: .8rem;
+  border: .05rem solid var(--md-footer-fg-color--lighter);
+  border-radius: .1rem;
+  content: "/";
+}
