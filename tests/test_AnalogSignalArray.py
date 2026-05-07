@@ -22,6 +22,29 @@ class TestRegularlySampledAnalogSignalArray:
 
         assert hex(id(copied_rsasa)) == hex(id(copied_rsasa._intervalsignalslicer.obj))
 
+    def test_fs_infers_abscissa_vals(self):
+        data = np.random.RandomState(0).rand(5, 10)
+        asa = nel.AnalogSignalArray(data, fs=2)
+
+        assert np.allclose(asa.abscissa_vals, np.arange(10) / 2)
+
+    def test_step_without_abscissa_vals_raises(self):
+        data = np.random.RandomState(0).rand(5, 10)
+
+        with pytest.raises(ValueError, match="use fs=1/step"):
+            nel.AnalogSignalArray(data, step=0.5)
+
+    def test_step_with_abscissa_vals_controls_support_segments(self):
+        data = np.arange(6)
+        abscissa_vals = np.array([1, 11, 21, 31, 51, 61])
+
+        asa = nel.AnalogSignalArray(
+            data, abscissa_vals=abscissa_vals, fs=30000, step=10
+        )
+
+        assert np.allclose(asa.abscissa_vals, abscissa_vals)
+        assert np.allclose(asa.support.data, np.array([[1, 41], [51, 71]]))
+
     def test_add_signal1D_1(self):
         """Add a signal to an 1D AnalogSignalArray"""
         asa = nel.AnalogSignalArray([1, 2, 4])
