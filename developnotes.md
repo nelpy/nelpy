@@ -118,6 +118,43 @@ git tag -l | xargs git tag -d
 git fetch --tags
 ```
 
+Future performance PR: interval and slicing kernels
+===================================================
+
+Create a separate PR titled "Further optimize interval and event slicing kernels"
+for deeper performance work that should stay out of the current interval/event
+slicing PR.
+
+Suggested scope:
+
+* Optimize `IntervalArray.intersect()` sorted-input handling:
+  * Avoid `argsort` / copy when interval data is already sorted.
+  * Preserve non-mutating behavior and existing overlap semantics.
+  * Add benchmarks for already-sorted large interval arrays and singleton queries.
+* Improve singleton interval intersection:
+  * For sorted / merged interval arrays, use `searchsorted` to narrow candidates
+    before overlap checks.
+  * Keep the current boolean-mask path only for unsorted or non-merged cases.
+  * Test singleton on left operand, singleton on right operand, no overlap, and
+    `boundaries=False`.
+* Evaluate an event slicing direct-copy kernel:
+  * Prototype a numba or pure NumPy preallocated copy path that avoids
+    constructing a large `take_idx`.
+  * Compare speed and peak memory against the current take-index approach.
+  * Preserve dtype, empty result behavior, single-series shape, and ragged
+    multi-series output.
+* Evaluate an analog slicing direct-copy / take-index path:
+  * Replace remaining per-interval slice concatenation only if benchmarks show
+    meaningful gains.
+  * Test multi-interval restrictions, all-empty restrictions, and whole-support
+    no-op restrictions.
+
+Acceptance criteria:
+
+* Correctness parity with existing tests plus new edge-case tests.
+* Benchmarks showing either clear speedup or lower memory use.
+* No new public API, dependencies, or behavioral changes.
+
 to get local tags to match those of remote.
 
 See [here](http://stackoverflow.com/questions/1841341/remove-local-tags-that-are-no-longer-on-the-remote-repository).
