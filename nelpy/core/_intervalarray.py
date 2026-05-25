@@ -689,31 +689,66 @@ class IntervalArray:
             logging.warning("interval intersection is empty")
             return type(self)(empty=True)
 
-        new_intervals = []
-
-        # Extract starts and stops and convert to np.array of float64 (for numba)
-        interval_starts_a = np.array(self.starts, dtype=np.float64)
-        interval_stops_a = np.array(self.stops, dtype=np.float64)
-        if interval.data.ndim == 1:
-            interval_starts_b = np.array([interval.data[0]], dtype=np.float64)
-            interval_stops_b = np.array([interval.data[1]], dtype=np.float64)
-        else:
-            interval_starts_b = np.array(interval.data[:, 0], dtype=np.float64)
-            interval_stops_b = np.array(interval.data[:, 1], dtype=np.float64)
-
-        new_starts, new_stops = interval_intersect(
-            interval_starts_a,
-            interval_stops_a,
-            interval_starts_b,
-            interval_stops_b,
-            boundaries,
+        interval_data_a = _sorted_interval_data(self.data, assume_sorted=self.issorted)
+        interval_data_b = _sorted_interval_data(
+            interval.data, assume_sorted=interval.issorted
         )
 
-        for start, stop in zip(new_starts, new_stops):
-            new_intervals.append([start, stop])
+        # Extract starts and stops and convert to np.array of float64 (for numba)
+        interval_starts_a = interval_data_a[:, 0]
+        interval_stops_a = interval_data_a[:, 1]
+        interval_starts_b = interval_data_b[:, 0]
+        interval_stops_b = interval_data_b[:, 1]
 
-        # convert to np.array of float64
-        new_intervals = np.array(new_intervals, dtype=np.float64)
+        if len(interval_starts_a) == 1 or len(interval_starts_b) == 1:
+            if len(interval_starts_b) == 1:
+                keep = (interval_starts_a < interval_stops_b[0]) & (
+                    interval_starts_b[0] < interval_stops_a
+                )
+                if boundaries:
+                    new_starts = np.maximum(
+                        interval_starts_a[keep], interval_starts_b[0]
+                    )
+                    new_stops = np.minimum(interval_stops_a[keep], interval_stops_b[0])
+                else:
+                    new_starts = np.minimum(
+                        interval_starts_a[keep], interval_starts_b[0]
+                    )
+                    new_stops = np.maximum(interval_stops_a[keep], interval_stops_b[0])
+            else:
+                keep = (interval_starts_a[0] < interval_stops_b) & (
+                    interval_starts_b < interval_stops_a[0]
+                )
+                if boundaries:
+                    new_starts = np.maximum(
+                        interval_starts_a[0], interval_starts_b[keep]
+                    )
+                    new_stops = np.minimum(interval_stops_a[0], interval_stops_b[keep])
+                else:
+                    new_starts = np.minimum(
+                        interval_starts_a[0], interval_starts_b[keep]
+                    )
+                    new_stops = np.maximum(interval_stops_a[0], interval_stops_b[keep])
+        elif _is_interval_data_merged(interval_data_a) and _is_interval_data_merged(
+            interval_data_b
+        ):
+            new_starts, new_stops = interval_intersect_sorted(
+                interval_starts_a,
+                interval_stops_a,
+                interval_starts_b,
+                interval_stops_b,
+                boundaries,
+            )
+        else:
+            new_starts, new_stops = interval_intersect(
+                interval_starts_a,
+                interval_stops_a,
+                interval_starts_b,
+                interval_stops_b,
+                boundaries,
+            )
+
+        new_intervals = np.column_stack((new_starts, new_stops))
 
         out = type(self)(new_intervals)
         out._domain = self.domain
@@ -834,6 +869,8 @@ class IntervalArray:
 
         if self.isempty:
             return self
+        if self.n_intervals == 1:
+            return self
 
         if (self.ismerged) and (gap == 0.0):
             # already merged
@@ -844,35 +881,18 @@ class IntervalArray:
         if not newintervalarray.issorted:
             newintervalarray._sort()
 
-        overlap_ = overlap
+        starts = newintervalarray.starts
+        stops = newintervalarray.stops
+        covered_stops = np.maximum.accumulate(stops[:-1] + gap)
+        is_new_group = np.empty(newintervalarray.n_intervals, dtype=bool)
+        is_new_group[0] = True
+        is_new_group[1:] = starts[1:] > covered_stops - overlap
 
-        while not newintervalarray._ismerged(overlap=overlap) or gap > 0:
-            stops = newintervalarray.stops[:-1] + gap
-            starts = newintervalarray.starts[1:] + overlap_
-            to_merge = (stops - starts) >= 0
+        group_starts = np.flatnonzero(is_new_group)
+        new_starts = starts[group_starts]
+        new_stops = np.maximum.reduceat(stops, group_starts)
 
-            new_starts = [newintervalarray.starts[0]]
-            new_stops = []
-
-            next_stop = newintervalarray.stops[0]
-            for i in range(newintervalarray.data.shape[0] - 1):
-                this_stop = newintervalarray.stops[i]
-                next_stop = max(next_stop, this_stop)
-                if not to_merge[i]:
-                    new_stops.append(next_stop)
-                    new_starts.append(newintervalarray.starts[i + 1])
-
-            new_stops.append(max(newintervalarray.stops[-1], next_stop))
-
-            new_starts = np.array(new_starts)
-            new_stops = np.array(new_stops)
-
-            newintervalarray._data = np.vstack([new_starts, new_stops]).T
-
-            # after one pass, all the gap offsets have been added, and
-            # then we just need to keep merging...
-            gap = 0.0
-            overlap_ = 0.0
+        newintervalarray._data = np.column_stack((new_starts, new_stops))
 
         return newintervalarray
 
@@ -1208,6 +1228,26 @@ class SpaceArray(IntervalArray):
         self.base_unit = self.formatter.base_unit
 
 
+def _sorted_interval_data(data, *, assume_sorted=False):
+    """Return interval data sorted by starts without mutating the source array."""
+    data = np.asarray(data, dtype=np.float64)
+    if data.ndim == 1:
+        data = np.array([data], dtype=np.float64)
+    if assume_sorted:
+        return data
+    order = np.argsort(data[:, 0])
+    return data[order]
+
+
+def _is_interval_data_merged(data):
+    """Return True when sorted interval data are non-overlapping."""
+    if len(data) < 2:
+        return True
+    if not utils.is_sorted(data[:, 1]):
+        return False
+    return np.all(data[1:, 0] - data[:-1, 1] > 0)
+
+
 @jit(nopython=True)
 def interval_intersect(
     interval_starts_a,
@@ -1228,5 +1268,38 @@ def interval_intersect(
                 new_stop = min(stop_a, stop_b) if boundaries else max(stop_a, stop_b)
                 new_starts.append(new_start)
                 new_stops.append(new_stop)
+
+    return np.array(new_starts), np.array(new_stops)
+
+
+@jit(nopython=True)
+def interval_intersect_sorted(
+    interval_starts_a,
+    interval_stops_a,
+    interval_starts_b,
+    interval_stops_b,
+    boundaries=True,
+):  # pragma: no cover
+    new_starts = []
+    new_stops = []
+    idx_a = 0
+    idx_b = 0
+
+    while idx_a < len(interval_starts_a) and idx_b < len(interval_starts_b):
+        start_a = interval_starts_a[idx_a]
+        stop_a = interval_stops_a[idx_a]
+        start_b = interval_starts_b[idx_b]
+        stop_b = interval_stops_b[idx_b]
+
+        if start_a < stop_b and start_b < stop_a:
+            new_start = max(start_a, start_b) if boundaries else min(start_a, start_b)
+            new_stop = min(stop_a, stop_b) if boundaries else max(stop_a, stop_b)
+            new_starts.append(new_start)
+            new_stops.append(new_stop)
+
+        if stop_a <= stop_b:
+            idx_a += 1
+        else:
+            idx_b += 1
 
     return np.array(new_starts), np.array(new_stops)

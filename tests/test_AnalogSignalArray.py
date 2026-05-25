@@ -11,6 +11,20 @@ from nelpy.core._analogsignalarray import (
 )
 
 
+def _reference_restrict_analog(data, abscissa_vals, intervals):
+    indices = np.column_stack(
+        (
+            np.searchsorted(abscissa_vals, intervals[:, 0]),
+            np.searchsorted(abscissa_vals, intervals[:, 1] + 1e-10),
+        )
+    )
+    restricted_data = np.hstack([data[:, start:stop] for start, stop in indices])
+    restricted_abscissa = np.concatenate(
+        [abscissa_vals[start:stop] for start, stop in indices]
+    )
+    return restricted_data, restricted_abscissa
+
+
 class TestRegularlySampledAnalogSignalArray:
     def test_copy(self):
         data = np.arange(100)
@@ -368,6 +382,54 @@ def test_analogsignalarray_aliases():
     assert np.allclose(asa.time, abscissa)
     assert np.allclose(asa.ydata, data)
     assert asa.n_epochs == asa.n_intervals
+
+
+def test_rsasa_interval_restriction_randomized_matches_reference():
+    rng = np.random.default_rng(20260515)
+
+    for n_samples in (50, 200, 750):
+        abscissa = np.arange(n_samples, dtype=float) / 20.0
+        data = rng.normal(size=(4, n_samples))
+        asa = RegularlySampledAnalogSignalArray(data=data, abscissa_vals=abscissa)
+        original_data = asa.data.copy()
+        original_abscissa = asa.abscissa_vals.copy()
+        starts = np.sort(rng.uniform(abscissa[0], abscissa[-1], size=20))
+        intervals = nel.EpochArray(np.column_stack((starts, starts + 0.075))).merge()
+
+        sliced = asa[intervals]
+        expected_data, expected_abscissa = _reference_restrict_analog(
+            data, abscissa, intervals.data
+        )
+
+        assert np.allclose(sliced.data, expected_data)
+        assert np.allclose(sliced.abscissa_vals, expected_abscissa)
+        assert np.allclose(asa.data, original_data)
+        assert np.allclose(asa.abscissa_vals, original_abscissa)
+
+
+def test_rsasa_interval_restriction_empty_and_full_support_cases():
+    abscissa = np.arange(10, dtype=float)
+    data = np.vstack((np.arange(10), np.arange(10) + 100))
+    asa = RegularlySampledAnalogSignalArray(data=data, abscissa_vals=abscissa)
+
+    no_samples = asa[nel.EpochArray([[10.25, 10.5], [11.0, 12.0]])]
+    full = asa[nel.EpochArray([[0.0, 9.0]])]
+
+    assert no_samples.data.shape == (2, 0)
+    assert len(no_samples.abscissa_vals) == 0
+    assert np.allclose(full.data, data)
+    assert np.allclose(full.abscissa_vals, abscissa)
+
+
+def test_rsasa_interval_restriction_includes_stop_sample():
+    abscissa = np.array([0.0, 0.5, 1.0, 1.5, 2.0])
+    data = np.array([[10.0, 11.0, 12.0, 13.0, 14.0]])
+    asa = RegularlySampledAnalogSignalArray(data=data, abscissa_vals=abscissa)
+
+    sliced = asa[nel.EpochArray([[0.5, 1.0], [2.0, 2.0]])]
+
+    assert np.allclose(sliced.abscissa_vals, np.array([0.5, 1.0, 2.0]))
+    assert np.allclose(sliced.data, np.array([[11.0, 12.0, 14.0]]))
 
 
 # ---- PositionArray: 1D and 2D ----

@@ -1251,13 +1251,14 @@ class RegularlySampledAnalogSignalArray:
         except AttributeError:
             raise AttributeError("IntervalArray expected")
 
-        indices = []
-        for interval in intervalarray.merge().data:
-            a_start = interval[0]
-            a_stop = interval[1]
-            frm, to = np.searchsorted(self._abscissa_vals, (a_start, a_stop + 1e-10))
-            indices.append((frm, to))
-        indices = np.array(indices, ndmin=2)
+        intervals = intervalarray.merge().data
+        stops = intervals[:, 1] + 1e-10
+        indices = np.column_stack(
+            (
+                np.searchsorted(self._abscissa_vals, intervals[:, 0]),
+                np.searchsorted(self._abscissa_vals, stops),
+            )
+        )
         if np.diff(indices).sum() < len(self._abscissa_vals):
             logger.info("ignoring signal outside of support")
         # check if only one interval and interval is already bounds of data
@@ -1268,17 +1269,15 @@ class RegularlySampledAnalogSignalArray:
                     self._abscissa.support = intervalarray
                     return
         try:
-            data_list = []
-            for start, stop in indices:
-                data_list.append(self._data[:, start:stop])
-            self._data = np.hstack(data_list)
+            self._data = np.hstack(
+                [self._data[:, start:stop] for start, stop in indices]
+            )
         except IndexError:
             self._data = np.zeros([0, self.data.shape[0]])
             self._data[:] = np.nan
-        time_list = []
-        for start, stop in indices:
-            time_list.extend(self._abscissa_vals[start:stop])
-        self._abscissa_vals = np.array(time_list)
+        self._abscissa_vals = np.concatenate(
+            [self._abscissa_vals[start:stop] for start, stop in indices]
+        )
         if update:
             self._abscissa.support = intervalarray
 

@@ -1,7 +1,20 @@
 import numpy as np
 
 import nelpy as nel
+from nelpy.core._eventarray import _restrict_event_series_to_intervals
 from nelpy.utils import ragged_array
+
+
+def _reference_restrict_events(events, intervals):
+    events = np.asarray(events)
+    pieces = []
+    for start, stop in intervals:
+        start_idx = np.searchsorted(events, start)
+        stop_idx = np.searchsorted(events, stop)
+        pieces.append(events[start_idx:stop_idx])
+    if not pieces:
+        return np.empty(0, dtype=events.dtype)
+    return np.concatenate(pieces)
 
 
 class TestEventArray:
@@ -437,3 +450,164 @@ class TestSpikeTrainArrayEtienne:
             sta.iloc[[1, 4], :].data,
         ):
             assert np.allclose(aa, bb)
+
+
+def test_eventarray_interval_slice_many_empty_intervals_preserves_order():
+    sta = nel.SpikeTrainArray(
+        [[1, 3, 5, 7], [2, 4, 6, 8]],
+        support=nel.EpochArray([0, 10]),
+        fs=1,
+    )
+
+    sliced = sta[nel.EpochArray([[0, 0.5], [2.5, 3.5], [9, 9.5]])]
+
+    assert sliced.n_series == 2
+    assert np.allclose(sliced.data[0], np.array([3]))
+    assert np.allclose(sliced.data[1], np.array([]))
+
+
+def test_eventarray_interval_slice_all_empty_single_series_shape():
+    sta = nel.SpikeTrainArray([1, 2], support=nel.EpochArray([0, 10]), fs=1)
+
+    sliced = sta[nel.EpochArray([3, 4])]
+
+    assert sliced.n_series == 1
+    assert sliced.data.shape == (1, 0)
+
+
+def test_eventarray_interval_slice_multiseries_jagged_result():
+    sta = nel.SpikeTrainArray(
+        [[0.5, 1.5, 3.5, 8.0], [2.0, 2.5], [1.0, 4.0, 9.0]],
+        support=nel.EpochArray([0, 10]),
+        fs=1,
+    )
+
+    sliced = sta[nel.EpochArray([[1, 3], [7, 9]])]
+
+    expected = ragged_array(
+        [np.array([1.5, 8.0]), np.array([2.0, 2.5]), np.array([1.0])]
+    )
+    for actual, target in zip(sliced.data, expected):
+        assert np.allclose(actual, target)
+
+
+def test_restrict_event_series_to_intervals_matches_reference():
+    rng = np.random.default_rng(20260514)
+    events = np.sort(rng.uniform(0, 100, size=1000))
+    starts = np.arange(0, 100, 0.5)
+    intervals = np.column_stack((starts, starts + 0.1))
+
+    restricted, _ = _restrict_event_series_to_intervals(events, intervals)
+    reference = np.concatenate(
+        [
+            events[start:stop]
+            for start, stop in np.column_stack(
+                (
+                    np.searchsorted(events, intervals[:, 0]),
+                    np.searchsorted(events, intervals[:, 1]),
+                )
+            )
+        ]
+    )
+
+    assert np.allclose(restricted, reference)
+
+
+def test_restrict_event_series_to_intervals_randomized_stress():
+    rng = np.random.default_rng(20260515)
+
+    cases = [
+        np.array([], dtype=float),
+        np.array([0.0, 1.0, 1.5, 2.0, 9.5]),
+        np.sort(rng.uniform(0, 25, size=200)),
+        np.sort(rng.uniform(0, 25, size=1500)),
+    ]
+
+    for events in cases:
+        for _ in range(20):
+            starts = np.sort(rng.uniform(-2, 27, size=40))
+            widths = rng.uniform(0.0, 0.3, size=starts.size)
+            intervals = np.column_stack((starts, starts + widths))
+            intervals = nel.EpochArray(intervals).merge().data
+
+            restricted, n_kept = _restrict_event_series_to_intervals(events, intervals)
+            expected = _reference_restrict_events(events, intervals)
+
+            assert np.allclose(restricted, expected)
+            assert n_kept == expected.size
+            assert restricted.dtype == np.asarray(events).dtype
+
+
+def test_eventarray_interval_slice_boundary_semantics():
+    sta = nel.SpikeTrainArray(
+        [[1.0, 2.0, 3.0], [0.999, 1.0, 1.999, 2.0]],
+        support=nel.EpochArray([0, 4]),
+        fs=1,
+    )
+
+    sliced = sta[nel.EpochArray([[1.0, 2.0], [3.0, 3.5]])]
+
+    assert np.allclose(sliced.data[0], np.array([1.0, 3.0]))
+    assert np.allclose(sliced.data[1], np.array([1.0, 1.999]))
+
+
+def test_spiketrainarray_interval_slice_randomized_matches_reference():
+    rng = np.random.default_rng(20260515)
+    series = [np.sort(rng.uniform(0, 30, size=size)) for size in (0, 1, 50, 250, 400)]
+    sta = nel.SpikeTrainArray(series, support=nel.EpochArray([0, 30]), fs=1)
+    original = [events.copy() for events in sta.data]
+    starts = np.sort(rng.uniform(0, 29.8, size=45))
+    intervals = nel.EpochArray(np.column_stack((starts, starts + 0.05))).merge()
+
+    sliced = sta[intervals]
+
+    assert sliced.n_series == len(series)
+    for actual, events in zip(sliced.data, series):
+        assert np.allclose(actual, _reference_restrict_events(events, intervals.data))
+    for actual, expected in zip(sta.data, original):
+        assert np.allclose(actual, expected)
+
+
+def test_spiketrainarray_single_series_interval_slice_matches_reference():
+    events = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 8.0, 9.0])
+    intervals = nel.EpochArray([[0.0, 1.0], [1.5, 1.6], [8.5, 9.5]]).merge()
+    sta = nel.SpikeTrainArray(events, support=nel.EpochArray([0, 10]), fs=1)
+
+    sliced = sta[intervals]
+
+    assert sliced.n_series == 1
+    assert sliced.data.shape == (1, 4)
+    assert np.allclose(
+        sliced.data[0], _reference_restrict_events(events, intervals.data)
+    )
+
+
+def test_restrict_event_series_to_intervals_empty_inputs():
+    intervals = np.array([[0, 1], [2, 3]])
+
+    restricted, n_kept = _restrict_event_series_to_intervals(np.array([]), intervals)
+
+    assert restricted.size == 0
+    assert n_kept == 0
+
+
+def test_restrict_event_series_to_intervals_no_hits():
+    events = np.array([10.0, 11.0])
+    intervals = np.array([[0, 1], [2, 3]])
+
+    restricted, n_kept = _restrict_event_series_to_intervals(events, intervals)
+
+    assert restricted.size == 0
+    assert restricted.dtype == events.dtype
+    assert n_kept == 0
+
+
+def test_restrict_event_series_to_intervals_object_wrapper():
+    events = np.array([1.0, 2.0, 3.0], dtype=object)
+    intervals = np.array([[1.5, 3.5]])
+
+    restricted, n_kept = _restrict_event_series_to_intervals(events, intervals)
+
+    assert np.allclose(restricted, np.array([2.0, 3.0]))
+    assert restricted.dtype == float
+    assert n_kept == 2

@@ -382,6 +382,36 @@ class BaseEventArray(ABC):
 
 
 ########################################################################
+def _restrict_event_series_to_intervals(evt_data, intervals):
+    """Return one sorted event series restricted to sorted interval bounds."""
+    evt_data = np.asarray(evt_data)
+    if evt_data.dtype == object:
+        try:
+            evt_data = evt_data.astype(float)
+        except (TypeError, ValueError):
+            pass
+
+    if evt_data.size == 0:
+        return np.empty(0, dtype=evt_data.dtype), 0
+
+    start_idx = np.searchsorted(evt_data, intervals[:, 0])
+    stop_idx = np.searchsorted(evt_data, intervals[:, 1])
+    counts = stop_idx - start_idx
+    keep = counts > 0
+
+    if not np.any(keep):
+        return np.empty(0, dtype=evt_data.dtype), 0
+
+    start_idx = start_idx[keep]
+    counts = counts[keep]
+    total = counts.sum()
+    output_offsets = np.empty_like(counts)
+    output_offsets[0] = 0
+    output_offsets[1:] = np.cumsum(counts[:-1])
+    take_idx = np.arange(total) + np.repeat(start_idx - output_offsets, counts)
+    return evt_data[take_idx], total
+
+
 # class EventArray
 ########################################################################
 class EventArray(BaseEventArray):
@@ -812,33 +842,23 @@ class EventArray(BaseEventArray):
 
         issue_warning = False
         if not self.isempty:
-            for series, evt_data in enumerate(data):
-                indices = []
-                for epdata in newintervals.data:
-                    t_start = epdata[0]
-                    t_stop = epdata[1]
-                    frm, to = np.searchsorted(evt_data, (t_start, t_stop))
-                    indices.append((frm, to))
-                indices = np.array(indices, ndmin=2)
-                if np.diff(indices).sum() < len(evt_data):
+            intervals = newintervals.data
+            singleseries = len(self._data) == 1
+            restricted_series = []
+
+            for evt_data in data:
+                restricted_data, n_kept = _restrict_event_series_to_intervals(
+                    evt_data, intervals
+                )
+                if n_kept < len(evt_data):
                     issue_warning = True
-                singleseries = len(self._data) == 1
-                if singleseries:
-                    data_list = []
-                    for start, stop in indices:
-                        data_list.extend(evt_data[start:stop])
-                    data = np.array(data_list, ndmin=2)
-                else:
-                    # here we have to do some annoying conversion between
-                    # arrays and lists to fully support jagged array
-                    # mutation
-                    data_list = []
-                    for start, stop in indices:
-                        data_list.extend(evt_data[start:stop])
-                    data_ = data.tolist()  # this creates copy
-                    data_[series] = np.array(data_list)
-                    data = utils.ragged_array(data_)
-            self._data = data
+                restricted_series.append(restricted_data)
+
+            if singleseries:
+                self._data = np.array(restricted_series[0], ndmin=2)
+            else:
+                self._data = utils.ragged_array(restricted_series)
+
             if issue_warning:
                 logger.info("ignoring events outside of eventarray support")
 
