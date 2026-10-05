@@ -1993,7 +1993,7 @@ class BinnedEventArray(BaseEventArray):
         if w is None:
             w = 1
 
-        n_bins = int(round(w))
+        n_bins = int(np.rint(w))
         if n_bins < 1 or not np.isclose(w, n_bins, rtol=1e-9, atol=0):
             raise ValueError(f"w must be a positive whole number of bins, got {w}")
 
