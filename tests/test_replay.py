@@ -399,3 +399,50 @@ class TestInputValidation:
             replay.get_significant_events(
                 scores, shuffled_scores, q=-10
             )  # Invalid percentile
+
+
+class TestIntegerArgumentValidation:
+    """``w`` and ``n_shuffles`` must be whole numbers."""
+
+    @pytest.mark.parametrize(
+        "score",
+        [
+            replay.score_Davidson_final_bst_fast,
+            replay.score_Davidson_final_bst,
+            replay.trajectory_score_bst,
+        ],
+    )
+    def test_rejects_non_integer_w(self, score):
+        with pytest.raises(ValueError, match="w has to be an integer"):
+            score(bst=None, tuningcurve=None, w=1.5)
+
+    def test_trajectory_score_array_rejects_non_integer_w(self):
+        with pytest.raises(ValueError, match="w has to be an integer"):
+            replay.trajectory_score_array(
+                np.ones((10, 5)), slope=1.0, intercept=0.0, w=1.5
+            )
+
+    def test_trajectory_score_array_accepts_integer_valued_float_w(self):
+        posterior = np.random.default_rng(0).random((10, 5))
+
+        as_float = replay.trajectory_score_array(
+            posterior, slope=1.0, intercept=0.0, w=2.0
+        )
+        as_int = replay.trajectory_score_array(posterior, slope=1.0, intercept=0.0, w=2)
+
+        assert as_float == as_int
+
+    @pytest.mark.parametrize(
+        ("score", "model"),
+        [
+            (replay.score_Davidson_final_bst_fast, "tuningcurve"),
+            (replay.score_Davidson_final_bst, "tuningcurve"),
+            (replay.linregress_ting, "tuningcurve"),
+            (replay.trajectory_score_bst, "tuningcurve"),
+            (replay.score_hmm_transmat_shuffle, "hmm"),
+            (replay.score_hmm_time_resolved, "hmm"),
+        ],
+    )
+    def test_rejects_non_integer_n_shuffles(self, score, model):
+        with pytest.raises(ValueError, match="n_shuffles must be an integer"):
+            score(bst=None, **{model: None}, n_shuffles=10.5)

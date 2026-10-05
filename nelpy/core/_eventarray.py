@@ -1976,25 +1976,29 @@ class BinnedEventArray(BaseEventArray):
         Parameters
         ----------
         w : int, optional
-            number of bins of width bst.ds to bin into new bin of
-            width bst.ds*w. Default is w=1 (no re-binning).
+            Number of consecutive bins of width ``ds`` to combine into each new
+            bin of width ``ds * w``. Must be a whole number: a ratio such as
+            ``0.3 / 0.1`` that is an integer up to floating-point error is
+            accepted, but ``0.125 / 0.05`` (2.5) raises a ValueError. Default is
+            1 (no re-binning).
 
         Returns
         -------
         out : BinnedEventArray
-            New BinnedEventArray with coarser resolution.
+            New BinnedEventArray with coarser resolution. Within each support
+            interval, trailing bins that do not fill a complete group of ``w``
+            are dropped.
         """
 
         if w is None:
             w = 1
 
-        if not float(w).is_integer:
-            raise ValueError("w has to be an integer!")
-
-        w = int(w)
+        n_bins = int(round(w))
+        if n_bins < 1 or not np.isclose(w, n_bins, rtol=1e-9, atol=0):
+            raise ValueError(f"w must be a positive whole number of bins, got {w}")
 
         bst = self
-        return self._rebin_binnedeventarray(bst, w=w)
+        return self._rebin_binnedeventarray(bst, w=n_bins)
 
     @staticmethod
     def _rebin_binnedeventarray(bst, w=None):

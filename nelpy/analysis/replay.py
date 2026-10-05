@@ -523,10 +523,11 @@ def score_Davidson_final_bst_fast(
 
     if w is None:
         w = 0
-    if not float(w).is_integer:
+    if not float(w).is_integer():
         raise ValueError("w has to be an integer!")
+    w = int(w)
 
-    if float(n_shuffles).is_integer:
+    if float(n_shuffles).is_integer():
         n_shuffles = int(n_shuffles)
     else:
         raise ValueError("n_shuffles must be an integer!")
@@ -712,10 +713,11 @@ def score_Davidson_final_bst(
 
     if w is None:
         w = 0
-    if not float(w).is_integer:
+    if not float(w).is_integer():
         raise ValueError("w has to be an integer!")
+    w = int(w)
 
-    if float(n_shuffles).is_integer:
+    if float(n_shuffles).is_integer():
         n_shuffles = int(n_shuffles)
     else:
         raise ValueError("n_shuffles must be an integer!")
@@ -810,7 +812,7 @@ def linregress_ting(bst, tuningcurve, n_shuffles=250):
         Shuffled R^2 values for each event and shuffle.
     """
 
-    if float(n_shuffles).is_integer:
+    if float(n_shuffles).is_integer():
         n_shuffles = int(n_shuffles)
     else:
         raise ValueError("n_shuffles must be an integer!")
@@ -1238,8 +1240,9 @@ def trajectory_score_array(
 
     if w is None:
         w = 0
-    if not float(w).is_integer:
+    if not float(w).is_integer():
         raise ValueError("w has to be an integer!")
+    w = int(w)
     if slope is None or intercept is None:
         slope, intercept, _ = linregress_array(posterior=posterior)
 
@@ -1294,10 +1297,11 @@ def trajectory_score_bst(
 
     if w is None:
         w = 0
-    if not float(w).is_integer:
+    if not float(w).is_integer():
         raise ValueError("w has to be an integer!")
+    w = int(w)
 
-    if float(n_shuffles).is_integer:
+    if float(n_shuffles).is_integer():
         n_shuffles = int(n_shuffles)
     else:
         raise ValueError("n_shuffles must be an integer!")
@@ -1442,7 +1446,7 @@ def score_hmm_transmat_shuffle(bst, hmm, n_shuffles=250, normalize=False):
         Shuffled log probabilities for each event and shuffle.
     """
 
-    if float(n_shuffles).is_integer:
+    if float(n_shuffles).is_integer():
         n_shuffles = int(n_shuffles)
     else:
         raise ValueError("n_shuffles must be an integer!")
@@ -1757,7 +1761,7 @@ def score_hmm_time_resolved(bst, hmm, n_shuffles=250, normalize=False):
         Shuffled log probabilities for each event and shuffle.
     """
 
-    if float(n_shuffles).is_integer:
+    if float(n_shuffles).is_integer():
         n_shuffles = int(n_shuffles)
     else:
         raise ValueError("n_shuffles must be an integer!")

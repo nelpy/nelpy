@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import nelpy as nel
 from nelpy.core._eventarray import _restrict_event_series_to_intervals
@@ -213,6 +214,24 @@ class TestSpikeTrainArray:
 
 
 class TestBinnedSpikeTrainArray:
+    def test_rebin_rounds_float_ratio_and_drops_partial_group(self):
+        st = nel.SpikeTrainArray(
+            np.arange(0.05, 0.8, 0.1), support=nel.EpochArray([0, 0.8]), fs=1000
+        )
+        bst = st.bin(ds=0.1)
+
+        rebinned = bst.rebin(w=0.3 / 0.1)  # 2.9999999999999996
+
+        assert rebinned.ds == pytest.approx(0.3)
+        np.testing.assert_array_equal(rebinned.data, [[3, 3]])
+
+    @pytest.mark.parametrize("w", [0.125 / 0.05, 0, -1])
+    def test_rebin_rejects_w_that_is_not_a_positive_whole_number(self, w):
+        st = nel.SpikeTrainArray([0.1, 0.5], support=nel.EpochArray([0, 1]), fs=1000)
+
+        with pytest.raises(ValueError, match="positive whole number"):
+            st.bin(ds=0.1).rebin(w=w)
+
     def test_construct_with_sta(self):
         fs = 1
         series_ids = [21]
