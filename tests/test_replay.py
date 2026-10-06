@@ -446,3 +446,29 @@ class TestIntegerArgumentValidation:
     def test_rejects_non_integer_n_shuffles(self, score, model):
         with pytest.raises(ValueError, match="n_shuffles must be an integer"):
             score(bst=None, **{model: None}, n_shuffles=10.5)
+
+    @pytest.mark.parametrize(
+        ("score", "model", "first_call"),
+        [
+            (replay.score_Davidson_final_bst_fast, "tuningcurve", "decode"),
+            (replay.score_Davidson_final_bst, "tuningcurve", "decode"),
+            (replay.linregress_ting, "tuningcurve", "decode"),
+            (replay.trajectory_score_bst, "tuningcurve", "decode"),
+            (replay.score_hmm_transmat_shuffle, "hmm", "score_hmm_logprob"),
+            (replay.score_hmm_time_resolved, "hmm", "score_hmm_logprob_cumulative"),
+        ],
+    )
+    def test_accepts_integer_valued_float_n_shuffles(
+        self, monkeypatch, score, model, first_call
+    ):
+        class PastValidation(Exception):
+            pass
+
+        def stop(*args, **kwargs):
+            raise PastValidation
+
+        # Scoring needs decoded data, so stop at the first call after validation.
+        monkeypatch.setattr(replay, first_call, stop)
+
+        with pytest.raises(PastValidation):
+            score(bst=None, **{model: None}, n_shuffles=10.0)
