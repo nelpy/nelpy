@@ -74,3 +74,28 @@ def test_specified_optional_metadata_survives_copy_and_reconstruction(kind, capl
     with caplog.at_level(logging.WARNING):
         assert raw.label is None
     assert not caplog.records
+
+
+@pytest.mark.parametrize("kind", ["events", "spikes", "binned_events", "binned_spikes"])
+def test_missing_optional_metadata_remains_available_at_debug(kind, caplog):
+    obj = _event_object(kind)
+    with caplog.at_level(logging.DEBUG, logger="nelpy.core._eventarray"):
+        assert obj.series_tags is None
+        assert obj.label is None
+    records = [
+        record for record in caplog.records if record.name == "nelpy.core._eventarray"
+    ]
+    assert [record.getMessage() for record in records] == [
+        "series tags have not yet been specified",
+        "label has not yet been specified",
+    ]
+    assert all(record.levelno == logging.DEBUG for record in records)
+
+
+def test_nelpy_logger_level_controls_optional_metadata_diagnostics(caplog):
+    obj = _event_object("spikes")
+    with caplog.at_level(logging.DEBUG):
+        with caplog.at_level(logging.WARNING, logger="nelpy"):
+            assert obj.unit_tags is None
+            assert obj.label is None
+    assert not caplog.records
