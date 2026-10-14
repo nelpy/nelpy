@@ -275,9 +275,9 @@ class BaseEventArray(ABC):
 
     @property
     def series_tags(self):
-        """Tags corresponding to series contained in the BaseEventArray"""
+        """Optional series tags; return None and log at DEBUG when unspecified."""
         if self._series_tags is None:
-            logging.warning("series tags have not yet been specified")
+            logger.debug("series tags have not yet been specified")
         return self._series_tags
 
     @property
@@ -341,9 +341,9 @@ class BaseEventArray(ABC):
 
     @property
     def label(self):
-        """Label pertaining to the source of the event series."""
+        """Optional source label; return None and log at DEBUG when unspecified."""
         if self._label is None:
-            logging.warning("label has not yet been specified")
+            logger.debug("label has not yet been specified")
         return self._label
 
     @label.setter
