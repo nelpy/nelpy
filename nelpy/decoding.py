@@ -276,6 +276,7 @@ def decode1D(
         Maximum value of external variable (default is 100).
     w : int, optional
         Window size for decoding (default is 1).
+        Epochs shorter than w bins are decoded once using their actual duration.
     nospk_prior : array_like or float, optional
         Prior distribution over external correlates with shape (n_ext,). Used if no spikes are observed in a decoding window. If scalar, a uniform prior is assumed. Default is np.nan.
     _skip_empty_bins : bool, optional
@@ -361,7 +362,6 @@ def decode1D(
         )  # ii'th data segment, with column of zeros prepended
         datacum = np.hstack((np.zeros((n_units, 1)), datacum))
         re = w  # right edge ptr
-        # TODO: check if datalen < w and act appropriately
         if posterior_lengths[ii] > 1:  # more than one full window fits into data length
             for tt in range(posterior_lengths[ii]):
                 obs = datacum[:, re] - datacum[:, re - w]  # spikes in window of size w
@@ -374,17 +374,17 @@ def decode1D(
                     posterior[:, post_idx] = (
                         np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx
                     ).sum(axis=0) + eterm
-        else:  # only one window can fit in, and perhaps only partially. We just take all the data we can get,
-            # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
+        else:  # Decode the entire epoch when at most one window fits.
             post_idx = cum_posterior_lengths[ii]
             obs = datacum[:, -1]  # spikes in window of size at most w
+            window_eterm = -ratemap.sum(axis=0) * bst.ds * data.shape[1]
             if obs.sum() == 0 and _skip_empty_bins:
                 # no spikes to decode in window!
                 posterior[:, post_idx] = nospk_prior
             else:
                 posterior[:, post_idx] = (
                     np.tile(np.array(obs, ndmin=2).T, n_xbins) * lfx
-                ).sum(axis=0) + eterm
+                ).sum(axis=0) + window_eterm
 
     # normalize posterior:
     posterior = np.exp(posterior - logsumexp(posterior, axis=0))
@@ -429,6 +429,7 @@ def decode2D(
         Maximum y value of external variable (default is 100).
     w : int, optional
         Window size for decoding (default is 1).
+        Epochs shorter than w bins are decoded once using their actual duration.
     nospk_prior : array_like or float, optional
         Prior distribution over external correlates with shape (ext_nx, ext_ny). Used if no spikes are observed in a decoding window. If scalar, a uniform prior is assumed. Default is np.nan.
     _skip_empty_bins : bool, optional
@@ -522,7 +523,6 @@ def decode2D(
         )  # ii'th data segment, with column of zeros prepended
         datacum = np.hstack((np.zeros((n_units, 1)), datacum))
         re = w  # right edge ptr
-        # TODO: check if datalen < w and act appropriately
         if posterior_lengths[ii] > 1:  # more than one full window fits into data length
             for tt in range(posterior_lengths[ii]):
                 obs = datacum[:, re] - datacum[:, re - w]  # spikes in window of size w
@@ -535,17 +535,17 @@ def decode2D(
                     posterior[:, :, post_idx] = (
                         tile_obs(obs, n_xbins, n_ybins) * lfx
                     ).sum(axis=0) + eterm
-        else:  # only one window can fit in, and perhaps only partially. We just take all the data we can get,
-            # and ignore the scaling problem where the window size is now possibly less than bst.ds*w
+        else:  # Decode the entire epoch when at most one window fits.
             post_idx = cum_posterior_lengths[ii]
             obs = datacum[:, -1]  # spikes in window of size at most w
+            window_eterm = -ratemap.sum(axis=0) * bst.ds * data.shape[1]
             if obs.sum() == 0 and not _skip_empty_bins:
                 # no spikes to decode in window!
                 posterior[:, :, post_idx] = nospk_prior
             else:
                 posterior[:, :, post_idx] = (tile_obs(obs, n_xbins, n_ybins) * lfx).sum(
                     axis=0
-                ) + eterm
+                ) + window_eterm
 
     # normalize posterior:
     # see http://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
