@@ -10,6 +10,8 @@ __all__ = [
     "linear_merge",
     "PrettyDuration",
     "ddt_asa",
+    "locsmooth",
+    "savgol_filter",
     "get_contiguous_segments",
     "get_events_boundaries",
     "get_threshold_crossing_epochs",
@@ -18,15 +20,18 @@ __all__ = [
 
 import copy
 import logging
+import operator
 from collections import namedtuple
 from itertools import tee
 from math import floor
 
+import numba
 import numpy as np
 from numpy import ceil, log
 from scipy.ndimage import gaussian_filter as scipy_gaussian_filter
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import hilbert
+from scipy.signal import savgol_filter as scipy_savgol_filter
 
 from . import core  # so that core.RegularlySampledAnalogSignalArray is exposed
 from .utils_.decorators import keyword_deprecation
@@ -1238,7 +1243,7 @@ def get_contiguous_segments(
         bdries = []
 
         if not index:
-            for k, g in groupby(enumerate(data), lambda ix: (ix[0] - ix[1])):
+            for k, g in groupby(enumerate(data), lambda ix: ix[0] - ix[1]):
                 f = itemgetter(1)
                 gen = (f(x) for x in g)
                 start = next(gen)
@@ -1248,7 +1253,7 @@ def get_contiguous_segments(
                 bdries.append([start, stop + step])
         else:
             counter = 0
-            for k, g in groupby(enumerate(data), lambda ix: (ix[0] - ix[1])):
+            for k, g in groupby(enumerate(data), lambda ix: ix[0] - ix[1]):
                 f = itemgetter(1)
                 gen = (f(x) for x in g)
                 _ = next(gen)
@@ -2257,6 +2262,308 @@ def gaussian_filter(
                         )
                     )
 
+    return out
+
+
+def _round_half_up(value):
+    """Round a non-negative scalar with MATLAB's half-up convention."""
+    return int(np.floor(value + 0.5))
+
+
+@numba.njit(cache=True, parallel=True)
+def _running_line_kernel(data, window_samples, step_samples):
+    n_signals, n_samples = data.shape
+    w = window_samples
+    # Windows start every step_samples, plus one final window ending at the last sample.
+    n_grid = (n_samples - w) // step_samples + 1
+    final_start = n_samples - w
+    has_final = (n_grid - 1) * step_samples != final_start
+    n_windows = n_grid + 1 if has_final else n_grid
+
+    center = (w + 1) / 2.0
+    half = w / 2.0
+    centered = np.empty(w)
+    weights = np.empty(w)
+    position_ss = 0.0
+    for j in range(w):
+        centered[j] = j + 1 - center
+        position_ss += centered[j] * centered[j]
+        # Chronux uses a tricube taper to blend adjacent unweighted line fits.
+        weights[j] = (1.0 - abs((j + 1 - half) / half) ** 3) ** 3
+
+    means = np.empty((n_signals, n_windows), dtype=data.dtype)
+    slopes = np.empty((n_signals, n_windows), dtype=data.dtype)
+    for k in numba.prange(n_windows):
+        start = final_start if k == n_grid else k * step_samples
+        for i in range(n_signals):
+            total = 0.0
+            moment = 0.0
+            for j in range(w):
+                value = data[i, start + j]
+                total += value
+                moment += value * centered[j]
+            means[i, k] = total / w
+            slopes[i, k] = moment / position_ss
+
+    # Each sample gathers the fits covering it, so samples can run in parallel.
+    out = np.empty_like(data)
+    for t in numba.prange(n_samples):
+        k_hi = min(t // step_samples, n_grid - 1)
+        first = t - w + 1
+        k_lo = 0 if first <= 0 else (first + step_samples - 1) // step_samples
+        for i in range(n_signals):
+            blended = 0.0
+            normalization = 0.0
+            last_fit = 0.0
+            for k in range(k_lo, k_hi + 1):
+                offset = t - k * step_samples
+                last_fit = means[i, k] + slopes[i, k] * centered[offset]
+                blended += last_fit * weights[offset]
+                normalization += weights[offset]
+            if has_final and t >= final_start:
+                offset = t - final_start
+                last_fit = means[i, n_grid] + slopes[i, n_grid] * centered[offset]
+                blended += last_fit * weights[offset]
+                normalization += weights[offset]
+            # The final sample is covered only at zero taper weight; use its fit.
+            out[i, t] = blended / normalization if normalization > 0 else last_fit
+    return out
+
+
+def _running_line(data, window_samples, step_samples):
+    """Apply Chronux-style running-line smoothing to one continuous segment."""
+    data = np.ascontiguousarray(data, dtype=np.result_type(data.dtype, float))
+    return _running_line_kernel(data, min(window_samples, data.shape[1]), step_samples)
+
+
+def locsmooth(obj, *, window, step=None, inplace=False):
+    """Smooth a regularly sampled signal with Chronux-style running-line fits.
+
+    This is a nelpy-native implementation of Chronux's ``locsmooth`` routine.
+    A line is fit to each fixed-width, overlapping window and adjacent fits are
+    blended with a tricube taper. Unlike Gaussian smoothing, local linear fits
+    preserve linear trends at the boundaries of each support interval.
+
+    Parameters
+    ----------
+    obj : RegularlySampledAnalogSignalArray
+        Signal to smooth. Each support interval is smoothed independently, so
+        data are never fit across a gap in support.
+    window : float
+        Width of each local fitting window in ``obj.base_unit``.
+    step : float, optional
+        Separation between consecutive fitting windows in ``obj.base_unit``.
+        Defaults to half ``window``, matching Chronux.
+    inplace : bool, optional
+        If True, replace ``obj`` data and return it. Otherwise, return a copy.
+        Default is False.
+
+    Returns
+    -------
+    RegularlySampledAnalogSignalArray
+        The smoothed signal, with the same type, sampling rate, timestamps, and
+        support as ``obj``.
+
+    Warnings
+    --------
+    Do not use ``locsmooth`` to estimate firing rates from binned spike counts.
+    A line fit around an isolated spike overshoots on either side of it, so the
+    result can contain negative firing rates. Use a non-negative Gaussian kernel rate estimate on
+    the spike times instead.
+
+    Notes
+    -----
+    ``window`` and ``step`` are converted to samples using MATLAB's half-up
+    rounding convention. A requested window longer than a support interval is
+    reduced to that interval's length, yielding one global linear fit there.
+    At least two samples are required per support interval.
+
+    The original Chronux implementation has an uncovered final sample and
+    fails for its documented full-length default window. This implementation
+    retains the running-line estimator while fitting a final window ending at
+    the support boundary.
+
+    The fits run in a numba-compiled kernel that is parallelized across
+    windows and samples. The first call in a new environment compiles the
+    kernel (cached on disk afterwards). Use ``numba.set_num_threads`` to limit
+    the number of threads.
+
+    Examples
+    --------
+    >>> asa = nel.AnalogSignalArray([0, 1, 4, 3, 4, 7], fs=10)
+    >>> smoothed = nel.utils.locsmooth(asa, window=0.4)
+
+    """
+    if not isinstance(obj, core.RegularlySampledAnalogSignalArray):
+        raise NotImplementedError(f"locsmooth for {type(obj)} is not yet supported!")
+    if obj.isempty:
+        raise ValueError("locsmooth requires at least two samples per support interval")
+    if obj.fs is None:
+        raise ValueError("obj must have a sampling rate for locsmooth")
+
+    try:
+        window = float(window)
+    except (TypeError, ValueError):
+        raise TypeError("window must be a positive scalar")
+    if not np.isfinite(window) or window <= 0:
+        raise ValueError("window must be a positive finite scalar")
+
+    if step is None:
+        step = window / 2
+    try:
+        step = float(step)
+    except (TypeError, ValueError):
+        raise TypeError("step must be a positive scalar")
+    if not np.isfinite(step) or step <= 0:
+        raise ValueError("step must be a positive finite scalar")
+
+    window_samples = _round_half_up(window * obj.fs)
+    step_samples = _round_half_up(step * obj.fs)
+    if window_samples < 2:
+        raise ValueError("window must contain at least two samples")
+    if step_samples < 1:
+        raise ValueError("step must contain at least one sample")
+    if step_samples >= window_samples:
+        raise ValueError("step must be shorter than window")
+    if not np.isfinite(obj.data).all():
+        raise ValueError("locsmooth does not support NaN or infinite samples")
+
+    out = obj if inplace else obj.copy()
+    smoothed = np.empty(out.data.shape, dtype=np.result_type(out.data.dtype, float))
+    for start, stop in out._data_interval_indices():
+        if stop - start < 2:
+            raise ValueError(
+                "locsmooth requires at least two samples per support interval"
+            )
+        smoothed[:, start:stop] = _running_line(
+            out.data[:, start:stop], window_samples, step_samples
+        )
+    out.data = smoothed
+    return out
+
+
+def savgol_filter(obj, *, window, polyorder=2, deriv=0, inplace=False):
+    """Smooth or differentiate a regularly sampled signal with a Savitzky-Golay filter.
+
+    A polynomial of degree ``polyorder`` is least-squares fit to a centered
+    window around every sample, and the fitted value (or its ``deriv``-th
+    derivative) at the window center is returned. This applies
+    :func:`scipy.signal.savgol_filter` to each support interval separately, so
+    no window ever spans a gap in support.
+
+    Parameters
+    ----------
+    obj : RegularlySampledAnalogSignalArray
+        Signal to filter. Each support interval is filtered independently.
+    window : float
+        Width of the fitting window in ``obj.base_unit``.
+    polyorder : int, optional
+        Degree of the fitted polynomial. Must be smaller than the window
+        length in samples. Default is 2.
+    deriv : int, optional
+        Order of the derivative to return, at most ``polyorder``. Derivatives
+        are per ``obj.base_unit``, e.g. ``deriv=1`` on positions in cm sampled
+        in seconds returns cm/s. Default is 0 (smoothing only).
+    inplace : bool, optional
+        If True, replace ``obj`` data and return it. Otherwise, return a copy.
+        Default is False.
+
+    Returns
+    -------
+    RegularlySampledAnalogSignalArray
+        The filtered signal, with the same type, sampling rate, timestamps, and
+        support as ``obj``.
+
+    Warnings
+    --------
+    Do not use ``savgol_filter`` to estimate firing rates from binned spike
+    counts. For ``polyorder >= 2`` the filter has negative weights, so the result
+    can contain negative firing rates around isolated spikes. Use a
+    non-negative Gaussian kernel rate estimate on the spike times instead.
+
+    Notes
+    -----
+    ``window`` is converted to samples with half-up rounding and, if the
+    result is even, increased by one so that every window is centered on a
+    sample. A window longer than a support interval is reduced to the largest
+    odd number of samples that fits in it.
+
+    Samples within half a window of a support boundary are evaluated from the
+    polynomial fit to the first or last full window of the interval
+    (SciPy's ``mode="interp"``), so no padding beyond the support is assumed.
+
+    Complex signals are filtered as separate real and imaginary parts.
+
+    Examples
+    --------
+    >>> asa = nel.AnalogSignalArray([0, 1, 4, 3, 4, 7, 6, 9], fs=10)
+    >>> smoothed = nel.utils.savgol_filter(asa, window=0.5, polyorder=2)
+    >>> slope = nel.utils.savgol_filter(asa, window=0.5, polyorder=2, deriv=1)
+
+    """
+    if not isinstance(obj, core.RegularlySampledAnalogSignalArray):
+        raise NotImplementedError(
+            f"savgol_filter for {type(obj)} is not yet supported!"
+        )
+    if obj.isempty:
+        raise ValueError("savgol_filter requires a non-empty signal")
+    if obj.fs is None:
+        raise ValueError("obj must have a sampling rate for savgol_filter")
+
+    try:
+        window = float(window)
+    except (TypeError, ValueError):
+        raise TypeError("window must be a positive scalar")
+    if not np.isfinite(window) or window <= 0:
+        raise ValueError("window must be a positive finite scalar")
+
+    try:
+        polyorder = operator.index(polyorder)
+        deriv = operator.index(deriv)
+    except TypeError:
+        raise TypeError("polyorder and deriv must be integers")
+    if polyorder < 0 or deriv < 0:
+        raise ValueError("polyorder and deriv must be non-negative")
+    if deriv > polyorder:
+        raise ValueError("deriv must not exceed polyorder")
+
+    window_samples = _round_half_up(window * obj.fs)
+    if window_samples % 2 == 0:
+        window_samples += 1
+    if window_samples <= polyorder:
+        raise ValueError("window must contain more samples than polyorder")
+    if not np.isfinite(obj.data).all():
+        raise ValueError("savgol_filter does not support NaN or infinite samples")
+
+    def _filter(data, window_length):
+        return scipy_savgol_filter(
+            data,
+            window_length,
+            polyorder,
+            deriv=deriv,
+            delta=1 / obj.fs,
+            axis=-1,
+            mode="interp",
+        )
+
+    out = obj if inplace else obj.copy()
+    filtered = np.empty(out.data.shape, dtype=np.result_type(out.data.dtype, float))
+    for start, stop in out._data_interval_indices():
+        n_samples = stop - start
+        largest_odd = n_samples if n_samples % 2 else n_samples - 1
+        window_length = min(window_samples, largest_odd)
+        if window_length <= polyorder:
+            raise ValueError(
+                "each support interval must contain more samples than polyorder"
+            )
+        segment = out.data[:, start:stop]
+        if np.iscomplexobj(segment):
+            real = _filter(segment.real, window_length)
+            imag = _filter(segment.imag, window_length)
+            filtered[:, start:stop] = real + 1j * imag
+        else:
+            filtered[:, start:stop] = _filter(segment, window_length)
+    out.data = filtered
     return out
 
 
