@@ -111,6 +111,7 @@ nav:
   - EpochArray Tutorial: tutorials/EpochArrayTutorial.ipynb
   - Linear Track Demo: tutorials/LinearTrackDemo.ipynb
   - SpikeTrain Smoothing: tutorials/SpikeTrainSmoothing.ipynb
+  - Local Signal Smoothing: tutorials/LocalSignalSmoothing.ipynb
   - plotting: tutorials/plotting.ipynb
   - WMaze Demo: tutorials/WMazeDemo.ipynb
   - Backyard Brains EEG: tutorials/BackyardBrainsEEG.ipynb
